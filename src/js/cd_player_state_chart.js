@@ -4,6 +4,12 @@ function require_cd_player_def(cd_player, utils) {
     var fsm = require_async_fsm(utils);
 
     const FORWARD_INTERVAL = 250;
+    const TOOLTIP_PLAY_BUTTON_PLAY = 'Play';
+    const TOOLTIP_PAUSE_BUTTON_PAUSE = 'Pause';
+    const TOOLTIP_EJECT_BUTTON_EJECT = 'Eject';
+    const TOOLTIP_PLAY_BUTTON_RESUME = 'Resume';
+    const TOOLTIP_PAUSE_BUTTON_RESUME = 'Resume';
+    const TOOLTIP_EJECT_BUTTON_CLOSE = 'Close';
 
     // Model definition
     var model = {
@@ -15,7 +21,10 @@ function require_cd_player_def(cd_player, utils) {
         backward_timer_id: undefined,
         end_of_cd: false,
         hiddenS: undefined,
-        hidden$: undefined
+        hidden$: undefined,
+        play_tooltip: '',
+        pause_tooltip: '',
+        eject_tooltip: ''
     };
 
     // States definition
@@ -80,6 +89,8 @@ function require_cd_player_def(cd_player, utils) {
     function stop(model) {
         cd_player.stop('stopping...');
         model.hiddenS.onNext(true);
+        model.play_tooltip = TOOLTIP_PLAY_BUTTON_PLAY;
+        model.pause_tooltip = TOOLTIP_PAUSE_BUTTON_PAUSE;
         return model;
     }
 
@@ -100,17 +111,22 @@ function require_cd_player_def(cd_player, utils) {
             .share()
             .do(utils.rxlog('visibility'));
         model.last_track = cd_player.get_last_track();
+        model.play_tooltip = TOOLTIP_PLAY_BUTTON_PLAY;
+        model.pause_tooltip = TOOLTIP_PAUSE_BUTTON_PAUSE;
+        model.eject_tooltip = TOOLTIP_EJECT_BUTTON_EJECT;
 
         return model;
     }
 
     function open_drawer(model, event_data) {
         cd_player.open_drawer('opening drawer...');
+        model.eject_tooltip = TOOLTIP_EJECT_BUTTON_EJECT;
         return model;
     }
 
     function close_drawer(model, event_data) {
         cd_player.close_drawer('closing drawer...');
+        model.eject_tooltip = TOOLTIP_EJECT_BUTTON_CLOSE;
         return model;
     }
 
@@ -125,18 +141,12 @@ function require_cd_player_def(cd_player, utils) {
         // we would have to create the observable in the function through Rx.Observable.create, wrapping the websocket
         model.current_track$ = model.current_track$ || cd_player_streams.current_track$;
         model.current_cd_play_time$ = model.current_cd_play_time$ || cd_player_streams.current_time$;
+        model.play_tooltip = TOOLTIP_PLAY_BUTTON_PLAY;
         return model;
     }
 
     function poll_play_time(model, event_data, fsm, cd_player_events) {
         return update_play_time(model, event_data, fsm, cd_player_events);
-    }
-
-    function create_polling_timer(name, timeout) {
-        console.log(name + ' started!');
-        return window.setInterval(function timer() {
-            fsm.send_event(cd_player_events.TIMER_EXPIRED, name);
-        }, timeout);
     }
 
     function eject(model, event_data) {
@@ -167,29 +177,28 @@ function require_cd_player_def(cd_player, utils) {
     function pause_playing_cd(model, event_data, fsm, cd_player_events) {
         cd_player.pause();
         model.hiddenS.onNext(false);
-/*
-        model.hidden$ = model.hidden$ || model.hiddenS // subject to toggle the hidden$ observable
-            .flatMapLatest(function (flag) {
-                return flag
-                    ? Rx.Observable.return('visible').do(function (x) {
-                    console.log("visibility", x)
-                })
-                    : Rx.Observable.interval(500).map(toggle_visibility).share()
-            })
-            .do(function (x) {
-                console.log("visibility", x)
-            });
-*/
-        return model;
-    }
-
-    function create_pause_timer(model) {
-        model.pause_timer_id = create_timer('pause_timer', 500);
+        model.pause_tooltip = TOOLTIP_PAUSE_BUTTON_RESUME;
+        model.play_tooltip = TOOLTIP_PLAY_BUTTON_RESUME;
+        /*
+         model.hidden$ = model.hidden$ || model.hiddenS // subject to toggle the hidden$ observable
+         .flatMapLatest(function (flag) {
+         return flag
+         ? Rx.Observable.return('visible').do(function (x) {
+         console.log("visibility", x)
+         })
+         : Rx.Observable.interval(500).map(toggle_visibility).share()
+         })
+         .do(function (x) {
+         console.log("visibility", x)
+         });
+         */
         return model;
     }
 
     function resume_paused_cd(model, event_data, fsm, cd_player_events) {
         model.hiddenS.onNext(true);
+        model.pause_tooltip = TOOLTIP_PAUSE_BUTTON_PAUSE;
+        model.play_tooltip = TOOLTIP_PLAY_BUTTON_PLAY;
         return play(model, event_data, fsm, cd_player_events);
     }
 
@@ -197,30 +206,16 @@ function require_cd_player_def(cd_player, utils) {
         // NOTE : we have to put this first line to cancel other timers that could conflict
         // This could be put into entry and exit state actions once we have implemented that
         // That would be cleaner as we should not care about previous state here
-        stop_forward_timer(model);
         cd_player.forward_1_s();
-//        model = update_play_time(model, event_data, fsm, cd_player_events);
-//        model.forward_timer_id = create_timer('forward_timer', 250);
-        return model;
-    }
-
-    function stop_forward_timer(model, event_data, fsm, cd_player_events) {
-        model.forward_timer_id && window.clearTimeout(model.forward_timer_id);
-        model.forward_timer_id = undefined;
+        //        model = update_play_time(model, event_data, fsm, cd_player_events);
+        //        model.forward_timer_id = create_timer('forward_timer', 250);
         return model;
     }
 
     function go_backward_1_s(model, event_data, fsm, cd_player_events) {
-        stop_backward_timer(model);
         cd_player.backward_1_s();
-//        update_play_time(model, event_data, fsm, cd_player_events);
-//        model.backward_timer_id = create_timer('backward_timer', 250);
-        return model;
-    }
-
-    function stop_backward_timer(model, event_data, fsm, cd_player_events) {
-        model.backward_timer_id && window.clearTimeout(model.backward_timer_id);
-        model.backward_timer_id = undefined;
+        //        update_play_time(model, event_data, fsm, cd_player_events);
+        //        model.backward_timer_id = create_timer('backward_timer', 250);
         return model;
     }
 
@@ -239,7 +234,7 @@ function require_cd_player_def(cd_player, utils) {
         pause_playing_cd,
         resume_paused_cd,
         go_forward_1_s,
-        go_backward_1_s,
+        go_backward_1_s
     ];
 
     var action_struct = fsm.make_action_DSL(action_list);
@@ -283,7 +278,7 @@ function require_cd_player_def(cd_player, utils) {
         {from: states.cd_loaded_group, to: states.stepping_forwards, event: cd_player_events.FORWARD_DOWN, action: action_enum.go_forward_1_s},
         {from: states.stepping_backwards, to: states.stepping_backwards, event: cd_player_events.TIMER_EXPIRED, action: action_enum.go_backward_1_s},
         {from: states.stepping_backwards, to: states.history.cd_loaded_group, event: cd_player_events.REVERSE_UP, action: action_enum.stop_backward_timer},
-        {from: states.cd_loaded_group, to: states.stepping_backwards, event: cd_player_events.REVERSE_DOWN, action: action_enum.go_backward_1_s},
+        {from: states.cd_loaded_group, to: states.stepping_backwards, event: cd_player_events.REVERSE_DOWN, action: action_enum.go_backward_1_s}
     ];
 
     return {
@@ -293,6 +288,6 @@ function require_cd_player_def(cd_player, utils) {
         cd_player_states: cd_player_states,
         cd_player_events: cd_player_events,
         cd_player_transitions: cd_player_transitions,
-        FORWARD_INTERVAL : FORWARD_INTERVAL
+        FORWARD_INTERVAL: FORWARD_INTERVAL
     }
 }

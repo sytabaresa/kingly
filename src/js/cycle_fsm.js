@@ -5,41 +5,41 @@ var cd_player_api = require_cd_player(utils);
 var cd_player_state_chart = require_cd_player_def(cd_player_api, utils);
 var fsm = require_async_fsm(utils);
 
-function make_action_driver(action_hash) {
+function make_effect_driver(effect_hash) {
     // action_list is a list (array) of actions (function :: model -> event_data -> fsm -> cd_player_events)
     // for now, should be simplified to model -> event_data
     // 1. From the function list, we derive an enumeration from the function names
     //    By construction there cannot be two functions with the same name
     //    The function names will serve as the DSL to represent the actions
     // The resulting DSL is generated to serve as input to the main
-    // action_req maker
-    return function action_req_interpreter(action_req$) {
-        // 1. Look up action_req in list of actions
+    // effect_req maker
+    return function effect_req_interpreter(effect_req$) {
+        // 1. Look up effect_req in list of actions
         // 2. If not there, return error code or send error through subject
         // 3. If there, then execute the action
-        var action_res$ = action_req$
-            .flatMap(function (action_req) {
-                var action_payload = action_req.payload;
-                var action_enum = action_req.action_req;
-                var model = action_req.model;
-                var action = action_hash[action_enum];
-                if (action) {
+        var effect_res$ = effect_req$
+            .flatMap(function (effect_req) {
+                var effect_payload = effect_req.payload;
+                var effect_enum = effect_req.effect_req;
+                var model = effect_req.model;
+                var effect = effect_hash[effect_enum];
+                if (effect) {
                     // CASE : we do have some actions to execute
-                    var action_res = Err.tryCatch(function execute_action(action, action_payload) {
-                        console.info("THEN : we execute the action " + action.name);
-                        return action(model, action_payload);
-                    })(action, action_payload);
-                    if (action_res instanceof Error) {
-                        return Rx.Observable.return(action_res);
+                    var effect_res = Err.tryCatch(function execute_effect(effect, effect_payload) {
+                        console.info("THEN : we execute the effect " + effect.name);
+                        return effect(model, effect_payload);
+                    })(effect, effect_payload);
+                    if (effect_res instanceof Error) {
+                        return Rx.Observable.return(effect_res);
                     }
-                    else return utils.to_observable(action_res);
+                    else return utils.to_observable(effect_res);
                 }
                 else {
                     // TODO : be careful, they say flatMap swallow errors, That should be a fatal error
-                    return Rx.Observable.throw('no action found for action code ' + action_enum);
+                    return Rx.Observable.throw('no effect found for effect code ' + effect_enum);
                 }
             });
-        return action_res$;
+        return effect_res$;
     }
 }
 
@@ -71,20 +71,18 @@ function make_ractive_driver(Ractive_component) {
                 return fsm_state.automatic_event;
             });
         return automatic_intent$;
-        // */
     };
 }
 
 var drivers = {
     // DOM : not used for now
-    effect: make_action_driver(cd_player_state_chart.action_hash),
+    effect: make_effect_driver(cd_player_state_chart.action_hash),
     ractive: make_ractive_driver(Ractive_component)
 };
 
 function main(sources) {
     function intent(sources, cd_player_api, cd_player_state_chart) {
         // set mousedown and mouseup intents
-        // TODO : get the intents from sources.DOM instead of directly from `fromEvent`
         var concat = Array.prototype.concat;
         var id_list = [
             'eject', 'pause', 'play', 'stop', 'next_track', 'previous_track'
@@ -107,7 +105,10 @@ function main(sources) {
 
         // we use a mouseup on the window rather than on the button as the user could keep the mouse button down
         // while moving the pointer out of the button area, hence we would not detect a mouseup in that case
-        var global_mouseup_event = Rx.Observable.fromEvent(document.body, 'mouseup');
+        var global_mouseup_event = Rx.Observable.fromEvent(document.body, 'mouseup')
+//            .map(function (ev) {
+ ///               return {code: cd_player_state_chart.cd_player_events.TIMER_EXPIRED.toUpperCase(), payload: undefined}
+   //         });;
 
         var forward_and_backward_down_intents = mouseup_list.map(function add_mouseup_listener(button_id, index) {
             return Rx.Observable.fromEvent(document.getElementById(button_id), 'mousedown')
@@ -157,13 +158,8 @@ function main(sources) {
         // DOM : Cycle.makeDomDriver(...) ; I want to avoid ES6 so I don't use the DOM driver for now
         // Also for some reasons, it is mandatory to put ractive first in the hashmap
         ractive: fsm_sinks.fsm_state$,
-        effect: fsm_sinks.action_req$,
+        effect: fsm_sinks.effect_req$
     }
 }
 
 Cycle.run(main, drivers);
-
-// TODO : reproduce the problem of cycling and not having a starting with and post on SO
-// TODO : maybe remove or optionalize the internal state metadata passing in the model
-// TODO : try to understand what's happening when there are conditions but none are satisfied
-// TODO : also guard against an action res coming not associated with the action_res we are expecting

@@ -1,8 +1,13 @@
+// TODO : write documentation in readme.md - argue use case for HFSM, give roadmap
+// TODO : write the example properly with requirejs
 // TODO : TEST CASE no history (last seen state is null...)
+// TODO : test all cases (review code) - for instance action depending on condition
 // TODO : add the view (template + enabling disabling of buttons in function of state)
-// TODO : add the tooltips
-// TODO : add the possibility to add conditions one by one on a given transition
-// TODO : entry and exit actions??
+// TODO : add the possibility to add conditions one by one on a given transition (preprocessing the array beforehand?)
+// TODO : entry and exit actions?? annoying as it forces to add up more intermediate state in the internal state machine
+// TODO : reproduce the problem of cycling and not having a starting with and post on SO
+// TODO : maybe remove or optionalize the internal state metadata passing in the model
+// TODO : also guard against an action res coming not associated with the action_res we are expecting
 //{from: states.cd_loaded_group, to: states.cd_stopped, event: cd_player_events.NEXT_TRACK, condition: is_last_track, action: stop},
 //{from: states.cd_loaded_group, to: states.history.cd_loaded_group, event: cd_player_events.NEXT_TRACK, condition: is_not_last_track, action: go_next_track},
 ////vs. {from: states.cd_loaded_group, to: states.cd_stopped, event: cd_player_events.NEXT_TRACK, conditions: [
@@ -10,9 +15,7 @@
 ////      {condition: is_not_last_track, to: states.history.cd_loaded_group, action: go_next_track}
 ////    ]},
 // TODO : Add termination connector (T)?
-// TODO : test all cases (review code) - for instance action depending on condition
 // TODO : abstract the tree traversal for the build states part
-// TODO : lift the fsm to streams
 // TODO : externalize action with possibility to wait for values or move on
 // TODO : DSL
 // TODO : write program which takes a transition specifications and draw a nice graph out of it with yed or else
@@ -32,7 +35,6 @@
 // point is set to false, we have an infinite loop (a very real one which could monopolize the CPU if all actions are synchronous)
 // - To break out of it, maybe put a guard that if we remain in the same state for X steps, transition automatically (to error or else)
 
-// TODO : review the action list (eliminate timers...)
 // TODO : review cd_player (is there something to eliminate ? it should be independent, we use an API, implementation should not matter)
 
 function require_async_fsm(utils) {
@@ -43,7 +45,6 @@ function require_async_fsm(utils) {
     const EXPECTING_INTENT = 'intent';
     const EXPECTING_ACTION_RESULT = 'expecting_action_result';
     const ACTION_IDENTITY = 'identity';
-    const NO_EVENT_HANDLER = 'no_event_handler';
 
     function make_action_DSL(action_list) {
         // action_list is an array whose entries are actions (functions)
@@ -264,7 +265,7 @@ function require_async_fsm(utils) {
                 to: undefined
             },
             payload: undefined,
-            action_req: undefined,
+            effect_req: undefined,
             transition_error: false,
             automatic_event: undefined
         };
@@ -307,7 +308,7 @@ function require_async_fsm(utils) {
 
         function set_event_handlers(transitions, /*OUT*/hash_states, special_events, special_actions) {
             transitions.forEach(function (transition) {
-                // console.log("processing transition:", transition);
+                // console.log("Processing transition:", transition);
                 var from = transition.from, to = transition.to;
                 var action = transition.action;
                 var event = transition.event || special_events.AUTO;
@@ -348,17 +349,17 @@ function require_async_fsm(utils) {
 
                                 return action
                                     // allows for chaining and stop chaining condition
-                                    ? {action_code: action, from: from, to: to}
+                                    ? {effect_code: action, from: from, to: to}
                                     // CASE : I have a condition which is fulfilled but no action
                                     // so, the model does not change, but the transition should happen
-                                    : {action_code: special_actions.identity, from: from, to: to};
+                                    : {effect_code: special_actions.identity, from: from, to: to};
                             }
                             else {
                                 // CASE : condition for transition is not fulfilled
                                 console.log("CASE : "
                                     + (predicate ? "condition " + predicate.name + " for transition NOT fulfilled..."
                                         : "no predicate"));
-                                return {action_code: undefined, from:from, to:to};
+                                return {effect_code: undefined, from: from, to: to};
                             }
                         };
                         condition_checking_fn.displayName = from + condition_suffix;
@@ -367,12 +368,12 @@ function require_async_fsm(utils) {
 
                     return function arr_predicate_reduce_fn(model_, event_data, current_state) {
                         var condition_checked = acc(model_, event_data, current_state);
-                        return condition_checked.action_code
-                            ? condition_checked // would be the action code to interpret
+                        return condition_checked.effect_code
+                            ? condition_checked // would be the effect code to interpret
                             : condition_checking_fn(model_, event_data, current_state);
                     }
                 }, function default_predicate() {
-                    return {action_code: undefined, from:from}
+                    return {effect_code: undefined, from: from}
                 });
             });
         }
@@ -400,7 +401,7 @@ function require_async_fsm(utils) {
         return model;
     }
 
-    function update_model_remove_error_fields(model){
+    function update_model_remove_error_fields(model) {
         model.__error = undefined;
         model.__event = undefined;
         model.__event_data = undefined;
@@ -495,25 +496,25 @@ function require_async_fsm(utils) {
      *   - to : target state for the described transition
      * @param cd_player_state_chart
      * @param intent$
-     * @param action_res$
-     * @returns {{fsm_state${Rx.Observable}, action_req${Rx.Observable}}
+     * @param effect_res$
+     * @returns {{fsm_state${Rx.Observable}, effect_req${Rx.Observable}}
  */
-    function make_fsm(cd_player_state_chart, intent$, action_res$, ractive$) {
+    function make_fsm(cd_player_state_chart, intent$, effect_res$, ractive$) {
         var fsm_initial_state = compute_fsm_initial_state(cd_player_state_chart);
 
         // we gather the state fields interdependencies for the internal controlled states here in a set of impure functions
 
-        function set_internal_state_to_expecting_action_result(fsm_state, from, to, action_code, event_data) {
+        function set_internal_state_to_expecting_effect_result(fsm_state, from, to, effect_code, event_data) {
             // no change of the model to reflect, we only received an intent
             //fsm_state.internal_state.is_model_dirty = false;
             fsm_state.internal_state.is_model_dirty = true; // set to true when we need to pass meta data of internal state
-            // new controlled internal state, we received the intent, now we need to execute the corresponding action
+            // new controlled internal state, we received the intent, now we need to execute the corresponding effect
             fsm_state.internal_state.expecting = EXPECTING_ACTION_RESULT;
-            // when the action result is received, we need to know the impacted transition
+            // when the effect result is received, we need to know the impacted transition
             fsm_state.internal_state.from = from;
             fsm_state.internal_state.to = to;
-            // pass down the action to execute with its parameters
-            fsm_state.action_req = action_code;
+            // pass down the effect to execute with its parameters
+            fsm_state.effect_req = effect_code;
             fsm_state.payload = event_data;
             // no error
             fsm_state.transition_error = false;
@@ -522,13 +523,13 @@ function require_async_fsm(utils) {
         function set_internal_state_to_transition_error(fsm_state, error_msg) {
             // set `is_model_dirty` to true as we have a new model to pass down stream
             fsm_state.internal_state.is_model_dirty = true;
-            // new controlled internal state, we received the intent, now we need to execute the corresponding action
+            // new controlled internal state, we received the intent, now we need to execute the corresponding effect
             fsm_state.internal_state.expecting = EXPECTING_INTENT;
             // from and to are only used to keep track of the transition state for the ACTION_RES internal state
             fsm_state.internal_state.from = undefined;
             fsm_state.internal_state.to = undefined;
-            // no action to execute
-            fsm_state.action_req = undefined;
+            // no effect to execute
+            fsm_state.effect_req = undefined;
             fsm_state.payload = undefined;
             // error to signal
             fsm_state.transition_error = true;
@@ -548,15 +549,15 @@ function require_async_fsm(utils) {
             // EXPECTING_INTENT internal state does not make use of from and to
             fsm_state.internal_state.from = undefined;
             fsm_state.internal_state.to = undefined;
-            // no action request to be made
-            fsm_state.action_req = undefined;
+            // no effect request to be made
+            fsm_state.effect_req = undefined;
             fsm_state.payload = undefined;
             // no error
             fsm_state.transition_error = undefined;
         }
 
         function set_internal_state_to_expecting_intent_but_reporting_action_error(fsm_state, error) {
-            // there was an error while executing the action request
+            // there was an error while executing the effect request
             fsm_state.transition_error = error;
             // but the model was not modified
             fsm_state.internal_state.is_model_dirty = false;
@@ -567,8 +568,8 @@ function require_async_fsm(utils) {
             fsm_state.internal_state.to = undefined;
             // no automatic event
             fsm_state.automatic_event = undefined;
-            // no action request to be made
-            fsm_state.action_req = undefined;
+            // no effect request to be made
+            fsm_state.effect_req = undefined;
             fsm_state.payload = undefined;
 
         }
@@ -587,7 +588,7 @@ function require_async_fsm(utils) {
                 case 'intent' :
                     // 1. First of all, check that this is what we are expecting
                     // In other words, check that the input (event) is compatible with the internal state, so we can
-                    // transition internally to the state action_res
+                    // transition internally to the state effect_res
                     if (fsm_state.internal_state.expecting === EXPECTING_INTENT) {
                         // model_prime will need to have a code for errors (intent not allowed in current state for instance)
                         var intent = merged_labelled_input.intent;
@@ -601,26 +602,26 @@ function require_async_fsm(utils) {
                             // CASE : There is a transition associated to that event
                             utils.log("found event handler!");
                             console.info("WHEN EVENT ", event);
-                            // Reminder : returns false OR an action code
-                            var action_struct = event_handler(model, event_data, current_state);
-                            var action_code = action_struct.action_code;
-                            from = action_struct.from;
-                            to = action_struct.to;
+                            // Reminder : returns false OR an effect code
+                            var effect_struct = event_handler(model, event_data, current_state);
+                            var effect_code = effect_struct.effect_code;
+                            from = effect_struct.from;
+                            to = effect_struct.to;
 
-                            if (action_code) {
-                                // CASE : an action has to be executed
-                                // This code path should always be active as when there is no action, we set action to identity
-                                set_internal_state_to_expecting_action_result(/*OUT*/fsm_state, from, to, action_code, event_data);
+                            if (effect_code) {
+                                // CASE : an effect has to be executed
+                                // This code path should always be active as when there is no effect, we set effect to identity
+                                set_internal_state_to_expecting_effect_result(/*OUT*/fsm_state, from, to, effect_code, event_data);
                                 fsm_state.model = update_model_private_props(model, from, to, fsm_state.internal_state.expecting);
 
                                 return fsm_state;
                             }
                             else {
-                                // CASE : we don't have a truthy action code :
+                                // CASE : we don't have a truthy effect code :
                                 // - none of the guards were truthy, it is a possibility
                                 // So we remain in the same state
                                 set_internal_state_to_expecting_intent(fsm_state, undefined);
-                                console.warn(['No action code found while processing the event', event,
+                                console.warn(['No effect code found while processing the event', event,
                                     'while transitioning from state', from].join(" "));
                                 return fsm_state;
                             }
@@ -644,37 +645,37 @@ function require_async_fsm(utils) {
                     }
                     else {
                         // TODO : think about options for the warning (error?exception?)
-                        // CASE : received action result while expecting intent : that should NEVER happen
-                        // as the fsm is supposed to block waiting for the action to be executed and return its result
-                        console.warn('received action result while waiting for event');
-                        throw 'received action result while waiting for event';
+                        // CASE : received effect result while expecting intent : that should NEVER happen
+                        // as the fsm is supposed to block waiting for the effect to be executed and return its result
+                        console.warn('received effect result while waiting for event');
+                        throw 'received effect result while waiting for event';
                     }
                     break;
 
-                case 'action_res' :
-                    // `action_res` can be any of the basic types, or any object, which includes also being an observable or promise
+                case 'effect_res' :
+                    // `effect_res` can be any of the basic types, or any object, which includes also being an observable or promise
                     // For now we use ractive, which can receive observable, when used in conjunction with the Rxjs observable plugin
-                    // `action_res` can also be Error type if an error occurred
-                    var action_res = merged_labelled_input.action_res;
+                    // `effect_res` can also be Error type if an error occurred
+                    var effect_res = merged_labelled_input.effect_res;
                     var previously_processed_event_data = fsm_state.payload;
 
                     if (fsm_state.internal_state.expecting === EXPECTING_ACTION_RESULT) {
-                        // TODO : also check that I received the right action res, so add a code for that expected action res
-                        // CASE : we receive an action result, and we were expecting it
-                        if (action_res instanceof Error) {
-                            var error = action_res.toString();
-                            // CASE : the action could not be executed satisfactorily
+                        // TODO : also check that I received the right effect  res, so add a code for that expected effect res
+                        // CASE : we receive an effect result, and we were expecting it
+                        if (effect_res instanceof Error) {
+                            var error = effect_res.toString();
+                            // CASE : the effect could not be executed satisfactorily
                             // TODO : what to do in that case?
                             // - have a generic nested state for handling error?
                             // - require user to have specific transitions for handling error?
-                            //   + that means that the action_res must be passed to the condition handler...
+                            //   + that means that the effect_res must be passed to the condition handler...
                             //   + best is probably in the transition definition to define an error transition
                             //     associated to an error event
                             // - fail silently and remain in the same state?
-                            //   + in that case, we still have to change the internal state to NOT expecting action_res
+                            //   + in that case, we still have to change the internal state to NOT expecting effect_res
                             // - fail abruptly with a fatal error passed to a global error handler?
-                            console.error(action_res);
-                            console.error(action_res.stack);
+                            console.error(effect_res);
+                            console.error(effect_res.stack);
                             // For now:
                             // - we do not change state and remain in the current state, waiting for another intent
                             // - but we do not update the model
@@ -682,13 +683,13 @@ function require_async_fsm(utils) {
                             return fsm_state;
                         }
                         else {
-                            // CASE : action was executed correctly
+                            // CASE : effect was executed correctly
                             from = fsm_state.internal_state.from;
                             to = fsm_state.internal_state.to;
-                            var model_prime = action_res;
+                            var model_prime = effect_res;
 
                             // Leave the current state
-                            // CONTRACT : we leave the state only if the action for the transition is successful
+                            // CONTRACT : we leave the state only if the effect for the transition is successful
                             // This is better than backtracking or having the fsm stay in an undetermined state
                             leave_state(from, hash_states);
 
@@ -717,9 +718,9 @@ function require_async_fsm(utils) {
                         }
                     }
                     else {
-                        // CASE : we receive an action result, but we were NOT expecting it
+                        // CASE : we receive an effect result, but we were NOT expecting it
                         // TODO : think about options for the warning (error?exception?)
-                        console.warn('received intent while waiting for action result');
+                        console.warn('received intent while waiting for effect result');
                         return fsm_state;
                     }
                     break;
@@ -744,7 +745,7 @@ function require_async_fsm(utils) {
                     return Rx.Observable.merge(intent$, ractive$).map(utils.label('intent'))
                 })
             ),
-            action_res$.map(utils.label('action_res'))
+            effect_res$.map(utils.label('effect_res'))
         );
         /*
          intent$.map(utils.label('intent'))
@@ -753,7 +754,7 @@ function require_async_fsm(utils) {
          code: fsm_initial_state.special_events.INIT,
          payload: fsm_initial_state.model
          }}),
-         action_res$.map(utils.label('action_res'))
+         effect_res$.map(utils.label('action_res'))
          );
          */
         var fsm_state$ = merged_labelled_sources$
@@ -761,13 +762,13 @@ function require_async_fsm(utils) {
             .share()
             .startWith(fsm_initial_state);
 
-        var action_req$ = fsm_state$
+        var effect_req$ = fsm_state$
             .filter(function (fsm_state) {
-                return fsm_state.action_req;
+                return fsm_state.effect_req;
             })
             .map(function (fsm_state) {
                 return {
-                    action_req: fsm_state.action_req,
+                    effect_req: fsm_state.effect_req,
                     model: fsm_state.model,
                     payload: fsm_state.payload
                 };
@@ -775,7 +776,7 @@ function require_async_fsm(utils) {
 
         return {
             fsm_state$: fsm_state$,
-            action_req$: action_req$,
+            effect_req$: effect_req$
         }
     }
 

@@ -1,0 +1,32 @@
+.spoilerBox {
+    overflow: hidden;
+    border: 1px solid #eee;
+}
+.spoilerBox > div.header {
+    position: relative;
+    margin: 0;
+    cursor: pointer;
+    line-height: 2em;
+    padding: 0px 34px 0px 48px;
+    color: #fff;
+    font-weight: bold;
+    background: linear-gradient(to bottom, #7fc6e6 0%, #61b2db 100%);
+}
+.spoilerBox > div.header > div.navBtn {
+    position: absolute;
+    right: 0px;
+    top: 50%;
+    margin-top: -12px;
+    margin-right: 5px;
+    width: 24px;
+    height: 24px;
+    background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAgCAYAAABU1PscAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAwmQAAMJkB/IcgvgAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAPzSURBVFiFzZffa5V1HMdfzzzOzf1gaJalpmBRigVTNM2IWkaYEVGGhdRV3XZRRP9AN9FFQt5EBEUYUkhlFpVIBF1sDSzJ9QvsYqxf0o/N1G26nVcXn++Rw/Gcec7Zzrb3zXP1PM/79Xnen8/382RqE9AMXMyybJJ5LjUDFgALgfEc0ApsAobVIWBkvoKoOaALWJWu/TmgDdgJbASOAkfUQWA0yzLnymyxUko6gTXALqAHOA4M5IAMaCcANgC3AweAPvU0Ea05AUnGW4GVwA7gUWAdkANOAU05QGCSyNRS4D4C5DPgIPCjOjybsUo5bwGWEwXdQxR4WfJ5lig8BYCJdM2AxcBaYC+wGTgEfDQbsUrGm5PRzUTFtwHXJKCs9J5cuhYACmoimmQj0TDbgHeA3kbEKhnPAUuA9cBuIjIriAg1Vbq3OEKlhjLic11LA2OlLiCKdQPwIPAAsBromMp4MUAeOJ+u5VQpVodTrMbq+RqpQTuA64kp+HCC6CLm/FTKA+OAOWAMGAAGiVHVXOGm0lhtIWLVX0usSibLvcAjxGRZQhT0spyXaAL4HTgBjKJm6lXqk+pxdcwrK6+eU39S96vb1aUpDpWMZ2qLukbdq36oDqnj6XnV6IL6vfqMel0qRlQlGXhc/bpKCNVJ9R+1V31eXae2GU1ZbLw5vXCX+qb6i3q+BuMaoCfUp9Xll8yXvGiJukftU0erfHDeqMyv6vvqbnVlMr1QvVq9S92n/qCeSeC1aFTtV59QlxWbz0ohiJz3AM8C3Smv1Uiin4aAz4H3Ul7vJ47/wmS5UoOWPnMU+BbYBxwDhrMsuzRwLmuYBNEJ3A08Ryx6ZQ+RCsoDI0SjQRxC1UyWcubPAX3AK8BXwJmqJl6KU6eR2S+Mhq0lr3l1oo6oFN8/on6s3qO2W9RX1eEHRIe6Uz2mnq0Rol7ljcFwSL1DXVyz+RKIdnWH+qn6X4MhJtW/1APqFrWlLuNlINqMT/mJ8WkbATGp/qm+oXari6ZtvgzEnephdXiGISaNMbxf3aBW2gamDdFq5PID9d8ZgphQB9WX1ZuM38bGKUFsVd81mm06EBPGqfyiutYpVpGZhlik3qYeVP+2vnF5Uf1ZfUFdPWvmSyA2qW8bk6MWiAvqgLGUrZh18yUQ3epb6ukqIcbUb9SnLLeUzQFEs3qr+roxBitB5I0NtFd9zFjh59Z8QcbWeYv6mvpHGYi8cZJ/qT6kdlnv6dooJYj16qvqb0UQeWOFPmqsJZ3zznxBCeJmY/cfMibNsHpE7bGepWy2pebUG9WX1JPGebHd6SxlU6gh1TDG4ipgK/AdcCrLsrFGvKthMv6z22zwavA/7RuM9hvWoeQAAAAASUVORK5CYII=') center/60% no-repeat;
+}
+/* animate the transition only for animated spoilerBoxes by using the transition-classes (expanding, collapsing) */
+.spoilerBox.collapsing > div.header > div.navBtn { transition: transform 1s; }
+.spoilerBox.expanding > div.header > div.navBtn { transition: transform 1s; transform: rotate(180deg); }
+.spoilerBox.expanded > div.header > div.navBtn { transform: rotate(180deg); }
+
+/* Address the content with :nth-of-type(1) to allow nested spoilerBoxes */
+.spoilerBox div.content:nth-of-type(1) { overflow: hidden; padding: 5px; }
+.spoilerBox.collapsed div.content:nth-of-type(1) { display: none; }
