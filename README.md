@@ -1,15 +1,82 @@
-# [HTML5 Boilerplate](https://html5boilerplate.com)
+# Statecharts
 
-[![Build Status](https://travis-ci.org/h5bp/html5-boilerplate.svg)](https://travis-ci.org/h5bp/html5-boilerplate)
+## Definition
+A statechart is a form of extended hierarchical finite state machine. Cutting to the chase, in the frame of this library, 
+a statechart is composed of :
+
+* A hashmap `S` describing a hierarchy of nested states
+* A set `I` of intents. Alternatively we will use sometimes the term `event` but both will be represented 
+  in this implementation by the same type, hence they carry the exact operational semantics. 
+* A model `M` which is hashmap with a set of properties
+* A set of predicates `C` operating on the model
+* A set of actions/effects which takes a model and gives an updated model
+* A set of transitions which connect a given state, intent/event, predicate to a action/effect and a resulting state
+
+As an intent/event occurs, the state machine will move to another state, depending on the specified predicate/guards or
+remain in the same state if it cannot find a valid transition. As such, a statechart is reactive by design.
+
+## What are they used for?
+Finite state machines are useful when you have an entity :
+
+* Whose behavior changes based on some internal state
+* That state can be rigidly divided into one of a relatively small number of distinct options
+* The entity responds to a series of inputs or events over time.
+
+In games, they are most known for being used in AI, but they are also common in implementations of user input handling, 
+navigating menu screens, parsing text, network protocols, and other asynchronous behavior.
+
+As far as user interface is concerned, the most quoted study on the subject is [Constructing the user interface with statecharts]
+  by Ian Horrocks. A valuable ressource from the inventor of the graphical language of the statecharts is [Modeling Reactive Systems with Statecharts: The STATEMATE Approach] 
+by Professor David Harel.
+
+## Proposed implementation
+The current implementation of the statechart formalism incorporates the following characteristics :
+
+* hierarchy of nested states
+* state machine data model
+* event, states, predicates, actions
+* history mechanism
+* automatic transitions
+
+and do not (yet) incorporate the following characteristics:
+
+* orthogonal/concurrent states
+* history star mechanism
+* entry/exit actions
+
+The proposed implementation makes use of the `cyclejs` light-weight framework to handle asynchrony via the stream abstraction. 
+As such, the main exposed function will take as its input the following set of streams:
+  
+* intents/events
+* action/effect responses
+
+and returns the following streams:
+
+* model (as it changes over time)
+* action/effect requests
+
+The cyclejs framework allows to connect together the effect requests and the effect responses via an effect driver 
+whose exclusive responsibility is to execute the actions/effects to perform as a result of the intent/events. This is in
+line with `cyclejs` guideline to gather all side-effectful function in drivers. For the sake of generality and simplicity,
+all action/effects are executed in the effect driver, even if they do not perform any side-effect. This architecture hence 
+bears some ressemblance with the Elm architecture, and also takes from the free monads by separating an abstract 
+representation of a computation from its interpretation.
+
+## Proposed example
+The proposed example is taken from Ian Horrocks' book and implements the statechart describing the behaviour of a 
+CD-player. Two implementations are proposed, one which handle asynchrony with plain javascript, the second which uses
+ `rxjs`/`cyclejs`. This aims at showing that the statechart formalism works adequately relatively independently 
+ of the implementation   technique chosen for handling asynchronous events.
+ 
+ The starting statechart for the CD player is reproduced below.
+ <TODO: include statechart picture>
+ 
+ NOTE : `ractivejs` is used as a view templating library. The example could naturally be easily implemented with other 
+  libraries (virtual DOM, etc.).
+
+[![Extended state machine](https://en.wikipedia.org/wiki/Extended_finite-state_machine)
 [![devDependency Status](https://david-dm.org/h5bp/html5-boilerplate/dev-status.svg)](https://david-dm.org/h5bp/html5-boilerplate#info=devDependencies)
 
-HTML5 Boilerplate is a professional front-end template for building
-fast, robust, and adaptable web apps or sites.
-
-This project is the product of many years of iterative development and
-combined community knowledge. It does not impose a specific development
-philosophy or framework, so you're free to architect your code in the
-way that you want.
 
 * Homepage: [https://html5boilerplate.com](https://html5boilerplate.com)
 * Source: [https://github.com/h5bp/html5-boilerplate](https://github.com/h5bp/html5-boilerplate)
