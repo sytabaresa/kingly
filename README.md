@@ -221,7 +221,7 @@ Takes a state object (POJO) and returns a hashmap whose properties are the ident
 the POJO.
 For instance, 
 INPUT : `{global_state: {left_state:{nested_state1: ''}, right_state:{nested_state2: ''}}`
-OUTPUT : {NOK: ..., global_state: ..., left_state:..., nested_state1:..., right_state:..., nested_state2:...}
+OUTPUT : `{NOK: ..., global_state: ..., left_state:..., nested_state1:..., right_state:..., nested_state2:...}`
 
 
 ### create_event_enum
@@ -230,7 +230,7 @@ OUTPUT : {NOK: ..., global_state: ..., left_state:..., nested_state1:..., right_
 Takes an array of event identifiers (strings) and returns a hashmap whose properties are the identifiers of the events.
 For instance, 
 INPUT : `['eject', 'pause', 'play', 'stop']`
-OUTPUT : {INIT:..., EJECT: ..., PAUSE: ..., PLAY:..., STOP:...}
+OUTPUT : `{INIT:..., EJECT: ..., PAUSE: ..., PLAY:..., STOP:...}`
 
 ### make_action_DSL
 
