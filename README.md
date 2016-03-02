@@ -124,17 +124,19 @@ addressing future work is the following :
 A statechart object is composed of :
 
 * an initial value for its model. Can be any kind of objects or primitive types. It is a good practice to detail the 
-properties of the model, even if that results in many `undefined` values being assigned to properties. This is also 
+properties of the model, even if that results in many undefined values being assigned to properties. This is also 
 a good place to document the structure of the model, and the meaning of its properties.
 
 * an object (POJO) describing the hierarchical states for the statecharts. Each property of the object represents a 
 state identifier. Each property nested under another property represents a state nested under another state. 
 
-For example, {global_state: {left_state:{nested_state1: ''}, right_state:{nested_state2: ''}} produce the following state
+For example, `{global_state: {left_state:{nested_state1: ''}, right_state:{nested_state2: ''}}` produce the following state
 hierarchy : 
 
+```
 global_state --> left_state   --> nested_state1
              |-> right_state  --> nested_state2
+```
 
 For the moment, there is no extra information to be passed (hence the ''). In the future, this is where the entry and exit
  actions will be stored.
