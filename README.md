@@ -31,7 +31,8 @@ conventional FSMs. Statecharts provide a very efficient way of sharing behavior,
 no longer explodes but tends to faithfully represent the complexity of the reactive system it describes.
 
 In games, they are most known for being used in AI, but they are also common in implementations of user input handling, 
-navigating menu screens, parsing text, network protocols, and other asynchronous behavior.
+navigating menu screens, parsing text, network protocols, and other asynchronous behavior in connection with embedded 
+systems.
 
 As far as user interface is concerned, the most quoted study on the subject is *Constructing the user interface with statecharts*
   by Ian Horrocks. A valuable ressource from the inventor of the graphical language of the statecharts is 
@@ -95,7 +96,7 @@ CD-player. Two implementations are proposed, one which handle asynchrony with pl
  of the implementation technique chosen for handling asynchronous events.
  
  The starting statechart for the CD player is reproduced below.
-![cd player state chart](http://imgur.com/ygsOVi9)
+![cd player state chart](http://i.imgur.com/ygsOVi9.jpg)
  
  NOTE : `ractivejs` is used as a view templating library. The ractive driver is experimental and is not production-grade.
   As a matter of fact, this example uses an `Rxjs` ractive adaptor which is currently slightly buggy. However, the example 
