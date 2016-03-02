@@ -138,7 +138,7 @@ global_state --> left_state   --> nested_state1
              |-> right_state  --> nested_state2
 ```
 
-For the moment, there is no extra information to be passed (hence the ''). In the future, this is where the entry and exit
+For the moment, there is no extra information to be passed (hence the `''`). In the future, this is where the entry and exit
  actions will be stored.
 
 CONTRACT : 
@@ -160,8 +160,10 @@ debugging purposes.
 * A transition array where each entry describes a valid transition for the state machine.
 
 A transition has the following possible formats : 
+
 1. `{from: <state_enum>, to: <state_enum>, event: <event_enum>, condition : <predicate>, action: <action_enum>}`
 2. `{from: <state_enum>, event: <event_enum>, conditions : [condition_clause]}`
+
 where:
 
   * A state enumeration can be created via the helper function `create_state_enum`
