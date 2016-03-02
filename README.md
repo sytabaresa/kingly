@@ -249,6 +249,9 @@ Takes an array of `action :: model -> payload -> model`, and return a POJO with 
  1. `action_enum` : hashmap whose properties are action codes uniquely representing a given action
  2. `action_hash` : hashmap mapping an action code to an action function
 
+## Installation
+Copy the whole directory somewhere, and open `index.html` with your browser.
+
 ## Browser support
 
 For now, only tested on latest chrome stable version (v48).
