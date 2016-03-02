@@ -223,7 +223,9 @@ NOTE : In the same way, intent and events in the frame of this documentation are
 Takes a state object (POJO) and returns a hashmap whose properties are the identifiers of the states as extracted from
 the POJO.
 For instance, 
+
 INPUT : `{global_state: {left_state:{nested_state1: ''}, right_state:{nested_state2: ''}}`
+
 OUTPUT : `{NOK: ..., global_state: ..., left_state:..., nested_state1:..., right_state:..., nested_state2:...}`
 
 
@@ -233,7 +235,9 @@ OUTPUT : `{NOK: ..., global_state: ..., left_state:..., nested_state1:..., right
 
 Takes an array of event identifiers (strings) and returns a hashmap whose properties are the identifiers of the events.
 For instance, 
+
 INPUT : `['eject', 'pause', 'play', 'stop']`
+
 OUTPUT : `{INIT:..., EJECT: ..., PAUSE: ..., PLAY:..., STOP:...}`
 
 ### make_action_DSL
