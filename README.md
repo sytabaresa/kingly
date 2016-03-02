@@ -33,9 +33,9 @@ no longer explodes but tends to faithfully represent the complexity of the react
 In games, they are most known for being used in AI, but they are also common in implementations of user input handling, 
 navigating menu screens, parsing text, network protocols, and other asynchronous behavior.
 
-As far as user interface is concerned, the most quoted study on the subject is [Constructing the user interface with statecharts]
+As far as user interface is concerned, the most quoted study on the subject is *Constructing the user interface with statecharts*
   by Ian Horrocks. A valuable ressource from the inventor of the graphical language of the statecharts is 
-  [Modeling Reactive Systems with Statecharts: The STATEMATE Approach] 
+  *Modeling Reactive Systems with Statecharts: The STATEMATE Approach* 
 by Professor David Harel.
 
 ## Proposed implementation
@@ -101,7 +101,7 @@ CD-player. Two implementations are proposed, one which handle asynchrony with pl
   As a matter of fact, this example uses an `Rxjs` ractive adaptor which is currently slightly buggy. However, the example 
   could naturally be easily implemented with other libraries (virtual DOM, etc.).
 
-[![Extended state machine](https://en.wikipedia.org/wiki/Extended_finite-state_machine)
+[![Extended state machine](https://en.wikipedia.org/wiki/Extended_finite-state_machine)]
 
 ## Roadmap
 There is still a large amount of work to fully achieve the promised benefits of the statechart formalism. The current roadmap
