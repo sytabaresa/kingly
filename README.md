@@ -185,6 +185,7 @@ where:
 ### make_fsm
 
 `make_fsm :: statechart -> intent$ -> effect_res$ -> display_engine -> {fsm_state$, effect_req$})`
+
 Takes a statechart `{initial_model, state_hierarchy, event_enum, action_hash, transitions}` and creates the corresponding
  state machine with the following semantics:
   
@@ -217,6 +218,7 @@ NOTE : In the same way, intent and events in the frame of this documentation are
 ### create_state_enum
 
 `create_state_enum :: state_hierarchy -> state_enum`
+
 Takes a state object (POJO) and returns a hashmap whose properties are the identifiers of the states as extracted from
 the POJO.
 For instance, 
@@ -227,6 +229,7 @@ OUTPUT : `{NOK: ..., global_state: ..., left_state:..., nested_state1:..., right
 ### create_event_enum
 
 `create_event_enum :: [event_identifiers] -> event_enum`
+
 Takes an array of event identifiers (strings) and returns a hashmap whose properties are the identifiers of the events.
 For instance, 
 INPUT : `['eject', 'pause', 'play', 'stop']`
@@ -235,6 +238,7 @@ OUTPUT : `{INIT:..., EJECT: ..., PAUSE: ..., PLAY:..., STOP:...}`
 ### make_action_DSL
 
 `make_action_DSL :: action_list -> {action_enum, action_hash}`
+
 Takes an array of `action :: model -> payload -> model`, and return a POJO with two fields:
  1. `action_enum` : hashmap whose properties are action codes uniquely representing a given action
  2. `action_hash` : hashmap mapping an action code to an action function
