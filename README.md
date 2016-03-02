@@ -79,6 +79,8 @@ extra parameters to get additional benefits:
 
 * safety : transitions can only happen as specified in the charts, i.e. no action will be executed in the wrong state 
   of the model. This should allow to eliminate a significant class of bugs.
+* the program should be easier to reason about as its key flows are made explicit
+* better testability (in principle) as one can test the program flow separately from the actions
 * better maintainability : the design is entirely communicated by the statechart whose visual form can be automatically
 computed. That visual aid can serve as a documentation of the design and constitutes a simpler/faster entry into the 
 program semantics.
@@ -100,13 +102,6 @@ CD-player. Two implementations are proposed, one which handle asynchrony with pl
   could naturally be easily implemented with other libraries (virtual DOM, etc.).
 
 [![Extended state machine](https://en.wikipedia.org/wiki/Extended_finite-state_machine)
-[![devDependency Status](https://david-dm.org/h5bp/html5-boilerplate/dev-status.svg)](https://david-dm.org/h5bp/html5-boilerplate#info=devDependencies)
-
-
-* Homepage: [https://html5boilerplate.com](https://html5boilerplate.com)
-* Source: [https://github.com/h5bp/html5-boilerplate](https://github.com/h5bp/html5-boilerplate)
-* Twitter: [@h5bp](https://twitter.com/h5bp)
-
 
 ## Roadmap
 There is still a large amount of work to fully achieve the promised benefits of the statechart formalism. The current roadmap
