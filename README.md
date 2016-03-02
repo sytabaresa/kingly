@@ -207,7 +207,7 @@ Takes a statechart `{initial_model, state_hierarchy, event_enum, action_hash, tr
    * an effect result is received while waiting for an intent/event
  
 NOTE : When looking from a state machine point of view, we use `action` to denote the function to execute while changing 
-state. From a `cyclejs` driver point of view, we use the word `effect`. Both words however carries identical semantics 
+state. From a `cyclejs` driver point of view, we use the word `effect`. Both words however carry identical semantics 
 in the frame of this documentation. Not to be confused with how the word is used in Elm to denote function performing
 side-effects. Here effects **MAY** perform side-effects but not necessarily so. For the sake of simplicity and generality, 
 it is a design decision to gather both side-effecting and non-side-effecting actions in the effect driver.
