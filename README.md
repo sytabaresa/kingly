@@ -95,7 +95,7 @@ CD-player. Two implementations are proposed, one which handle asynchrony with pl
  of the implementation technique chosen for handling asynchronous events.
  
  The starting statechart for the CD player is reproduced below.
- <TODO: include statechart picture>
+![cd player state chart](http://imgur.com/ygsOVi9)
  
  NOTE : `ractivejs` is used as a view templating library. The ractive driver is experimental and is not production-grade.
   As a matter of fact, this example uses an `Rxjs` ractive adaptor which is currently slightly buggy. However, the example 
