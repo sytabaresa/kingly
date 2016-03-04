@@ -15,7 +15,7 @@ function require_cd_player_def(cd_player, utils) {
     var model = {
         cd_in_drawer: true,
         current_track$: undefined,
-        current_cd_play_time$: 0, //in s
+        current_cd_play_time$: undefined, //in s
         last_track: undefined,
         forward_timer_id: undefined,
         backward_timer_id: undefined,
@@ -44,7 +44,7 @@ function require_cd_player_def(cd_player, utils) {
             stepping_backwards: ''
         }
     };
-    var states = fsm.build_state_enum(cd_player_states);
+    var states = fsm.create_state_enum(cd_player_states);
 
     // Events definition
     var cd_player_events = fsm.create_event_enum([
@@ -283,10 +283,9 @@ function require_cd_player_def(cd_player, utils) {
 
     return {
         model: model,
-        action_list: action_list,
-        action_hash: action_struct.action_hash,
         cd_player_states: cd_player_states,
         cd_player_events: cd_player_events,
+        action_hash: action_struct.action_hash, // input to effect driver, mapping action code -> action
         cd_player_transitions: cd_player_transitions,
         FORWARD_INTERVAL: FORWARD_INTERVAL
     }

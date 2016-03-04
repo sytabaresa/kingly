@@ -6,8 +6,7 @@ var cd_player_state_chart = require_cd_player_def(cd_player_api, utils);
 var fsm = require_async_fsm(utils);
 
 function make_effect_driver(effect_hash) {
-    // action_list is a list (array) of actions (function :: model -> event_data -> fsm -> cd_player_events)
-    // for now, should be simplified to model -> event_data
+    // An effect is a function :: model -> event_data -> model
     // 1. From the function list, we derive an enumeration from the function names
     //    By construction there cannot be two functions with the same name
     //    The function names will serve as the DSL to represent the actions
@@ -105,10 +104,7 @@ function main(sources) {
 
         // we use a mouseup on the window rather than on the button as the user could keep the mouse button down
         // while moving the pointer out of the button area, hence we would not detect a mouseup in that case
-        var global_mouseup_event = Rx.Observable.fromEvent(document.body, 'mouseup')
-//            .map(function (ev) {
- ///               return {code: cd_player_state_chart.cd_player_events.TIMER_EXPIRED.toUpperCase(), payload: undefined}
-   //         });;
+        var global_mouseup_event = Rx.Observable.fromEvent(document.body, 'mouseup');
 
         var forward_and_backward_down_intents = mouseup_list.map(function add_mouseup_listener(button_id, index) {
             return Rx.Observable.fromEvent(document.getElementById(button_id), 'mousedown')

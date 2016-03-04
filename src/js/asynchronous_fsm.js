@@ -1,5 +1,8 @@
+// TODO : check that the action_res received is the action_res expected i.e. keep action_req at hand, and send action_req with action_res
+//        also, give a unique ID (time+counter) to the request - so modify to_observable or add a function after it
+// TODO : note that AND states gives problems of processing events (an action_res can be received by several states)
+//        so 1 AND state could have received its action result and move on, while the second is still waiting for an action res to come...
 // TODO : write documentation in readme.md - argue use case for HFSM, give roadmap
-// TODO : write the example properly with requirejs
 // TODO : TEST CASE no history (last seen state is null...)
 // TODO : test all cases (review code) - for instance action depending on condition
 // TODO : add the view (template + enabling disabling of buttons in function of state)
@@ -8,6 +11,7 @@
 // TODO : reproduce the problem of cycling and not having a starting with and post on SO
 // TODO : maybe remove or optionalize the internal state metadata passing in the model
 // TODO : also guard against an action res coming not associated with the action_res we are expecting
+// TODO : write the example properly with requirejs
 //{from: states.cd_loaded_group, to: states.cd_stopped, event: cd_player_events.NEXT_TRACK, condition: is_last_track, action: stop},
 //{from: states.cd_loaded_group, to: states.history.cd_loaded_group, event: cd_player_events.NEXT_TRACK, condition: is_not_last_track, action: go_next_track},
 ////vs. {from: states.cd_loaded_group, to: states.cd_stopped, event: cd_player_events.NEXT_TRACK, conditions: [
@@ -35,7 +39,6 @@
 // point is set to false, we have an infinite loop (a very real one which could monopolize the CPU if all actions are synchronous)
 // - To break out of it, maybe put a guard that if we remain in the same state for X steps, transition automatically (to error or else)
 
-// TODO : review cd_player (is there something to eliminate ? it should be independent, we use an API, implementation should not matter)
 
 function require_async_fsm(utils) {
 
@@ -175,10 +178,10 @@ function require_async_fsm(utils) {
             this.history = {last_seen_state: null};
         }
 
-        // The `emitLastSeenStateEvent` is set on the State object which is inherited by all state objects, so it can be
+        // The `emit_last_seen_state_event` is set on the State object which is inherited by all state objects, so it can be
         // called from all of them when a transition triggers a change of state
         State.prototype = {
-            emitLastSeenStateEvent: function (x) {
+            emit_last_seen_state_event: function (x) {
                 last_seen_state_event_emitter.onNext(x);
             },
             current_state_name: INITIAL_STATE_NAME
@@ -202,7 +205,7 @@ function require_async_fsm(utils) {
      * @param states A hash describing a hierarchy of nested states
      * @returns {state_name: {String}, {history: {Function}}}
      */
-    function build_state_enum(states) {
+    function create_state_enum(states) {
         var states_enum = {history: {}};
 
         // Set initial state
@@ -408,7 +411,15 @@ function require_async_fsm(utils) {
         return model;
     }
 
-    function leave_state(from, hash_states) {
+    /**
+     * Side-effects :
+     * - modifies `hash_states`
+     * - emits an `last_seen_from_state` event 
+     * @param from
+     * @param hash_states
+     * @returns -
+     */
+    function leave_state(from, /*OUT*/hash_states) {
         // NOTE : model is passed as a parameter for symetry reasons, no real use for it so far
         var state_from = hash_states[from];
         var state_from_name = state_from.name;
@@ -423,13 +434,21 @@ function require_async_fsm(utils) {
         // about how to go up the hierarchy
         // There is no big difference also, as by default subject emits synchronously their values to all subscribers.
         // The difference in speed should be neglectable, and anyways it is not expected to have large state chart depths
-        state_from.emitLastSeenStateEvent({
+        state_from.emit_last_seen_state_event({
             event_emitter_name: state_from_name,
             last_seen_state_name: state_from_name
         });
     }
 
-    function enter_next_state(to, hash_states) {
+    /**
+     * Side-effects :
+     * - modifies `hash_states`
+     * @param to
+     * @param hash_states
+     * @throws
+     * @returns {String} next state name
+     */
+    function enter_next_state(to, /*OUT*/hash_states) {
         // Enter the target state
         var state_to;
         var state_to_name;
@@ -484,7 +503,6 @@ function require_async_fsm(utils) {
     }
 
     /**
-     * TODO : document transition mechanism
      * TODO : redocument the function
      * - transition format
      *   - events : if not present, then actions become automatic
@@ -497,6 +515,7 @@ function require_async_fsm(utils) {
      * @param cd_player_state_chart
      * @param intent$
      * @param effect_res$
+     * @param ractive$
      * @returns {{fsm_state${Rx.Observable}, effect_req${Rx.Observable}}
  */
     function make_fsm(cd_player_state_chart, intent$, effect_res$, ractive$) {
@@ -602,7 +621,7 @@ function require_async_fsm(utils) {
                             // CASE : There is a transition associated to that event
                             utils.log("found event handler!");
                             console.info("WHEN EVENT ", event);
-                            // Reminder : returns false OR an effect code
+                            // Reminder : returns an effect code which is undefined if there is no effect to execute
                             var effect_struct = event_handler(model, event_data, current_state);
                             var effect_code = effect_struct.effect_code;
                             from = effect_struct.from;
@@ -726,7 +745,7 @@ function require_async_fsm(utils) {
                     break;
 
                 default :
-                    // CASE : mislabelled observables?? should never happened
+                    // CASE : mislabelled observables?? should never happened - fatal error
                     throw 'unknown label for input observable';
                     break;
             }
@@ -747,16 +766,7 @@ function require_async_fsm(utils) {
             ),
             effect_res$.map(utils.label('effect_res'))
         );
-        /*
-         intent$.map(utils.label('intent'))
-         .startWith({
-         intent: {
-         code: fsm_initial_state.special_events.INIT,
-         payload: fsm_initial_state.model
-         }}),
-         effect_res$.map(utils.label('action_res'))
-         );
-         */
+
         var fsm_state$ = merged_labelled_sources$
             .scan(process_fsm_internal_transition, fsm_initial_state)
             .share()
@@ -782,7 +792,7 @@ function require_async_fsm(utils) {
 
     return {
         make_fsm: make_fsm,
-        build_state_enum: build_state_enum,
+        create_state_enum: create_state_enum,
         create_event_enum: create_event_enum,
         make_action_DSL: make_action_DSL
     }
