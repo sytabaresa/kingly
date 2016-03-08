@@ -1,5 +1,13 @@
-function require_utils(Rx) {
-    Rx.config.longStackSupport = true;
+define(function (require) {
+    var Rx = require('rx');
+    var _ = require('lodash');
+    const LOG_CLONE_OBJECTS = false;
+    var clone_deep = LOG_CLONE_OBJECTS ? _.cloneDeep : function(x){return x};
+    return require_utils(Rx, _, clone_deep);
+});
+
+function require_utils(Rx, _, clone_deep) {
+    Rx && (Rx.config) && (Rx.config.longStackSupport = true);
 
     _.mixin({
         'inherit': function (child, base, props) {
@@ -23,9 +31,24 @@ function require_utils(Rx) {
         return ['-', str, '-'].join("");
     }
 
-    function log(x) {
-        console.log(x);
+    function defer_fn (fn, args) {
+        return function() {
+            return fn.apply(null, args);
+        }
     }
+
+    function always(value){
+        return function() { return value}
+    }
+
+    function log(x) {
+        console.log(clone_deep(x));
+    }
+
+    function info() {
+        var args = args_to_array(arguments);
+        console.info.apply(console, args.map(clone_deep));
+    };
 
     function label(action_source) {
         return function prefix_(x) {
@@ -47,7 +70,7 @@ function require_utils(Rx) {
 
     function rxlog(tag) {
         return function (x) {
-            console.log(tag, x);
+            console.warn(tag, clone_deep(x));
         }
     }
 
@@ -74,16 +97,24 @@ function require_utils(Rx) {
         throw 'ERROR: data received from action is of unexpected type!'
     }
 
+    function args_to_array(argument){
+        return Array.prototype.slice.call(argument);
+    }
+
     return {
         identity: identity,
         sum: sum,
         wrap: wrap,
         log: log,
+        info: info,
         label: label,
         to_observable: to_observable,
         clone: clone,
         update_prop: update_prop,
-        rxlog: rxlog
+        rxlog: rxlog,
+        always : always,
+        defer_fn : defer_fn,
+        args_to_array : args_to_array
     }
 }
 

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title></title>
+    <!-- Qunit testing stylesheets -->
+    <link rel="stylesheet" href="../src/css/qunit-1.20.0.css">
+    <!-- Qunit libraries-->
+    <script src="../src/js/vendor/qunit-1.20.0.js"></script>
+    <script type="text/javascript" src="../src/js/vendor/sinon-1.17.2.js"></script>
+    <script type="text/javascript" src="../src/js/vendor/sinon-qunit-1.0.0.js"></script>
+    <!-- Requirejs-->
+    <!-- <script data-main="requirejs-starter" src="../src/js/vendor/require.js"></script>-->
+    <script src="../src/js/vendor/require.js"></script>
+    <!-- Blanket-->
+    <script src="../src/js/vendor/blanket.min.js" data-cover-never="//.*_test|.*vendor|utils/i"></script>
+</head>
+<body>
+<!--  testing ----------- -->
+<!--
+// NOTE: for Qunit in conjunction with require, cf. http://jonnyreeves.co.uk/2012/modular-javascript-unit-testing-with-qunit-and-requirejs/
+//       https://github.com/jonnyreeves/qunit-require
+// never includes a ".js" extension since for the paths
+// paths are relative to baseUrl
+
+-->
+<div id="qunit"></div>
+<div id="qunit-fixture"></div>
+<script>
+    QUnit.config.autostart = false;
+    require({
+        baseUrl: '../src/js',//here the path for required modules is relative to the index.html folder in which requirejs is loaded
+        paths: {
+            jquery: 'vendor/jquery-1.12.0',
+            bootstrap: 'vendor/bootstrap',
+            rx: 'vendor/rx.all',
+            cycle: 'vendor/cycle',
+            ractive: 'vendor/ractive',
+            'ra-adpt-rxjs': 'vendor/ractive-adaptors-rxjs',
+            'ra-adpt-promise-alt': 'vendor/ractive-promise-alt',
+            'ra-decorator-bootstrap': 'vendor/ractive-bootstrap',
+            'ra-decorator-tooltip': 'vendor/ractive-tooltip.min',
+            'ra-decorator-spoilerbox': 'vendor/ractive-decorators-spoilerBox',
+            'lodash': 'vendor/lodash'
+        }
+    }, [
+        // but here the path for `require` dependencies is still relative to the `index.html`
+        "qunit_specs/synchronous_standard_fsm_test.js"
+    ], function () {
+        console.info("Starting QUnit tests");
+        QUnit.start();
+    });
+</script>
+
+</body>
+</html>

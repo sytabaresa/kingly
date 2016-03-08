@@ -1,4 +1,15 @@
-function require_cd_player_view(Ractive) {
+define(function (require) {
+    var Ractive = require('ractive');
+    var _ = require('lodash');
+    var RactiveTooltip = require('ra-decorator-tooltip');
+    require('ra-adpt-rxjs');
+    require('ra-adpt-promise-alt');
+    require('ra-decorator-spoilerbox');
+
+    return require_cd_player_view(Ractive, RactiveTooltip);
+});
+
+function require_cd_player_view(Ractive, RactiveTooltip) {
     // var ractive_tooltip_decorator = require_ractive_tooltip_decorator();
     var template = Ractive.extend({
         el: 'app',

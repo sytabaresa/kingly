@@ -1,7 +1,14 @@
-function require_cd_player_def(cd_player, utils) {
+define(function (require) {
+    var cd_player = require('cd_player_api');
+    var utils = require('utils');
+    var fsm = require('asynchronous_fsm');
+    return require_cd_player_def(cd_player, utils, fsm);
+});
+
+
+function require_cd_player_def(cd_player, utils, fsm) {
     // Object exposing APIs used by the GUI
     //    var cd_player = require_cd_player(utils);
-    var fsm = require_async_fsm(utils);
 
     const FORWARD_INTERVAL = 250;
     const TOOLTIP_PLAY_BUTTON_PLAY = 'Play';
@@ -109,7 +116,7 @@ function require_cd_player_def(cd_player, utils) {
                     : Rx.Observable.interval(500).map(toggle_visibility)
             })
             .share()
-            .do(utils.rxlog('visibility'));
+//            .do(utils.rxlog('visibility'));
         model.last_track = cd_player.get_last_track();
         model.play_tooltip = TOOLTIP_PLAY_BUTTON_PLAY;
         model.pause_tooltip = TOOLTIP_PAUSE_BUTTON_PAUSE;
@@ -243,9 +250,9 @@ function require_cd_player_def(cd_player, utils) {
     // Transitions
     var cd_player_transitions = [
         {from: states.NOK, to: states.no_cd_loaded, event: cd_player_events.INIT, action: action_enum.fsm_initialize_model},
-        {from: states.no_cd_loaded, to: states.cd_drawer_closed, event: cd_player_events.INIT, action: action_enum.open_drawer},
-        {from: states.cd_drawer_closed, to: states.cd_drawer_open, event: cd_player_events.EJECT, action: action_enum.close_drawer},
-        {from: states.cd_drawer_open, to: states.closing_cd_drawer, event: cd_player_events.EJECT, action: action_enum.identity},
+        {from: states.no_cd_loaded, to: states.cd_drawer_closed, event: cd_player_events.INIT, action: action_enum.identity},
+        {from: states.cd_drawer_closed, to: states.cd_drawer_open, event: cd_player_events.EJECT, action: action_enum.open_drawer},
+        {from: states.cd_drawer_open, to: states.closing_cd_drawer, event: cd_player_events.EJECT, action: action_enum.close_drawer},
         {from: states.closing_cd_drawer, conditions: [
             {condition: is_not_cd_in_drawer, to: states.cd_drawer_closed, action: action_enum.identity},
             {condition: is_cd_in_drawer, to: states.cd_loaded, action: action_enum.identity}

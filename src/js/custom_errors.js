@@ -1,6 +1,13 @@
-// SOURCE : http://www.bennadel.com/blog/2828-creating-custom-error-objects-in-node-js-with-error-capturestacktrace.htm
-// Cf. also, http://stackoverflow.com/questions/1382107/whats-a-good-way-to-extend-error-in-javascript/27925672#27925672
-//   answer by Ruben Verborgh, it seems the best
+define(function (require) {
+    // SOURCE : http://www.bennadel.com/blog/2828-creating-custom-error-objects-in-node-js-with-error-capturestacktrace.htm
+    // Cf. also, http://stackoverflow.com/questions/1382107/whats-a-good-way-to-extend-error-in-javascript/27925672#27925672
+    //   answer by Ruben Verborgh, it seems the best
+    var utils = require('utils');
+    var _ = require('lodash');
+
+    return require_custom_errors(utils, _);
+});
+
 function require_custom_errors(utils, _) {
     var log = utils.log;
 
@@ -83,6 +90,9 @@ function require_custom_errors(utils, _) {
             try {
                 return tryCatchTarget.apply(this, arguments);
             } catch (e) {
+                if (typeof(e) === 'string') {
+                    return  createAppError('unregistered error')(e);
+                }
                 return e;
             }
         };

@@ -1,3 +1,9 @@
+define(function (require) {
+    var utils = require('utils');
+    var _ = require('lodash');
+    return require_cd_player(utils);
+});
+
 function require_cd_player(utils) {
     // cd_player object available to actions through closure
     var log = console.log.bind(console);

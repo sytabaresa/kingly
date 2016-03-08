@@ -1,3 +1,4 @@
+// TODO : check if fsm is multi-instances (i.e. new instance every time, no shared data)
 // TODO : check that the action_res received is the action_res expected i.e. keep action_req at hand, and send action_req with action_res
 //        also, give a unique ID (time+counter) to the request - so modify to_observable or add a function after it
 // TODO : note that AND states gives problems of processing events (an action_res can be received by several states)
@@ -38,9 +39,20 @@
 // - Possible if automatic actions (no events) with conditions always true. If there is not another condition which at some
 // point is set to false, we have an infinite loop (a very real one which could monopolize the CPU if all actions are synchronous)
 // - To break out of it, maybe put a guard that if we remain in the same state for X steps, transition automatically (to error or else)
+// CONTRACT : event handlers MUST be pure (they will be executed several times with the same input)
+// CONTRACT : the fsm, after emitting an effect request, blocks till it received the corresponding effect response
+// CONTRACT : every state MUST have only one init transition
 
 
-function require_async_fsm(utils) {
+define(function (require) {
+    var utils = require('utils');
+    var Rx = require('rx');
+    var _ = require('lodash');
+    var synchronous_fsm = require('synchronous_standard_fsm');
+    return require_async_fsm(utils, Rx, synchronous_fsm);
+});
+
+function require_async_fsm(utils, Rx, synchronous_fsm) {
 
     // CONSTANTS
     const INITIAL_STATE_NAME = 'nok';
@@ -112,7 +124,7 @@ function require_async_fsm(utils) {
      * @param states
      * @returns {{hash_states: {}, is_group_state: {}}}
      */
-    function build_nested_state_structure(states, Rx) {
+    function build_nested_state_structure(states) {
         var root_name = 'State';
         var last_seen_state_event_emitter = new Rx.Subject();
         var hash_states = {};
@@ -127,7 +139,7 @@ function require_async_fsm(utils) {
         function add_last_seen_state_listener(child_name, parent_name) {
             last_seen_state_listener_disposables.push(
                 last_seen_state_event_emitter.subscribe(function (x) {
-                    var event_emitter_name = x.event_emitter_name
+                    var event_emitter_name = x.event_emitter_name;
                     var last_seen_state_name = x.last_seen_state_name;
                     if (event_emitter_name === child_name) {
                         console.log(['last seen state set to', utils.wrap(last_seen_state_name), 'in', utils.wrap(parent_name)].join(" "));
@@ -239,9 +251,9 @@ function require_async_fsm(utils) {
         var states = cd_player_state_chart.cd_player_states;
         var events = cd_player_state_chart.cd_player_events;
         var special_events = create_event_enum('auto', 'init');
-        var special_actions = {identity: ACTION_IDENTITY};// TODO : the identity property should be extracted to a constant for DRY
+        var special_actions = {identity: ACTION_IDENTITY};
         var transitions = cd_player_state_chart.cd_player_transitions;
-        var hash_states_struct = build_nested_state_structure(states, Rx);
+        var hash_states_struct = build_nested_state_structure(states);
         // {Object<state_name,boolean>}, allows to know whether a state is a group of state or not
         var is_group_state = hash_states_struct.is_group_state;
         var hash_states = hash_states_struct.hash_states;
@@ -344,9 +356,9 @@ function require_async_fsm(utils) {
                             var to = condition.to;
                             if (!predicate || predicate(model_, event_data)) {
                                 // CASE : condition for transition is fulfilled so we can execute the actions...
-                                console.info("IN STATE ", from);
-                                console.info("WITH model, event data BEING ", model_, event_data);
-                                console.info("CASE : "
+                                utils.info("IN STATE ", from);
+                                utils.info("WITH model, event data BEING ", model_, event_data);
+                                utils.info("CASE : "
                                     + (predicate ? "condition " + predicate.name + " for transition is fulfilled"
                                         : "automatic transition"));
 
@@ -414,7 +426,7 @@ function require_async_fsm(utils) {
     /**
      * Side-effects :
      * - modifies `hash_states`
-     * - emits an `last_seen_from_state` event 
+     * - emits an `last_seen_from_state` event
      * @param from
      * @param hash_states
      * @returns -
@@ -475,12 +487,38 @@ function require_async_fsm(utils) {
         state_to.active = true;
         hash_states[INITIAL_STATE_NAME].current_state_name = state_to_name;
 
-        console.info("AND TRANSITION TO STATE", state_to_name);
+        utils.info("AND TRANSITION TO STATE", state_to_name);
         return state_to_name;
     }
 
-    function process_automatic_events(special_events, hash_states, is_auto_state, is_init_state, previously_processed_event_data) {
-        var current_state = hash_states[INITIAL_STATE_NAME].current_state_name;
+    function get_next_state(to, hash_states) {
+        // Enter the target state
+        var state_to_name;
+        // CASE : history state (H)
+        if (typeof(to) === 'function') {
+            state_to_name = get_fn_name(to);
+
+            var target_state = hash_states[state_to_name].history.last_seen_state;
+            state_to_name = target_state
+                // CASE : history state (H) && existing history, target state is the last seen state
+                ? target_state
+                // CASE : history state (H) && no history (i.e. first time state is entered), target state is the entered state
+                : state_to_name;
+        }
+        // CASE : normal state
+        else if (to) {
+            state_to_name = to;
+        }
+        else {
+            throw 'enter_state : unknown case! Not a state name, and not a history state to enter!'
+        }
+
+        utils.info("AND TRANSITION TO STATE", state_to_name);
+        return state_to_name;
+    }
+
+    function process_automatic_events(state_name, special_events, hash_states, is_auto_state, is_init_state, previously_processed_event_data) {
+        var current_state = state_name;
         // Two cases here:
         // 1. Init handlers, when present on the current state, must be acted on immediately
         // This allows for sequence of init events in various state levels
@@ -499,6 +537,566 @@ function require_async_fsm(utils) {
         else {
             // CASE : nothing special to do, no automatic events to execute
             return undefined;
+        }
+    }
+
+    /////////
+    // Event handler (for all events) for the synchronous state machine which builds the asynchronous state machine
+
+    /**
+     * Curried function which takes a state machine definition and returns a function which allow to operate that state machine
+     * @param fsm_def {State_Machine_Definition} where
+     * - State_Machine_Definition :: Hash {states :: State_Definitions, transitions :: Transitions}, where
+     *   - State_Definitions :: Hash { State_Identifier -> State_Definition } where
+     *     - State_Identifier :: String
+     *     - State_Definition :: Hash { entry :: Function, exit :: Function}
+     *     - FOR NOW not used
+     *   - Transitions :: Hash { State_Identifier -> Hash { Event_Identifier -> Array<Transition> }} where
+     *     - Transition :: Hash {predicate :: T -> E -> Boolean, action :: T -> E -> T, to :: State_Identifier}, where
+     *       - E is a type representing an event (also named input symbol in the state machine terminology)
+     *       - T is any non-trivial type which represent the data associated with the event
+     *
+     * @returns {process_fsm_internal_transition}
+     */
+    function process_fsm_internal_transition(fsm_def) {
+        // NOTE : for this synchronous state machine, the algorithm is pretty simplified :
+        // - we do not need to separate action codes and action functions
+        // - we do not need to wait for an action to return, as it returns immediately
+        // - we removed the need to have an event enumeration by mapping the event object to the event type in one hashmap
+        //   (we could actually do that too for the async. case I suppose)
+        // -> Hence, all the input necessary to define the synchronous state machine are the states, and the transitions
+        //    If we do not have entry/exit actions, we do not even need to hold the state information in one separate
+        //    structure
+        /**
+         * Updates the state machine (available in the currying function closure) state by evaluation the transitions
+         * available in the current state vs. the internal event (`merged_labelled_input`) passed as parameter
+         * @param fsm_state {T} where :
+         * - T represents the extended state (that we will refer to as model for lack a better term)
+         *   managed by the internal state machine
+         * - Here a `variable :: T` will have the controlled state (i.e. the proper state) of the internal state machine in
+         *   `variable.internal_state.expecting`
+         *   - This represents the type of input expected by the internal state machine, either effect response or user intent
+         *
+         * @param merged_labelled_input {Cycle_FSM_Input} where :
+         * - Cycle_FSM_Input :: Hash { Event_Identifier -> E }
+         * Here, E ::
+         * - case Event_Identifier
+         *   - 'intent' : Hash {code :: String, payload : Object}
+         *   - 'effect_res' : Object
+         */
+        return function process_fsm_internal_transition(fsm_state, merged_labelled_input) {
+            ////////////
+            // Helper functions
+
+            ////////////
+            //
+            var fsm_internal_states = fsm_def.states;
+            var fsm_internal_transitions = fsm_def.transitions;
+            var fsm_current_internal_state = fsm_state.internal_state.expecting;
+            // Event format : {event_type : event}
+            // `merged_labelled_input` should only have one key, which is the event type
+            var internal_event_type = Object.keys(merged_labelled_input)[0];
+            // the actual event has the following shape according to the event type:
+            // intent -> {code, payload}, action_res -> Object
+            var internal_event = merged_labelled_input[internal_event_type];
+
+            var evaluation_result = synchronous_fsm.evaluate_internal_transitions(
+                fsm_internal_states,
+                synchronous_fsm.get_internal_transitions(fsm_internal_transitions, fsm_current_internal_state, internal_event_type),
+                /*OUT*/fsm_state, internal_event
+            );
+            if (evaluation_result.error) {
+                throw evaluation_result.error;
+            }
+            else {
+                return synchronous_fsm.update_next_internal_state(/*OUT*/evaluation_result.updated_fsm_state, evaluation_result.next_state);
+            }
+
+            /*
+             switch (Object.keys(merged_labelled_input)[0]) {
+             case 'intent' :
+             // 1. First of all, check that this is what we are expecting
+             // In other words, check that the input (event) is compatible with the internal state, so we can
+             // transition internally to the state effect_res
+             if (fsm_state.internal_state.expecting === EXPECTING_INTENT) {
+             // model_prime will need to have a code for errors (intent not allowed in current state for instance)
+             var intent = merged_labelled_input.intent;
+             var event = intent.code;
+             var event_data = intent.payload;
+             console.log("Processing event ", event, event_data);
+             var current_state = hash_states[INITIAL_STATE_NAME].current_state_name;
+             var event_handler = hash_states[current_state][event];
+
+             if (event_handler) {
+             // CASE : There is a transition associated to that event
+             utils.log("found event handler!");
+             utils.info("WHEN EVENT ", event);
+             // Reminder : returns an effect code which is undefined if there is no effect to execute
+             var effect_struct = event_handler(model, event_data, current_state);
+             var effect_code = effect_struct.effect_code;
+             from = effect_struct.from;
+             to = effect_struct.to;
+
+             if (effect_code) {
+             // CASE : an effect has to be executed
+             // This code path should always be active as when there is no effect, we set effect to identity
+             set_internal_state_to_expecting_effect_result(fsm_state, from, to, effect_code, event_data);
+             fsm_state.model = update_model_private_props(model, from, to, fsm_state.internal_state.expecting);
+
+             return fsm_state;
+             }
+             else {
+             // CASE : we don't have a truthy effect code :
+             // - none of the guards were truthy, it is a possibility
+             // So we remain in the same state
+             set_internal_state_to_expecting_intent(fsm_state, undefined);
+             console.warn(['No effect code found while processing the event', event,
+             'while transitioning from state', from].join(" "));
+             return fsm_state;
+             }
+             }
+             else {
+             // CASE : There is no transition associated to that event from that state
+             // TODO : think more carefully about error management
+             // We keep the internal state `expecting` property the same
+             // However, we update the model to indicate that an error occurred
+             error_msg = 'There is no transition associated to that event!';
+             // we receive an intent but no event handler was found to handle it, we update the model to reflect the error
+             // it will be up to the user to determine what to do with the error
+             fsm_state.model = update_model_private_props(fsm_state.model, current_state, undefined,
+             fsm_state.internal_state.expecting);
+             fsm_state.model = update_model_with_error(fsm_state.model, event, event_data, error_msg);
+
+             set_internal_state_to_transition_error(fsm_state, error_msg);
+
+             return fsm_state;
+             }
+             }
+             else {
+             // TODO : think about options for the warning (error?exception?)
+             // CASE : received effect result while expecting intent : that should NEVER happen
+             // as the fsm is supposed to block waiting for the effect to be executed and return its result
+             console.warn('received effect result while waiting for event');
+             throw 'received effect result while waiting for event';
+             }
+             break;
+
+             case 'effect_res' :
+             // `effect_res` can be any of the basic types, or any object, which includes also being an observable or promise
+             // For now we use ractive, which can receive observable, when used in conjunction with the Rxjs observable plugin
+             // `effect_res` can also be Error type if an error occurred
+             var effect_res = merged_labelled_input.effect_res;
+             var previously_processed_event_data = fsm_state.effect_payload;
+
+             if (fsm_state.internal_state.expecting === EXPECTING_ACTION_RESULT) {
+             // TODO : also check that I received the right effect  res, so add a code for that expected effect res
+             // CASE : we receive an effect result, and we were expecting it
+             if (effect_res instanceof Error) {
+             var error = effect_res.toString();
+             // CASE : the effect could not be executed satisfactorily
+             // TODO : what to do in that case?
+             // - have a generic nested state for handling error?
+             // - require user to have specific transitions for handling error?
+             //   + that means that the effect_res must be passed to the condition handler...
+             //   + best is probably in the transition definition to define an error transition
+             //     associated to an error event
+             // - fail silently and remain in the same state?
+             //   + in that case, we still have to change the internal state to NOT expecting effect_res
+             // - fail abruptly with a fatal error passed to a global error handler?
+             console.error(effect_res);
+             console.error(effect_res.stack);
+             // For now:
+             // - we do not change state and remain in the current state, waiting for another intent
+             // - but we do not update the model
+             set_internal_state_to_expecting_intent_but_reporting_action_error(fsm_state, error);
+             return fsm_state;
+             }
+             else {
+             // CASE : effect was executed correctly
+             from = fsm_state.internal_state.from;
+             to = fsm_state.internal_state.to;
+             var model_prime = effect_res;
+
+             // Leave the current state
+             // CONTRACT : we leave the state only if the effect for the transition is successful
+             // This is better than backtracking or having the fsm stay in an undetermined state
+             leave_state(from, hash_states);
+
+             // ...and enter the next state (can be different from to if we have nesting state group)
+             var next_state = enter_next_state(to, hash_states);
+
+             // send the AUTO event to trigger transitions which are automatic :
+             // - transitions without events
+             // - INIT events
+             var automatic_event = process_automatic_events(
+             fsm_state.special_events,
+             hash_states,
+             fsm_state.is_auto_state,
+             fsm_state.is_init_state,
+             previously_processed_event_data);
+
+             set_internal_state_to_expecting_intent(fsm_state, automatic_event);
+
+             // Update the model after entering the next state
+             fsm_state.model = update_model(model, model_prime);
+             fsm_state.model = update_model_private_props(model, from, next_state, fsm_state.internal_state.expecting);
+
+             utils.info("RESULTING IN : ", fsm_state.model);
+
+             return fsm_state;
+             }
+             }
+             else {
+             // CASE : we receive an effect result, but we were NOT expecting it
+             // TODO : think about options for the warning (error?exception?)
+             console.warn('received effect result while waiting for intent'); // FALSE!!
+             return fsm_state;
+             }
+             break;
+
+             default :
+             // CASE : mislabelled observables?? should never happened - fatal error
+             throw 'unknown label for input observable';
+             break;
+             }
+             */
+        }
+    }
+
+    function get_internal_sync_fsm() {
+        ////////////
+        // Define the (synchronous standard finite) state machine for the state machine maker (!)
+        ////////////
+        // States
+        var fsm_internal_states = {};
+        fsm_internal_states[EXPECTING_INTENT] = {entry: undefined, exit: undefined};
+        fsm_internal_states[EXPECTING_ACTION_RESULT] = {entry: undefined, exit: undefined};
+        // Transitions
+        var fsm_internal_transitions = {};
+        fsm_internal_transitions[EXPECTING_INTENT] = {
+            intent: [
+                {
+                    // CASE : There is a transition associated to that event
+                    predicate: has_event_handler_and_has_effect_code,
+                    action: update_internals_with_effect_code,
+                    to: EXPECTING_ACTION_RESULT
+                },
+                {
+                    // CASE : we don't have a truthy effect code :
+                    // - none of the guards were truthy, it is a possibility
+                    // So we remain in the same state
+                    predicate: has_event_handler_and_has_not_effect_code,
+                    action: emit_warning,
+                    to: EXPECTING_INTENT
+                },
+                {
+                    // CASE : There is no transition associated to that event from that state
+                    predicate: has_not_event_handler,
+                    action: update_model_with_warning,
+                    to: EXPECTING_INTENT // should not matter as we throw an exception
+                }
+            ],
+            effect_res: [// TODO : remove array to test the arraize function
+                {
+                    // CASE : we receive an effect result, but we were NOT expecting it
+                    predicate: utils.always(true), // predicate satisfied
+                    action: emit_only_warning,
+                    to: EXPECTING_INTENT // remain in same state
+                }
+            ]
+        };
+        fsm_internal_transitions[EXPECTING_ACTION_RESULT] = {
+            effect_res: [
+                {
+                    // CASE : the effect could not be executed satisfactorily
+                    predicate: is_effect_error,
+                    action: set_internal_state_to_expecting_intent_but_reporting_action_error,
+                    to: EXPECTING_INTENT
+                },
+                {
+                    // CASE : effect was executed correctly
+                    predicate: utils.always(true),
+                    action: transition_to_next_state,
+                    to: EXPECTING_INTENT
+                }
+            ],
+            intent: {
+                // CASE : received effect result while expecting intent : that should NEVER happen
+                // as the fsm is supposed to block waiting for the effect to be executed and return its result
+                predicate: utils.always(true),
+                action: throw_received_unexpected_effect_result_exception
+            }
+        };
+
+        ////////////
+        // Predicates
+        function has_event_handler(fsm_state, internal_event) {
+            var event = internal_event.code;
+            var hash_states = fsm_state.hash_states;
+            var current_state = hash_states[INITIAL_STATE_NAME].current_state_name;
+            return !!hash_states[current_state][event];
+        }
+
+        function has_effect_code(fsm_state, internal_event) {
+            var event = internal_event.code;
+            var event_data = internal_event.payload;
+            var model = fsm_state.model;
+            var hash_states = fsm_state.hash_states;
+            var current_state = hash_states[INITIAL_STATE_NAME].current_state_name;
+            var event_handler = hash_states[current_state][event];
+            return has_event_handler(fsm_state, internal_event)
+                && event_handler(model, event_data, current_state).effect_code;
+        }
+
+        function has_event_handler_and_has_effect_code(fsm_state, internal_event) {
+            return has_event_handler(fsm_state, internal_event) && has_effect_code(fsm_state, internal_event);
+
+        }
+
+        function has_event_handler_and_has_not_effect_code(fsm_state, internal_event) {
+            return has_event_handler(fsm_state, internal_event) && !has_effect_code(fsm_state, internal_event);
+        }
+
+        function has_not_event_handler(fsm_state, internal_event) {
+            return !has_event_handler(fsm_state, internal_event);
+        }
+
+        function is_effect_error(fsm_state, internal_event) {
+            var effect_res = internal_event;
+            return effect_res instanceof Error;
+        }
+
+        ////////////
+        // Actions
+        function update_internals_with_effect_code(fsm_state, internal_event) {
+            // CASE : There is a transition associated to that event : an effect has to be executed
+            // Reminder : When there is no action defined in the transition, we set the effect to identity
+
+            utils.log("found event handler!");
+            utils.info("WHEN EVENT ", internal_event.code);
+            utils.info("with payload ", internal_event.payload);
+
+            var event = internal_event.code;
+            var event_data = internal_event.payload;
+            var model = fsm_state.model;
+            var hash_states = fsm_state.hash_states;
+            var current_state = hash_states[INITIAL_STATE_NAME].current_state_name;
+            var event_handler = hash_states[current_state][event];
+            var effect_struct = event_handler(model, event_data, current_state);
+            var effect_code = effect_struct.effect_code;
+            var from = effect_struct.from;
+            var to = effect_struct.to;
+
+            set_internal_state_to_expecting_effect_result(/*OUT*/fsm_state, from, to, effect_code, event_data);
+
+            return fsm_state;
+        }
+
+        function emit_warning(fsm_state, internal_event) {
+            var event = internal_event.code;
+            var event_data = internal_event.payload;
+            var model = fsm_state.model;
+            var hash_states = fsm_state.hash_states;
+            var current_state = hash_states[INITIAL_STATE_NAME].current_state_name;
+            var event_handler = hash_states[current_state][event];
+            var effect_struct = event_handler(model, event_data, current_state);
+            var from = effect_struct.from;
+
+            set_internal_state_to_expecting_intent(fsm_state, undefined);
+            console.warn(['No effect code found while processing the event', event,
+                'while transitioning from state', from].join(" "));
+            return fsm_state;
+        }
+
+        function emit_only_warning(fsm_state, internal_event) {
+            // TODO : think about options for the warning (error?exception?)
+            console.warn('received effect result while waiting for intent');
+            return fsm_state;
+        }
+
+        function update_model_with_warning(fsm_state, internal_event) {
+            // CASE : There is no transition associated to that event from that state
+            // TODO : think more carefully about error management : have an optional parameter to decide behaviour?
+            // We keep the internal state `expecting` property the same
+            // However, we update the model to indicate that an error occurred
+            // it will be up to the user to determine what to do with the error
+            var event = internal_event.code;
+            var event_data = internal_event.payload;
+            var hash_states = fsm_state.hash_states;
+            var current_state = hash_states[INITIAL_STATE_NAME].current_state_name;
+            var error_msg = 'There is no transition associated to that event!';
+            fsm_state.model = update_model_private_props(fsm_state.model, current_state, undefined,
+                fsm_state.internal_state.expecting);
+            fsm_state.model = update_model_with_error(fsm_state.model, event, event_data, error_msg);
+
+            utils.info("WHEN EVENT ", event);
+            console.error(error_msg);
+
+            set_internal_state_to_transition_error(/*OUT*/fsm_state, error_msg);
+
+            return fsm_state;
+        }
+
+        function set_internal_state_to_expecting_intent_but_reporting_action_error(fsm_state, internal_event) {
+            var effect_res = internal_event;
+            var error = effect_res.toString();
+            // TODO : what to do in that case?
+            // - have a generic nested state for handling error?
+            // - require user to have specific transitions for handling error?
+            //   + that means that the effect_res must be passed to the condition handler...
+            //   + best is probably in the transition definition to define an error transition
+            //     associated to an error event
+            // - fail silently and remain in the same state?
+            //   + in that case, we still have to change the internal state to NOT expecting effect_res
+            // - fail abruptly with a fatal error passed to a global error handler?
+            console.error(effect_res);
+            console.error(effect_res.stack);
+            // For now:
+            // - we do not change state and remain in the current state, waiting for another intent
+            // - but we do not update the model
+            console.log("Received effect_res", effect_res);
+
+            set_internal_state_to_expecting_intent_but_reporting_action_error_(/*OUT*/fsm_state, error);
+            return fsm_state;
+        }
+
+        /////////
+        // we gather the state fields interdependencies for the internal controlled states here in a set of impure functions
+        function set_internal_state_to_expecting_effect_result(fsm_state, from, to, effect_code, event_data) {
+            // no change of the model to reflect, we only received an intent
+            //fsm_state.internal_state.is_model_dirty = false;
+            fsm_state.internal_state.is_model_dirty = true; // set to true when we need to pass meta data of internal state
+            // new controlled internal state, we received the intent, now we need to execute the corresponding effect
+            fsm_state.internal_state.expecting = EXPECTING_ACTION_RESULT;
+            // no automatic event, we are sending an effect request
+            fsm_state.automatic_event = undefined;
+            // when the effect result is received, we need to know the impacted transition
+            fsm_state.internal_state.from = from;
+            fsm_state.internal_state.to = to;
+            // pass down the effect to execute with its parameters
+            fsm_state.effect_req = effect_code;
+            fsm_state.effect_payload = event_data; // TODO change name to effect_payload to avoid confusion with payload of non-internal events
+            // no error
+            fsm_state.transition_error = false;
+            // update model private props which are computed properties based on `fsm_state`
+            fsm_state.model = update_model_private_props(fsm_state.model, fsm_state.internal_state.from, fsm_state.internal_state.to, fsm_state.internal_state.expecting);
+        }
+
+        function set_internal_state_to_transition_error(fsm_state, error_msg) {
+            // set `is_model_dirty` to true as we have a new model to pass down stream
+            fsm_state.internal_state.is_model_dirty = true;
+            // There is no transition associated to that event, we wait for another event
+            fsm_state.internal_state.expecting = EXPECTING_INTENT;
+            // no automatic event here
+            fsm_state.automatic_event = undefined;
+            // from and to are only used to keep track of the transition state for the ACTION_RES internal state
+            fsm_state.internal_state.from = undefined;
+            fsm_state.internal_state.to = undefined;
+            // no effect to execute
+            fsm_state.effect_req = undefined;
+            fsm_state.effect_payload = undefined;
+            // error to signal
+            fsm_state.transition_error = true;
+            // update model private props which are computed properties based on `fsm_state`
+            // Nice to have : a computed property library like Ampersand&State or Mobx could help, maybe later
+            // NOTE : note that we adjust the model private `to` and `from` to the failed transition (we could not go to the `to`)
+            // and the view displays `to` as the State, so as we remain in the same state the `to` is `from`
+            fsm_state.model = update_model_private_props(fsm_state.model, fsm_state.model.__from, fsm_state.model.__from, fsm_state.internal_state.expecting);
+        }
+
+        function set_internal_state_to_expecting_intent(fsm_state, automatic_event) {
+            // set the automatic event if any (will be undefined if there is none)
+            fsm_state.automatic_event = automatic_event;
+            // model has been modified
+            fsm_state.internal_state.is_model_dirty = true;
+            // but we remain in the internal state EXPECTING_INTENT as there are automatic events
+            // to process. Those events come through the intent$ channel, like other user-originated
+            // events.
+            fsm_state.internal_state.expecting = EXPECTING_INTENT;
+            // EXPECTING_INTENT internal state does not make use of from and to
+            fsm_state.internal_state.from = undefined;
+            fsm_state.internal_state.to = undefined;
+            // no effect request to be made
+            fsm_state.effect_req = undefined;
+            fsm_state.effect_payload = undefined;
+            // no error
+            fsm_state.transition_error = undefined;
+            // update model private props which are computed properties based on `fsm_state`
+            fsm_state.model = update_model_private_props(fsm_state.model, fsm_state.internal_state.from, fsm_state.model.__to, fsm_state.internal_state.expecting);
+        }
+
+        function set_internal_state_to_expecting_intent_but_reporting_action_error_(fsm_state, error) {
+            // there was an error while executing the effect request
+            fsm_state.transition_error = error;
+            // but the model was not modified
+            fsm_state.internal_state.is_model_dirty = false;
+            // so we remain in the internal state EXPECTING_INTENT to receive other events
+            fsm_state.internal_state.expecting = EXPECTING_INTENT;
+            // EXPECTING_INTENT internal state does not make use of from and to
+            fsm_state.internal_state.from = undefined;
+            fsm_state.internal_state.to = undefined;
+            // no automatic event
+            fsm_state.automatic_event = undefined;
+            // no effect request to be made
+            fsm_state.effect_req = undefined;
+            fsm_state.effect_payload = undefined;
+            // update model private props which are computed properties based on `fsm_state`
+            fsm_state.model = update_model_private_props(fsm_state.model, fsm_state.internal_state.from, fsm_state.model.__to, fsm_state.internal_state.expecting);
+        }
+
+        function transition_to_next_state(fsm_state, internal_event) {
+            var effect_res = internal_event;
+            var hash_states = fsm_state.hash_states;
+            var from = fsm_state.internal_state.from;
+            var to = fsm_state.internal_state.to;
+            var model = fsm_state.model;
+            var model_prime = effect_res;
+            var previously_processed_event_data = fsm_state.effect_payload;
+
+            console.log("Received effect_res", effect_res);
+
+            // Leave the current state
+            // CONTRACT : we leave the state only if the effect for the transition is successful
+            // This is better than backtracking or having the fsm stay in an undetermined state
+            leave_state(from, hash_states);
+            var next_state = get_next_state(to, hash_states);
+
+            // send the AUTO event to trigger transitions which are automatic :
+            // - transitions without events
+            // - INIT events
+            var automatic_event = process_automatic_events(
+                next_state,
+                fsm_state.special_events,
+                hash_states,
+                fsm_state.is_auto_state,
+                fsm_state.is_init_state,
+                previously_processed_event_data);
+
+            // Update the model before entering the next state...
+            fsm_state.model = update_model(model, model_prime);            // TODO : have it automatically computed as this is an equality for all times
+            fsm_state.model = update_model_private_props(fsm_state.model, from, next_state, fsm_state.internal_state.expecting);
+
+            set_internal_state_to_expecting_intent(/*OUT*/fsm_state, automatic_event);
+
+            // ...and enter the next state (can be different from `to` if we have nesting state group)
+            var state_to = hash_states[next_state];
+            state_to.active = true;
+            hash_states[INITIAL_STATE_NAME].current_state_name = next_state;
+
+            utils.info("RESULTING IN : ", fsm_state.model);
+
+            return fsm_state;
+        }
+
+        function throw_received_unexpected_effect_result_exception(fsm_state, internal_event) {
+            // TODO : think about options for the warning (error?exception?)
+            console.warn('received effect result while waiting for event');
+            throw 'received effect result while waiting for event';
+        }
+
+        return {
+            states: fsm_internal_states,
+            transitions: fsm_internal_transitions
         }
     }
 
@@ -521,235 +1119,7 @@ function require_async_fsm(utils) {
     function make_fsm(cd_player_state_chart, intent$, effect_res$, ractive$) {
         var fsm_initial_state = compute_fsm_initial_state(cd_player_state_chart);
 
-        // we gather the state fields interdependencies for the internal controlled states here in a set of impure functions
-
-        function set_internal_state_to_expecting_effect_result(fsm_state, from, to, effect_code, event_data) {
-            // no change of the model to reflect, we only received an intent
-            //fsm_state.internal_state.is_model_dirty = false;
-            fsm_state.internal_state.is_model_dirty = true; // set to true when we need to pass meta data of internal state
-            // new controlled internal state, we received the intent, now we need to execute the corresponding effect
-            fsm_state.internal_state.expecting = EXPECTING_ACTION_RESULT;
-            // when the effect result is received, we need to know the impacted transition
-            fsm_state.internal_state.from = from;
-            fsm_state.internal_state.to = to;
-            // pass down the effect to execute with its parameters
-            fsm_state.effect_req = effect_code;
-            fsm_state.payload = event_data;
-            // no error
-            fsm_state.transition_error = false;
-        }
-
-        function set_internal_state_to_transition_error(fsm_state, error_msg) {
-            // set `is_model_dirty` to true as we have a new model to pass down stream
-            fsm_state.internal_state.is_model_dirty = true;
-            // new controlled internal state, we received the intent, now we need to execute the corresponding effect
-            fsm_state.internal_state.expecting = EXPECTING_INTENT;
-            // from and to are only used to keep track of the transition state for the ACTION_RES internal state
-            fsm_state.internal_state.from = undefined;
-            fsm_state.internal_state.to = undefined;
-            // no effect to execute
-            fsm_state.effect_req = undefined;
-            fsm_state.payload = undefined;
-            // error to signal
-            fsm_state.transition_error = true;
-
-            console.error(error_msg);
-        }
-
-        function set_internal_state_to_expecting_intent(fsm_state, automatic_event) {
-            // set the automatic event if any (will be undefined if there is none)
-            fsm_state.automatic_event = automatic_event;
-            // model has been modified
-            fsm_state.internal_state.is_model_dirty = true;
-            // but we remain in the internal state EXPECTING_INTENT as there are automatic events
-            // to process. Those events come through the intent$ channel, like other user-originated
-            // events.
-            fsm_state.internal_state.expecting = EXPECTING_INTENT;
-            // EXPECTING_INTENT internal state does not make use of from and to
-            fsm_state.internal_state.from = undefined;
-            fsm_state.internal_state.to = undefined;
-            // no effect request to be made
-            fsm_state.effect_req = undefined;
-            fsm_state.payload = undefined;
-            // no error
-            fsm_state.transition_error = undefined;
-        }
-
-        function set_internal_state_to_expecting_intent_but_reporting_action_error(fsm_state, error) {
-            // there was an error while executing the effect request
-            fsm_state.transition_error = error;
-            // but the model was not modified
-            fsm_state.internal_state.is_model_dirty = false;
-            // so we remain in the internal state EXPECTING_INTENT to receive other events
-            fsm_state.internal_state.expecting = EXPECTING_INTENT;
-            // EXPECTING_INTENT internal state does not make use of from and to
-            fsm_state.internal_state.from = undefined;
-            fsm_state.internal_state.to = undefined;
-            // no automatic event
-            fsm_state.automatic_event = undefined;
-            // no effect request to be made
-            fsm_state.effect_req = undefined;
-            fsm_state.payload = undefined;
-
-        }
-
-        function process_fsm_internal_transition(fsm_state, merged_labelled_input) {
-            var hash_states = fsm_state.hash_states;
-            var model = fsm_state.model;
-            var from, to;
-            var error_msg;
-            // this is a flag to indicate that the model has possibly changed
-            fsm_state.internal_state.is_model_dirty = false;
-            fsm_state.internal_state.transition_error = false;
-            fsm_state.automatic_event = undefined;
-
-            switch (Object.keys(merged_labelled_input)[0]) {
-                case 'intent' :
-                    // 1. First of all, check that this is what we are expecting
-                    // In other words, check that the input (event) is compatible with the internal state, so we can
-                    // transition internally to the state effect_res
-                    if (fsm_state.internal_state.expecting === EXPECTING_INTENT) {
-                        // model_prime will need to have a code for errors (intent not allowed in current state for instance)
-                        var intent = merged_labelled_input.intent;
-                        var event = intent.code;
-                        var event_data = intent.payload;
-                        console.log("Processing event ", event, event_data);
-                        var current_state = hash_states[INITIAL_STATE_NAME].current_state_name;
-                        var event_handler = hash_states[current_state][event];
-
-                        if (event_handler) {
-                            // CASE : There is a transition associated to that event
-                            utils.log("found event handler!");
-                            console.info("WHEN EVENT ", event);
-                            // Reminder : returns an effect code which is undefined if there is no effect to execute
-                            var effect_struct = event_handler(model, event_data, current_state);
-                            var effect_code = effect_struct.effect_code;
-                            from = effect_struct.from;
-                            to = effect_struct.to;
-
-                            if (effect_code) {
-                                // CASE : an effect has to be executed
-                                // This code path should always be active as when there is no effect, we set effect to identity
-                                set_internal_state_to_expecting_effect_result(/*OUT*/fsm_state, from, to, effect_code, event_data);
-                                fsm_state.model = update_model_private_props(model, from, to, fsm_state.internal_state.expecting);
-
-                                return fsm_state;
-                            }
-                            else {
-                                // CASE : we don't have a truthy effect code :
-                                // - none of the guards were truthy, it is a possibility
-                                // So we remain in the same state
-                                set_internal_state_to_expecting_intent(fsm_state, undefined);
-                                console.warn(['No effect code found while processing the event', event,
-                                    'while transitioning from state', from].join(" "));
-                                return fsm_state;
-                            }
-                        }
-                        else {
-                            // CASE : There is no transition associated to that event from that state
-                            // TODO : think more carefully about error management
-                            // We keep the internal state `expecting` property the same
-                            // However, we update the model to indicate that an error occurred
-                            error_msg = 'There is no transition associated to that event!';
-                            // we receive an intent but no event handler was found to handle it, we update the model to reflect the error
-                            // it will be up to the user to determine what to do with the error
-                            fsm_state.model = update_model_private_props(fsm_state.model, current_state, undefined,
-                                fsm_state.internal_state.expecting);
-                            fsm_state.model = update_model_with_error(fsm_state.model, event, event_data, error_msg);
-
-                            set_internal_state_to_transition_error(/*OUT*/fsm_state, error_msg);
-
-                            return fsm_state;
-                        }
-                    }
-                    else {
-                        // TODO : think about options for the warning (error?exception?)
-                        // CASE : received effect result while expecting intent : that should NEVER happen
-                        // as the fsm is supposed to block waiting for the effect to be executed and return its result
-                        console.warn('received effect result while waiting for event');
-                        throw 'received effect result while waiting for event';
-                    }
-                    break;
-
-                case 'effect_res' :
-                    // `effect_res` can be any of the basic types, or any object, which includes also being an observable or promise
-                    // For now we use ractive, which can receive observable, when used in conjunction with the Rxjs observable plugin
-                    // `effect_res` can also be Error type if an error occurred
-                    var effect_res = merged_labelled_input.effect_res;
-                    var previously_processed_event_data = fsm_state.payload;
-
-                    if (fsm_state.internal_state.expecting === EXPECTING_ACTION_RESULT) {
-                        // TODO : also check that I received the right effect  res, so add a code for that expected effect res
-                        // CASE : we receive an effect result, and we were expecting it
-                        if (effect_res instanceof Error) {
-                            var error = effect_res.toString();
-                            // CASE : the effect could not be executed satisfactorily
-                            // TODO : what to do in that case?
-                            // - have a generic nested state for handling error?
-                            // - require user to have specific transitions for handling error?
-                            //   + that means that the effect_res must be passed to the condition handler...
-                            //   + best is probably in the transition definition to define an error transition
-                            //     associated to an error event
-                            // - fail silently and remain in the same state?
-                            //   + in that case, we still have to change the internal state to NOT expecting effect_res
-                            // - fail abruptly with a fatal error passed to a global error handler?
-                            console.error(effect_res);
-                            console.error(effect_res.stack);
-                            // For now:
-                            // - we do not change state and remain in the current state, waiting for another intent
-                            // - but we do not update the model
-                            set_internal_state_to_expecting_intent_but_reporting_action_error(/*OUT*/fsm_state, error);
-                            return fsm_state;
-                        }
-                        else {
-                            // CASE : effect was executed correctly
-                            from = fsm_state.internal_state.from;
-                            to = fsm_state.internal_state.to;
-                            var model_prime = effect_res;
-
-                            // Leave the current state
-                            // CONTRACT : we leave the state only if the effect for the transition is successful
-                            // This is better than backtracking or having the fsm stay in an undetermined state
-                            leave_state(from, hash_states);
-
-                            // ...and enter the next state (can be different from to if we have nesting state group)
-                            var next_state = enter_next_state(to, hash_states);
-
-                            // send the AUTO event to trigger transitions which are automatic :
-                            // - transitions without events
-                            // - INIT events
-                            var automatic_event = process_automatic_events(
-                                fsm_state.special_events,
-                                hash_states,
-                                fsm_state.is_auto_state,
-                                fsm_state.is_init_state,
-                                previously_processed_event_data);
-
-                            set_internal_state_to_expecting_intent(/*OUT*/fsm_state, automatic_event);
-
-                            // Update the model after entering the next state
-                            fsm_state.model = update_model(model, model_prime);
-                            fsm_state.model = update_model_private_props(model, from, next_state, fsm_state.internal_state.expecting);
-
-                            console.info("RESULTING IN : ", fsm_state.model);
-
-                            return fsm_state;
-                        }
-                    }
-                    else {
-                        // CASE : we receive an effect result, but we were NOT expecting it
-                        // TODO : think about options for the warning (error?exception?)
-                        console.warn('received intent while waiting for effect result');
-                        return fsm_state;
-                    }
-                    break;
-
-                default :
-                    // CASE : mislabelled observables?? should never happened - fatal error
-                    throw 'unknown label for input observable';
-                    break;
-            }
-        }
+        var internal_fsm_def = get_internal_sync_fsm();
 
         var merged_labelled_sources$ = Rx.Observable
             .merge(
@@ -764,11 +1134,12 @@ function require_async_fsm(utils) {
                     return Rx.Observable.merge(intent$, ractive$).map(utils.label('intent'))
                 })
             ),
-            effect_res$.map(utils.label('effect_res'))
-        );
+            effect_res$.map(utils.label('effect_res')))
+            .do(utils.rxlog('merge labelled sources'));
 
         var fsm_state$ = merged_labelled_sources$
-            .scan(process_fsm_internal_transition, fsm_initial_state)
+            .scan(process_fsm_internal_transition(internal_fsm_def), fsm_initial_state)
+            .do(utils.rxlog('fsm state$'))
             .share()
             .startWith(fsm_initial_state);
 
@@ -780,9 +1151,10 @@ function require_async_fsm(utils) {
                 return {
                     effect_req: fsm_state.effect_req,
                     model: fsm_state.model,
-                    payload: fsm_state.payload
+                    payload: fsm_state.effect_payload
                 };
-            });
+            })
+            .do(utils.rxlog('effect req$'));
 
         return {
             fsm_state$: fsm_state$,
@@ -792,8 +1164,11 @@ function require_async_fsm(utils) {
 
     return {
         make_fsm: make_fsm,
+        process_fsm_internal_transition: process_fsm_internal_transition,
         create_state_enum: create_state_enum,
         create_event_enum: create_event_enum,
         make_action_DSL: make_action_DSL
     }
 }
+
+// TODO : separate into its own module the basic synchronous fsm part (no history, no hierarchy, no asynchrony)
