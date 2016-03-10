@@ -2,7 +2,9 @@ define(function (require) {
     var Rx = require('rx');
     var _ = require('lodash');
     const LOG_CLONE_OBJECTS = false;
-    var clone_deep = LOG_CLONE_OBJECTS ? _.cloneDeep : function(x){return x};
+    var clone_deep = LOG_CLONE_OBJECTS ? _.cloneDeep : function (x) {
+        return x
+    };
     return require_utils(Rx, _, clone_deep);
 });
 
@@ -31,14 +33,16 @@ function require_utils(Rx, _, clone_deep) {
         return ['-', str, '-'].join("");
     }
 
-    function defer_fn (fn, args) {
-        return function() {
+    function defer_fn(fn, args) {
+        return function () {
             return fn.apply(null, args);
         }
     }
 
-    function always(value){
-        return function() { return value}
+    function always(value) {
+        return function () {
+            return value
+        }
     }
 
     function log(x) {
@@ -48,7 +52,7 @@ function require_utils(Rx, _, clone_deep) {
     function info() {
         var args = args_to_array(arguments);
         console.info.apply(console, args.map(clone_deep));
-    };
+    }
 
     function label(action_source) {
         return function prefix_(x) {
@@ -65,6 +69,12 @@ function require_utils(Rx, _, clone_deep) {
     function update_prop(obj, prop) {
         return function (value) {
             obj[prop] = value;
+        }
+    }
+
+    function get_prop(prop) {
+        return function(x) {
+            return x[prop];
         }
     }
 
@@ -97,7 +107,7 @@ function require_utils(Rx, _, clone_deep) {
         throw 'ERROR: data received from action is of unexpected type!'
     }
 
-    function args_to_array(argument){
+    function args_to_array(argument) {
         return Array.prototype.slice.call(argument);
     }
 
@@ -112,9 +122,9 @@ function require_utils(Rx, _, clone_deep) {
         clone: clone,
         update_prop: update_prop,
         rxlog: rxlog,
-        always : always,
-        defer_fn : defer_fn,
-        args_to_array : args_to_array
+        always: always,
+        defer_fn: defer_fn,
+        args_to_array: args_to_array,
+        get_prop : get_prop
     }
 }
-

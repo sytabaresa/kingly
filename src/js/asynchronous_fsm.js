@@ -1,18 +1,11 @@
 // TODO : check if fsm is multi-instances (i.e. new instance every time, no shared data)
 // TODO : check that the action_res received is the action_res expected i.e. keep action_req at hand, and send action_req with action_res
 //        also, give a unique ID (time+counter) to the request - so modify to_observable or add a function after it
-// TODO : note that AND states gives problems of processing events (an action_res can be received by several states)
-//        so 1 AND state could have received its action result and move on, while the second is still waiting for an action res to come...
 // TODO : write documentation in readme.md - argue use case for HFSM, give roadmap
-// TODO : TEST CASE no history (last seen state is null...)
-// TODO : test all cases (review code) - for instance action depending on condition
-// TODO : add the view (template + enabling disabling of buttons in function of state)
 // TODO : add the possibility to add conditions one by one on a given transition (preprocessing the array beforehand?)
 // TODO : entry and exit actions?? annoying as it forces to add up more intermediate state in the internal state machine
-// TODO : reproduce the problem of cycling and not having a starting with and post on SO
 // TODO : maybe remove or optionalize the internal state metadata passing in the model
 // TODO : also guard against an action res coming not associated with the action_res we are expecting
-// TODO : write the example properly with requirejs
 //{from: states.cd_loaded_group, to: states.cd_stopped, event: cd_player_events.NEXT_TRACK, condition: is_last_track, action: stop},
 //{from: states.cd_loaded_group, to: states.history.cd_loaded_group, event: cd_player_events.NEXT_TRACK, condition: is_not_last_track, action: go_next_track},
 ////vs. {from: states.cd_loaded_group, to: states.cd_stopped, event: cd_player_events.NEXT_TRACK, conditions: [
@@ -21,38 +14,88 @@
 ////    ]},
 // TODO : Add termination connector (T)?
 // TODO : abstract the tree traversal for the build states part
-// TODO : externalize action with possibility to wait for values or move on
 // TODO : DSL
 // TODO : write program which takes a transition specifications and draw a nice graph out of it with yed or else
 // TODO : think about the concurrent states (AND state
+// NOTE : AND states gives problems of processing events (an action_res can be received by several states)
+//        so 1 AND state could have received its action result and move on, while the second is still waiting for an action res to come...
 
 
+// NOTE : Dead states:
+// - Possible if automatic actions (no events) with conditions always true. If there is not another condition which at some
+// point is set to false, we have an infinite loop (a very real one which could monopolize the CPU if all actions are synchronous)
+// - To break out of it, maybe put a guard that if we remain in the same state for X steps, transition automatically (to error or else)
+
+// Implementation contracts
+// CONTRACT :Actions cannot return an object of type error if not error (check code again)
+// CONTRACT : event handlers MUST be pure (they will be executed several times with the same input)
+
+// Behavioural contracts
+// Reminder : there are two kinds of intents : user generated intent, and program generated intent
+// Reminder : there are two kinds of sources : intents and effect responses (or results, terminology still in flux)
+// Terminology :
+// - thereafter we refer by FSM (or inner FSM) the finite state machine whose specs is passed as parameter to the state machine
+// builder
+// - we refer by internal/outer FSM the finite state machine used to build the state machine builder
+//
+// CONTRACT : on receiving an intent:
+// - if applicable vs. statechart spec, no transition exists for that event (no handler exists for that event) :
+//   - warning is generated
+//   - model is updated (only internals!!)
+//   - the outer FSM model is updated (also referred as internal model) : ACTUALLY SHOULD BE DONE IN synchronous fsm TESTING!!
+//   - the inner FSM current state remains the same
+//   - else ? (review code)
+// - if applicable vs. statechart spec, 1 transition exists for that event, with no guard :
+//   - the corresponding action is executed with the parameters (CHECK IN THE CODE)
+//   - the result of that action is found in field (CHECK THE CODE) of the return value of the makeFSM function
+// - if applicable vs. statechart spec, 2 transitions exist for that event, with no guards :
+//   - design error!! (CHECK THE CODE TO SEE WHAT ARE THE MODIFICATIONS)
+// - if applicable vs. statechart spec, 2 transitions exist for that event, one with guard, other with no guards :
+//   - design error!! (CHECK THE CODE TO SEE WHAT ARE THE MODIFICATIONS)
+// - if applicable vs. statechart spec, 2 transitions exist for that event, both have guards, first guard false, second guard true :
+//   - it is the action corresponding to the second guard which is selected (CONTRACT - ORDER OF EXECUTION OF PREDICATES)
+//   - but both guards are executed, the first first ( returns false) the second second (returns true)
+// CONTRACT : If there is no action specified for a transition, the identity action is used
+// - if applicable vs. statechart spec, 1 transition exist for that event, no guard, no action :
+//   - the FSM transitions to the next state, the model is not changed, the special action identity is executed
+//   -
+// TODO : add history mechanism testing, main case and edge case (no history yet, do like init)
+// TODO : add hierarchical state entry testing (automatic events)
+// TODO : add new feature : actions can send events - first design it
+
+//   - CF. OTHER TESTS TO SEE WHAT MODEL MODIFICATIONS ARE, AND STATE MODIFICATIONS ARE
+// - TO CONTINUE WITH THE IMPLEMENTED FEATURES OF THE EXTENDED HIERARCHICAL STATE MACHINE
+//
+//
+
+// CONTRACT : the fsm, after emitting an effect request, blocks till it received the corresponding effect response
+// TODO : have another format for effect responses?? so the user cannot have events that could be mistaken for effect responses
+// We already have a different format as those events comes from another channel. That channel has to be hidden to avoid
+// having other agents sending effect_res to it!! and the internal details not disclosed (in the public documentation)
+
+
+// Validity of state chart definition
 // CONTRACT : action codes MUST NOT be false or falsy
 // CONTRACT : no transition from the history state (history state is only a target state)
 // CONTRACT : init events only acceptable in nesting state (aka grouping state)
 // NOTE : enforced via in_auto_state only true for grouping state
 // CONTRACT : Automatic actions with no events and only conditions are not allowed in nesting state (aka grouping state)
 // NOTE : That would lead to non-determinism if A < B < C and both A and B have such automatic actions
-// CONTRACT : There MUST be an action in each transition
-// CONTRACT :Actions cannot return an object of type error if not error
-// NOTE : Dead states:
-// - Possible if automatic actions (no events) with conditions always true. If there is not another condition which at some
-// point is set to false, we have an infinite loop (a very real one which could monopolize the CPU if all actions are synchronous)
-// - To break out of it, maybe put a guard that if we remain in the same state for X steps, transition automatically (to error or else)
-// CONTRACT : event handlers MUST be pure (they will be executed several times with the same input)
-// CONTRACT : the fsm, after emitting an effect request, blocks till it received the corresponding effect response
 // CONTRACT : every state MUST have only one init transition
+// CONTRACT : various guards on the same transitions must be passed in the same array (allows to specify order easily)
 
 
 define(function (require) {
     var utils = require('utils');
+    var Err = require('custom_errors');
     var Rx = require('rx');
     var _ = require('lodash');
     var synchronous_fsm = require('synchronous_standard_fsm');
-    return require_async_fsm(utils, Rx, synchronous_fsm);
+
+    return require_async_fsm(synchronous_fsm, Rx, Err, utils);
 });
 
-function require_async_fsm(utils, Rx, synchronous_fsm) {
+function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
 
     // CONSTANTS
     const INITIAL_STATE_NAME = 'nok';
@@ -276,9 +319,7 @@ function require_async_fsm(utils, Rx, synchronous_fsm) {
             internal_state: {
                 expecting: EXPECTING_INTENT,
                 is_model_dirty: true,
-                from: undefined,
-                to: undefined
-            },
+                from: undefine
             payload: undefined,
             effect_req: undefined,
             transition_error: false,
@@ -962,12 +1003,14 @@ function require_async_fsm(utils, Rx, synchronous_fsm) {
      *   - from : state from which the described transition operates
      *   - to : target state for the described transition
      * @param cd_player_state_chart
-     * @param intent$
+     * @param user_generated_intent$
      * @param effect_res$
-     * @param ractive$
+     * @param program_generated_intent$
      * @returns {{fsm_state${Rx.Observable}, effect_req${Rx.Observable}}
  */
-    function make_fsm(cd_player_state_chart, intent$, effect_res$, ractive$) {
+    function transduce_fsm_streams(cd_player_state_chart, user_generated_intent$, effect_res$, program_generated_intent$) {
+        // TODO update return value of transduce_fsm_streams and definition parameters and body:
+        // output$, set_internal_state, get_internal_state
         var fsm_initial_state = compute_fsm_initial_state(cd_player_state_chart);
 
         var internal_fsm_def = get_internal_sync_fsm();
@@ -980,10 +1023,7 @@ function require_async_fsm(utils, Rx, synchronous_fsm) {
                         code: fsm_initial_state.special_events.INIT,
                         payload: fsm_initial_state.model
                     }}),
-                Rx.Observable.defer(function () {
-                    // we have to do this manip. to make sure the template is displayed before extracting the intents
-                    return Rx.Observable.merge(intent$, ractive$).map(utils.label('intent'))
-                })
+                Rx.Observable.merge(user_generated_intent$, program_generated_intent$).map(utils.label('intent'))
             ),
             effect_res$.map(utils.label('effect_res')))
             .do(utils.rxlog('merge labelled sources'));
@@ -991,7 +1031,7 @@ function require_async_fsm(utils, Rx, synchronous_fsm) {
         var fsm_state$ = merged_labelled_sources$
             .scan(process_fsm_internal_transition(internal_fsm_def), fsm_initial_state)
             .do(utils.rxlog('fsm state$'))
-            .share()
+            .shareReplay(1)
             .startWith(fsm_initial_state);
 
         var effect_req$ = fsm_state$
@@ -1007,14 +1047,103 @@ function require_async_fsm(utils, Rx, synchronous_fsm) {
             })
             .do(utils.rxlog('effect req$'));
 
+        // The output symbol stream
+        var state$ = fsm_state$
+                .filter(function filter_in_new_model(fsm_state) {
+                    return fsm_state.internal_state.is_model_dirty;
+                })
+                .map(function (fsm_state) {
+                    return fsm_state.model;
+                })
+                .do(utils.rxlog('new model emitted'))
+            ;
+
         return {
             fsm_state$: fsm_state$,
+            state$: state$,
             effect_req$: effect_req$
         }
     }
 
+    function make_fsm(cd_player_state_chart, user_generated_intent$) {
+        var effect_req_disposable, program_generated_intent_req_disposable;
+        var effect_resS = new Rx.ReplaySubject(1), program_generated_intentS = new Rx.ReplaySubject(1);
+        var effect_hash = cd_player_state_chart.action_hash;
+        var fsm_sinks = transduce_fsm_streams(cd_player_state_chart, user_generated_intent$, effect_resS, program_generated_intentS);
+
+        function start() {
+            // Connecting requests streams to responses
+            program_generated_intent_req_disposable = program_generated_intent_transducer(fsm_sinks.fsm_state$)
+                .subscribe(program_generated_intentS);
+            effect_req_disposable = make_effect_handler_operator(effect_hash)(fsm_sinks.effect_req$)
+                .subscribe(effect_resS);
+        }
+
+        function stop() {
+            dispose(effect_req_disposable);
+            dispose(program_generated_intent_req_disposable);
+        }
+
+        function dispose(subject) {
+            subject.onCompleted();
+            subject.dispose();
+        }
+
+        return {
+            start: start,
+            stop: stop,
+            output$: fsm_sinks.state$,
+            set_internal_state: fsm_sinks.set_internal_state,
+            get_internal_state: fsm_sinks.get_internal_state
+        }
+    }
+
+    function make_effect_handler_operator(effect_hash) {
+        // An effect is a function :: model -> event_data -> model
+        // 1. From the function list, we derive an enumeration from the function names
+        //    By construction there cannot be two functions with the same name
+        //    The function names will serve as the DSL to represent the actions
+        // The resulting DSL is generated to serve as input to the main
+        // effect_req maker
+        return function effect_req_interpreter(effect_req$) {
+            // 1. Look up effect_req in list of actions
+            // 2. If not there, return error code or send error through subject
+            // 3. If there, then execute the action
+            var effect_res$ = effect_req$
+                .flatMap(function (effect_req) {
+                    var effect_payload = effect_req.effect_payload;
+                    var effect_enum = effect_req.effect_req;
+                    var model = effect_req.model;
+                    var effect = effect_hash[effect_enum];
+                    if (effect) {
+                        // CASE : we do have some actions to execute
+                        var effect_res = Err.tryCatch(function execute_effect(effect, effect_payload) {
+                            console.info("THEN : we execute the effect " + effect.name);
+                            return effect(model, effect_payload);
+                        })(effect, effect_payload);
+                        if (effect_res instanceof Error) {
+                            return Rx.Observable.return(effect_res);
+                        }
+                        else return utils.to_observable(effect_res);
+                    }
+                    else {
+                        // TODO : be careful, they say flatMap swallow errors, That should be a fatal error
+                        return Rx.Observable.throw('no effect found for effect code ' + effect_enum);
+                    }
+                });
+            return effect_res$;
+        }
+    }
+
+    function program_generated_intent_transducer(fsm_state$) {
+        return fsm_state$
+            .filter(utils.get_prop('automatic_event'))
+            .map(utils.get_prop('automatic_event'));
+    }
+
     return {
         make_fsm: make_fsm,
+        transduce_fsm_streams: transduce_fsm_streams,
         process_fsm_internal_transition: process_fsm_internal_transition,
         create_state_enum: create_state_enum,
         create_event_enum: create_event_enum,
