@@ -319,7 +319,9 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
             internal_state: {
                 expecting: EXPECTING_INTENT,
                 is_model_dirty: true,
-                from: undefine
+                from: undefined,
+                to: undefined
+            },
             payload: undefined,
             effect_req: undefined,
             transition_error: false,
