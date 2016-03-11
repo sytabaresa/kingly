@@ -101,7 +101,6 @@ define(function (require) {
         // In the intent stream, both the user actions and the automatic actions (automatic transitions) will be passed
         //    var fsm_sinks = fsm.make_fsm(cd_player_state_chart, Rx.Observable.merge(intent(sources), sources.ractive), sources.action);
         hfsm = fsm.make_fsm(cd_player_state_chart, intent$);
-        hfsm.start();
         // hfsm.stop();
 
         return {
@@ -112,6 +111,7 @@ define(function (require) {
     }
 
     Cycle.run(main, drivers);
+    setTimeout(function (){hfsm.start();}, 10);
 
 });
 

@@ -1017,24 +1017,18 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
 
         var internal_fsm_def = get_internal_sync_fsm();
 
-        var merged_labelled_sources$ = Rx.Observable
-            .merge(
-            Rx.Observable.concat(
-                Rx.Observable.return({
-                    intent: {
-                        code: fsm_initial_state.special_events.INIT,
-                        payload: fsm_initial_state.model
-                    }}),
-                Rx.Observable.merge(user_generated_intent$, program_generated_intent$).map(utils.label('intent'))
-            ),
+        var merged_labelled_sources$ = Rx.Observable.merge(
+            Rx.Observable
+                .merge(user_generated_intent$, program_generated_intent$)
+                .map(utils.label('intent')),
             effect_res$.map(utils.label('effect_res')))
             .do(utils.rxlog('merge labelled sources'));
 
         var fsm_state$ = merged_labelled_sources$
             .scan(process_fsm_internal_transition(internal_fsm_def), fsm_initial_state)
-            .do(utils.rxlog('fsm state$'))
             .shareReplay(1)
-            .startWith(fsm_initial_state);
+            .do(utils.rxlog('fsm state$'))
+
 
         var effect_req$ = fsm_state$
             .filter(function (fsm_state) {
@@ -1047,7 +1041,8 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
                     payload: fsm_state.effect_payload
                 };
             })
-            .do(utils.rxlog('effect req$'));
+            .do(utils.rxlog('effect req$'))
+            .publish();
 
         // The output symbol stream
         var state$ = fsm_state$
@@ -1057,13 +1052,25 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
                 .map(function (fsm_state) {
                     return fsm_state.model;
                 })
+                .startWith(fsm_initial_state)
                 .do(utils.rxlog('new model emitted'))
             ;
+
+        var program_generated_intent_req$ = fsm_state$
+            .filter(utils.get_prop('automatic_event'))
+            .map(utils.get_prop('automatic_event'))
+            .startWith({
+                code: fsm_initial_state.special_events.INIT,
+                payload: fsm_initial_state.model
+            })
+            .do(utils.rxlog('program_generated_intent_req$'))
+            .publish();
 
         return {
             fsm_state$: fsm_state$,
             state$: state$,
-            effect_req$: effect_req$
+            effect_req$: effect_req$,
+            program_generated_intent_req$: program_generated_intent_req$
         }
     }
 
@@ -1075,10 +1082,12 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
 
         function start() {
             // Connecting requests streams to responses
-            program_generated_intent_req_disposable = program_generated_intent_transducer(fsm_sinks.fsm_state$)
-                .subscribe(program_generated_intentS);
             effect_req_disposable = make_effect_handler_operator(effect_hash)(fsm_sinks.effect_req$)
                 .subscribe(effect_resS);
+            program_generated_intent_req_disposable = fsm_sinks.program_generated_intent_req$
+                .subscribe(program_generated_intentS);
+            fsm_sinks.program_generated_intent_req$.connect();
+            fsm_sinks.effect_req$.connect();
         }
 
         function stop() {
@@ -1135,12 +1144,6 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
                 });
             return effect_res$;
         }
-    }
-
-    function program_generated_intent_transducer(fsm_state$) {
-        return fsm_state$
-            .filter(utils.get_prop('automatic_event'))
-            .map(utils.get_prop('automatic_event'));
     }
 
     return {
