@@ -1,6 +1,3 @@
-/**
- * Created by bcouriol on 21/02/16.
- */
 var state_definition = {
     screen_xyz: {
         changes_state_group: {
