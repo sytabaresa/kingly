@@ -11,13 +11,8 @@ define(function (require) {
         var ractive_component;
 
         return function (fsm_state$) {
-            // var shared_fsm_state = fsm_state$.share();
-            // NOTE : model$ is in fact fsm_state
-            // use the model to display the view
-            ///*
             fsm_state$.subscribe(function display(model) {
                 console.log("Displaying model", model);
-                //debugger;
                 ractive_component = ractive_component || new Ractive_component();
                 ractive_component.set(model);
             });
@@ -101,7 +96,6 @@ define(function (require) {
         // In the intent stream, both the user actions and the automatic actions (automatic transitions) will be passed
         //    var fsm_sinks = fsm.make_fsm(cd_player_state_chart, Rx.Observable.merge(intent(sources), sources.ractive), sources.action);
         hfsm = fsm.make_fsm(cd_player_state_chart, intent$);
-        // hfsm.stop();
 
         return {
             // DOM : Cycle.makeDomDriver(...) ; I want to avoid ES6 so I don't use the DOM driver for now
@@ -112,6 +106,7 @@ define(function (require) {
 
     Cycle.run(main, drivers);
     setTimeout(function (){hfsm.start();}, 10);
+    // hfsm.stop();
 
 });
 

@@ -1,5 +1,7 @@
 # Statecharts
 
+**NOTE** : the current documentation is not up to date with the current code factoring.
+
 ## Definition
 A statechart is a form of extended hierarchical finite state machine. Cutting to the chase, in the frame of this library, 
 a statechart is composed of :
@@ -9,7 +11,7 @@ a statechart is composed of :
   in this implementation by the same type, hence they carry the exact operational semantics. 
 * A model `M` which is hashmap with a set of properties
 * A set of predicates `C` operating on the model
-* A set of actions/effects `A` which takes a model and gives an updated model
+* A set of actions/effects `A` gathering actions which are computations which take a model and gives an updated model, and may perform side-effects
 * A set of transitions `T` which connects a given state, intent/event, predicate to a action/effect and a resulting state
 
 As an intent/event occurs, the state machine will move to another state, depending on the specified predicate/guards or
@@ -22,7 +24,7 @@ Finite state machines are useful when you have an entity :
 * That state can be rigidly divided into one of a relatively small number of distinct options
 * The entity responds to a series of inputs or events over time.
 
-However, while the traditional FSMs are an excellent tool for tackling smaller problems, it's also generally known that 
+However, while the traditional FSMs are an excellent tool for tackling smaller problems, it is also generally known that 
 they tend to become unmanageable even for moderately involved systems. Due to the phenomenon known as "state explosion," 
 the complexity of a traditional FSM tends to grow much faster than the complexity of the reactive system it describes.
 
@@ -30,11 +32,11 @@ The formalism of statecharts, invented by David Harel in the 1980s, addresses ex
 conventional FSMs. Statecharts provide a very efficient way of sharing behavior, so that the complexity of a statechart 
 no longer explodes but tends to faithfully represent the complexity of the reactive system it describes.
 
-In games, they are most known for being used in AI, but they are also common in implementations of user input handling, 
-navigating menu screens, parsing text, network protocols, and other asynchronous behavior in connection with embedded 
-systems.
+In (average-complexity) games, they are most known for being used for AI, but they are also common in implementations of 
+user input handling, navigating menu screens, parsing text, network protocols, and other asynchronous behavior in 
+connection with embedded systems.
 
-As far as user interface is concerned, the most quoted study on the subject is *Constructing the user interface with statecharts*
+As far as user interface is concerned, a common reference is *Constructing the user interface with statecharts*
   by Ian Horrocks. A valuable ressource from the inventor of the graphical language of the statecharts is 
   *Modeling Reactive Systems with Statecharts: The STATEMATE Approach* 
 by Professor David Harel.
@@ -74,14 +76,19 @@ all action/effects are executed in the effect driver, even if they do not perfor
 bears some ressemblance with the Elm architecture, and also takes a clue from the free monads by separating an abstract 
 representation of a computation (similar to a DSL) from its interpretation.
 
+ The current implementation implements the statechart as an operator on streams, i.e. a function which takes a stream 
+ and returns a stream. That operator takes an input stream of intents/events, and returns a stream of updated models. 
+ This design allows to decouple the statechart from the environment where it will be used. Here the updated models are 
+ directly plugged to the rendering engine but they could be used for other purposes without loss of generality.
+
 In summary we seek to further the MVI functional breakdown `view(model(intent))` by decomposing the model into a 
-statechart  `view(statechart(intent, initial_model, states, actions, predicates, transitions))`. We hope by surfacing the
+statechart  `view(statechart(initial_model, states, actions, predicates, transitions)(intent))`. We hope by surfacing the
 extra parameters to get additional benefits:
 
 * safety : transitions can only happen as specified in the charts, i.e. no action will be executed in the wrong state 
-  of the model. This should allow to eliminate a significant class of bugs.
-* the program should be easier to reason about as its key flows are made explicit
-* better testability (in principle) as one can test the program flow separately from the actions
+  of the model. This should allow to eliminate a hopefully large class of bugs.
+* the program should be easier to reason about as its control flows is made explicit
+* better testability as one can test the control flow separately from the actions/effects
 * better maintainability : the design is entirely communicated by the statechart whose visual form can be automatically
 computed. That visual aid can serve as a documentation of the design and constitutes a simpler/faster entry into the 
 program semantics.
@@ -121,7 +128,7 @@ addressing future work is the following :
 
 # API
 
-## Statechart 
+## Statechart
 
 A statechart object is composed of :
 
