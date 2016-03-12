@@ -105,6 +105,11 @@ define(function (require) {
     }
 
     Cycle.run(main, drivers);
+    // The ever tricky RxJs streams and the subscription side-effects
+    // To get the loop started in the right order we need to delay the inner cycle wiring
+    // so the ractive driver receive the model initial value first
+    // If not, the intents will cause error as the elements to which the listeners are associated
+    // do not exist yet...
     setTimeout(function (){hfsm.start();}, 10);
     // hfsm.stop();
 
