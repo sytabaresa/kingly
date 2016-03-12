@@ -88,7 +88,7 @@ extra parameters to get additional benefits:
 
 * safety : transitions can only happen as specified in the charts, i.e. no action will be executed in the wrong state 
   of the model. This should allow to eliminate a hopefully large class of bugs.
-* the program should be easier to reason about as its control flows is made explicit
+* the program should be easier to reason about as its control flows are made explicit
 * better testability as one can test the control flow separately from the actions/effects
 * better maintainability : the design is entirely communicated by the statechart whose visual form can be automatically
 computed. That visual aid can serve as a documentation of the design and constitutes a simpler/faster entry into the 
