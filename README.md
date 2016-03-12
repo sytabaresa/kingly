@@ -79,7 +79,8 @@ representation of a computation (similar to a DSL) from its interpretation.
  The current implementation implements the statechart as an operator on streams, i.e. a function which takes a stream 
  and returns a stream. That operator takes an input stream of intents/events, and returns a stream of updated models. 
  This design allows to decouple the statechart from the environment where it will be used. Here the updated models are 
- directly plugged to the rendering engine but they could be used for other purposes without loss of generality.
+ directly plugged to the rendering engine but they could be used for other purposes without loss of generality. In that 
+ sense, it could be thought of as a generalized `scan` operator.
 
 In summary we seek to further the MVI functional breakdown `view(model(intent))` by decomposing the model into a 
 statechart  `view(statechart(initial_model, states, actions, predicates, transitions)(intent))`. We hope by surfacing the
