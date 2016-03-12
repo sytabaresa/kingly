@@ -58,29 +58,21 @@ and do not (yet) incorporate the following characteristics:
 * history star mechanism
 * entry/exit actions
 
-The proposed implementation makes use of the `cyclejs` light-weight framework to handle asynchrony via the stream abstraction. 
-As such, the main exposed function will take as its input the following set of streams:
-  
-* intents/events
-* action/effect responses
-
-and returns the following streams:
-
-* model (as it changes over time)
-* action/effect requests
-
-The cyclejs framework allows to connect together the effect requests and the effect responses via an effect driver 
-whose exclusive responsibility is to execute the actions/effects to perform as a result of the intent/events. This is in
-line with `cyclejs` guideline to gather all side-effectful function in drivers. For the sake of generality and simplicity,
-all action/effects are executed in the effect driver, even if they do not perform any side-effect. This architecture hence 
-bears some ressemblance with the Elm architecture, and also takes a clue from the free monads by separating an abstract 
-representation of a computation (similar to a DSL) from its interpretation.
-
+The proposed implementation makes use of the `Rxjs` to handle asynchrony via the stream abstraction and `cyclejs` 
+light-weight framework to wire output streams back to input streams.
  The current implementation implements the statechart as an operator on streams, i.e. a function which takes a stream 
  and returns a stream. That operator takes an input stream of intents/events, and returns a stream of updated models. 
  This design allows to decouple the statechart from the environment where it will be used. Here the updated models are 
  directly plugged to the rendering engine but they could be used for other purposes without loss of generality. In that 
- sense, it could be thought of as a generalized `scan` operator.
+ sense, it could be thought of as a side-effectful componentized `scan` operator. 
+
+In line with `cyclejs` guideline, the encapsulated side-effects are gathered into an effect driver whose exclusive 
+responsibility is to execute the actions/effects to perform as a result of the intent/events. For the sake of generality 
+and simplicity, for now, all action/effects are executed in the effect driver, even if they do not perform any side-effect. 
+This architecture hence bears some ressemblance with the Elm architecture, while also separating an abstract 
+representation of a computation (similar to a DSL) from its interpretation. However, in a departure from `cyclejs` 
+standard architecture, we are allowing ourselves to have drivers defined out of the 'main' loop. There are advantages 
+and disadvantages to that approach that I am still in the process of weighing ones against the others.
 
 In summary we seek to further the MVI functional breakdown `view(model(intent))` by decomposing the model into a 
 statechart  `view(statechart(initial_model, states, actions, predicates, transitions)(intent))`. We hope by surfacing the
