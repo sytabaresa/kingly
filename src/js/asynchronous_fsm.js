@@ -1104,8 +1104,8 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
             start: start,
             stop: stop,
             output$: fsm_sinks.state$,
-            set_internal_state: fsm_sinks.set_internal_state,
-            get_internal_state: fsm_sinks.get_internal_state
+            set_internal_state: fsm_sinks.set_internal_state, // TODO but should be used only for testing
+            get_internal_state: fsm_sinks.get_internal_state // TODO but should be used only for testing
         }
     }
 
