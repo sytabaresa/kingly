@@ -25,7 +25,7 @@ Finite state machines are useful when you have an entity :
 * The entity responds to a series of inputs or events over time.
 
 However, while the traditional FSMs are an excellent tool for tackling smaller problems, it is also generally known that 
-they tend to become unmanageable even for moderately involved systems. Due to the phenomenon known as "state explosion," 
+they tend to become unmanageable even for moderately involved systems. Due to the phenomenon known as "state explosion", 
 the complexity of a traditional FSM tends to grow much faster than the complexity of the reactive system it describes.
 
 The formalism of statecharts, invented by David Harel in the 1980s, addresses exactly this shortcoming of the 
@@ -63,8 +63,11 @@ light-weight framework to wire output streams back to input streams.
  The current implementation implements the statechart as an operator on streams, i.e. a function which takes a stream 
  and returns a stream. That operator takes an input stream of intents/events, and returns a stream of updated models. 
  This design allows to decouple the statechart from the environment where it will be used. Here the updated models are 
- directly plugged to the rendering engine but they could be used for other purposes without loss of generality. In that 
- sense, it could be thought of as a side-effectful componentized `scan` operator. 
+ directly plugged to the rendering engine but they could be used for other purposes without loss of generality. 
+ 
+ In that  sense, it could be thought of as a side-effectful componentized `scan` operator. 'Side-effectful' because the
+  side-effects are specified in the statechart specification. 'Componentized' because the only way to modify the model held
+  by the statechart is through intents.
 
 In line with `cyclejs` guideline, the encapsulated side-effects are gathered into an effect driver whose exclusive 
 responsibility is to execute the actions/effects to perform as a result of the intent/events. For the sake of generality 
@@ -72,14 +75,14 @@ and simplicity, for now, all action/effects are executed in the effect driver, e
 This architecture hence bears some ressemblance with the Elm architecture, while also separating an abstract 
 representation of a computation (similar to a DSL) from its interpretation. However, in a departure from `cyclejs` 
 standard architecture, we are allowing ourselves to have drivers defined out of the 'main' loop. There are advantages 
-and disadvantages to that approach that I am still in the process of weighing ones against the others.
+and disadvantages to the approach of encapsulating drivers that I am still in the process of weighing ones against the others.
 
 In summary we seek to further the MVI functional breakdown `view(model(intent))` by decomposing the model into a 
 statechart  `view(statechart(initial_model, states, actions, predicates, transitions)(intent))`. We hope by surfacing the
 extra parameters to get additional benefits:
 
 * safety : transitions can only happen as specified in the charts, i.e. no action will be executed in the wrong state 
-  of the model. This should allow to eliminate a hopefully large class of bugs.
+  of the model. This should allow to eliminate an hopefully large class of bugs.
 * the program should be easier to reason about as its control flows are made explicit
 * better testability as one can test the control flow separately from the actions/effects
 * better maintainability : the design is entirely communicated by the statechart whose visual form can be automatically
