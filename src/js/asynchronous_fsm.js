@@ -1,4 +1,9 @@
 // TODO : check if fsm is multi-instances (i.e. new instance every time, no shared data)
+// TODO : switch internal state machine to synchronous state machine?? I'd say yes
+// TODO : finish testing the tracing mechanism and the startup mechanism (sharereplay necessary??)
+// TODO : add the weak abortion feature? unless it can be simulated with standard statechart?
+//        for instance, action = http request, and cancel event in same state, no need for weak abortion
+// TODO : architecture a la ELM, write actions as a comonad
 // TODO : check that the action_res received is the action_res expected i.e. keep action_req at hand, and send action_req with action_res
 //        also, give a unique ID (time+counter) to the request - so modify to_observable or add a function after it
 // TODO : write documentation in readme.md - argue use case for HFSM, give roadmap
