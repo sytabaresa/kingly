@@ -39,6 +39,13 @@ function require_utils(Rx, _, clone_deep) {
         }
     }
 
+    function compose_fns(fn1, fn2) {
+        return function (x) {
+         debugger;
+            return fn1(fn2(x));
+        }
+    }
+
     function always(value) {
         return function () {
             return value
@@ -62,8 +69,17 @@ function require_utils(Rx, _, clone_deep) {
         }
     }
 
+    function get_label(x) {
+        return Object.keys(x)[0];
+    }
+
     function clone(obj) {
-        return Object.assign(obj);
+        return obj ? Object.assign(obj) : undefined;
+    }
+
+    function clone_deep(obj) {
+        return _.cloneDeep(obj);
+        //        return clone(obj);
     }
 
     function update_prop(obj, prop) {
@@ -73,15 +89,22 @@ function require_utils(Rx, _, clone_deep) {
     }
 
     function get_prop(prop) {
-        return function(x) {
+        return function (x) {
             return x[prop];
         }
     }
 
     function rxlog(tag) {
-        return function (x) {
+        return function rxlog (x) {
             console.warn(tag, clone_deep(x));
         }
+    }
+
+    function noop() {
+    }
+
+    function get_time_stamp() {
+        return Date.now();
     }
 
     // TODO : review that function in line with the display method chosen (ractive, virtual-dom, etc.)
@@ -118,13 +141,18 @@ function require_utils(Rx, _, clone_deep) {
         log: log,
         info: info,
         label: label,
+        get_label: get_label,
         to_observable: to_observable,
         clone: clone,
         update_prop: update_prop,
         rxlog: rxlog,
         always: always,
         defer_fn: defer_fn,
+        compose_fns: compose_fns,
         args_to_array: args_to_array,
-        get_prop : get_prop
+        get_prop: get_prop,
+        get_time_stamp: get_time_stamp,
+        clone_deep: clone_deep,
+        noop: noop
     }
 }

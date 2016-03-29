@@ -1,6 +1,15 @@
+TODO : implement cyclepong with statecharts - https://github.com/eschwartz/cycle-pong
+TODO : implement flux challenge with statecharts - https://github.com/staltz/flux-challenge
+
 # Statecharts
 
 **NOTE** : the current documentation is not up to date with the current code factoring.
+
+The main challenge in programming reactive systems is to identify the appropriate actions to execute in reaction to 
+a given event. The actions are determined by two factors: by the nature of the event and by the current context 
+(i.e., by the sequence of past events in which the system was involved). I thereafter investigate how the statecharts formalism
+can help making explicit that current context and lead to more robust code.
+
 
 ## Definition
 A statechart is a form of extended hierarchical finite state machine. Cutting to the chase, in the frame of this library, 
@@ -64,7 +73,8 @@ light-weight framework to wire output streams back to input streams.
  The current implementation implements the statechart as an operator on streams, i.e. a function which takes a stream 
  and returns a stream. That operator takes an input stream of intents/events, and returns a stream of updated models. 
  This design allows to decouple the statechart from the environment where it will be used. Here the updated models are 
- directly plugged to the rendering engine but they could be used for other purposes without loss of generality. 
+ directly plugged to the rendering engine but they could be used for other purposes (persistent storage, etc.) 
+ without loss of generality. 
  
  In that  sense, it could be thought of as a side-effectful componentized `scan` operator. 'Side-effectful' because the
   side-effects are specified in the statechart specification. 'Componentized' because the only way to modify the model held
@@ -87,7 +97,7 @@ Having drivers in one place leads to choose between :
 
 The problem of having the first option is that we have a global driver, hence all subscribers to that global can access information
 which is not relevant to them. This also forces to have a mechanism to recognize what HTTP response is relevant to a particular
-HTTP request client (for example using the 'port' abstraction).
+HTTP request client (for example using the 'port' abstraction or a simple filtering).
 
 In general (arguable), while the dataflow is made explicit and clear, the logic flow is less so. One understands pretty well 
 how individual inputs are transformed into effect requests, but the logic flow (which includes the series of effects 
@@ -97,25 +107,31 @@ state to another state), specially so in the case of application with complex lo
 
 What is state?
 
-- A function `f` is a relation in which each input is related to exactly one output. 
+- A function `f` is a relation in which an input is related to exactly one output. 
 - The set of inputs for a function is called its domain. The corresponding set of outputs is called its codomain.
 - A pure function `f` is a function so that `output = f(input)` and `f` will always return the same output for the same input.
 - In the frame of this documentation, we call **state** the extra variable (when it exists) which allows to write an 
 impure function `f` so that  `output= f(input)` as a pure function `g` so that `output = g(input, state)`.
-Translating this to a sequence, we have `On+1 = g(In+1, Sn)`. Translating this RxJs terminology, we derive the `scan` operator.
+Translating this to a sequence, we have `(On+1,Sn+1) = g(In+1, Sn)`. Translating this RxJs terminology, we derive the `scan` operator.
 In Redux terminology, we derive a reducer. In Haskell terminology we derive the state monad.
 
-Now let's consider the a read function from a database :
-`users = f(criteria)` where `f = select user from USER_TABLE where user_type = 'criteria'`.
+This state variable does not always exist. Let's consider a read function from a database :
+
+- `users = f(criteria)` where `f = select user from USER_TABLE where user_type = 'criteria'`.
+
   `f` is impure and can be associated a pure function `g`, with `users = g(criteria, user_table)`. where `user_table` 
   is an array and `USER_TABLE` is a table in the database, and every time the `USER_TABLE` changes, the `user_table` array 
   reflects those changes timely and faithfully.
-  Note that considering `users = g(criteria, database_driver)` 
-  does not make `g` a pure function. The database driver is a necessary dependency to actually read the content of the 
-  database but a change in the database means that the `g` function will return a different value hence `g` remains impure.
+  (Note that considering `users = g(criteria, database_driver)` does not make `g` a pure function. The database driver 
+  is a necessary dependency to actually read the content of the database but a change in the database means that the `g` 
+  function will return a different value hence `g` remains impure).
+
   Note also that in the case of a remote database, the 'timely and faithfully' requirement cannot be fulfilled.
-  In short, we actually cannot express that read function as a pure function in the case of remote database, but we can
-  express a closely related pure function which reads from a local COPY of that table in the remote database. 
+
+  In short, we actually cannot express that read function as a pure function in the case of remote database, so the state 
+  variable in this case does not exist. However, we can express a closely related pure function which reads from a local 
+  COPY of that table in the remote database.
+
 
 - TODO : introduce live queries, versioning, append-only database
 
@@ -135,6 +151,7 @@ We loose purity (components are side-effectful), we gain isolation (effects of d
 components). Note that this does not change the fact that side-effect of one component can impact another component. But 
 then that was already the case with the standard architecture. This can be resolved by making the dependency explicit in 
 both component definitions, or creating a third component to isolate that dependency => examples needed.
+
 IN PROGRESS END
 
 In summary we seek to further the MVI functional breakdown `view(model(intent))` by decomposing the model into a 

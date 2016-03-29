@@ -35,7 +35,7 @@ function require_cd_player_def(cd_player, utils, fsm) {
     };
 
     // States definition
-    var cd_player_states = {
+    var state_hierarchy = {
         no_cd_loaded: {
             cd_drawer_closed: '', cd_drawer_open: '', closing_cd_drawer: ''
         },
@@ -51,7 +51,7 @@ function require_cd_player_def(cd_player, utils, fsm) {
             stepping_backwards: ''
         }
     };
-    var states = fsm.create_state_enum(cd_player_states);
+    var states = fsm.create_state_enum(state_hierarchy);
 
     // Events definition
     var cd_player_events = fsm.create_event_enum([
@@ -290,10 +290,10 @@ function require_cd_player_def(cd_player, utils, fsm) {
 
     return {
         model: model,
-        cd_player_states: cd_player_states,
-        cd_player_events: cd_player_events,
+        state_hierarchy: state_hierarchy,
+        events: cd_player_events,
         action_hash: action_struct.action_hash, // input to effect driver, mapping action code -> action
-        cd_player_transitions: cd_player_transitions,
+        transitions: cd_player_transitions,
         FORWARD_INTERVAL: FORWARD_INTERVAL
     }
 }

@@ -12,6 +12,7 @@ function require_synchronous_standard_fsm(utils, Err) {
     }
 
     /**
+     * TODO : document advice
      * Evaluates a set of transitions vs. a triggering event and event data, and returns the corresponding output symbol
      * as configured in the triggered transition.
      * @param fsm_internal_states {State_Definition} UNUSED FOR NOW
@@ -36,7 +37,7 @@ function require_synchronous_standard_fsm(utils, Err) {
      * CONTRACT : actions are synchronous, i.e. the immediate return value of the action call will be used as the action
      * CONTRACT : actions must throw exceptions which are instance of Error (i.e. don't throw strings or else)
      */
-    function evaluate_internal_transitions(fsm_internal_states, arr_transitions, fsm_state, internal_event) {
+    function evaluate_internal_transitions(fsm_internal_states, arr_transitions, fsm_state, internal_event, advice) {
         // NOTE : we do nothing yet with `fsm_internal_states` which holds the entry/exit actions for the state
         if (!arr_transitions) {
             // CASE : there is no transition associated to that internal event from that state
@@ -54,7 +55,8 @@ function require_synchronous_standard_fsm(utils, Err) {
             var to = transition.to;
 
             if (predicate(fsm_state, internal_event)) {
-                var action_result = Err.tryCatch(action)(fsm_state, internal_event);
+                var decorated_action = advice ? advice(action) : action;
+                var action_result = Err.tryCatch(decorated_action)(fsm_state, internal_event);
                 var action_error = (action_result instanceof Error) ? action_result : undefined;
 
                 evaluation_result = {

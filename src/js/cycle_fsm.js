@@ -24,10 +24,12 @@ define(function (require) {
         ractive: make_ractive_driver(Ractive_component)
     };
 
-    var hfsm;
+    // TODO : find a way to do this without resorting to the hack with hfsm as a closure variable
+    // var hfsm;
 
     function main(sources) {
         function intent(sources, cd_player_api, cd_player_state_chart) {
+            // TODO : refactor to put only cd_player_events, and then only events, the CONST should be put somewhere else
             // set mousedown and mouseup intents
             var concat = Array.prototype.concat;
             var id_list = [
@@ -110,7 +112,11 @@ define(function (require) {
     // so the ractive driver receive the model initial value first
     // If not, the intents will cause error as the elements to which the listeners are associated
     // do not exist yet...
-    setTimeout(function (){hfsm.start();}, 10);
+    setTimeout(function (){
+        hfsm.start();
+        hfsm.start_trace();
+    }, 5);
+    hfsm.trace$.subscribe(utils.rxlog('Final trace array'));
     // hfsm.stop();
 
 });
