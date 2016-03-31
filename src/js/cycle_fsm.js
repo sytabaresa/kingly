@@ -91,13 +91,20 @@ define(function (require) {
             return intent(sources, cd_player_api, cd_player_state_chart);
         });
 
-        // Build the sinks :
-        // - merge the user intents with the automatic actions from the state machine
-        // - pass the action and intent streams to the state machine
-        // In the action stream, the result of the execution of actions will be passed
-        // In the intent stream, both the user actions and the automatic actions (automatic transitions) will be passed
         //    var fsm_sinks = fsm.make_fsm(cd_player_state_chart, Rx.Observable.merge(intent(sources), sources.ractive), sources.action);
         hfsm = fsm.make_fsm(cd_player_state_chart, intent$);
+        // The ever tricky RxJs streams and the subscription side-effects
+        // To get the loop started in the right order we need to delay the inner cycle wiring
+        // so the ractive driver receives the model initial value first
+        // If not, the intents will cause error as the elements to which the listeners are associated
+        // do not exist yet...
+        // For some reason, delaying 5ms works, and 4 or 3 does not
+        // TODO : have the ractive driver send a `READY` event on initialization, that might allow to avoid using defer
+        setTimeout(function () {
+            hfsm.start();
+            hfsm.start_trace();
+        }, 5);
+        hfsm.trace$.subscribe(utils.rxlog('Final trace array'));
 
         return {
             // DOM : Cycle.makeDomDriver(...) ; I want to avoid ES6 so I don't use the DOM driver for now
@@ -107,16 +114,6 @@ define(function (require) {
     }
 
     Cycle.run(main, drivers);
-    // The ever tricky RxJs streams and the subscription side-effects
-    // To get the loop started in the right order we need to delay the inner cycle wiring
-    // so the ractive driver receive the model initial value first
-    // If not, the intents will cause error as the elements to which the listeners are associated
-    // do not exist yet...
-    setTimeout(function (){
-        hfsm.start();
-        hfsm.start_trace();
-    }, 5);
-    hfsm.trace$.subscribe(utils.rxlog('Final trace array'));
     // hfsm.stop();
 
 });

@@ -172,6 +172,9 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
     const EXPECTING_INTENT = 'intent';
     const EXPECTING_ACTION_RESULT = 'expecting_action_result';
     const ACTION_IDENTITY = 'identity';
+    const EV_INTENT = 'intent';
+    const EV_EFFECT_RES = 'effect_res';
+    const EV_TRACE = 'trace';
 
     // CLOSURE VARIABLES
     const special_events = create_event_enum('auto', 'init', 'trace');
@@ -784,14 +787,17 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
     function get_internal_sync_fsm() {
         ////////////
         // Define the (synchronous standard finite) state machine for the state machine maker (!)
+
         ////////////
         // States
         var fsm_internal_states = {};
         fsm_internal_states[EXPECTING_INTENT] = {entry: undefined, exit: undefined};
         fsm_internal_states[EXPECTING_ACTION_RESULT] = {entry: undefined, exit: undefined};
+
         ////////////
         // Events
-        var fsm_internal_events = {EV_INTENT: 'intent', EV_EFFECT_RES: 'effect_res', EV_TRACE: 'trace'};
+        var fsm_internal_events = {EV_INTENT: EV_INTENT, EV_EFFECT_RES: EV_EFFECT_RES, EV_TRACE: EV_TRACE};
+
         ////////////
         // Transitions :: {state : {event : [{predicate, action, to}]}}
         // predicate :: FSM_STATE -> internal_event :: {code, payload} -> Boolean
@@ -1191,6 +1197,13 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
  */
     function transduce_fsm_streams(state_chart, user_generated_intent$, effect_res$, program_generated_intent$, trace_intentS) {
         // TODO : put as a constant all the 'effect_res', 'trace' etc. (becomes hidden dependency otherwise)
+
+        // Build the sinks :
+        // - there are three source origins:
+        //   - intents : they divide into user intents and automatic actions (program generated intents) from the state machine
+        //   - effect results : they are the eventual return value from executing effects
+        //   - trace : contain the information allowing to toggle the tracing mechanism
+
         // Traces
         var traceS = new Rx.BehaviorSubject([]);
 
@@ -1199,9 +1212,9 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
         var internal_fsm_def = get_internal_sync_fsm();
 
         var merged_labelled_sources$ = Rx.Observable.merge(
-            Rx.Observable.merge(user_generated_intent$, program_generated_intent$).map(utils.label('intent')),
-            effect_res$.map(utils.label('effect_res')),
-            trace_intentS.map(utils.label('trace'))
+            Rx.Observable.merge(user_generated_intent$, program_generated_intent$).map(utils.label(EV_INTENT)),
+            effect_res$.map(utils.label(EV_EFFECT_RES)),
+            trace_intentS.map(utils.label(EV_TRACE))
         )
             .do(function (x) {
                 utils.rxlog(utils.get_label(x))(x[Object.keys(x)[0]]);
