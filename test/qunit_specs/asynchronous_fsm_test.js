@@ -10,8 +10,6 @@ define(function (require) {
     // state (model) initial object with internal_state expecting
     // merged_labelled_input
 
-    //
-
     QUnit.module("process_fsm_internal_transition(internal_fsm_def)(fsm_state, merged_labelled_input)", {
         // NOTE : this is a curried function to which parameters are applied
         // We test the curried function by running through a set of parameters
@@ -56,12 +54,14 @@ define(function (require) {
             transitions: transitions
         };
         var ehfsm = fsm.make_fsm(state_chart, undefined); // intent$ is undefined here as we will simulate events
+        ehfsm.start_trace(); // TODO: before or after??
         ehfsm.start();
-        // ehfsm.start_trace(); // TODO: before or after??
         // NOTE : The init event is sent automatically AND synchronously so we can put the stop trace right after
-        // ehfsm.stop_trace();
+        ehfsm.stop_trace();
+        // TODO : probably I have to put a timeout here to stop trace on the next tick?
         ehfsm.trace$.subscribe(function async_test(arr_traces) {
-            assert.deepEqual(arr_traces, [], 'Starting the state machine sends an INIT event to the top-level state. The defined transition for that event is taken.')
+            assert.deepEqual(arr_traces, [], 'Starting the state machine sends an INIT event to the top-level state. The defined transition for that event is taken.');
+            done();
         });
     });
 
