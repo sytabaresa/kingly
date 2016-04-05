@@ -41,7 +41,7 @@ function require_utils(Rx, _, clone_deep) {
 
     function compose_fns(fn1, fn2) {
         return function (x) {
-         debugger;
+            debugger;
             return fn1(fn2(x));
         }
     }
@@ -95,7 +95,7 @@ function require_utils(Rx, _, clone_deep) {
     }
 
     function rxlog(tag) {
-        return function rxlog (x) {
+        return function rxlog(x) {
             console.warn(tag, clone_deep(x));
         }
     }
@@ -103,8 +103,8 @@ function require_utils(Rx, _, clone_deep) {
     function noop() {
     }
 
-    function get_time_stamp() {
-        return Date.now();
+    function get_timestamp() {
+        return new Date();
     }
 
     // TODO : review that function in line with the display method chosen (ractive, virtual-dom, etc.)
@@ -151,7 +151,7 @@ function require_utils(Rx, _, clone_deep) {
         compose_fns: compose_fns,
         args_to_array: args_to_array,
         get_prop: get_prop,
-        get_time_stamp: get_time_stamp,
+        get_timestamp: get_timestamp,
         clone_deep: clone_deep,
         noop: noop
     }

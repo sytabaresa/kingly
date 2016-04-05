@@ -114,7 +114,7 @@ define(function (require) {
         var expected_ordering_0 = {
             updated_fsm_state: fsm_state,
             next_state: 'destination state',
-            error: undefined
+            fatal_error: undefined
         };
         var arr_transitions_1 = [
             {
@@ -131,7 +131,7 @@ define(function (require) {
         var expected_ordering_1 = {
             updated_fsm_state: fsm_state,
             next_state: 'first possible destination state',
-            error: undefined
+            fatal_error: undefined
         };
 
         assert.deepEqual(
@@ -181,7 +181,7 @@ define(function (require) {
             {
                 updated_fsm_state: fsm_state,
                 next_state: undefined,
-                error: error
+                fatal_error: error
             },
             'returns {error : the error, next_state: undefined, updated_fsm_state : unmodified fsm_state}'
         );

@@ -1742,7 +1742,7 @@
 
         // Must be implemented by other observers
         AbstractObserver.prototype.next = notImplemented;
-        AbstractObserver.prototype.error = notImplemented;
+        AbstractObserver.prototype.fatal_error = notImplemented;
         AbstractObserver.prototype.completed = notImplemented;
 
         /**
@@ -1823,7 +1823,7 @@
          * Calls the onError action.
          * @param {Any} error The error that has occurred.
          */
-        AnonymousObserver.prototype.error = function (error) {
+        AnonymousObserver.prototype.fatal_error = function (error) {
             this._onError(error);
         };
 
@@ -1899,7 +1899,7 @@
             this.queue.push(enqueueNext(this.observer, x));
         };
 
-        ScheduledObserver.prototype.error = function (e) {
+        ScheduledObserver.prototype.fatal_error = function (e) {
             this.queue.push(enqueueError(this.observer, e));
         };
 
@@ -1956,8 +1956,8 @@
             this.ensureActive();
         };
 
-        ObserveOnObserver.prototype.error = function (e) {
-            __super__.prototype.error.call(this, e);
+        ObserveOnObserver.prototype.fatal_error = function (e) {
+            __super__.prototype.fatal_error.call(this, e);
             this.ensureActive();
         };
 
@@ -2136,7 +2136,7 @@
             this.o.onNext(this._wrapResult(result, x, i));
         };
 
-        InnerObserver.prototype.error = function(e) { this.o.onError(e); };
+        InnerObserver.prototype.fatal_error = function(e) { this.o.onError(e); };
 
         InnerObserver.prototype.completed = function() { this.o.onCompleted(); };
 
@@ -2202,7 +2202,7 @@
         inherits(InnerObserver, AbstractObserver);
 
         InnerObserver.prototype.next = function (x) { this._state.o.onNext(x); };
-        InnerObserver.prototype.error = function (e) { this._state.o.onError(e); };
+        InnerObserver.prototype.fatal_error = function (e) { this._state.o.onError(e); };
         InnerObserver.prototype.completed = function () { this._recurse(this._state); };
 
         return ConcatEnumerableObservable;
@@ -2257,7 +2257,7 @@
         inherits(InnerObserver, AbstractObserver);
 
         InnerObserver.prototype.next = function (x) { this._state.o.onNext(x); };
-        InnerObserver.prototype.error = function (e) { this._state.lastError = e; this._recurse(this._state); };
+        InnerObserver.prototype.fatal_error = function (e) { this._state.lastError = e; this._recurse(this._state); };
         InnerObserver.prototype.completed = function () { this._state.o.onCompleted(); };
 
         return CatchErrorObservable;
@@ -2533,7 +2533,7 @@
         }
 
         InnerObserver.prototype.next = function (x) { this.a.push(x); };
-        InnerObserver.prototype.error = function (e) { this.o.onError(e);  };
+        InnerObserver.prototype.fatal_error = function (e) { this.o.onError(e);  };
         InnerObserver.prototype.completed = function () { this.o.onNext(this.a); this.o.onCompleted(); };
 
         return ToArrayObservable;
@@ -3322,7 +3322,7 @@
 
         CatchObserver.prototype.next = function (x) { this._o.onNext(x); };
         CatchObserver.prototype.completed = function () { return this._o.onCompleted(); };
-        CatchObserver.prototype.error = function (e) {
+        CatchObserver.prototype.fatal_error = function (e) {
             var result = tryCatch(this._fn)(e);
             if (result === errorObj) { return this._o.onError(result.e); }
             isPromise(result) && (result = observableFromPromise(result));
@@ -3448,7 +3448,7 @@
             }
         };
 
-        CombineLatestObserver.prototype.error = function (e) {
+        CombineLatestObserver.prototype.fatal_error = function (e) {
             this._o.onError(e);
         };
 
@@ -3495,7 +3495,7 @@
         }
 
         ConcatObserver.prototype.next = function (x) { this._s.o.onNext(x); };
-        ConcatObserver.prototype.error = function (e) { this._s.o.onError(e); };
+        ConcatObserver.prototype.fatal_error = function (e) { this._s.o.onError(e); };
         ConcatObserver.prototype.completed = function () { this._s.i++; this._fn(this._s); };
 
         return ConcatObserver;
@@ -3610,7 +3610,7 @@
                 this.q.push(innerSource);
             }
         };
-        MergeObserver.prototype.error = function (e) { this.o.onError(e); };
+        MergeObserver.prototype.fatal_error = function (e) { this.o.onError(e); };
         MergeObserver.prototype.completed = function () { this.done = true; this.activeCount === 0 && this.o.onCompleted(); };
 
         function InnerObserver(parent, sad) {
@@ -3622,7 +3622,7 @@
         inherits(InnerObserver, __super__);
 
         InnerObserver.prototype.next = function (x) { this.parent.o.onNext(x); };
-        InnerObserver.prototype.error = function (e) { this.parent.o.onError(e); };
+        InnerObserver.prototype.fatal_error = function (e) { this.parent.o.onError(e); };
         InnerObserver.prototype.completed = function () {
             this.parent.g.remove(this.sad);
             if (this.parent.q.length > 0) {
@@ -3706,7 +3706,7 @@
             sad.setDisposable(innerSource.subscribe(new InnerObserver(this, sad)));
         };
 
-        MergeAllObserver.prototype.error = function (e) {
+        MergeAllObserver.prototype.fatal_error = function (e) {
             this.o.onError(e);
         };
 
@@ -3726,7 +3726,7 @@
         InnerObserver.prototype.next = function (x) {
             this.parent.o.onNext(x);
         };
-        InnerObserver.prototype.error = function (e) {
+        InnerObserver.prototype.fatal_error = function (e) {
             this.parent.o.onError(e);
         };
         InnerObserver.prototype.completed = function () {
@@ -3801,7 +3801,7 @@
             inner.setDisposable(x.subscribe(new InnerObserver(inner, this._group, this._state)));
         };
 
-        MergeDelayErrorObserver.prototype.error = function (e) {
+        MergeDelayErrorObserver.prototype.fatal_error = function (e) {
             this._state.errors.push(e);
             this._state.isStopped = true;
             this._group.length === 1 && setCompletion(this._state.o, this._state.errors);
@@ -3821,7 +3821,7 @@
         }
 
         InnerObserver.prototype.next = function (x) { this._state.o.onNext(x); };
-        InnerObserver.prototype.error = function (e) {
+        InnerObserver.prototype.fatal_error = function (e) {
             this._state.errors.push(e);
             this._group.remove(this._inner);
             this._state.isStopped && this._group.length === 1 && setCompletion(this._state.o, this._state.errors);
@@ -3907,7 +3907,7 @@
         }
 
         OnErrorResumeNextObserver.prototype.next = function (x) { this._state.o.onNext(x); };
-        OnErrorResumeNextObserver.prototype.error = function () { this._recurse(this._state); };
+        OnErrorResumeNextObserver.prototype.fatal_error = function () { this._recurse(this._state); };
         OnErrorResumeNextObserver.prototype.completed = function () { this._recurse(this._state); };
 
         return OnErrorResumeNextObserver;
@@ -3966,7 +3966,7 @@
             this._p._open && this._o.onNext(x);
         };
 
-        SkipUntilSourceObserver.prototype.error = function (err) {
+        SkipUntilSourceObserver.prototype.fatal_error = function (err) {
             this._o.onError(err);
         };
 
@@ -3991,7 +3991,7 @@
             this._r.dispose();
         };
 
-        SkipUntilOtherObserver.prototype.error = function (err) {
+        SkipUntilOtherObserver.prototype.fatal_error = function (err) {
             this._o.onError(err);
         };
 
@@ -4041,7 +4041,7 @@
             d.setDisposable(innerSource.subscribe(new InnerObserver(this, id)));
         };
 
-        SwitchObserver.prototype.error = function (e) {
+        SwitchObserver.prototype.fatal_error = function (e) {
             this.o.onError(e);
         };
 
@@ -4060,7 +4060,7 @@
             this.parent.latest === this.id && this.parent.o.onNext(x);
         };
 
-        InnerObserver.prototype.error = function (e) {
+        InnerObserver.prototype.fatal_error = function (e) {
             this.parent.latest === this.id && this.parent.o.onError(e);
         };
 
@@ -4112,7 +4112,7 @@
             this._o.onCompleted();
         };
 
-        TakeUntilObserver.prototype.error = function (err) {
+        TakeUntilObserver.prototype.fatal_error = function (err) {
             this._o.onError(err);
         };
 
@@ -4187,7 +4187,7 @@
             this._state.hasValueAll = this._state.hasValue.every(identity);
         };
 
-        WithLatestFromOtherObserver.prototype.error = function (e) {
+        WithLatestFromOtherObserver.prototype.fatal_error = function (e) {
             this._o.onError(e);
         };
 
@@ -4213,7 +4213,7 @@
             this._o.onNext(res);
         };
 
-        WithLatestFromSourceObserver.prototype.error = function (e) {
+        WithLatestFromSourceObserver.prototype.fatal_error = function (e) {
             this._o.onError(e);
         };
 
@@ -4300,7 +4300,7 @@
             }
         };
 
-        ZipObserver.prototype.error = function (e) {
+        ZipObserver.prototype.fatal_error = function (e) {
             this._o.onError(e);
         };
 
@@ -4417,7 +4417,7 @@
             }
         };
 
-        ZipIterableObserver.prototype.error = function (e) { this._s.o.onError(e); };
+        ZipIterableObserver.prototype.fatal_error = function (e) { this._s.o.onError(e); };
 
         ZipIterableObserver.prototype.completed = function () {
             this._s.done[this._i] = true;
@@ -4495,7 +4495,7 @@
         }
 
         DematerializeObserver.prototype.next = function (x) { x.accept(this._o); };
-        DematerializeObserver.prototype.error = function (e) { this._o.onError(e); };
+        DematerializeObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
         DematerializeObserver.prototype.completed = function () { this._o.onCompleted(); };
 
         return DematerializeObserver;
@@ -4552,7 +4552,7 @@
                 this.o.onNext(x);
             }
         };
-        DistinctUntilChangedObserver.prototype.error = function(e) {
+        DistinctUntilChangedObserver.prototype.fatal_error = function(e) {
             this.o.onError(e);
         };
         DistinctUntilChangedObserver.prototype.completed = function () {
@@ -4601,7 +4601,7 @@
             if (res === errorObj) { this.o.onError(res.e); }
             this.o.onNext(x);
         };
-        InnerObserver.prototype.error = function(err) {
+        InnerObserver.prototype.fatal_error = function(err) {
             var res = tryCatch(this.t.onError).call(this.t, err);
             if (res === errorObj) { return this.o.onError(res.e); }
             this.o.onError(err);
@@ -4778,7 +4778,7 @@
         }
 
         MaterializeObserver.prototype.next = function (x) { this._o.onNext(notificationCreateOnNext(x)) };
-        MaterializeObserver.prototype.error = function (e) { this._o.onNext(notificationCreateOnError(e)); this._o.onCompleted(); };
+        MaterializeObserver.prototype.fatal_error = function (e) { this._o.onNext(notificationCreateOnError(e)); this._o.onCompleted(); };
         MaterializeObserver.prototype.completed = function () { this._o.onNext(notificationCreateOnCompleted()); this._o.onCompleted(); };
 
         return MaterializeObserver;
@@ -4873,7 +4873,7 @@
             this._i++;
         };
 
-        ScanObserver.prototype.error = function (e) {
+        ScanObserver.prototype.fatal_error = function (e) {
             this._o.onError(e);
         };
 
@@ -4930,7 +4930,7 @@
             this._q.length > this._c && this._o.onNext(this._q.shift());
         };
 
-        SkipLastObserver.prototype.error = function (e) {
+        SkipLastObserver.prototype.fatal_error = function (e) {
             this._o.onError(e);
         };
 
@@ -4988,7 +4988,7 @@
             this._q.length > this._c && this._q.shift();
         };
 
-        TakeLastObserver.prototype.error = function (e) {
+        TakeLastObserver.prototype.fatal_error = function (e) {
             this._o.onError(e);
         };
 
@@ -5030,7 +5030,7 @@
             this._q.length > this._c && this._q.shift();
         };
 
-        TakeLastBufferObserver.prototype.error = function (e) {
+        TakeLastBufferObserver.prototype.fatal_error = function (e) {
             this._o.onError(e);
         };
 
@@ -5223,7 +5223,7 @@
             this._o.onNext(x);
         };
 
-        DefaultIfEmptyObserver.prototype.error = function (e) {
+        DefaultIfEmptyObserver.prototype.fatal_error = function (e) {
             this._o.onError(e);
         };
 
@@ -5305,7 +5305,7 @@
             this._h.push(key) && this._o.onNext(x);
         };
 
-        DistinctObserver.prototype.error = function (e) { this._o.onError(e); };
+        DistinctObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
         DistinctObserver.prototype.completed = function () { this._o.onCompleted(); };
 
         return DistinctObserver;
@@ -5466,7 +5466,7 @@
             this.o.onNext(result);
         };
 
-        InnerObserver.prototype.error = function (e) {
+        InnerObserver.prototype.fatal_error = function (e) {
             this.o.onError(e);
         };
 
@@ -5605,7 +5605,7 @@
                 this._r--;
             }
         };
-        SkipObserver.prototype.error = function(e) { this._o.onError(e); };
+        SkipObserver.prototype.fatal_error = function(e) { this._o.onError(e); };
         SkipObserver.prototype.completed = function() { this._o.onCompleted(); };
 
         return SkipObservable;
@@ -5655,7 +5655,7 @@
             }
             this._r && this._o.onNext(x);
         };
-        SkipWhileObserver.prototype.error = function (e) { this._o.onError(e); };
+        SkipWhileObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
         SkipWhileObserver.prototype.completed = function () { this._o.onCompleted(); };
 
         return SkipWhileObserver;
@@ -5704,7 +5704,7 @@
             }
         };
 
-        TakeObserver.prototype.error = function (e) { this._o.onError(e); };
+        TakeObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
         TakeObserver.prototype.completed = function () { this._o.onCompleted(); };
 
         return TakeObservable;
@@ -5759,7 +5759,7 @@
                 this._o.onCompleted();
             }
         };
-        TakeWhileObserver.prototype.error = function (e) { this._o.onError(e); };
+        TakeWhileObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
         TakeWhileObserver.prototype.completed = function () { this._o.onCompleted(); };
 
         return TakeWhileObserver;
@@ -5815,7 +5815,7 @@
             shouldYield && this.o.onNext(x);
         };
 
-        InnerObserver.prototype.error = function (e) {
+        InnerObserver.prototype.fatal_error = function (e) {
             this.o.onError(e);
         };
 
@@ -5884,7 +5884,7 @@
             if (comparison >= 0) { this._l.push(x); }
         };
 
-        ExtremaByObserver.prototype.error = function (e) {
+        ExtremaByObserver.prototype.fatal_error = function (e) {
             this._o.onError(e);
         };
 
@@ -5945,7 +5945,7 @@
             this._i++;
         };
 
-        ReduceObserver.prototype.error = function (e) {
+        ReduceObserver.prototype.fatal_error = function (e) {
             this._o.onError(e);
         };
 
@@ -6009,7 +6009,7 @@
                 this._o.onCompleted();
             }
         };
-        SomeObserver.prototype.error = function (e) { this._o.onError(e); };
+        SomeObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
         SomeObserver.prototype.completed = function () {
             this._o.onNext(false);
             this._o.onCompleted();
@@ -6053,7 +6053,7 @@
             this._o.onNext(false);
             this._o.onCompleted();
         };
-        IsEmptyObserver.prototype.error = function (e) { this._o.onError(e); };
+        IsEmptyObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
         IsEmptyObserver.prototype.completed = function () {
             this._o.onNext(true);
             this._o.onCompleted();
@@ -6104,7 +6104,7 @@
                 this._o.onCompleted();
             }
         };
-        EveryObserver.prototype.error = function (e) { this._o.onError(e); };
+        EveryObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
         EveryObserver.prototype.completed = function () {
             this._o.onNext(true);
             this._o.onCompleted();
@@ -6169,7 +6169,7 @@
                 this._o.onCompleted();
             }
         };
-        IncludesObserver.prototype.error = function (e) { this._o.onError(e); };
+        IncludesObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
         IncludesObserver.prototype.completed = function () { this._o.onNext(false); this._o.onCompleted(); };
 
         return IncludesObserver;
@@ -6221,7 +6221,7 @@
                 this._c++;
             }
         };
-        CountObserver.prototype.error = function (e) { this._o.onError(e); };
+        CountObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
         CountObserver.prototype.completed = function () {
             this._o.onNext(this._c);
             this._o.onCompleted();
@@ -6283,7 +6283,7 @@
             }
             this._i++;
         };
-        IndexOfObserver.prototype.error = function (e) { this._o.onError(e); };
+        IndexOfObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
         IndexOfObserver.prototype.completed = function () { this._o.onNext(-1); this._o.onCompleted(); };
 
         return IndexOfObserver;
@@ -6337,7 +6337,7 @@
                 this._c += x;
             }
         };
-        SumObserver.prototype.error = function (e) { this._o.onError(e); };
+        SumObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
         SumObserver.prototype.completed = function () {
             this._o.onNext(this._c);
             this._o.onCompleted();
@@ -6445,7 +6445,7 @@
                 this._t += x;
             }
         };
-        AverageObserver.prototype.error = function (e) { this._o.onError(e); };
+        AverageObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
         AverageObserver.prototype.completed = function () {
             if (this._c === 0) { return this._o.onError(new EmptyError()); }
             this._o.onNext(this._t / this._c);
@@ -6579,7 +6579,7 @@
                 this._o.onCompleted();
             }
         };
-        ElementAtObserver.prototype.error = function (e) { this._o.onError(e); };
+        ElementAtObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
         ElementAtObserver.prototype.completed = function () {
             if (this._d === undefined) {
                 this._o.onError(new ArgumentOutOfRangeError());
@@ -6632,7 +6632,7 @@
                 this._v = x;
             }
         };
-        SingleObserver.prototype.error = function (e) { this._o.onError(e); };
+        SingleObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
         SingleObserver.prototype.completed = function () {
             if (this._hv) {
                 this._o.onNext(this._v);
@@ -6712,7 +6712,7 @@
                 this._o.onCompleted();
             }
         };
-        FirstObserver.prototype.error = function (e) { this._o.onError(e); };
+        FirstObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
         FirstObserver.prototype.completed = function () {
             if (this._obj.defaultValue === undefined) {
                 this._o.onError(new EmptyError());
@@ -6788,7 +6788,7 @@
                 this._v = x;
             }
         };
-        LastObserver.prototype.error = function (e) { this._o.onError(e); };
+        LastObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
         LastObserver.prototype.completed = function () {
             if (this._hv) {
                 this._o.onNext(this._v);
@@ -6849,7 +6849,7 @@
             }
         };
 
-        FindValueObserver.prototype.error = function (e) {
+        FindValueObserver.prototype.fatal_error = function (e) {
             this._o.onError(e);
         };
 
@@ -6915,7 +6915,7 @@
             this._s.add(x);
         };
 
-        ToSetObserver.prototype.error = function (e) {
+        ToSetObserver.prototype.fatal_error = function (e) {
             this._o.onError(e);
         };
 
@@ -6974,7 +6974,7 @@
             this._m.set(key, elem);
         };
 
-        ToMapObserver.prototype.error = function (e) {
+        ToMapObserver.prototype.fatal_error = function (e) {
             this._o.onError(e);
         };
 
@@ -7034,7 +7034,7 @@
             }
             this._i++;
         };
-        SliceObserver.prototype.error = function (e) { this._o.onError(e); };
+        SliceObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
         SliceObserver.prototype.completed = function () { this._o.onCompleted(); };
 
         return SliceObserver;
@@ -7098,7 +7098,7 @@
             }
             this._i++;
         };
-        LastIndexOfObserver.prototype.error = function (e) { this._o.onError(e); };
+        LastIndexOfObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
         LastIndexOfObserver.prototype.completed = function () {
             if (this._hv) {
                 this._o.onNext(this._v);
@@ -7815,7 +7815,7 @@
             },
             onError: function (error) {
                 this.hasFailed = true;
-                this.error = error;
+                this.fatal_error = error;
                 if (!this.enableQueue || this.queue.length === 0) {
                     this.subject.onError(error);
                     this.disposeCurrentRequest();
@@ -7934,7 +7934,7 @@
                 this.dispose();
             };
 
-            StopAndWaitObserver.prototype.error = function (error) {
+            StopAndWaitObserver.prototype.fatal_error = function (error) {
                 this.observer.onError(error);
                 this.dispose();
             };
@@ -8012,7 +8012,7 @@
                 this.dispose();
             };
 
-            WindowedObserver.prototype.error = function (error) {
+            WindowedObserver.prototype.fatal_error = function (error) {
                 this.observer.onError(error);
                 this.dispose();
             };
@@ -8680,7 +8680,7 @@
             }
             this._p = x;
         };
-        PairwiseObserver.prototype.error = function (err) { this._o.onError(err); };
+        PairwiseObserver.prototype.fatal_error = function (err) { this._o.onError(err); };
         PairwiseObserver.prototype.completed = function () { this._o.onCompleted(); };
 
         return PairwiseObserver;
@@ -8905,7 +8905,7 @@
             this._p._ensureActive(this._s);
         };
 
-        ExpandObserver.prototype.error = function (e) {
+        ExpandObserver.prototype.fatal_error = function (e) {
             this._s.o.onError(e);
         };
 
@@ -8989,7 +8989,7 @@
             }
         };
 
-        ForkJoinObserver.prototype.error = function (e) {
+        ForkJoinObserver.prototype.fatal_error = function (e) {
             this._s.finished = true;
             this._o.onError(e);
             this._subs.dispose();
@@ -9285,7 +9285,7 @@
         JoinObserverPrototype.next = function (notification) {
             if (!this.isDisposed) {
                 if (notification.kind === 'E') {
-                    return this.onError(notification.error);
+                    return this.onError(notification.fatal_error);
                 }
                 this.queue.push(notification);
                 var activePlans = this.activePlans.slice(0);
@@ -9295,7 +9295,7 @@
             }
         };
 
-        JoinObserverPrototype.error = noop;
+        JoinObserverPrototype.fatal_error = noop;
         JoinObserverPrototype.completed = noop;
 
         JoinObserverPrototype.addActivePlan = function (activePlan) {
@@ -9492,7 +9492,7 @@
                 if (notification.value.kind === 'E') {
                     q = [];
                     q.push(notification);
-                    exception = notification.value.error;
+                    exception = notification.value.fatal_error;
                     shouldRun = !running;
                 } else {
                     q.push({ value: notification.value, timestamp: notification.timestamp + dueTime });
@@ -9672,7 +9672,7 @@
             }));
         };
 
-        DebounceObserver.prototype.error = function (e) {
+        DebounceObserver.prototype.fatal_error = function (e) {
             this._c.dispose();
             this._o.onError(e);
             this._hv = false;
@@ -9944,7 +9944,7 @@
             this._l = now;
             this._o.onNext({ value: x, interval: span });
         };
-        TimeIntervalObserver.prototype.error = function (e) { this._o.onError(e); };
+        TimeIntervalObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
         TimeIntervalObserver.prototype.completed = function () { this._o.onCompleted(); };
 
         return TimeIntervalObserver;
@@ -9992,7 +9992,7 @@
             this._o.onNext({ value: x, timestamp: this._s.now() });
         };
 
-        TimestampObserver.prototype.error = function (e) {
+        TimestampObserver.prototype.fatal_error = function (e) {
             this._o.onError(e);
         };
 
@@ -10408,7 +10408,7 @@
                 this._o.onNext(this._q.shift().value);
             }
         };
-        SkipLastWithTimeObserver.prototype.error = function (e) { this._o.onError(e); };
+        SkipLastWithTimeObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
         SkipLastWithTimeObserver.prototype.completed = function () {
             var now = this._s.now();
             while (this._q.length > 0 && now - this._q[0].interval >= this._d) {
@@ -10469,7 +10469,7 @@
                 this._q.shift();
             }
         };
-        TakeLastWithTimeObserver.prototype.error = function (e) { this._o.onError(e); };
+        TakeLastWithTimeObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
         TakeLastWithTimeObserver.prototype.completed = function () {
             var now = this._s.now();
             while (this._q.length > 0) {
@@ -10605,7 +10605,7 @@
         }
 
         SkipWithTimeObserver.prototype.next = function (x) { this._p._open && this._o.onNext(x); };
-        SkipWithTimeObserver.prototype.error = function (e) { this._o.onError(e); };
+        SkipWithTimeObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
         SkipWithTimeObserver.prototype.completed = function () { this._o.onCompleted(); };
 
         return SkipWithTimeObserver;
@@ -10662,7 +10662,7 @@
         }
 
         SkipUntilWithTimeObserver.prototype.next = function (x) { this._p._open && this._o.onNext(x); };
-        SkipUntilWithTimeObserver.prototype.error = function (e) { this._o.onError(e); };
+        SkipUntilWithTimeObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
         SkipUntilWithTimeObserver.prototype.completed = function () { this._o.onCompleted(); };
 
         return SkipUntilWithTimeObserver;
@@ -10739,7 +10739,7 @@
             if (res === errorObj) { this._o.onError(res.e); }
         };
 
-        TransduceObserver.prototype.error = function (e) { this._o.onError(e); };
+        TransduceObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
 
         TransduceObserver.prototype.completed = function () {
             this._xform['@@transducer/result'](this._o);
@@ -10817,7 +10817,7 @@
             }
         };
 
-        SwitchFirstObserver.prototype.error = function (e) {
+        SwitchFirstObserver.prototype.fatal_error = function (e) {
             this._s.o.onError(e);
         };
 
@@ -10834,7 +10834,7 @@
         }
 
         InnerObserver.prototype.next = function (x) { this._s.o.onNext(x); };
-        InnerObserver.prototype.error = function (e) { this._s.o.onError(e); };
+        InnerObserver.prototype.fatal_error = function (e) { this._s.o.onError(e); };
         InnerObserver.prototype.completed = function () {
             this._s.g.remove(this._i);
             this._s.hasCurrent = false;
@@ -11119,7 +11119,7 @@
         if (other === this) { return true; }
         if (other == null) { return false; }
         if (other.kind !== 'E') { return false; }
-        return this.predicate(other.error);
+        return this.predicate(other.fatal_error);
     };
 
     var ReactiveTest = Rx.ReactiveTest = {
@@ -11617,7 +11617,7 @@
             }
         };
 
-        AutoDetachObserverPrototype.error = function (err) {
+        AutoDetachObserverPrototype.fatal_error = function (err) {
             var result = tryCatch(this.observer.onError).call(this.observer, err);
             this.dispose();
             result === errorObj && thrower(result.e);
@@ -11694,7 +11694,7 @@
                     return new InnerSubscription(this, o);
                 }
                 if (this.hasError) {
-                    o.onError(this.error);
+                    o.onError(this.fatal_error);
                     return disposableEmpty;
                 }
                 o.onCompleted();
@@ -11727,7 +11727,7 @@
                 checkDisposed(this);
                 if (!this.isStopped) {
                     this.isStopped = true;
-                    this.error = error;
+                    this.fatal_error = error;
                     this.hasError = true;
                     for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
                         os[i].onError(error);
@@ -11800,7 +11800,7 @@
                 }
 
                 if (this.hasError) {
-                    o.onError(this.error);
+                    o.onError(this.fatal_error);
                 } else if (this.hasValue) {
                     o.onNext(this.value);
                     o.onCompleted();
@@ -11852,7 +11852,7 @@
                 if (!this.isStopped) {
                     this.isStopped = true;
                     this.hasError = true;
-                    this.error = error;
+                    this.fatal_error = error;
 
                     for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
                         os[i].onError(error);
@@ -11877,7 +11877,7 @@
             dispose: function () {
                 this.isDisposed = true;
                 this.observers = null;
-                this.error = null;
+                this.fatal_error = null;
                 this.value = null;
             }
         });
@@ -11909,7 +11909,7 @@
                     return new InnerSubscription(this, o);
                 }
                 if (this.hasError) {
-                    o.onError(this.error);
+                    o.onError(this.fatal_error);
                 } else {
                     o.onCompleted();
                 }
@@ -11924,7 +11924,7 @@
              */
             getValue: function () {
                 checkDisposed(this);
-                if (this.hasError) { thrower(this.error); }
+                if (this.hasError) { thrower(this.fatal_error); }
                 return this.value;
             },
             /**
@@ -11954,7 +11954,7 @@
                 if (this.isStopped) { return; }
                 this.isStopped = true;
                 this.hasError = true;
-                this.error = error;
+                this.fatal_error = error;
 
                 for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
                     os[i].onError(error);
@@ -11981,7 +11981,7 @@
                 this.isDisposed = true;
                 this.observers = null;
                 this.value = null;
-                this.error = null;
+                this.fatal_error = null;
             }
         });
 
@@ -12037,7 +12037,7 @@
                 }
 
                 if (this.hasError) {
-                    so.onError(this.error);
+                    so.onError(this.fatal_error);
                 } else if (this.isStopped) {
                     so.onCompleted();
                 }
@@ -12085,7 +12085,7 @@
                 checkDisposed(this);
                 if (this.isStopped) { return; }
                 this.isStopped = true;
-                this.error = error;
+                this.fatal_error = error;
                 this.hasError = true;
                 var now = this.scheduler.now();
                 this._trim(now);

@@ -62,7 +62,8 @@ function require_synchronous_standard_fsm(utils, Err) {
                 evaluation_result = {
                     updated_fsm_state: action_error ? fsm_state : action_result,
                     next_state: action_error ? undefined : to,
-                    error: action_error
+                    fatal_error: action_error,
+                    recoverable_error : action_result.recoverable_error
                 };
                 return true;
             }

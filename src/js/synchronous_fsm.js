@@ -351,6 +351,7 @@ function create_state_machine(cd_player_states, events, transitions, model_initi
     });
 
     function send_event(event, event_data) {
+        console.log("send envet")
         process_event(hash_states_struct.hash_states, event, event_data, model);
     }
 
