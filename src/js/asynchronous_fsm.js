@@ -452,10 +452,10 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
                 var event = transition.event || special_events.AUTO;
 
                 // CONTRACT : `conditions` property used for array of conditions, otherwise `condition` property is used
-                var arr_predicate = transition.conditions || transition.condition;
+                var arr_predicate = transition.guards || transition.predicate;
                 // CASE : ZERO OR ONE condition set
                 if ((arr_predicate && !arr_predicate.forEach) || !arr_predicate) arr_predicate = [
-                    {condition: arr_predicate, to: to, action: action    }
+                    {predicate: arr_predicate, to: to, action: action    }
                 ];
 
                 var from_proto;

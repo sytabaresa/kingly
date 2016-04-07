@@ -253,9 +253,9 @@ function require_cd_player_def(cd_player, utils, fsm) {
         {from: states.no_cd_loaded, to: states.cd_drawer_closed, event: cd_player_events.INIT, action: action_enum.identity},
         {from: states.cd_drawer_closed, to: states.cd_drawer_open, event: cd_player_events.EJECT, action: action_enum.open_drawer},
         {from: states.cd_drawer_open, to: states.closing_cd_drawer, event: cd_player_events.EJECT, action: action_enum.close_drawer},
-        {from: states.closing_cd_drawer, conditions: [
-            {condition: is_not_cd_in_drawer, to: states.cd_drawer_closed, action: action_enum.identity},
-            {condition: is_cd_in_drawer, to: states.cd_loaded, action: action_enum.identity}
+        {from: states.closing_cd_drawer, guards: [
+            {predicate: is_not_cd_in_drawer, to: states.cd_drawer_closed, action: action_enum.identity},
+            {predicate: is_cd_in_drawer, to: states.cd_loaded, action: action_enum.identity}
         ]},
         {from: states.cd_loaded, to: states.cd_loaded_group, event: cd_player_events.INIT, action: action_enum.identity},
         {from: states.cd_playing, to: states.cd_paused_group, event: cd_player_events.PAUSE, action: action_enum.pause_playing_cd},
@@ -268,18 +268,18 @@ function require_cd_player_def(cd_player, utils, fsm) {
         {from: states.cd_stopped, to: states.cd_playing, event: cd_player_events.PLAY, action: action_enum.play},
         {from: states.cd_playing, to: states.cd_stopped, event: cd_player_events.STOP, action: action_enum.stop},
         {from: states.cd_loaded_group, to: states.cd_stopped, event: cd_player_events.INIT, action: action_enum.stop},
-        {from: states.cd_loaded_group, event: cd_player_events.NEXT_TRACK, conditions: [
-            {condition: is_last_track, to: states.cd_stopped, action: action_enum.stop},
-            {condition: is_not_last_track, to: states.history.cd_loaded_group, action: action_enum.go_next_track}
+        {from: states.cd_loaded_group, event: cd_player_events.NEXT_TRACK, guards: [
+            {predicate: is_last_track, to: states.cd_stopped, action: action_enum.stop},
+            {predicate: is_not_last_track, to: states.history.cd_loaded_group, action: action_enum.go_next_track}
         ]},
-        {from: states.cd_loaded_group, event: cd_player_events.PREVIOUS_TRACK, conditions: [
-            {condition: is_track_gt_1, to: states.history.cd_loaded_group, action: action_enum.go_previous_track},
-            {condition: is_track_eq_1, to: states.history.cd_loaded_group, action: action_enum.go_track_1}
+        {from: states.cd_loaded_group, event: cd_player_events.PREVIOUS_TRACK, guards: [
+            {predicate: is_track_gt_1, to: states.history.cd_loaded_group, action: action_enum.go_previous_track},
+            {predicate: is_track_eq_1, to: states.history.cd_loaded_group, action: action_enum.go_track_1}
         ]},
         {from: states.cd_loaded, to: states.cd_drawer_open, event: cd_player_events.EJECT, action: action_enum.eject},
-        {from: states.stepping_forwards, event: cd_player_events.TIMER_EXPIRED, conditions: [
-            {condition: is_not_end_of_cd, to: states.stepping_forwards, action: action_enum.go_forward_1_s},
-            {condition: is_end_of_cd, to: states.cd_stopped, action: action_enum.stop}
+        {from: states.stepping_forwards, event: cd_player_events.TIMER_EXPIRED, guards: [
+            {predicate: is_not_end_of_cd, to: states.stepping_forwards, action: action_enum.go_forward_1_s},
+            {predicate: is_end_of_cd, to: states.cd_stopped, action: action_enum.stop}
         ]},
         {from: states.stepping_forwards, to: states.history.cd_loaded_group, event: cd_player_events.FORWARD_UP, action: action_enum.stop_forward_timer},
         {from: states.cd_loaded_group, to: states.stepping_forwards, event: cd_player_events.FORWARD_DOWN, action: action_enum.go_forward_1_s},

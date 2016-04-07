@@ -119,8 +119,6 @@ define(function (require) {
         return !model[DUMMY_FIELD];
     }
 
-
-    // TODO : refactor conditions to guards, and condition to predicate
     QUnit.test("Standard transition mechanism - Initial transition", function (assert) {
         var done = assert.async(); // Cf. https://api.qunitjs.com/async/
 
@@ -136,12 +134,12 @@ define(function (require) {
         var transitions = [
             {from: states.NOK, to: states.A, event: events.INIT},
             {from: states.A, to: states.B, event: events.EVENT1},
-            {from: states.B, to: states.C, event: events.EVENT2, condition: utils.always(true)},
-            {from: states.C, to: states.D, event: events.EVENT2, conditions: [
-                {condition: has_dummy_field, to: states.D, action: set_dummy_field_to_true},
-                {condition: has_not_dummy_field, to: states.C, action: set_dummy_field}
+            {from: states.B, to: states.C, event: events.EVENT2, predicate: utils.always(true)},
+            {from: states.C, to: states.D, event: events.EVENT2, guards: [
+                {predicate: has_dummy_field, to: states.D, action: set_dummy_field_to_true},
+                {predicate: has_not_dummy_field, to: states.C, action: set_dummy_field}
             ]},
-            {from: states.D, to: states.D, event: events.EVENT3, condition: utils.always(false), action: set_dummy_field_to_false}
+            {from: states.D, to: states.D, event: events.EVENT3, predicate: utils.always(false), action: set_dummy_field_to_false}
             // - B : event2 / true -> C
             // - C : event2 / ?dummy_field -> D : set field 'dummy_field' to true
             // - C : event2 / !dummy_field -> C : set field 'dummy_field'
