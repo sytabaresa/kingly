@@ -28,6 +28,9 @@
 <div id="qunit-fixture"></div>
 <script>
     QUnit.config.autostart = false;
+    sinon.config = {
+        useFakeTimers: false
+    }; // some stupid stuff you have to do to use sinon AND setTimeout with Qunit...
     require({
         baseUrl: '../src/js',//here the path for required modules is relative to the index.html folder in which requirejs is loaded
         paths: {

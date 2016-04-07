@@ -1120,6 +1120,7 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
                 error: error,
                 event: event,
                 event_data: event_data,
+                resulting_state : get_current_state(fsm_state),
                 timestamp: utils.get_timestamp()
             };
             // update model private props which are computed properties based on `fsm_state`
@@ -1156,9 +1157,10 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
                 error: error,
                 event: event,
                 event_data: event_data,
+                resulting_state : get_current_state(fsm_state),
                 timestamp: utils.get_timestamp()
             };
-            ;
+
             // but the model was not modified
             fsm_state.internal_state.is_model_dirty = false;
             // so we remain in the internal state EXPECTING_INTENT to receive other events
