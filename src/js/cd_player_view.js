@@ -84,8 +84,9 @@ function require_cd_player_view(Ractive, RactiveTooltip) {
 //            '        </div>',
             '<ol class="breadcrumb ">',
             '    <li >Track information</li>',// My low templating skills require me to put some dummy empty li here so the blink does not happen on the whole div
-            '    <li class="active {{hidden$}}">Track {{current_track$}}</li>',
-            '    <li class="active {{hidden$}}">{{current_cd_play_time$}}</li>',
+//            '    <li class="active {{#hidden$}}{{value}}{{/hidden$}}">Track {{#current_track$}}{{value}}{{/current_track$}}</li>',
+            '    <li class="active {{#hidden$}}{{value}}{{/hidden$}}">Track {{#hidden$}}{{value}}{{/hidden$}}</li>',
+            '    <li class="active {{#hidden$}}{{value}}{{/hidden$}}">{{#current_cd_play_time$}}{{value}}{{/current_cd_play_time$}}</li>',
             '</ol>',
             '<button decorator="tooltip:{{play_tooltip}}" id="play" type="button" class="btn btn-default" aria-label="Left Align">',
             '    <span class="glyphicon glyphicon glyphicon-play" aria-hidden="true"></span>',

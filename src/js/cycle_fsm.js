@@ -26,6 +26,7 @@ define(function (require) {
         };
     }
 
+    debugger;
     var drivers = {
         // DOM : not used for now
         ractive: make_ractive_driver(Ractive_component)
@@ -104,8 +105,8 @@ define(function (require) {
 
         // NOTE: hfsm made a global for testing in console
         hfsm = fsm.make_fsm(cd_player_state_chart, intent$);
-            hfsm.start();
-            hfsm.start_trace();
+        hfsm.start();
+        hfsm.start_trace();
         hfsm.trace$.subscribe(utils.rxlog('Final trace array'));
 
         return {

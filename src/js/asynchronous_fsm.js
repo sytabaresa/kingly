@@ -1,11 +1,18 @@
 // TODO : check if fsm is multi-instances (i.e. new instance every time, no shared data)
 // TODO : switch internal state machine to synchronous state machine?? I'd say yes
-// TODO : finish testing the tracing mechanism and the startup mechanism (sharereplay necessary??)
 // TODO : add the weak abortion feature? unless it can be simulated with standard statechart?
 //        for instance, action = http request, and cancel event in same state, no need for weak abortion
+// TODO : add new feature : actions can send events - first design it
 // TODO : architecture a la ELM, write actions as a comonad
+//        in the action enum, maybe add a breakdown of the action into pure (model update), and effectful
+//        maybe through a type, like {STOP : new Effect(action_def), START : {pure : action_def, effect : effect_def}
+//        when only effect, the pure is identity
+//        or type constructor new Action (effect, pure). `pure` could also be called update, like in Elm
+//        or simply use a higher-order function like compose : {START : compose (effect, pure)}
+//        The advantage of using one's own constructor is that it can be instrumented for tracing and debugging purposes
 // TODO : check that the action_res received is the action_res expected i.e. keep action_req at hand, and send action_req with action_res
 //        also, give a unique ID (time+counter) to the request - so modify to_observable or add a function after it
+// TODO : function de/serialize -> allow to save and recreate the state of the FSM
 // TODO : write documentation in readme.md - argue use case for HFSM, give roadmap
 // TODO : add the possibility to add conditions one by one on a given transition (preprocessing the array beforehand?)
 // TODO : entry and exit actions?? annoying as it forces to add up more intermediate state in the internal state machine
@@ -25,6 +32,13 @@
 // NOTE : AND states gives problems of processing events (an action_res can be received by several states)
 //        so 1 AND state could have received its action result and move on, while the second is still waiting for an action res to come...
 
+// TERMINOLOGY
+// Reminder : there are two kinds of intents : user generated intent, and program generated intent
+// Reminder : there are two kinds of sources : intents and effect responses (or results, terminology still in flux)
+// Terminology :
+// - thereafter we refer by FSM (or inner FSM) the finite state machine whose specs is passed as parameter to the state machine
+// builder
+// - we refer by internal/outer FSM the finite state machine used to build the state machine builder
 
 // NOTE : Dead states:
 // - Possible if automatic actions (no events) with conditions always true. If there is not another condition which at some
@@ -34,69 +48,7 @@
 // Implementation contracts
 // CONTRACT :Actions cannot return an object of type error if not error (check code again)
 // CONTRACT : event handlers and predicates MUST be pure (they will be executed several times with the same input)
-
-// BEHAVIOURAL CONTRACTS
-// Reminder : there are two kinds of intents : user generated intent, and program generated intent
-// Reminder : there are two kinds of sources : intents and effect responses (or results, terminology still in flux)
-// Terminology :
-// - thereafter we refer by FSM (or inner FSM) the finite state machine whose specs is passed as parameter to the state machine
-// builder
-// - we refer by internal/outer FSM the finite state machine used to build the state machine builder
-//
-// CONTRACT : on receiving an intent:
-// - if applicable vs. statechart spec, no transition exists for that event (no handler exists for that event) :
-//   - warning is generated
-//   - model is updated (only internals!!)
-//   - the outer FSM model is updated (also referred as internal model) : ACTUALLY SHOULD BE DONE IN synchronous fsm TESTING!!
-//   - the inner FSM current state remains the same
-//   - else ? (review code)
-// - if applicable vs. statechart spec, 1 transition exists for that event, with no guard :
-//   - the corresponding action is executed with the parameters (CHECK IN THE CODE)
-//   - the result of that action is found in field (CHECK THE CODE) of the return value of the makeFSM function
-// - if applicable vs. statechart spec, 2 transitions exist for that event, with no guards :
-//   - design error!! (CHECK THE CODE TO SEE WHAT ARE THE MODIFICATIONS)
-// - if applicable vs. statechart spec, 2 transitions exist for that event, one with guard, other with no guards :
-//   - design error!! (CHECK THE CODE TO SEE WHAT ARE THE MODIFICATIONS)
-// - if applicable vs. statechart spec, 2 transitions exist for that event, both have guards, first guard false, second guard true :
-//   - it is the action corresponding to the second guard which is selected (CONTRACT - ORDER OF EXECUTION OF PREDICATES)
-//   - but both guards are executed, the first first ( returns false) the second second (returns true)
-// CONTRACT : If there is no action specified for a transition, the identity action is used
-// - if applicable vs. statechart spec, 1 transition exists for that event, no guard, no action :
-//   - the FSM transitions to the next state, the model is not changed, the special action identity is executed
-//   -
-// HISTORY MECHANISM
-// - Depth of history arrows, transition to state with no previous history
-//   - root < A < B < (C, D), with tr(root->A, INIT), tr(A->B.H, INIT), tr(B->C, INIT)
-//   - root < A < B < (C, D), with tr(root->A, INIT), tr(A->A.H, INIT), tr(B->C, INIT),
-//   - root < A < B < C < (D, E), with tr(root->A, INIT), tr(A->C.H, INIT), tr(B->C, INIT), tr(C->D, INIT)
-//   + In all cases, this is the INIT transition which should be taken (by contract there is one)
-// - Depth of history arrows, transition to state with previous history
-//   - root < A < B < (C, D), with tr(root->A, INIT), tr(A->B.H, INIT), tr(B->C, INIT), tr(C->D, EV1), tr(D->A, EV2)
-//   + SHOULD go to B.H i.e. D
-//   - root < A < B < (C, D), C < (E, F), D < (G, H)
-//       . with tr(root->A, INIT), tr(A->B, INIT), tr(B->C, INIT), tr(C->E, INIT), tr(D->G, INIT)
-//       . with tr(E->G, EV1), tr(G->C, EV2)
-//       . with tr(E->B.H, EV3)
-//       + SHOULD go to E
-//   -
-// NESTING MECHANISM
-// - Entry into nesting states -> INIT transitions
-// - Entry into nesting states with history -> did in HISTORY MECHANISM
-// - Exit from nesting states -> exit from the nested state to the destination state
-// CATEGORY
-// - Subcategory -> Expected (THEN)
-//   - test conditions (GIVEN, WHEN)
-
-// TODO : function de/serialize -> allow to save and recreate the state of the FSM
-// TODO : function start_trace, stop_trace
-// Trace mechanism :
-//        - subject to emit, subject to interrupt (ou complete subject)
-//        - stop_trace :: void -> Array Trace, where
-// Trace :: (Event, State, Model, Optional Time_Info), where
-// Event :: (Event_Type, Event_Data)
-// State :: State_Enum
-// Model :: Serializable
-
+// CONTRACT : guards/predicates cannot throw (not detected for now, but I should try to catch it and emit fatal error)
 
 // Serialization mechanism :
 // - Model should come with a serialize method
@@ -105,55 +57,10 @@
 //   - serialize the inner parameters
 // This will allow to save a copy of a state machine and its state for testing.
 
-
-// TEST PROCEDURE:
-// (Ev_0, EvData_0)-->(S0,M0,IM0))-->(S1,M1,IM1)-...>(S_m,M_m,IM_m)
-// (Ev_m+i, EvData_m+1)-...>
-
-// Start test with validation of the chart format
-//   - CF. OTHER TESTS TO SEE WHAT MODEL MODIFICATIONS ARE, AND STATE MODIFICATIONS ARE
-// - TO CONTINUE WITH THE IMPLEMENTED FEATURES OF THE EXTENDED HIERARCHICAL STATE MACHINE
-// - there has to be an INIT event at the top level chart (otherwise don't know which state to start)
-// - initial state is set in stone and is NOK the state of which all states are children
-// - all actions must be functions and have a name
-// - no two actions can have the same name
-// - model cannot be undefined, if empty then {}
-// - max one INIT event for any state
-// - CANNOT have an action for the first INIT event, as this is how the initial model is set in the FSM
-
-// TODO : error management, pass the error as the output, i.e. the output is Either (Observable T) Err
-// TODO : add new feature : actions can send events - first design it
-// TODO : in the action enum, maybe add a breakdown of the action into pure (model update), and effectful
-//        maybe through a type, like {STOP : new Effect(action_def), START : {pure : action_def, effect : effect_def}
-//        when only effect, the pure is identity
-//        or type constructor new Action (effect, pure). `pure` could also be called update, like in Elm
-//        or simply use a higher-order function like compose : {START : compose (effect, pure)}
-//        The advantage of using one's own constructor is that it can be instrumented for tracing and debugging purposes
-
 // CONTRACT : the fsm, after emitting an effect request, blocks till it received the corresponding effect response
 // TODO : have another format for effect responses?? so the user cannot have events that could be mistaken for effect responses
 // We already have a different format as those events comes from another channel. That channel has to be hidden to avoid
 // having other agents sending effect_res to it!! and the internal details not disclosed (in the public documentation)
-
-
-// Validity of state chart definition
-// - ACTIONS
-// CONTRACT : action codes MUST NOT be false or falsy
-// - NESTING STATES
-// CONTRACT : init events only acceptable in nesting state (aka grouping state)
-// NOTE : enforced via in_auto_state only true for grouping state
-// CONTRACT : Automatic actions with no events and only conditions are not allowed in nesting state (aka grouping state)
-// NOTE : That would lead to non-determinism if A < B < C and both A and B have such automatic actions
-// CONTRACT : every nesting state MUST have at MAX ONE init transition
-// CONTRACT : if there is a transition with destination a nesting state (standard or history), that nesting state much
-// have an init transition defined
-// - HISTORY MECHANISM
-// CONTRACT : no transition from the history state (history state is only a target state)
-// CONTRACT : history mechanism can only be used in connection with nesting states
-// CONTRACT : nesting states
-// - TRANSITIONS
-// CONTRACT : various guards on the same transitions must be passed in the same array (allows to specify order easily)
-
 
 define(function (require) {
     var utils = require('utils');
@@ -464,25 +371,24 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
                 //console.log("This is transition for event:", event);
                 //console.log("Predicates:", arr_predicate);
 
-                from_proto[event] = arr_predicate.reduce(function (acc, condition, index) {
-                    var action = condition.action;
-                    //console.log("Condition:", condition);
-                    var condition_checking_fn = (function (condition) {
+                from_proto[event] = arr_predicate.reduce(function (acc, guards, index) {
+                    var action = guards.action;
+                    var condition_checking_fn = (function (guards) {
                         var condition_suffix = '';
                         // We add the `current_state` because the current state might be different from the `from` field here
                         // This is the case for instance when we are in a substate, but through prototypal inheritance it is
                         // the handler of the prototype which is called
                         var condition_checking_fn = function (model_, event_data, current_state) {
                             from = current_state || from;
-                            var predicate = condition.condition;
+                            var predicate = guards.predicate;
                             condition_suffix = predicate ? '_checking_condition_' + index : '';
-                            var to = condition.to;
+                            var to = guards.to;
                             if (!predicate || predicate(model_, event_data)) {
                                 // CASE : condition for transition is fulfilled so we can execute the actions...
                                 utils.info("IN STATE ", from);
                                 utils.info("WITH model, event data BEING ", model_, event_data);
                                 utils.info("CASE : "
-                                    + (predicate ? "condition " + predicate.name + " for transition is fulfilled"
+                                    + (predicate ? "predicate " + predicate.name + " for transition is fulfilled"
                                         : "automatic transition"));
 
                                 return action
@@ -495,14 +401,14 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
                             else {
                                 // CASE : condition for transition is not fulfilled
                                 console.log("CASE : "
-                                    + (predicate ? "condition " + predicate.name + " for transition NOT fulfilled..."
+                                    + (predicate ? "predicate " + predicate.name + " for transition NOT fulfilled..."
                                         : "no predicate"));
                                 return {effect_code: undefined, from: from, to: to};
                             }
                         };
                         condition_checking_fn.displayName = from + condition_suffix;
                         return condition_checking_fn;
-                    })(condition);
+                    })(guards);
 
                     return function arr_predicate_reduce_fn(model_, event_data, current_state) {
                         var condition_checked = acc(model_, event_data, current_state);
@@ -693,7 +599,7 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
             var emit_traces = true;
             if (internal_event_type === internal_fsm_events.EV_INTENT) {
                 if (recoverable_error) {
-                    add_trace_record(add_recoverable_error_to_trace_record(recoverable_error),
+                    add_trace_record(add_recoverable_error_to_trace_record(fsm_state.model, recoverable_error),
                         /*OUT*/fsm_state.arr_traces, traceS, emit_traces);
                 }
                 else {
@@ -703,7 +609,8 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
                 }
             }
             if (internal_event_type === internal_fsm_events.EV_EFFECT_RES) {
-                update_trace_record(complete_trace_record, /*OUT*/fsm_state, traceS, emit_traces);
+                // TODO : deal with error when effect_res
+                update_trace_record(complete_trace_record, /*OUT*/fsm_state, recoverable_error, traceS, emit_traces);
             }
         }
         return fsm_state;
@@ -718,10 +625,10 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
      * @param traceS
      * @returns
      */
-    function update_trace_record(update_fn, /*OUT*/fsm_state, traceS, emit_traces) {
+    function update_trace_record(update_fn, /*OUT*/fsm_state, recoverable_error, traceS, emit_traces) {
         emit_traces = (typeof(emit_traces) === 'boolean') ? emit_traces : true;
         var incomplete_pushed_trace_record = fsm_state.arr_traces.pop();
-        var completed_trace_record = update_fn(incomplete_pushed_trace_record, fsm_state);
+        var completed_trace_record = update_fn(incomplete_pushed_trace_record, recoverable_error, fsm_state);
         fsm_state.arr_traces.push(completed_trace_record);
         emit_traces && traceS.onNext(fsm_state.arr_traces);
     }
@@ -732,17 +639,18 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
         emit_traces && traceS.onNext(arr_traces);
     }
 
-    function add_recoverable_error_to_trace_record(recoverable_error) {
+    function add_recoverable_error_to_trace_record(model, recoverable_error) {
         return function (/*OUT*/arr_traces) {
-            arr_traces.push(recoverable_error);
+            arr_traces.push({model: utils.clone_deep(model), recoverable_error: recoverable_error});
             return arr_traces;
         }
     }
 
-    function complete_trace_record(/*OUT*/record, fsm_state) {
+    function complete_trace_record(/*OUT*/record, recoverable_error, fsm_state) {
         record.resulting_state = get_current_state(fsm_state);
         record.model = utils.clone_deep(fsm_state.model);
         record.timestamp = utils.get_timestamp();
+        recoverable_error  && (record.recoverable_error = recoverable_error);
         return record;
     }
 
@@ -844,7 +752,7 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
         fsm_internal_transitions[EXPECTING_INTENT][fsm_internal_events.EV_INTENT] = [
             {
                 // CASE : There is a transition associated to that event
-                predicate: has_event_handler_and_has_effect_code,
+                predicate: has_event_handler_and_has_transition,
                 action: update_internals_with_effect_code,
                 to: EXPECTING_ACTION_RESULT
             },
@@ -852,14 +760,14 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
                 // CASE : we don't have a truthy effect code :
                 // - none of the guards were truthy, it is a possibility
                 // So we remain in the same state
-                predicate: has_event_handler_and_has_not_effect_code,
-                action: emit_warning,
+                predicate: has_event_handler_and_has_not_transition,
+                action: emit_no_guard_satisfied_recoverable_error,
                 to: EXPECTING_INTENT
             },
             {
                 // CASE : default case (must be last) : There is no transition associated to that event from that state
                 predicate: has_not_event_handler, // and is not trace event of course, but that's implicit here
-                action: update_model_with_warning,
+                action: emit_no_transition_recoverable_error,
                 to: EXPECTING_INTENT // should not matter as we throw an exception
             }
         ];
@@ -934,12 +842,12 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
                 && event_handler(model, event_data, current_state).effect_code;
         }
 
-        function has_event_handler_and_has_effect_code(fsm_state, internal_event) {
+        function has_event_handler_and_has_transition(fsm_state, internal_event) {
             return has_event_handler(fsm_state, internal_event) && has_effect_code(fsm_state, internal_event);
 
         }
 
-        function has_event_handler_and_has_not_effect_code(fsm_state, internal_event) {
+        function has_event_handler_and_has_not_transition(fsm_state, internal_event) {
             return has_event_handler(fsm_state, internal_event) && !has_effect_code(fsm_state, internal_event);
         }
 
@@ -982,7 +890,7 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
             return fsm_state;
         }
 
-        function emit_warning(fsm_state, internal_event) {
+        function emit_no_guard_satisfied_recoverable_error(fsm_state, internal_event) {
             var event = internal_event.code;
             var event_data = internal_event.payload;
             var model = fsm_state.model;
@@ -991,11 +899,11 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
             var event_handler = hash_states[current_state][event];
             var effect_struct = event_handler(model, event_data, current_state);
             var from = effect_struct.from;
+            var error_msg = ['No transition found while processing the event', event,
+                'while transitioning from state', from,
+                '.\n It is possible that no guard predicates were fulfilled.'].join(" ");
 
-            set_internal_state_to_expecting_intent(fsm_state, undefined);
-            console.warn(['No effect code found while processing the event', event,
-                'while transitioning from state', from].join(" "));
-            return fsm_state;
+            return update_model_with_warning(fsm_state, internal_event, error_msg);
         }
 
         function emit_only_warning(fsm_state, internal_event) {
@@ -1004,9 +912,14 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
             return fsm_state;
         }
 
-        function update_model_with_warning(fsm_state, internal_event) {
+        function emit_no_transition_recoverable_error(fsm_state, internal_event) {
             // CASE : There is no transition associated to that event from that state
             // TODO : think more carefully about error management : have an optional parameter to decide behaviour?
+            var error_msg = 'There is no transition associated to that event!';
+            return update_model_with_warning(fsm_state, internal_event, error_msg);
+        }
+
+        function update_model_with_warning(fsm_state, internal_event, error_msg) {
             // We keep the internal state `expecting` property the same
             // However, we update the model to indicate that an error occurred
             // it will be up to the user to determine what to do with the error
@@ -1014,7 +927,6 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
             var event_data = internal_event.payload;
             var hash_states = fsm_state.hash_states;
             var current_state = hash_states[INITIAL_STATE_NAME].current_state_name;
-            var error_msg = 'There is no transition associated to that event!';
             fsm_state.model = update_model_private_props(fsm_state.model, current_state, undefined,
                 fsm_state.internal_state.expecting);
             fsm_state.model = update_model_with_error(fsm_state.model, event, event_data, error_msg);
@@ -1095,7 +1007,7 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
             fsm_state.internal_state.to = to;
             // pass down the effect to execute with its parameters
             fsm_state.effect_req = effect_code;
-            fsm_state.effect_payload = event_data;
+            fsm_state.payload = event_data;
             // no error
             fsm_state.recoverable_error = undefined;
             // update model private props which are computed properties based on `fsm_state`
@@ -1114,13 +1026,13 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
             fsm_state.internal_state.to = undefined;
             // no effect to execute
             fsm_state.effect_req = undefined;
-            fsm_state.effect_payload = undefined;
+            fsm_state.payload = undefined;
             // error to signal
             fsm_state.recoverable_error = {
                 error: error,
                 event: event,
                 event_data: event_data,
-                resulting_state : get_current_state(fsm_state),
+                resulting_state: get_current_state(fsm_state),
                 timestamp: utils.get_timestamp()
             };
             // update model private props which are computed properties based on `fsm_state`
@@ -1144,7 +1056,7 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
             fsm_state.internal_state.to = undefined;
             // no effect request to be made
             fsm_state.effect_req = undefined;
-            fsm_state.effect_payload = undefined;
+            fsm_state.payload = undefined;
             // no error
             fsm_state.recoverable_error = undefined;
             // update model private props which are computed properties based on `fsm_state`
@@ -1157,7 +1069,7 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
                 error: error,
                 event: event,
                 event_data: event_data,
-                resulting_state : get_current_state(fsm_state),
+                resulting_state: get_current_state(fsm_state),
                 timestamp: utils.get_timestamp()
             };
 
@@ -1172,7 +1084,7 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
             fsm_state.automatic_event = undefined;
             // no effect request to be made
             fsm_state.effect_req = undefined;
-            fsm_state.effect_payload = undefined;
+            fsm_state.payload = undefined;
             // update model private props which are computed properties based on `fsm_state`
             fsm_state.model = update_model_private_props(fsm_state.model, fsm_state.internal_state.from, fsm_state.model.__to, fsm_state.internal_state.expecting);
         }
@@ -1184,7 +1096,7 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
             var to = fsm_state.internal_state.to;
             var model = fsm_state.model;
             var model_prime = effect_res;
-            var previously_processed_event_data = fsm_state.effect_payload;
+            var previously_processed_event_data = fsm_state.payload;
 
             console.log("Received effect_res", effect_res);
 
@@ -1204,6 +1116,20 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
                 fsm_state.is_auto_state,
                 fsm_state.is_init_state,
                 previously_processed_event_data);
+
+
+            // TODO
+            // change model_prime to model_diff
+            // change update_model to be _.extend...
+            // add a field fsm_state.model_diff
+            // change ractive driver to use fsm_state.model_diff
+            // analyze the need for model.is_dirty as I now have model_diff (difference will be meta data on the model)
+            // so maybe remove the meta data on the model?? or group in two fields
+            // - recoverable_error
+            // - metadata
+
+            //
+
 
             // Update the model before entering the next state...
             fsm_state.model = update_model(model, model_prime);
@@ -1284,7 +1210,7 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
                 return {
                     effect_req: fsm_state.effect_req,
                     model: fsm_state.model,
-                    payload: fsm_state.effect_payload
+                    payload: fsm_state.payload
                 };
             })
             .do(utils.rxlog('effect req$'))
@@ -1325,7 +1251,8 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
 
     function make_fsm(state_chart, user_generated_intent$) {
         var effect_req_disposable, program_generated_intent_req_disposable;
-        var effect_resS = new Rx.ReplaySubject(1), program_generated_intentS = new Rx.ReplaySubject(1);
+        var effect_resS = new Rx.ReplaySubject(1);
+        var program_generated_intentS = new Rx.ReplaySubject(1);
         var effect_hash = state_chart.action_hash;
         var trace_intentS = new Rx.ReplaySubject(1);
         var final_trace = [];
@@ -1363,6 +1290,39 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
             subject.dispose();
         }
 
+        // Trace mechanism
+        //
+        // - Activation and deactivation
+        //   The behaviour of the state machine can be traced. This is particularly helpful for testing purposes, but should be
+        //   avoided anywhere performance matters, as the tracing slows down the execution of the state machine.
+        //   The tracing process is as is :
+        //
+        //   - activate the trace mechanism : `fsm.start_trace()`
+        //     From that moment on, every expected processing step of the state machine will result in a trace record inserted
+        //     in a trace array.
+        //   - deactivate the trace mechanism : `fsm.stop_trace()`
+        //     From that moment on, the state machine is no longer traced on. The state machine produces the array of traces via
+        //     an observable which output only one value, and must be subscribed with a trace handler which receive the trace array
+        //     : `fsm.trace$.subscribe(trace_handler)`
+        //
+        // - Event simulation
+        //   To have the state machine react to a given event provoked by the user, a helper method is available :
+        //   `fsm.send_event :: Event -> ()`
+        //   NOTE : When sending sequences of events, be careful to pace them appropriately so the next event comes
+        //          after the previous event is finished being processed.
+        //
+        // - Type information
+        // traces :: [Trace] where
+        //   Trace :: Hash {event :: Event, model :: Model, resulting_state :: State_Enum, time_stamp :: Date} |
+        //            Hash {event :: Event, model :: Model, resulting_state :: State_Enum, recoverable_error :: Recov_Error, time_stamp :: Date}
+        //   where :
+        //     Event :: Hash {code :: Event_Enum, payload :: Any}
+        //     State_Enum :: String_Identifier
+        //     Model (implements cloneable, serializable) :: Any
+        //     Recov_Error :: Hash {error :: Error, resulting_state :: State_Enum, event :: Event_Enum, event_data :: Any}
+        // If no error occured during an execution step of the state machine, Trace format does not have an error field
+        // If a recoverable error occured, Trace format does have a `recoverable_error` field
+        // If a fatal error occurred, the application is possibly abruptly exited, and no trace records are available at all
         function start_trace() {
             trace_intentS.onNext(make_intent(special_events.TRACE, true));
             trace$.subscribe(final_traceS);
@@ -1386,7 +1346,6 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
             stop: stop,
             output$: fsm_sinks.state$.share(),
             fsm_state$: fsm_sinks.fsm_state$, // TODO : remove when finished testing, this should not be exposed
-            // TODO : test
             trace$: final_traceS, // by subscribing to trace$, only one value will be output, the array of traces recorded
             start_trace: start_trace,
             stop_trace: stop_trace,
@@ -1411,7 +1370,7 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
             // 3. If there, then execute the action
             var effect_res$ = effect_req$
                 .flatMap(function (effect_req) {
-                    var effect_payload = effect_req.effect_payload;
+                    var effect_payload = effect_req.payload;
                     var effect_enum = effect_req.effect_req;
                     var model = effect_req.model;
                     var effect = effect_hash[effect_enum];
