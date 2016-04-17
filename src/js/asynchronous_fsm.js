@@ -49,6 +49,7 @@
 // CONTRACT :Actions cannot return an object of type error if not error (check code again)
 // CONTRACT : event handlers and predicates MUST be pure (they will be executed several times with the same input)
 // CONTRACT : guards/predicates cannot throw (not detected for now, but I should try to catch it and emit fatal error)
+// CONTRACT : some events are reserved init,auto,and another one
 
 // Serialization mechanism :
 // - Model should come with a serialize method
@@ -68,75 +69,29 @@ define(function (require) {
     var Rx = require('rx');
     var _ = require('lodash');
     var synchronous_fsm = require('synchronous_standard_fsm');
+    var outer_fsm_def = require('outer_fsm_def');
+    var constants = require('constants');
+    var fsm_helpers = require('fsm_helpers');
 
-    return require_async_fsm(synchronous_fsm, Rx, Err, utils);
+    return require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err, utils, constants);
 });
 
-function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
+function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err, utils, constants) {
 
     // CONSTANTS
-    const INITIAL_STATE_NAME = 'nok';
-    const STATE_PROTOTYPE_NAME = 'State'; // !!must be the function name for the constructor State, i.e. State
-    const EXPECTING_INTENT = 'intent';
-    const EXPECTING_ACTION_RESULT = 'expecting_action_result';
-    const ACTION_IDENTITY = 'identity';
-    const EV_INTENT = 'intent';
-    const EV_EFFECT_RES = 'effect_res';
-    const EV_TRACE = 'trace';
-
-    // CLOSURE VARIABLES
-    const special_events = create_event_enum('auto', 'init', 'trace');
+    // !!must be the function name for the constructor State, i.e. State
+    const STATE_PROTOTYPE_NAME = constants.STATE_PROTOTYPE_NAME;
+    const ACTION_IDENTITY = constants.ACTION_IDENTITY;
+    const INITIAL_STATE_NAME = constants.INITIAL_STATE_NAME;
+    const EV_CODE_TRACE = constants.EV_CODE_TRACE;
+    const EV_CODE_AUTO = constants.EV_CODE_AUTO;
+    const EV_CODE_INIT = constants.EV_CODE_INIT;
+    const EV_INTENT = constants.EV_INTENT;
+    const EV_EFFECT_RES = constants.EV_EFFECT_RES;
+    const EV_TRACE = constants.EV_TRACE;
 
     function make_intent(code, payload) {
         return {code: code, payload: payload}
-    }
-
-    function make_action_DSL(action_list) {
-        // action_list is an array whose entries are actions (functions)
-        // Returns :
-        // [function my_name(){}] -> action_enum : {my_name: 'my_name'}
-        // [function my_name(){}] -> action_hash : {my_name: 0}
-        var action_list_min = {identity: utils.identity};
-        return action_list.reduce(function build_action_enum(action_struct, action_fn, index) {
-            var action_name = action_fn.name;
-            // TODO : make and throw an internal app error with some info in it
-            if (!action_name) throw 'ERROR : when processing action list, found an action function without a name! (index ' + index + ')'
-            action_struct.action_enum[action_name] = action_name;
-            action_struct.action_hash[action_name] = action_fn;
-            return action_struct;
-        }, {action_enum: {}, action_hash: action_list_min});
-    }
-
-    /**
-     * Takes a list of identifiers (strings), adds init to it, and returns a hash whose properties are the uppercased identifiers
-     * For instance :
-     * ('edit', 'delete') -> {EDIT: 'EDIT', DELETE : 'DELETE', INIT : 'INIT'}
-     * If there is an init in the list of identifiers, it is overwritten
-     * RESTRICTION : avoid having init as an identifier
-     * @param array_identifiers {Array | arguments}
-     * @returns {Object<String,String>}
-     */
-    function create_event_enum(array_identifiers) {
-        array_identifiers = array_identifiers.reduce ? array_identifiers : Array.prototype.slice.call(arguments);
-        // NOTE : That will overwrite any other event called init...
-        array_identifiers.push('init');
-        return array_identifiers.reduce(function (acc, identifier) {
-            acc[identifier.toUpperCase()] = identifier.toUpperCase();
-            return acc;
-        }, {})
-    }
-
-    /**
-     * Returns the name of the function as taken from its source definition.
-     * For instance, function do_something(){} -> "do_something"
-     * @param fn {Function}
-     * @returns {String}
-     */
-    function get_fn_name(fn) {
-        var tokens =
-            /^[\s\r\n]*function[\s\r\n]*([^\(\s\r\n]*?)[\s\r\n]*\([^\)\s\r\n]*\)[\s\r\n]*\{((?:[^}]*\}?)+)\}\s*$/
-                .exec(fn.toString());
-        return tokens[1];
     }
 
     /**
@@ -154,7 +109,7 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
      * @param states
      * @returns {{hash_states: {}, is_group_state: {}}}
      */
-    function build_nested_state_structure(states) {
+    function build_nested_state_structure(states_) {
         var root_name = 'State';
         var last_seen_state_event_emitter = new Rx.Subject();
         var hash_states = {};
@@ -162,7 +117,7 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
         var is_group_state = {};
 
         // Add the starting state
-        states = {nok: states};
+        states = {nok: states_};
 
         ////////
         // Helper functions
@@ -188,7 +143,7 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
                 // So when an event handler (transition) is put on A, that event handler will be visible in B and C
                 hash_states[state_name] = new curr_constructor();
                 hash_states[state_name].name = state_name;
-                var parent_name = hash_states[state_name].parent_name = get_fn_name(curr_constructor);
+                var parent_name = hash_states[state_name].parent_name = utils.get_fn_name(curr_constructor);
                 hash_states[state_name].root_name = root_name;
                 hash_states[state_name].history = {last_seen_state: null};
                 hash_states[state_name].active = false;
@@ -240,42 +195,7 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
         };
     }
 
-    /**
-     * Returns a hash which maps a state name to :
-     * - a string identifier which represents the standard state
-     * - a function whose name is the state name to represent the state history (set in the `history` property of the hash)
-     * @param states A hash describing a hierarchy of nested states
-     * @returns {state_name: {String}, {history: {Function}}}
-     */
-    function create_state_enum(states) {
-        var states_enum = {history: {}};
-
-        // Set initial state
-        states_enum.NOK = INITIAL_STATE_NAME;
-
-        function build_state_reducer(states) {
-            Object.keys(states).forEach(function (state_name) {
-                var state_config = states[state_name];
-
-                states_enum[state_name] = state_name;
-                // All history states will be signalled through the history property, and a function instead of a value
-                // The function name is the state name whose history is referred to
-                var state_name_history_fn;
-                eval(['state_name_history_fn = function', state_name, '(){}'].join(" "));
-                states_enum.history[state_name] = state_name_history_fn;
-
-                if (typeof(state_config) === 'object') {
-                    build_state_reducer(state_config);
-                }
-            })
-        }
-
-        build_state_reducer(states);
-
-        return states_enum;
-    }
-
-    function compute_fsm_initial_state(state_chart, special_events) {
+    function compute_fsm_initial_state(state_chart) {
         // Create the nested hierarchical
         var states = state_chart.state_hierarchy;
         var events = state_chart.events;
@@ -287,24 +207,23 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
         var hash_states = hash_states_struct.hash_states;
 
         // {Object<state_name,boolean>}, allows to know whether a state has a init transition defined
-        var is_init_state = get_init_transitions(transitions, special_events);
+        var is_init_state = get_init_transitions(transitions);
 
         // {Object<state_name,boolean>}, allows to know whether a state has an automatic transition defined
-        var is_auto_state = get_auto_states(transitions, events, is_group_state, is_init_state, special_events);
+        var is_auto_state = get_auto_states(transitions, events, is_group_state, is_init_state);
 
-        set_event_handlers(transitions, /*OUT*/hash_states, special_events, special_actions);
+        set_event_handlers(transitions, /*OUT*/hash_states, special_actions);
 
-        var model0 = state_chart.model || {};
+        var model_0 = state_chart.model || {};
 
         return {
-            model: utils.clone(model0), // clone the initial value of the model
-            special_events: special_events,
+            model: utils.clone_deep(model_0), // clone the initial value of the model
             is_init_state: is_init_state,
             is_auto_state: is_auto_state,
             is_group_state: is_group_state,
             hash_states: hash_states,
             internal_state: {
-                expecting: EXPECTING_INTENT,
+                expecting: constants.EXPECTING_INTENT,
                 is_model_dirty: true,
                 from: undefined,
                 to: undefined
@@ -315,7 +234,7 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
             automatic_event: undefined
         };
 
-        function get_init_transitions(transitions, special_events) {
+        function get_init_transitions(transitions) {
             var is_init_state = {};
             transitions.forEach(function (transition) {
                 var from = transition.from;
@@ -323,14 +242,14 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
 
                 // CASE : transition has a init event
                 // NOTE : there should ever only be one, but we don't enforce it for now
-                if (event === special_events.INIT) {
+                if (event === EV_CODE_INIT) {
                     is_init_state[from] = true;
                 }
             });
             return is_init_state;
         }
 
-        function get_auto_states(transitions, events, is_group_state, is_init_state, special_events) {
+        function get_auto_states(transitions, events, is_group_state, is_init_state) {
             return transitions.reduce(function (is_auto_state, transition) {
                 var from = transition.from;
                 var event = transition.event;
@@ -340,7 +259,7 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
                 if (event && !(event in events)) throw 'unknow event (' + event + ') found in state machine definition!';
                 // CASE : automatic transitions : no events - likely a transient state with only conditions
                 if (!event) {
-                    event = special_events.AUTO;
+                    event = EV_CODE_AUTO;
                     is_auto_state[from] = true;
                 }
                 // CASE : automatic transitions : init event automatically fired upon entering a grouping state
@@ -351,12 +270,12 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
             }, {});
         }
 
-        function set_event_handlers(transitions, /*OUT*/hash_states, special_events, special_actions) {
+        function set_event_handlers(transitions, /*OUT*/hash_states, special_actions) {
             transitions.forEach(function (transition) {
                 // console.log("Processing transition:", transition);
                 var from = transition.from, to = transition.to;
                 var action = transition.action;
-                var event = transition.event || special_events.AUTO;
+                var event = transition.event || EV_CODE_AUTO;
 
                 // CONTRACT : `conditions` property used for array of conditions, otherwise `condition` property is used
                 var arr_predicate = transition.guards || transition.predicate;
@@ -423,159 +342,9 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
         }
     }
 
-    function get_current_state(fsm_state) {
-        return fsm_state.hash_states[INITIAL_STATE_NAME].current_state_name;
-    }
-
-    function update_model(model, model_prime) {
-        // For now, very simple update
-        // NOTE : could be adapted to use immutable data structure
-        // NOTE : Model decorated with state information for tracing and displaying purposes
-        return update_model_remove_error_fields(model_prime);
-        //        return update_model_with_error(model_prime, undefined, error);
-    }
-
-    function update_model_private_props(model, from, to, internal_state) {
-        model.__from = from;
-        model.__to = to;
-        model.__internal_state = internal_state;
-        return model;
-    }
-
-    function update_model_with_error(model, event, event_data, error_msg) {
-        model.__error = error_msg;
-        model.__event = event;
-        model.__event_data = event_data;
-        return model;
-    }
-
-    function update_model_remove_error_fields(model) {
-        model.__error = undefined;
-        model.__event = undefined;
-        model.__event_data = undefined;
-        return model;
-    }
-
-    /**
-     * Side-effects :
-     * - modifies `hash_states`
-     * - emits an `last_seen_from_state` event
-     * @param from
-     * @param hash_states
-     * @returns -
-     */
-    function leave_state(from, /*OUT*/hash_states) {
-        // NOTE : model is passed as a parameter for symetry reasons, no real use for it so far
-        var state_from = hash_states[from];
-        var state_from_name = state_from.name;
-
-        // Set the `last_seen_state` property in the object representing that state's state (!)...
-        state_from.history.last_seen_state = state_from_name;
-        state_from.active = false;
-        console.log("left state", utils.wrap(from));
-
-        // ... and emit the change event for the parents up the hierarchy to update also their last_seen_state properties
-        // This updating solution is preferred to an imperative solution, as it allows not to think too much
-        // about how to go up the hierarchy
-        // There is no big difference also, as by default subject emits synchronously their values to all subscribers.
-        // The difference in speed should be neglectable, and anyways it is not expected to have large state chart depths
-        state_from.emit_last_seen_state_event({
-            event_emitter_name: state_from_name,
-            last_seen_state_name: state_from_name
-        });
-    }
-
-    /**
-     * Side-effects :
-     * - modifies `hash_states`
-     * @param to
-     * @param hash_states
-     * @throws
-     * @returns {String} next state name
-     */
-    function enter_next_state(to, /*OUT*/hash_states) {
-        // Enter the target state
-        var state_to;
-        var state_to_name;
-        // CASE : history state (H)
-        if (typeof(to) === 'function') {
-            state_to_name = get_fn_name(to);
-
-            var target_state = hash_states[state_to_name].history.last_seen_state;
-            state_to_name = target_state
-                // CASE : history state (H) && existing history, target state is the last seen state
-                ? target_state
-                // CASE : history state (H) && no history (i.e. first time state is entered), target state is the entered state
-                : state_to_name;
-            state_to = hash_states[state_to_name];
-        }
-        // CASE : normal state
-        else if (to) {
-            state_to = hash_states[to];
-            state_to_name = state_to.name;
-        }
-        else {
-            throw 'enter_state : unknown case! Not a state name, and not a history state to enter!'
-        }
-        state_to.active = true;
-        hash_states[INITIAL_STATE_NAME].current_state_name = state_to_name;
-
-        utils.info("AND TRANSITION TO STATE", state_to_name);
-        return state_to_name;
-    }
-
-    function get_next_state(to, hash_states) {
-        // Enter the target state
-        var state_to_name;
-        // CASE : history state (H)
-        if (typeof(to) === 'function') {
-            state_to_name = get_fn_name(to);
-
-            var target_state = hash_states[state_to_name].history.last_seen_state;
-            state_to_name = target_state
-                // CASE : history state (H) && existing history, target state is the last seen state
-                ? target_state
-                // CASE : history state (H) && no history (i.e. first time state is entered), target state is the entered state
-                : state_to_name;
-        }
-        // CASE : normal state
-        else if (to) {
-            state_to_name = to;
-        }
-        else {
-            throw 'enter_state : unknown case! Not a state name, and not a history state to enter!'
-        }
-
-        utils.info("AND TRANSITION TO STATE", state_to_name);
-        return state_to_name;
-    }
-
-    function process_automatic_events(state_name, special_events, hash_states, is_auto_state, is_init_state, previously_processed_event_data) {
-        var current_state = state_name;
-        // Two cases here:
-        // 1. Init handlers, when present on the current state, must be acted on immediately
-        // This allows for sequence of init events in various state levels
-        // For instance, L1: init -> L2:init -> L3:init -> L4: stateX
-        // In this case event_data will carry on the data passed on from the last event (else we loose the model?)
-        // 2. transitions with no events associated, only conditions (i.e. transient states)
-        //    In this case, there is no need for event data
-        if (is_auto_state[current_state]) {
-            // CASE : transient state with no triggering event, just conditions
-            var auto_event = is_init_state[current_state] ? special_events.INIT : special_events.AUTO;
-            return {
-                code: auto_event,
-                payload: previously_processed_event_data
-            }
-        }
-        else {
-            // CASE : nothing special to do, no automatic events to execute
-            return undefined;
-        }
-    }
-
-    // TODO : change trace depending on internal state, for now we have resulting_state only valid after effect_res comes in
-    function internal_fsm_write_trace(traceS, /*OUT*/fsm_state, internal_fsm_def, internal_event_type, internal_event, evaluation_result) {
+    function outer_fsm_write_trace(traceS, /*OUT*/fsm_state, internal_fsm_def, internal_event_type, internal_event, evaluation_result) {
         // This function will update the `fsm_state` variable with trace information if the trace flag is set
+        var emit_traces = true;
         var should_trace = fsm_state.is_tracing;
         if (should_trace) {
             // Reminder : Array Trace, where
@@ -588,32 +357,46 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
             // specified HFSM is scattered among states of the internal FSM
             // In short, when internal FSM in state :
             // - expecting_intent : we have code and payload corresponding to the intent, with internal_type being 'intent'
-            //                      resulting_state and time_stamp being not relevant, together with the model which has not been modified yet
-            // - expection_action_result :now we have resulting_state and time_stamp relevant and the model too
+            //                      `resulting_state` and `timestamp` being not relevant, together with the model
+            //                      which has not been modified yet
+            // - expection_action_result :now we have `resulting_state` and `timestamp` relevant and the model too
             // So: depending on the internal state we pick certain fields and accumulate them in a full trace record
-            // Also, we want to deep clone traced objects anywhere it makes sense as we are interested at their fixed value
-            // at this moment in time
-            // `code` and `resulting_state` and `time_stamp` should not be deep cloned, as they are primitive types
             var internal_fsm_events = internal_fsm_def.events;
+            var arr_traces = fsm_state.arr_traces;
+            var resulting_state = outer_fsm_def.get_current_state(fsm_state);
+            var fsm_state_update = evaluation_result.fsm_state_update;
+            var model_update = fsm_state_update.model;
             var recoverable_error = evaluation_result.recoverable_error;
-            var emit_traces = true;
+
+            // We need to clone the model before passing it to the trace, so the trace reflects the value of the model
+            // at the moment of the trace (no impact of further modifications to the model)
+            // `code` and `resulting_state` and `time_stamp` should not be deep cloned, as they are primitive types
+            // Those details are particular to the model, so we have utils.clone_deep using the `clone_deep` model version
+            // if it exists
+            // NOTE : The model passed here has already been updated previously with model_update
+            var model = utils.clone_deep(fsm_state.model);
+
+            // If we receive a trace event, do not trace it, only trace non-trace event, i.e. intent and effect results
             if (internal_event_type === internal_fsm_events.EV_INTENT) {
                 if (recoverable_error) {
-                    add_trace_record(add_recoverable_error_to_trace_record(fsm_state.model, recoverable_error),
-                        /*OUT*/fsm_state.arr_traces, traceS, emit_traces);
+                    add_trace_record(add_recoverable_error_to_trace_record(model, model_update, recoverable_error),
+                        /*OUT*/arr_traces, traceS, emit_traces);
                 }
                 else {
-                    fsm_state.arr_traces.push({
+                    arr_traces.push({
                         event: {code: internal_event.code, payload: utils.clone_deep(internal_event.payload)}
                     });
                 }
             }
             if (internal_event_type === internal_fsm_events.EV_EFFECT_RES) {
                 // TODO : deal with error when effect_res
-                update_trace_record(complete_trace_record, /*OUT*/fsm_state, recoverable_error, traceS, emit_traces);
+                update_trace_record(complete_trace_record, /*OUT*/arr_traces,
+                    recoverable_error, resulting_state, model, model_update, traceS, emit_traces);
             }
         }
-        return fsm_state;
+
+        // arr_traces is modified in place, however we return it just in case we need the value for chaining or else
+        return arr_traces;
     }
 
     /**
@@ -625,12 +408,12 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
      * @param traceS
      * @returns
      */
-    function update_trace_record(update_fn, /*OUT*/fsm_state, recoverable_error, traceS, emit_traces) {
+    function update_trace_record(update_fn, /*OUT*/arr_traces, recoverable_error, resulting_state, model, model_update, traceS, emit_traces) {
         emit_traces = (typeof(emit_traces) === 'boolean') ? emit_traces : true;
-        var incomplete_pushed_trace_record = fsm_state.arr_traces.pop();
-        var completed_trace_record = update_fn(incomplete_pushed_trace_record, recoverable_error, fsm_state);
-        fsm_state.arr_traces.push(completed_trace_record);
-        emit_traces && traceS.onNext(fsm_state.arr_traces);
+        var incomplete_record = arr_traces.pop();
+        var completed_trace_record = update_fn(incomplete_record, recoverable_error, resulting_state, model, model_update);
+        arr_traces.push(completed_trace_record);
+        emit_traces && traceS.onNext(arr_traces);
     }
 
     function add_trace_record(add_fn, /*OUT*/arr_traces, traceS, emit_traces) {
@@ -639,18 +422,23 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
         emit_traces && traceS.onNext(arr_traces);
     }
 
-    function add_recoverable_error_to_trace_record(model, recoverable_error) {
+    function add_recoverable_error_to_trace_record(model, model_update, recoverable_error) {
         return function (/*OUT*/arr_traces) {
-            arr_traces.push({model: utils.clone_deep(model), recoverable_error: recoverable_error});
+            arr_traces.push({
+                model: utils.clone_deep(model),
+                model_update: model_update || {},
+                recoverable_error: recoverable_error
+            });
             return arr_traces;
         }
     }
 
-    function complete_trace_record(/*OUT*/record, recoverable_error, fsm_state) {
-        record.resulting_state = get_current_state(fsm_state);
-        record.model = utils.clone_deep(fsm_state.model);
+    function complete_trace_record(/*OUT*/record, recoverable_error, resulting_state, model, model_update) {
+        record.resulting_state = resulting_state;
+        record.model = model;
+        record.model_update = model_update || {};
         record.timestamp = utils.get_timestamp();
-        recoverable_error  && (record.recoverable_error = recoverable_error);
+        recoverable_error && (record.recoverable_error = recoverable_error);
         return record;
     }
 
@@ -671,6 +459,8 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
      *       - T is any non-trivial type which represent the data associated with the event
      *
      * @returns {process_fsm_internal_transition}
+     * Side-effects :
+     * - traceS property updated with the latest value of the array of traces
      */
     function process_fsm_internal_transition(fsm_def, fsm_write_trace, traceS) {
         // NOTE : for this synchronous state machine, the algorithm is pretty simplified :
@@ -697,6 +487,9 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
          * - case Event_Identifier
          *   - 'intent' : Hash {code :: String, payload : Object}
          *   - 'effect_res' : Object
+         *
+         * Side-effects:
+         * - fsm_state is updated according to the inner and outer transition taken
          */
         return function process_fsm_internal_transition(fsm_state, merged_labelled_input) {
             ////////////
@@ -723,438 +516,19 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
                 throw evaluation_result.fatal_error;
             }
             else {
-                fsm_state = synchronous_fsm.update_next_internal_state(/*OUT*/evaluation_result.updated_fsm_state, evaluation_result.next_state);
-                fsm_state = fsm_write_trace(traceS, fsm_state, fsm_def, internal_event_type, internal_event, evaluation_result);
+                var fsm_state_update = evaluation_result.fsm_state_update;
+                var model_update = fsm_state_update.model;
+                update_fsm_state(/*OUT*/fsm_state, fsm_state_update);
+                fsm_write_trace(traceS, fsm_state, fsm_def, internal_event_type, internal_event, evaluation_result);
+
                 return fsm_state;
             }
         }
     }
 
-    function get_internal_sync_fsm() {
-        ////////////
-        // Define the (synchronous standard finite) state machine for the state machine maker (!)
-
-        ////////////
-        // States
-        var fsm_internal_states = {};
-        fsm_internal_states[EXPECTING_INTENT] = {entry: undefined, exit: undefined};
-        fsm_internal_states[EXPECTING_ACTION_RESULT] = {entry: undefined, exit: undefined};
-
-        ////////////
-        // Events
-        var fsm_internal_events = {EV_INTENT: EV_INTENT, EV_EFFECT_RES: EV_EFFECT_RES, EV_TRACE: EV_TRACE};
-
-        ////////////
-        // Transitions :: {state : {event : [{predicate, action, to}]}}
-        // predicate :: FSM_STATE -> internal_event :: {code, payload} -> Boolean
-        var fsm_internal_transitions = {};
-        fsm_internal_transitions[EXPECTING_INTENT] = {};
-        fsm_internal_transitions[EXPECTING_INTENT][fsm_internal_events.EV_INTENT] = [
-            {
-                // CASE : There is a transition associated to that event
-                predicate: has_event_handler_and_has_transition,
-                action: update_internals_with_effect_code,
-                to: EXPECTING_ACTION_RESULT
-            },
-            {
-                // CASE : we don't have a truthy effect code :
-                // - none of the guards were truthy, it is a possibility
-                // So we remain in the same state
-                predicate: has_event_handler_and_has_not_transition,
-                action: emit_no_guard_satisfied_recoverable_error,
-                to: EXPECTING_INTENT
-            },
-            {
-                // CASE : default case (must be last) : There is no transition associated to that event from that state
-                predicate: has_not_event_handler, // and is not trace event of course, but that's implicit here
-                action: emit_no_transition_recoverable_error,
-                to: EXPECTING_INTENT // should not matter as we throw an exception
-            }
-        ];
-        fsm_internal_transitions[EXPECTING_INTENT][fsm_internal_events.EV_EFFECT_RES] = [
-            {
-                // CASE : we receive an effect result, but we were NOT expecting it
-                predicate: utils.always(true), // predicate satisfied
-                action: emit_only_warning,
-                to: EXPECTING_INTENT // remain in same state
-            }
-        ];
-        fsm_internal_transitions[EXPECTING_INTENT][fsm_internal_events.EV_TRACE] = [
-            {
-                // CASE : Trace request
-                predicate: utils.always(true),
-                action: update_trace_mechanism,
-                to: EXPECTING_INTENT // back to wait for intents
-            }
-        ];
-        fsm_internal_transitions[EXPECTING_ACTION_RESULT] = {};
-        fsm_internal_transitions[EXPECTING_ACTION_RESULT][fsm_internal_events.EV_EFFECT_RES] = [
-            {
-                // CASE : the effect could not be executed satisfactorily
-                predicate: is_effect_error,
-                action: set_internal_state_to_expecting_intent_but_reporting_effect_error,
-                to: EXPECTING_INTENT
-            },
-            {
-                // CASE : effect was executed correctly
-                predicate: utils.always(true),
-                action: transition_to_next_state,
-                to: EXPECTING_INTENT
-            }
-        ];
-        fsm_internal_transitions[EXPECTING_ACTION_RESULT][fsm_internal_events.EV_INTENT] = [
-            {
-                // CASE : received intent while expecting action result : that could very much happen
-                // Because actions can be asynchronous, it is possible that user intents comes in while the action
-                // is still being executed. RTC semantics leads us to two choices:
-                // - discard the event
-                // - queue it for later execution when the action is done executing
-                predicate: utils.always(true),
-                action: to_be_decided
-            }
-        ];
-        fsm_internal_transitions[EXPECTING_ACTION_RESULT][fsm_internal_events.EV_TRACE] = [
-            {
-                // CASE : Trace request
-                predicate: is_trace_event,
-                action: update_trace_mechanism,
-                to: EXPECTING_ACTION_RESULT // back to wait for action results
-            }
-        ];
-
-        ////////////
-        // Predicates
-        function has_event_handler(fsm_state, internal_event) {
-            var event = internal_event.code;
-            var hash_states = fsm_state.hash_states;
-            var current_state = get_current_state(fsm_state);
-            return !!hash_states[current_state][event];
-        }
-
-        function has_effect_code(fsm_state, internal_event) {
-            var event = internal_event.code;
-            var event_data = internal_event.payload;
-            var model = fsm_state.model;
-            var hash_states = fsm_state.hash_states;
-            var current_state = hash_states[INITIAL_STATE_NAME].current_state_name;
-            var event_handler = hash_states[current_state][event];
-            return has_event_handler(fsm_state, internal_event)
-                && event_handler(model, event_data, current_state).effect_code;
-        }
-
-        function has_event_handler_and_has_transition(fsm_state, internal_event) {
-            return has_event_handler(fsm_state, internal_event) && has_effect_code(fsm_state, internal_event);
-
-        }
-
-        function has_event_handler_and_has_not_transition(fsm_state, internal_event) {
-            return has_event_handler(fsm_state, internal_event) && !has_effect_code(fsm_state, internal_event);
-        }
-
-        function has_not_event_handler(fsm_state, internal_event) {
-            return !has_event_handler(fsm_state, internal_event);
-        }
-
-        function is_effect_error(fsm_state, internal_event) {
-            var effect_res = internal_event;
-            return effect_res instanceof Error;
-        }
-
-        function is_trace_event(fsm_state, internal_event) {
-            return internal_event.code === special_events.TRACE;
-        }
-
-        ////////////
-        // Actions
-        function update_internals_with_effect_code(fsm_state, internal_event) {
-            // CASE : There is a transition associated to that event : an effect has to be executed
-            // Reminder : When there is no action defined in the transition, we set the effect to identity
-
-            utils.log("found event handler!");
-            utils.info("WHEN EVENT ", internal_event.code);
-            utils.info("with payload ", internal_event.payload);
-
-            var event = internal_event.code;
-            var event_data = internal_event.payload;
-            var model = fsm_state.model;
-            var hash_states = fsm_state.hash_states;
-            var current_state = hash_states[INITIAL_STATE_NAME].current_state_name;
-            var event_handler = hash_states[current_state][event];
-            var effect_struct = event_handler(model, event_data, current_state);
-            var effect_code = effect_struct.effect_code;
-            var from = effect_struct.from;
-            var to = effect_struct.to;
-
-            set_internal_state_to_expecting_effect_result(/*OUT*/fsm_state, from, to, effect_code, event_data);
-
-            return fsm_state;
-        }
-
-        function emit_no_guard_satisfied_recoverable_error(fsm_state, internal_event) {
-            var event = internal_event.code;
-            var event_data = internal_event.payload;
-            var model = fsm_state.model;
-            var hash_states = fsm_state.hash_states;
-            var current_state = hash_states[INITIAL_STATE_NAME].current_state_name;
-            var event_handler = hash_states[current_state][event];
-            var effect_struct = event_handler(model, event_data, current_state);
-            var from = effect_struct.from;
-            var error_msg = ['No transition found while processing the event', event,
-                'while transitioning from state', from,
-                '.\n It is possible that no guard predicates were fulfilled.'].join(" ");
-
-            return update_model_with_warning(fsm_state, internal_event, error_msg);
-        }
-
-        function emit_only_warning(fsm_state, internal_event) {
-            // TODO : think about options for the warning (error?exception?)
-            console.warn('received effect result while waiting for intent');
-            return fsm_state;
-        }
-
-        function emit_no_transition_recoverable_error(fsm_state, internal_event) {
-            // CASE : There is no transition associated to that event from that state
-            // TODO : think more carefully about error management : have an optional parameter to decide behaviour?
-            var error_msg = 'There is no transition associated to that event!';
-            return update_model_with_warning(fsm_state, internal_event, error_msg);
-        }
-
-        function update_model_with_warning(fsm_state, internal_event, error_msg) {
-            // We keep the internal state `expecting` property the same
-            // However, we update the model to indicate that an error occurred
-            // it will be up to the user to determine what to do with the error
-            var event = internal_event.code;
-            var event_data = internal_event.payload;
-            var hash_states = fsm_state.hash_states;
-            var current_state = hash_states[INITIAL_STATE_NAME].current_state_name;
-            fsm_state.model = update_model_private_props(fsm_state.model, current_state, undefined,
-                fsm_state.internal_state.expecting);
-            fsm_state.model = update_model_with_error(fsm_state.model, event, event_data, error_msg);
-
-            utils.info("WHEN EVENT ", event);
-            console.error(error_msg);
-
-            set_internal_state_to_transition_error(/*OUT*/fsm_state, event, event_data, error_msg);
-
-            return fsm_state;
-        }
-
-        function set_internal_state_to_expecting_intent_but_reporting_effect_error(fsm_state, internal_event) {
-            var error = internal_event; // case `effect_res` instanceof Error
-            var error_msg = error.toString(); // Error message
-            var event = 'effect_res';
-            var event_data = undefined; // undefined because effect_res returned error, not data
-            // TODO : what to do in that case?
-            // - have a generic nested state for handling error?
-            // - require user to have specific transitions for handling error?
-            //   + that means that the effect_res must be passed to the condition handler...
-            //   + best is probably in the transition definition to define an error transition
-            //     associated to an error event
-            // - fail silently and remain in the same state?
-            //   + in that case, we still have to change the internal state to NOT expecting effect_res
-            // - fail abruptly with a fatal error passed to a global error handler?
-            console.error(error);
-            console.error(error.stack);
-            // For now:
-            // - we do not change state and remain in the current state, waiting for another intent
-            // - but we do not update the model
-            console.log("Received effect_res", error);
-
-            set_internal_state_to_expecting_intent_but_reporting_action_error_(/*OUT*/fsm_state, event, event_data, error);
-            return fsm_state;
-        }
-
-        function update_trace_mechanism(fsm_state, internal_event) {
-            var should_trace = internal_event.payload;
-            var is_not_tracing = !fsm_state.is_tracing;
-            // If we have a trace command and we were not already tracing
-            if (should_trace && is_not_tracing) {
-                fsm_state.is_tracing = true;
-                fsm_state.arr_traces = [];
-                // Reminder :
-                // Trace :: (Event, State, Model, Optional Time_Info), where
-                // Event :: (Event_Type, Event_Data)
-                // State :: State_Enum
-                // Model :: Serializable
-            }
-            // TODO : when is tracing stop, I should send a stop signal on a
-            if (!should_trace) {
-                // TODO : stop tracing, but keep the array of traces intact
-                fsm_state.is_tracing = false;
-            }
-            console.log('update_trace_mechanism : exit');
-
-            return fsm_state;
-        }
-
-        function to_be_decided() {
-            console.warn('CASE : received intent while expecting action result : that could very much happen');
-            console.warn('TO BE DECIDED WHAT TO DO');
-        }
-
-        /////////
-        // we gather the state fields interdependencies for the internal controlled states here in a set of impure functions
-        function set_internal_state_to_expecting_effect_result(fsm_state, from, to, effect_code, event_data) {
-            // no change of the model to reflect, we only received an intent
-            //fsm_state.internal_state.is_model_dirty = false;
-            fsm_state.internal_state.is_model_dirty = true; // set to true when we need to pass meta data of internal state
-            // new controlled internal state, we received the intent, now we need to execute the corresponding effect
-            fsm_state.internal_state.expecting = EXPECTING_ACTION_RESULT;
-            // no automatic event, we are sending an effect request
-            fsm_state.automatic_event = undefined;
-            // when the effect result is received, we need to know the impacted transition
-            fsm_state.internal_state.from = from;
-            fsm_state.internal_state.to = to;
-            // pass down the effect to execute with its parameters
-            fsm_state.effect_req = effect_code;
-            fsm_state.payload = event_data;
-            // no error
-            fsm_state.recoverable_error = undefined;
-            // update model private props which are computed properties based on `fsm_state`
-            fsm_state.model = update_model_private_props(fsm_state.model, fsm_state.internal_state.from, fsm_state.internal_state.to, fsm_state.internal_state.expecting);
-        }
-
-        function set_internal_state_to_transition_error(fsm_state, event, event_data, error) {
-            // set `is_model_dirty` to true as we have a new model to pass down stream
-            fsm_state.internal_state.is_model_dirty = true;
-            // There is no transition associated to that event, we wait for another event
-            fsm_state.internal_state.expecting = EXPECTING_INTENT;
-            // no automatic event here
-            fsm_state.automatic_event = undefined;
-            // from and to are only used to keep track of the transition state for the ACTION_RES internal state
-            fsm_state.internal_state.from = undefined;
-            fsm_state.internal_state.to = undefined;
-            // no effect to execute
-            fsm_state.effect_req = undefined;
-            fsm_state.payload = undefined;
-            // error to signal
-            fsm_state.recoverable_error = {
-                error: error,
-                event: event,
-                event_data: event_data,
-                resulting_state: get_current_state(fsm_state),
-                timestamp: utils.get_timestamp()
-            };
-            // update model private props which are computed properties based on `fsm_state`
-            // Nice to have : a computed property library like Ampersand&State or Mobx could help, maybe later
-            // NOTE : note that we adjust the model private `to` and `from` to the failed transition (we could not go to the `to`)
-            // and the view displays `to` as the State, so as we remain in the same state the `to` is `from`
-            fsm_state.model = update_model_private_props(fsm_state.model, fsm_state.model.__from, fsm_state.model.__from, fsm_state.internal_state.expecting);
-        }
-
-        function set_internal_state_to_expecting_intent(fsm_state, automatic_event) {
-            // set the automatic event if any (will be undefined if there is none)
-            fsm_state.automatic_event = automatic_event;
-            // model has been modified
-            fsm_state.internal_state.is_model_dirty = true;
-            // but we remain in the internal state EXPECTING_INTENT as there are automatic events
-            // to process. Those events come through the intent$ channel, like other user-originated
-            // events.
-            fsm_state.internal_state.expecting = EXPECTING_INTENT;
-            // EXPECTING_INTENT internal state does not make use of from and to
-            fsm_state.internal_state.from = undefined;
-            fsm_state.internal_state.to = undefined;
-            // no effect request to be made
-            fsm_state.effect_req = undefined;
-            fsm_state.payload = undefined;
-            // no error
-            fsm_state.recoverable_error = undefined;
-            // update model private props which are computed properties based on `fsm_state`
-            fsm_state.model = update_model_private_props(fsm_state.model, fsm_state.internal_state.from, fsm_state.model.__to, fsm_state.internal_state.expecting);
-        }
-
-        function set_internal_state_to_expecting_intent_but_reporting_action_error_(fsm_state, event, event_data, error) {
-            // there was an error while executing the effect request
-            fsm_state.recoverable_error = {
-                error: error,
-                event: event,
-                event_data: event_data,
-                resulting_state: get_current_state(fsm_state),
-                timestamp: utils.get_timestamp()
-            };
-
-            // but the model was not modified
-            fsm_state.internal_state.is_model_dirty = false;
-            // so we remain in the internal state EXPECTING_INTENT to receive other events
-            fsm_state.internal_state.expecting = EXPECTING_INTENT;
-            // EXPECTING_INTENT internal state does not make use of from and to
-            fsm_state.internal_state.from = undefined;
-            fsm_state.internal_state.to = undefined;
-            // no automatic event
-            fsm_state.automatic_event = undefined;
-            // no effect request to be made
-            fsm_state.effect_req = undefined;
-            fsm_state.payload = undefined;
-            // update model private props which are computed properties based on `fsm_state`
-            fsm_state.model = update_model_private_props(fsm_state.model, fsm_state.internal_state.from, fsm_state.model.__to, fsm_state.internal_state.expecting);
-        }
-
-        function transition_to_next_state(fsm_state, internal_event) {
-            var effect_res = internal_event;
-            var hash_states = fsm_state.hash_states;
-            var from = fsm_state.internal_state.from;
-            var to = fsm_state.internal_state.to;
-            var model = fsm_state.model;
-            var model_prime = effect_res;
-            var previously_processed_event_data = fsm_state.payload;
-
-            console.log("Received effect_res", effect_res);
-
-            // Leave the current state
-            // CONTRACT : we leave the state only if the effect for the transition is successful
-            // This is better than backtracking or having the fsm stay in an undetermined state
-            leave_state(from, hash_states);
-            var next_state = get_next_state(to, hash_states);
-
-            // send the AUTO event to trigger transitions which are automatic :
-            // - transitions without events
-            // - INIT events
-            var automatic_event = process_automatic_events(
-                next_state,
-                fsm_state.special_events,
-                hash_states,
-                fsm_state.is_auto_state,
-                fsm_state.is_init_state,
-                previously_processed_event_data);
-
-
-            // TODO
-            // change model_prime to model_diff
-            // change update_model to be _.extend...
-            // add a field fsm_state.model_diff
-            // change ractive driver to use fsm_state.model_diff
-            // analyze the need for model.is_dirty as I now have model_diff (difference will be meta data on the model)
-            // so maybe remove the meta data on the model?? or group in two fields
-            // - recoverable_error
-            // - metadata
-
-            //
-
-
-            // Update the model before entering the next state...
-            fsm_state.model = update_model(model, model_prime);
-            // NOTE : These updates could be automatic (reactive) as the relation between the model and the updated model
-            // with private properties is indenpendant of time.
-            // However, for the sake of simplicity, we do the update the interactive way.
-            fsm_state.model = update_model_private_props(fsm_state.model, from, next_state, fsm_state.internal_state.expecting);
-
-            set_internal_state_to_expecting_intent(/*OUT*/fsm_state, automatic_event);
-
-            // ...and enter the next state (can be different from `to` if we have nesting state group)
-            var state_to = hash_states[next_state];
-            state_to.active = true;
-            hash_states[INITIAL_STATE_NAME].current_state_name = next_state;
-
-            utils.info("RESULTING IN : ", fsm_state.model);
-
-            return fsm_state;
-        }
-
-        return {
-            states: fsm_internal_states,
-            events: fsm_internal_events,
-            transitions: fsm_internal_transitions
-        }
+    function update_fsm_state(model, model_update) {
+        // in-place update of the model
+        return utils.merge(model, model_update);
     }
 
     /**
@@ -1183,12 +557,13 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
         //   - effect results : they are the eventual return value from executing effects
         //   - trace : contain the information allowing to toggle the tracing mechanism
 
-        // Traces
+        // Traces array, represented as an observable property (behavior)
+        // Will be updated whenever the array of traces is updated
         var traceS = new Rx.BehaviorSubject([]);
 
-        var fsm_initial_state = compute_fsm_initial_state(state_chart, special_events);
+        var fsm_initial_state = compute_fsm_initial_state(state_chart);
 
-        var internal_fsm_def = get_internal_sync_fsm();
+        var outer_fsm = outer_fsm_def.get_internal_sync_fsm();
 
         var merged_labelled_sources$ = Rx.Observable.merge(
             Rx.Observable.merge(user_generated_intent$, program_generated_intent$).map(utils.label(EV_INTENT)),
@@ -1200,10 +575,15 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
             });
 
         var fsm_state$ = merged_labelled_sources$
-            .scan(process_fsm_internal_transition(internal_fsm_def, internal_fsm_write_trace, traceS), fsm_initial_state)
+            .scan(process_fsm_internal_transition(outer_fsm, outer_fsm_write_trace, traceS), fsm_initial_state)
+            .catch(function (e) {
+                var returnValue;
+                console.error('error while process_fsm_internal_transition', e);
+                return Rx.Observable.throw(e);
+            })
             .shareReplay(1)// test to remove it to see if it makes a difference, share should be enough I think
-        //            .do(utils.rxlog('fsm state$'));
 
+        // The stream of effect requests
         var effect_req$ = fsm_state$
             .filter(utils.get_prop('effect_req'))
             .map(function (fsm_state) {
@@ -1216,33 +596,39 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
             .do(utils.rxlog('effect req$'))
             .publish();
 
-        // The output symbol stream
-        var state$ = fsm_state$
-                //                .filter(function(x){return !x['trace']}) // ??can't find where the trace property is set - remove?
-                .filter(function filter_in_new_model(fsm_state) {
-                    return fsm_state.internal_state.is_model_dirty;
-                })
-                .map(function (fsm_state) {
-                    return fsm_state.model;
-                })
-                .startWith(fsm_initial_state.model)
-                .do(utils.rxlog('new model state$ emitted'))
-            ;
+        // The stream of model updates
+        // Can be anything that the function `update_model` understands
+        var model_update$ = fsm_state$
+            .filter(function filter_in_new_model(fsm_state) {
+                return !utils.is_empty(fsm_state.model_update);
+            })
+            .pluck('model_update')
+            .startWith(fsm_initial_state.model)
+            .do(utils.rxlog('new model update emitted'));
 
+        // The model passed out by the stream should be read-only.
+        // Possible downstream write-effects are disarmed by deep cloning.
+        // This ensures that the model is modified only here.
+        var model$ = fsm_state$
+            .pluck('model')
+            .map(utils.clone_deep)
+            .do(utils.rxlog('new model emitted'));
+
+        // Intents generated internally (automatic actions)
         var program_generated_intent_req$ = fsm_state$
-                .filter(utils.get_prop('automatic_event'))
-                .map(utils.get_prop('automatic_event'))
-                .startWith({
-                    code: fsm_initial_state.special_events.INIT,
-                    payload: fsm_initial_state.model
-                })
-                .do(utils.rxlog('program_generated_intent_req$'))
-                .publish()
-            ;
+            .filter(utils.get_prop('automatic_event'))
+            .pluck('automatic_event')
+            .startWith({
+                code: EV_CODE_INIT,
+                payload: fsm_initial_state.model
+            })
+            .do(utils.rxlog('program_generated_intent_req$'))
+            .publish();
 
         return {
             fsm_state$: fsm_state$,
-            state$: state$,
+            model_update$: model_update$, // object representing the updates to do on the current model
+            model$: model$, // the updated model
             effect_req$: effect_req$,
             program_generated_intent_req$: program_generated_intent_req$,
             trace$: traceS
@@ -1274,7 +660,7 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
                 .subscribe(effect_resS);
             program_generated_intent_req_disposable = fsm_sinks.program_generated_intent_req$
                 .subscribe(program_generated_intentS);
-            fsm_sinks.effect_req$.connect();
+            fsm_sinks.effect_req$.connect(); // NOTE : ORDER HERE IS IMPORTANT!!
             fsm_sinks.program_generated_intent_req$.connect();
         }
 
@@ -1324,12 +710,15 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
         // If a recoverable error occured, Trace format does have a `recoverable_error` field
         // If a fatal error occurred, the application is possibly abruptly exited, and no trace records are available at all
         function start_trace() {
-            trace_intentS.onNext(make_intent(special_events.TRACE, true));
+            // Sends a program-generated event to start the tracing mechanism
+            // Subscribe an async subject to the trace observable so that only one value, the last one is kept
+            // That value is the (last) array of traces
+            trace_intentS.onNext(make_intent(EV_CODE_TRACE, true));
             trace$.subscribe(final_traceS);
         }
 
         function stop_trace() {
-            trace_intentS.onNext(make_intent(special_events.TRACE, false));
+            trace_intentS.onNext(make_intent(EV_CODE_TRACE, false));
         }
 
         function is_trace_intent_false(x) {
@@ -1344,8 +733,10 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
         return {
             start: start,
             stop: stop,
-            output$: fsm_sinks.state$.share(),
-            fsm_state$: fsm_sinks.fsm_state$, // TODO : remove when finished testing, this should not be exposed
+            model$: fsm_sinks.model$.share(), // defensively share the model in case it is subscribed several times over
+            model_update$: fsm_sinks.model_update$.share(),
+            // TODO : can be exposed as a living trace of the state of the system instead of modifying the model with meta properties
+            fsm_state$: fsm_sinks.fsm_state$,
             trace$: final_traceS, // by subscribing to trace$, only one value will be output, the array of traces recorded
             start_trace: start_trace,
             stop_trace: stop_trace,
@@ -1398,9 +789,9 @@ function require_async_fsm(synchronous_fsm, Rx, Err, utils) {
         make_fsm: make_fsm,
         transduce_fsm_streams: transduce_fsm_streams,
         process_fsm_internal_transition: process_fsm_internal_transition,
-        create_state_enum: create_state_enum,
-        create_event_enum: create_event_enum,
-        make_action_DSL: make_action_DSL
+        //        create_state_enum: create_state_enum,
+        //        create_event_enum: create_event_enum,
+        //        make_action_DSL: make_action_DSL
     }
 }
 

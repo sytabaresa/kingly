@@ -9,6 +9,7 @@ define(function (require) {
 });
 
 function require_utils(Rx, _, clone_deep) {
+    // Set Rx error option to visualize extra stack trace information
     Rx && (Rx.config) && (Rx.config.longStackSupport = true);
 
     _.mixin({
@@ -78,8 +79,16 @@ function require_utils(Rx, _, clone_deep) {
     }
 
     function clone_deep(obj) {
-        return _.cloneDeep(obj);
-        //        return clone(obj);
+        if (typeof(obj) === 'undefined') return undefined;
+        var clone_deep_fn = _.cloneDeep.bind(_);
+        if ((obj.clone_deep && is_function(obj.clone_deep)) || (obj.cloneDeep && is_function(obj.cloneDeep))) {
+            clone_deep_fn = obj.clone_deep ? obj.clone_deep.bind(obj) : obj.cloneDeep.bind(obj);
+        }
+        return clone_deep_fn(obj);
+    }
+
+    function is_function(obj) {
+        return typeof(obj) === 'function';
     }
 
     function update_prop(obj, prop) {
@@ -134,6 +143,36 @@ function require_utils(Rx, _, clone_deep) {
         return Array.prototype.slice.call(argument);
     }
 
+    function is_empty(obj) {
+        return !(obj && Object.keys(obj).length)
+    }
+
+    // Inspired from lodash.merge v4, but allowing to merge undefined values
+    // merge({ p : {} }, { p : { q: undefined }}) --> { p : { q: undefined }}
+    function merge(object, sources) {
+        var args = Array.prototype.slice.call(arguments);
+        var customizer_fn = function (destValue, srcValue, key, destParent) {
+            if (srcValue === undefined) destParent[key] = undefined;
+            // NOTE : could also be delete destParent[key] to remove the property
+        };
+        args.push(customizer_fn);
+        return _.mergeWith.apply(null, args);
+    }
+
+    /**
+     * Returns the name of the function as taken from its source definition.
+     * For instance, function do_something(){} -> "do_something"
+     * @param fn {Function}
+     * @returns {String}
+     */
+    function get_fn_name(fn) {
+        var tokens =
+            /^[\s\r\n]*function[\s\r\n]*([^\(\s\r\n]*?)[\s\r\n]*\([^\)\s\r\n]*\)[\s\r\n]*\{((?:[^}]*\}?)+)\}\s*$/
+                .exec(fn.toString());
+        return tokens[1];
+    }
+
+
     return {
         identity: identity,
         sum: sum,
@@ -153,6 +192,10 @@ function require_utils(Rx, _, clone_deep) {
         get_prop: get_prop,
         get_timestamp: get_timestamp,
         clone_deep: clone_deep,
-        noop: noop
+        noop: noop,
+        is_function: is_function,
+        is_empty: is_empty,
+        merge : merge,
+        get_fn_name: get_fn_name
     }
 }

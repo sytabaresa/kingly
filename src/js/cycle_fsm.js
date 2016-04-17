@@ -106,12 +106,12 @@ define(function (require) {
         // NOTE: hfsm made a global for testing in console
         hfsm = fsm.make_fsm(cd_player_state_chart, intent$);
         hfsm.start();
-        hfsm.start_trace();
-        hfsm.trace$.subscribe(utils.rxlog('Final trace array'));
+        // hfsm.start_trace();
+        // hfsm.trace$.subscribe(utils.rxlog('Final trace array'));
 
         return {
             // NOTE : I want to avoid ES6/webpack and the like so I don't use the DOM driver for now
-            ractive: hfsm.output$
+            ractive: hfsm.model_update$
         }
     }
 

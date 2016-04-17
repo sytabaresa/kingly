@@ -1,12 +1,14 @@
 define(function (require) {
     var cd_player = require('cd_player_api');
     var utils = require('utils');
-    var fsm = require('asynchronous_fsm');
-    return require_cd_player_def(cd_player, utils, fsm);
+    var fsm_helpers = require('fsm_helpers');
+    var constants = require('constants');
+
+    return require_cd_player_def(cd_player, fsm_helpers,  utils, constants);
 });
 
 
-function require_cd_player_def(cd_player, utils, fsm) {
+function require_cd_player_def(cd_player, fsm_helpers, utils, constants) {
     // Object exposing APIs used by the GUI
     //    var cd_player = require_cd_player(utils);
 
@@ -17,9 +19,10 @@ function require_cd_player_def(cd_player, utils, fsm) {
     const TOOLTIP_PLAY_BUTTON_RESUME = 'Resume';
     const TOOLTIP_PAUSE_BUTTON_RESUME = 'Resume';
     const TOOLTIP_EJECT_BUTTON_CLOSE = 'Close';
+    const EV_CODE_INIT = constants.EV_CODE_INIT;
 
     // Model definition
-    var model = {
+    var model_0 = {
         cd_in_drawer: true,
         current_track$: undefined,
         current_cd_play_time$: undefined, //in s
@@ -51,10 +54,10 @@ function require_cd_player_def(cd_player, utils, fsm) {
             stepping_backwards: ''
         }
     };
-    var states = fsm.create_state_enum(state_hierarchy);
+    var states = fsm_helpers.create_state_enum(state_hierarchy);
 
     // Events definition
-    var cd_player_events = fsm.create_event_enum([
+    var cd_player_events = fsm_helpers.create_event_enum([
         'eject', 'pause', 'play', 'stop', 'timer_expired', 'next_track', 'previous_track',
         'forward_up', 'forward_down', 'reverse_down', 'reverse_up'
     ]);
@@ -101,13 +104,18 @@ function require_cd_player_def(cd_player, utils, fsm) {
         return model;
     }
 
+    function toggle_visibility(x) {
+        return (x % 2 === 0) ? 'hidden' : 'visible'
+    }
+
     // Actions
     function fsm_initialize_model(model) {
         var cd_player_streams = cd_player.get_playing_streams(cd_player.get_current_track(), cd_player.get_current_time());
         model.current_track$ = cd_player_streams.current_track$;
         model.current_cd_play_time$ = cd_player_streams.current_time$;
-        model.current_track = model.current_track$.subscribe(utils.update_prop(model, 'current_track'));
-        model.current_cd_play_time = model.current_cd_play_time$.subscribe(utils.update_prop(model, 'current_cd_play_time'));
+        // TODO remove??
+//        model.current_track = model.current_track$.subscribe(utils.update_prop(model, 'current_track'));
+//        model.current_cd_play_time = model.current_cd_play_time$.subscribe(utils.update_prop(model, 'current_cd_play_time'));
         model.hiddenS = new Rx.BehaviorSubject(true);
         model.hidden$ = model.hiddenS // subject to toggle the hidden$ observable
             .flatMapLatest(function (flag) {
@@ -122,7 +130,23 @@ function require_cd_player_def(cd_player, utils, fsm) {
         model.pause_tooltip = TOOLTIP_PAUSE_BUTTON_PAUSE;
         model.eject_tooltip = TOOLTIP_EJECT_BUTTON_EJECT;
 
-        return model;
+        return {
+            current_track$ : cd_player_streams.current_track$,
+            current_cd_play_time$ : cd_player_streams.current_time$,
+            hiddenS : new Rx.BehaviorSubject(true),
+            hidden$ :  model.hiddenS // subject to toggle the hidden$ observable
+                .flatMapLatest(function (flag) {
+                    return flag
+                        ? Rx.Observable.return('visible')
+                        : Rx.Observable.interval(500).map(toggle_visibility)
+                })
+                .share(),
+            //            .do(utils.rxlog('visibility'))
+            last_track : cd_player.get_last_track(),
+            play_tooltip : TOOLTIP_PLAY_BUTTON_PLAY,
+            pause_tooltip : TOOLTIP_PAUSE_BUTTON_PAUSE,
+            eject_tooltip : TOOLTIP_EJECT_BUTTON_EJECT
+        };
     }
 
     function open_drawer(model, event_data) {
@@ -137,7 +161,7 @@ function require_cd_player_def(cd_player, utils, fsm) {
         return model;
     }
 
-    function play(model, event_data, fsm, cd_player_events) {
+    function play(model, event_data) {
         var initial_track = 1;
         var initial_cd_play_time = 0;
 
@@ -152,36 +176,28 @@ function require_cd_player_def(cd_player, utils, fsm) {
         return model;
     }
 
-    function poll_play_time(model, event_data, fsm, cd_player_events) {
-        return update_play_time(model, event_data, fsm, cd_player_events);
-    }
-
     function eject(model, event_data) {
         var model_prime = stop(model);
         cd_player.open_drawer('opening drawer...');
         return model_prime;
     }
 
-    function go_next_track(model, event_data, fsm, cd_player_events) {
+    function go_next_track(model, event_data) {
         cd_player.next_track('going to next track...');
         return model;
     }
 
-    function go_track_1(model, event_data, fsm, cd_player_events) {
+    function go_track_1(model, event_data) {
         cd_player.go_track(1);
         return model;
     }
 
-    function go_previous_track(model, event_data, fsm, cd_player_events) {
+    function go_previous_track(model, event_data) {
         cd_player.previous_track();
         return model;
     }
 
-    function toggle_visibility(x) {
-        return (x % 2 === 0) ? 'hidden' : 'visible'
-    }
-
-    function pause_playing_cd(model, event_data, fsm, cd_player_events) {
+    function pause_playing_cd(model, event_data) {
         cd_player.pause();
         model.hiddenS.onNext(false);
         model.pause_tooltip = TOOLTIP_PAUSE_BUTTON_RESUME;
@@ -202,14 +218,14 @@ function require_cd_player_def(cd_player, utils, fsm) {
         return model;
     }
 
-    function resume_paused_cd(model, event_data, fsm, cd_player_events) {
+    function resume_paused_cd(model, event_data) {
         model.hiddenS.onNext(true);
         model.pause_tooltip = TOOLTIP_PAUSE_BUTTON_PAUSE;
         model.play_tooltip = TOOLTIP_PLAY_BUTTON_PLAY;
-        return play(model, event_data, fsm, cd_player_events);
+        return play(model);
     }
 
-    function go_forward_1_s(model, event_data, fsm, cd_player_events) {
+    function go_forward_1_s(model, event_data) {
         // NOTE : we have to put this first line to cancel other timers that could conflict
         // This could be put into entry and exit state actions once we have implemented that
         // That would be cleaner as we should not care about previous state here
@@ -219,7 +235,7 @@ function require_cd_player_def(cd_player, utils, fsm) {
         return model;
     }
 
-    function go_backward_1_s(model, event_data, fsm, cd_player_events) {
+    function go_backward_1_s(model, event_data) {
         cd_player.backward_1_s();
         //        update_play_time(model, event_data, fsm, cd_player_events);
         //        model.backward_timer_id = create_timer('backward_timer', 250);
@@ -233,7 +249,6 @@ function require_cd_player_def(cd_player, utils, fsm) {
         close_drawer,
         play,
         stop,
-        poll_play_time,
         eject,
         go_next_track,
         go_track_1,
@@ -244,30 +259,30 @@ function require_cd_player_def(cd_player, utils, fsm) {
         go_backward_1_s
     ];
 
-    var action_struct = fsm.make_action_DSL(action_list);
+    var action_struct = fsm_helpers.make_action_DSL(action_list);
     var action_enum = action_struct.action_enum;
 
     // Transitions
     var cd_player_transitions = [
-        {from: states.NOK, to: states.no_cd_loaded, event: cd_player_events.INIT, action: action_enum.fsm_initialize_model},
-        {from: states.no_cd_loaded, to: states.cd_drawer_closed, event: cd_player_events.INIT, action: action_enum.identity},
+        {from: states.NOK, to: states.no_cd_loaded, event: EV_CODE_INIT, action: action_enum.fsm_initialize_model},
+        {from: states.no_cd_loaded, to: states.cd_drawer_closed, event: EV_CODE_INIT, action: action_enum.identity},
         {from: states.cd_drawer_closed, to: states.cd_drawer_open, event: cd_player_events.EJECT, action: action_enum.open_drawer},
         {from: states.cd_drawer_open, to: states.closing_cd_drawer, event: cd_player_events.EJECT, action: action_enum.close_drawer},
         {from: states.closing_cd_drawer, guards: [
             {predicate: is_not_cd_in_drawer, to: states.cd_drawer_closed, action: action_enum.identity},
             {predicate: is_cd_in_drawer, to: states.cd_loaded, action: action_enum.identity}
         ]},
-        {from: states.cd_loaded, to: states.cd_loaded_group, event: cd_player_events.INIT, action: action_enum.identity},
+        {from: states.cd_loaded, to: states.cd_loaded_group, event: EV_CODE_INIT, action: action_enum.identity},
         {from: states.cd_playing, to: states.cd_paused_group, event: cd_player_events.PAUSE, action: action_enum.pause_playing_cd},
         {from: states.cd_paused_group, to: states.cd_playing, event: cd_player_events.PAUSE, action: action_enum.resume_paused_cd},
         {from: states.cd_paused_group, to: states.cd_playing, event: cd_player_events.PLAY, action: action_enum.resume_paused_cd},
-        {from: states.cd_paused_group, to: states.time_and_track_fields_not_blank, event: cd_player_events.INIT, action: action_enum.identity},
+        {from: states.cd_paused_group, to: states.time_and_track_fields_not_blank, event: EV_CODE_INIT, action: action_enum.identity},
         {from: states.time_and_track_fields_not_blank, to: states.time_and_track_fields_blank, event: cd_player_events.TIMER_EXPIRED, action: action_enum.create_pause_timer},
         {from: states.time_and_track_fields_blank, to: states.time_and_track_fields_not_blank, event: cd_player_events.TIMER_EXPIRED, action: action_enum.create_pause_timer},
         {from: states.cd_paused_group, to: states.cd_stopped, event: cd_player_events.STOP, action: action_enum.stop},
         {from: states.cd_stopped, to: states.cd_playing, event: cd_player_events.PLAY, action: action_enum.play},
         {from: states.cd_playing, to: states.cd_stopped, event: cd_player_events.STOP, action: action_enum.stop},
-        {from: states.cd_loaded_group, to: states.cd_stopped, event: cd_player_events.INIT, action: action_enum.stop},
+        {from: states.cd_loaded_group, to: states.cd_stopped, event: EV_CODE_INIT, action: action_enum.stop},
         {from: states.cd_loaded_group, event: cd_player_events.NEXT_TRACK, guards: [
             {predicate: is_last_track, to: states.cd_stopped, action: action_enum.stop},
             {predicate: is_not_last_track, to: states.history.cd_loaded_group, action: action_enum.go_next_track}
@@ -289,7 +304,7 @@ function require_cd_player_def(cd_player, utils, fsm) {
     ];
 
     return {
-        model: model,
+        model: model_0,
         state_hierarchy: state_hierarchy,
         events: cd_player_events,
         action_hash: action_struct.action_hash, // input to effect driver, mapping action code -> action

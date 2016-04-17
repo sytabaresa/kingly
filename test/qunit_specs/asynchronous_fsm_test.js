@@ -3,6 +3,15 @@ define(function (require) {
     var utils = require('utils');
     var Err = require('custom_errors');
     var fsm = require('asynchronous_fsm');
+    var fsm_helpers = require('fsm_helpers');
+    var constants = require('constants');
+
+    var EV_CODE_INIT = constants.EV_CODE_INIT;
+
+    window.onerror = function (msg, url, lineNo, columnNo, error) {
+        console.error(error);
+        return false;
+    };
 
     function exec_on_tick(fn, tick) {
         return function () {
@@ -36,21 +45,28 @@ define(function (require) {
     // SUBGROUP : Standard features
 
     // Actions
-    function set_dummy_field(model, event_payload) {
-        // We have to write this one that way so it can be spyed on with sinon.spy (otherwise call model value is lost)
-        var model_prime = utils.clone_deep(model);
-        model_prime[DUMMY_FIELD] = event_payload;
-        return model_prime;
+    function set_dummy_field(assert, done) {
+        return function set_dummy_field(model, event_payload) {
+            assert.deepEqual({model: model, ep: event_payload},
+                {model: {}, ep: DUMMY_EVENT_DATA_VALUE},
+                'Actions are executed with the parameters (model, event_data) in that order');
+            done();
+            var model_update = {};
+            model_update [DUMMY_FIELD] = event_payload;
+            return model_update;
+        }
     }
 
     function set_dummy_field_to_false(model, event_payload) {
-        model[DUMMY_FIELD] = false;
-        return model;
+        var model_update = {};
+        model_update [DUMMY_FIELD] = false;
+        return model_update;
     }
 
     function set_dummy_field_to_true(model, event_payload) {
-        model[DUMMY_FIELD] = true;
-        return model;
+        var model_update = {};
+        model_update [DUMMY_FIELD] = true;
+        return model_update;
     }
 
     // Predicates
@@ -80,20 +96,20 @@ define(function (require) {
         // - D : event3 -> E
         // - E : event3 / false -> E : set field 'dummy_field' to false
 
-        var done = assert.async(); // Cf. https://api.qunitjs.com/async/
+        var done = assert.async(2); // Cf. https://api.qunitjs.com/async/
 
         var model0 = undefined;
         var states_definition = {A: '', B: '', C: '', D: '', E: ''};
-        var states = fsm.create_state_enum(states_definition);
+        var states = fsm_helpers.create_state_enum(states_definition);
         var event_enum = ['event1', 'event2', 'event3'];
-        var events = fsm.create_event_enum(event_enum);
-        var action_list = [set_dummy_field, set_dummy_field_to_false, set_dummy_field_to_true];
-        var action_struct = fsm.make_action_DSL(action_list);
+        var events = fsm_helpers.create_event_enum(event_enum);
+        var action_list = [set_dummy_field(assert, done), set_dummy_field_to_false, set_dummy_field_to_true];
+        var action_struct = fsm_helpers.make_action_DSL(action_list);
         var action_enum = action_struct.action_enum;
         var action_hash = action_struct.action_hash;
         var spy_actions = sinon.spy(action_hash, 'set_dummy_field');
         var transitions = [
-            {from: states.NOK, to: states.A, event: events.INIT},
+            {from: states.NOK, to: states.A, event: events[EV_CODE_INIT]},
             {from: states.A, to: states.B, event: events.EVENT1},
             {from: states.B, to: states.C, event: events.EVENT2, predicate: utils.always(true)},
             {from: states.C, event: events.EVENT2, guards: [
@@ -113,11 +129,11 @@ define(function (require) {
         };
 
         ehfsm = fsm.make_fsm(state_chart, undefined); // intent$ is undefined here as we will simulate events
-        ehfsm.output$.subscribe(function (model) {
-            console.log('output', model)
+        ehfsm.model_update$.subscribe(function (model_update) {
+            console.log('model update', model_update);
         }); // We also have to subscribe to the external dataflow
         ehfsm.fsm_state$.subscribe(function (fsm_state) {
-            console.log('fsm_state', fsm_state)
+            console.log('fsm_state', utils.clone_deep(fsm_state));
         });
         ehfsm.start_trace(); // NOTE : must be before the start call to also include the INIT event
         ehfsm.start(); // `start` initiates the inner dataflow subscription
@@ -132,23 +148,12 @@ define(function (require) {
             //
             var expected_init_trace = {
                 "event": {
-                    "code": "INIT",
-                    "payload": {
-                        "__from": "nok",
-                        "__internal_state": "expecting_action_result",
-                        "__to": "A"
-                    }
+                    "code": EV_CODE_INIT,
+                    "payload": {}
                 },
-                "model": {
-                    "__error": undefined,
-                    "__event": undefined,
-                    "__event_data": undefined,
-                    "__from": undefined,
-                    "__internal_state": "intent",
-                    "__to": "A"
-                },
+                "model": {},
+                "model_update": {},
                 "resulting_state": "A"
-                //                "time_stamp": 0 removed as it is non repeatable
             };
             assert.deepEqual(arr_traces[0], expected_init_trace, 'Starting the state machine sends an INIT event to the top-level state. The defined transition for that event is taken.');
             assert.deepEqual(true, true, 'That INIT event has the initial value of the model as event data');
@@ -164,14 +169,8 @@ define(function (require) {
             //   - the inner FSM current state remains the same
             //
             var expected_no_event_handler_trace = {
-                "model": {
-                    "__error": "There is no transition associated to that event!",
-                    "__event": "dummy",
-                    "__event_data": "dummy",
-                    "__from": "A",
-                    "__internal_state": "intent",
-                    "__to": "A"
-                },
+                "model": {},
+                "model_update": {},
                 "recoverable_error": {
                     "error": "There is no transition associated to that event!",
                     "event": "dummy",
@@ -193,14 +192,8 @@ define(function (require) {
                     "code": "EVENT1",
                     "payload": {}
                 },
-                "model": {
-                    "__error": undefined,
-                    "__event": undefined,
-                    "__event_data": undefined,
-                    "__from": undefined,
-                    "__internal_state": "intent",
-                    "__to": "B"
-                },
+                "model": {},
+                "model_update": {},
                 "resulting_state": "B"
             };
             assert.deepEqual(arr_traces[2], expected_transition_to_B_trace, 'If an event is triggered, and there is a transition defined for that event in the current state of the state machine, that transition is taken. If no action is specified, the model is kept unchanged.');
@@ -216,14 +209,8 @@ define(function (require) {
                     "code": "EVENT2",
                     "payload": {}
                 },
-                "model": {
-                    "__error": undefined,
-                    "__event": undefined,
-                    "__event_data": undefined,
-                    "__from": undefined,
-                    "__internal_state": "intent",
-                    "__to": "C"
-                },
+                "model": {},
+                "model_update": {},
                 "resulting_state": "C"
             };
             assert.deepEqual(arr_traces[3], expected_transition_to_C_with_guard_trace, 'When a guard is specified, and satisfied, the corresponding transition is taken');
@@ -241,29 +228,19 @@ define(function (require) {
                     "payload": 24
                 },
                 "model": {
-                    "__error": undefined,
-                    "__event": undefined,
-                    "__event_data": undefined,
-                    "__from": undefined,
-                    "__internal_state": "intent",
-                    "__to": "C",
+                    "dummy_field": 24
+                },
+                "model_update": {
                     "dummy_field": 24
                 },
                 "resulting_state": "C"
             };
-            var model_intermediary_value = {
-                "__error": undefined,
-                "__event": undefined,
-                "__event_data": undefined,
-                "__from": "C",
-                "__internal_state": "expecting_action_result",
-                "__to": "C"
-            };
+            var model_intermediary_value = expected_transition_to_C_with_guard_trace_2.model;
             assert.deepEqual(arr_traces[4], expected_transition_to_C_with_guard_trace_2, 'When a guard is specified, and satisfied, the corresponding action is executed and leads to the corresponding model update');
             console.log('expected_transition_to_D_with_guard_trace :: spy called with', spy_actions.firstCall.args);
             // NOTE!! testing is complicated by the fact that currently the model is being updated in place
             // TODO : find a better long-term solution (if possible without recurring to immutable)
-            assert.ok(spy_actions.calledOnce && spy_actions.calledWith(model_intermediary_value, DUMMY_EVENT_DATA_VALUE), 'Actions are executed with the parameters (model, event_data) in that order');
+
 
             // T6. Transition with one guard satisfied, and one action
             // WHEN after starting the statechart, event `event2` is sent with no event data
@@ -278,12 +255,9 @@ define(function (require) {
                     "payload": undefined
                 },
                 "model": {
-                    "__error": undefined,
-                    "__event": undefined,
-                    "__event_data": undefined,
-                    "__from": undefined,
-                    "__internal_state": "intent",
-                    "__to": "D",
+                    "dummy_field": true
+                },
+                "model_update": {
                     "dummy_field": true
                 },
                 "resulting_state": "D"
@@ -299,14 +273,9 @@ define(function (require) {
             //   - state should remain the same
             var expected_error_one_predicate_must_be_satisfied = {
                 "model": {
-                    "__error": "No transition found while processing the event EVENT3 while transitioning from state D .\n It is possible that no guard predicates were fulfilled.",
-                    "__event": "EVENT3",
-                    "__event_data": undefined,
-                    "__from": "D",
-                    "__internal_state": "intent",
-                    "__to": "D",
                     "dummy_field": true
                 },
+                model_update: {},
                 "recoverable_error": {
                     "error": "No transition found while processing the event EVENT3 while transitioning from state D .\n It is possible that no guard predicates were fulfilled.",
                     "event": "EVENT3",
@@ -322,12 +291,12 @@ define(function (require) {
 
         // Sequence of testing events
         exec_on_tick(ehfsm.send_event, 10)(DUMMY, DUMMY);
-        exec_on_tick(ehfsm.send_event, 20)(events.EVENT1, {});
-        exec_on_tick(ehfsm.send_event, 30)(events.EVENT2, {});
-        exec_on_tick(ehfsm.send_event, 40)(events.EVENT2, DUMMY_EVENT_DATA_VALUE);
-        exec_on_tick(ehfsm.send_event, 50)(events.EVENT2);
-        exec_on_tick(ehfsm.send_event, 70)(events.EVENT3);
-        exec_on_tick(ehfsm.stop_trace, 90)();
+        exec_on_tick(ehfsm.send_event, 30)(events.EVENT1, {});
+        exec_on_tick(ehfsm.send_event, 50)(events.EVENT2, {});
+        exec_on_tick(ehfsm.send_event, 70)(events.EVENT2, DUMMY_EVENT_DATA_VALUE);
+        exec_on_tick(ehfsm.send_event, 90)(events.EVENT2);
+        exec_on_tick(ehfsm.send_event, 110)(events.EVENT3);
+        exec_on_tick(ehfsm.stop_trace, 130)();
 
         // END
     });

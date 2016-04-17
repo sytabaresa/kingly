@@ -113,7 +113,7 @@ define(function (require) {
         ];
         var expected_ordering_0 = {
             updated_fsm_state: fsm_state,
-            next_state: 'destination state',
+            next_fsm_state: 'destination state',
             fatal_error: undefined
         };
         var arr_transitions_1 = [
@@ -130,7 +130,7 @@ define(function (require) {
         ];
         var expected_ordering_1 = {
             updated_fsm_state: fsm_state,
-            next_state: 'first possible destination state',
+            next_fsm_state: 'first possible destination state',
             fatal_error: undefined
         };
 
@@ -180,7 +180,7 @@ define(function (require) {
             synchronous_fsm.evaluate_internal_transitions(fsm_internal_states, arr_transitions, fsm_state, internal_event),
             {
                 updated_fsm_state: fsm_state,
-                next_state: undefined,
+                next_fsm_state: undefined,
                 fatal_error: error
             },
             'returns {error : the error, next_state: undefined, updated_fsm_state : unmodified fsm_state}'
