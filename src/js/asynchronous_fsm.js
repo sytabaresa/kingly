@@ -217,11 +217,13 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
         var model_0 = state_chart.model || {};
 
         return {
-            model: utils.clone_deep(model_0), // clone the initial value of the model
-            is_init_state: is_init_state,
-            is_auto_state: is_auto_state,
-            is_group_state: is_group_state,
-            hash_states: hash_states,
+            inner_fsm : {
+                model: utils.clone_deep(model_0), // clone the initial value of the model
+                hash_states: hash_states,
+                is_init_state: is_init_state, // TODO : refactor to init state hash?
+                is_auto_state: is_auto_state,
+                is_group_state: is_group_state
+            },
             internal_state: {
                 expecting: constants.EXPECTING_INTENT,
                 is_model_dirty: true,
@@ -628,7 +630,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
         return {
             fsm_state$: fsm_state$,
             model_update$: model_update$, // object representing the updates to do on the current model
-            model$: model$, // the updated model
+            model$: model$, // the updated model TODO : maybe remove, as it is already in fsm_state, and that avoid desync
             effect_req$: effect_req$,
             program_generated_intent_req$: program_generated_intent_req$,
             trace$: traceS

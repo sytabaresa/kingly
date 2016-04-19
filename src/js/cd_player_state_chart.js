@@ -4,14 +4,11 @@ define(function (require) {
     var fsm_helpers = require('fsm_helpers');
     var constants = require('constants');
 
-    return require_cd_player_def(cd_player, fsm_helpers,  utils, constants);
+    return require_cd_player_def(cd_player, fsm_helpers, utils, constants);
 });
 
 
 function require_cd_player_def(cd_player, fsm_helpers, utils, constants) {
-    // Object exposing APIs used by the GUI
-    //    var cd_player = require_cd_player(utils);
-
     const FORWARD_INTERVAL = 250;
     const TOOLTIP_PLAY_BUTTON_PLAY = 'Play';
     const TOOLTIP_PAUSE_BUTTON_PAUSE = 'Pause';
@@ -72,6 +69,7 @@ function require_cd_player_def(cd_player, fsm_helpers, utils, constants) {
     }
 
     function is_end_of_cd(model, event_data) {
+        // TODO : predicates must be synchronous and pure (querying the remote cd_player would be a side-effect)
         return cd_player.is_end_of_cd();
     }
 
@@ -99,9 +97,10 @@ function require_cd_player_def(cd_player, fsm_helpers, utils, constants) {
     function stop(model) {
         cd_player.stop('stopping...');
         model.hiddenS.onNext(true);
-        model.play_tooltip = TOOLTIP_PLAY_BUTTON_PLAY;
-        model.pause_tooltip = TOOLTIP_PAUSE_BUTTON_PAUSE;
-        return model;
+        return {
+            play_tooltip: TOOLTIP_PLAY_BUTTON_PLAY,
+            pause_tooltip: TOOLTIP_PAUSE_BUTTON_PAUSE
+        }
     }
 
     function toggle_visibility(x) {
@@ -111,30 +110,12 @@ function require_cd_player_def(cd_player, fsm_helpers, utils, constants) {
     // Actions
     function fsm_initialize_model(model) {
         var cd_player_streams = cd_player.get_playing_streams(cd_player.get_current_track(), cd_player.get_current_time());
-        model.current_track$ = cd_player_streams.current_track$;
-        model.current_cd_play_time$ = cd_player_streams.current_time$;
-        // TODO remove??
-//        model.current_track = model.current_track$.subscribe(utils.update_prop(model, 'current_track'));
-//        model.current_cd_play_time = model.current_cd_play_time$.subscribe(utils.update_prop(model, 'current_cd_play_time'));
-        model.hiddenS = new Rx.BehaviorSubject(true);
-        model.hidden$ = model.hiddenS // subject to toggle the hidden$ observable
-            .flatMapLatest(function (flag) {
-                return flag
-                    ? Rx.Observable.return('visible')
-                    : Rx.Observable.interval(500).map(toggle_visibility)
-            })
-            .share()
-//            .do(utils.rxlog('visibility'));
-        model.last_track = cd_player.get_last_track();
-        model.play_tooltip = TOOLTIP_PLAY_BUTTON_PLAY;
-        model.pause_tooltip = TOOLTIP_PAUSE_BUTTON_PAUSE;
-        model.eject_tooltip = TOOLTIP_EJECT_BUTTON_EJECT;
+        var model_update = {hiddenS: new Rx.BehaviorSubject(true)};
 
-        return {
-            current_track$ : cd_player_streams.current_track$,
-            current_cd_play_time$ : cd_player_streams.current_time$,
-            hiddenS : new Rx.BehaviorSubject(true),
-            hidden$ :  model.hiddenS // subject to toggle the hidden$ observable
+        return utils.merge(model_update, {
+            current_track$: cd_player_streams.current_track$,
+            current_cd_play_time$: cd_player_streams.current_time$,
+            hidden$: model_update.hiddenS // subject to toggle the hidden$ observable
                 .flatMapLatest(function (flag) {
                     return flag
                         ? Rx.Observable.return('visible')
@@ -142,23 +123,25 @@ function require_cd_player_def(cd_player, fsm_helpers, utils, constants) {
                 })
                 .share(),
             //            .do(utils.rxlog('visibility'))
-            last_track : cd_player.get_last_track(),
-            play_tooltip : TOOLTIP_PLAY_BUTTON_PLAY,
-            pause_tooltip : TOOLTIP_PAUSE_BUTTON_PAUSE,
-            eject_tooltip : TOOLTIP_EJECT_BUTTON_EJECT
-        };
+            last_track: cd_player.get_last_track(),
+            play_tooltip: TOOLTIP_PLAY_BUTTON_PLAY,
+            pause_tooltip: TOOLTIP_PAUSE_BUTTON_PAUSE,
+            eject_tooltip: TOOLTIP_EJECT_BUTTON_EJECT
+        });
     }
 
     function open_drawer(model, event_data) {
         cd_player.open_drawer('opening drawer...');
-        model.eject_tooltip = TOOLTIP_EJECT_BUTTON_EJECT;
-        return model;
+        return {
+            eject_tooltip: TOOLTIP_EJECT_BUTTON_EJECT
+        }
     }
 
     function close_drawer(model, event_data) {
         cd_player.close_drawer('closing drawer...');
-        model.eject_tooltip = TOOLTIP_EJECT_BUTTON_CLOSE;
-        return model;
+        return {
+            eject_tooltip: TOOLTIP_EJECT_BUTTON_CLOSE
+        }
     }
 
     function play(model, event_data) {
@@ -170,59 +153,57 @@ function require_cd_player_def(cd_player, fsm_helpers, utils, constants) {
         // Here, for the sake of demonstration we use a stream directly returned by the cd_player
         // But it would be the same principle if data were coming on a websocket, just that
         // we would have to create the observable in the function through Rx.Observable.create, wrapping the websocket
-        model.current_track$ = model.current_track$ || cd_player_streams.current_track$;
-        model.current_cd_play_time$ = model.current_cd_play_time$ || cd_player_streams.current_time$;
-        model.play_tooltip = TOOLTIP_PLAY_BUTTON_PLAY;
-        return model;
+        //        model.current_track$ = model.current_track$ || cd_player_streams.current_track$;
+        //        model.current_cd_play_time$ = model.current_cd_play_time$ || cd_player_streams.current_time$;
+        //        model.play_tooltip = TOOLTIP_PLAY_BUTTON_PLAY;
+        //        return model;
+        // TODO : check whether the streams are passed from the beginning, they can't be modified apparently
+
+        return {
+            play_tooltip: TOOLTIP_PLAY_BUTTON_PLAY
+        }
     }
 
     function eject(model, event_data) {
-        var model_prime = stop(model);
         cd_player.open_drawer('opening drawer...');
-        return model_prime;
+        // Also perform side-effects (stopping the cd player)
+        return stop(model);
     }
 
     function go_next_track(model, event_data) {
         cd_player.next_track('going to next track...');
-        return model;
+        return {};
     }
 
     function go_track_1(model, event_data) {
         cd_player.go_track(1);
-        return model;
+        // Only perform side-effects (stopping the cd player)
+        return {};
     }
 
     function go_previous_track(model, event_data) {
-        cd_player.previous_track();
-        return model;
+        // Only perform side-effects (stopping the cd player)
+        return {};
     }
 
     function pause_playing_cd(model, event_data) {
+        // Side-effects
         cd_player.pause();
         model.hiddenS.onNext(false);
-        model.pause_tooltip = TOOLTIP_PAUSE_BUTTON_RESUME;
-        model.play_tooltip = TOOLTIP_PLAY_BUTTON_RESUME;
-        /*
-         model.hidden$ = model.hidden$ || model.hiddenS // subject to toggle the hidden$ observable
-         .flatMapLatest(function (flag) {
-         return flag
-         ? Rx.Observable.return('visible').do(function (x) {
-         console.log("visibility", x)
-         })
-         : Rx.Observable.interval(500).map(toggle_visibility).share()
-         })
-         .do(function (x) {
-         console.log("visibility", x)
-         });
-         */
-        return model;
+        return {
+            pause_tooltip: TOOLTIP_PAUSE_BUTTON_RESUME,
+            play_tooltip: TOOLTIP_PLAY_BUTTON_RESUME
+        };
     }
 
     function resume_paused_cd(model, event_data) {
         model.hiddenS.onNext(true);
-        model.pause_tooltip = TOOLTIP_PAUSE_BUTTON_PAUSE;
-        model.play_tooltip = TOOLTIP_PLAY_BUTTON_PLAY;
-        return play(model);
+        var model_update = {
+            pause_tooltip: TOOLTIP_PAUSE_BUTTON_PAUSE,
+            play_tooltip: TOOLTIP_PLAY_BUTTON_PLAY
+        };
+        // TODO: investigate whether play is also an action or only a helper - adjust the signature in function
+        return utils.merge(model_update, play(model));
     }
 
     function go_forward_1_s(model, event_data) {
@@ -232,14 +213,14 @@ function require_cd_player_def(cd_player, fsm_helpers, utils, constants) {
         cd_player.forward_1_s();
         //        model = update_play_time(model, event_data, fsm, cd_player_events);
         //        model.forward_timer_id = create_timer('forward_timer', 250);
-        return model;
+        return {};
     }
 
     function go_backward_1_s(model, event_data) {
         cd_player.backward_1_s();
         //        update_play_time(model, event_data, fsm, cd_player_events);
         //        model.backward_timer_id = create_timer('backward_timer', 250);
-        return model;
+        return {};
     }
 
     // Action list

@@ -105,6 +105,9 @@ define(function (require) {
 
         // NOTE: hfsm made a global for testing in console
         hfsm = fsm.make_fsm(cd_player_state_chart, intent$);
+        hfsm.fsm_state$.subscribe(function (fsm_state) {
+            console.error('fsm_state', utils.clone_deep(fsm_state));
+        });
         hfsm.start();
         // hfsm.start_trace();
         // hfsm.trace$.subscribe(utils.rxlog('Final trace array'));
