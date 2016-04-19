@@ -115,7 +115,7 @@ function require_outer_fsm_def(Err, utils, constants) {
         // Predicates
         function has_event_handler(fsm_state, internal_event) {
             var event = internal_event.code;
-            var hash_states = fsm_state.hash_states;
+            var hash_states = fsm_state.inner_fsm.hash_states;
             var current_state = get_current_state(fsm_state);
             return !!hash_states[current_state][event];
         }
@@ -123,8 +123,8 @@ function require_outer_fsm_def(Err, utils, constants) {
         function has_effect_code(fsm_state, internal_event) {
             var event = internal_event.code;
             var event_data = internal_event.payload;
-            var model = fsm_state.model;
-            var hash_states = fsm_state.hash_states;
+            var model = fsm_state.inner_fsm.model;
+            var hash_states = fsm_state.inner_fsm.hash_states;
             var current_state = hash_states[INITIAL_STATE_NAME].current_state_name;
             var event_handler = hash_states[current_state][event];
             return has_event_handler(fsm_state, internal_event)
@@ -166,7 +166,7 @@ function require_outer_fsm_def(Err, utils, constants) {
             var event = internal_event.code;
             var event_data = internal_event.payload;
             var model = fsm_state.model;
-            var hash_states = fsm_state.hash_states;
+            var hash_states = fsm_state.inner_fsm.hash_states;
             var current_state = hash_states[INITIAL_STATE_NAME].current_state_name;
             var event_handler = hash_states[current_state][event];
             var effect_struct = event_handler(model, event_data, current_state);
@@ -181,7 +181,7 @@ function require_outer_fsm_def(Err, utils, constants) {
             var event = internal_event.code;
             var event_data = internal_event.payload;
             var model = fsm_state.model;
-            var hash_states = fsm_state.hash_states;
+            var hash_states = fsm_state.inner_fsm.hash_states;
             var current_state = hash_states[INITIAL_STATE_NAME].current_state_name;
             var event_handler = hash_states[current_state][event];
             var effect_struct = event_handler(model, event_data, current_state);
@@ -214,7 +214,7 @@ function require_outer_fsm_def(Err, utils, constants) {
             // it will be up to the user to determine what to do with the error
             var event = internal_event.code;
             var event_data = internal_event.payload;
-            var hash_states = fsm_state.hash_states;
+            var hash_states = fsm_state.inner_fsm.hash_states;
 
             utils.info("WHEN EVENT ", event);
             console.error(error_msg);
@@ -278,6 +278,7 @@ function require_outer_fsm_def(Err, utils, constants) {
         /////////
         // we gather the state fields interdependencies for the internal controlled states here in a set of impure functions
         function set_internal_state_to_expecting_effect_result(fsm_state, from, to, effect_code, event_data) {
+            console.log('set_internal_state_to_expecting_effect_result(fsm_state, from, to, effect_code, event_data)', effect_code, event_data)
             return {
                 // no change of the model to reflect, we only received an intent
                 //fsm_state.internal_state.is_model_dirty = false;
@@ -343,7 +344,10 @@ function require_outer_fsm_def(Err, utils, constants) {
                     to: undefined
                 },
                 // update model private props which are computed properties based on `fsm_state`
-                model: model_update,
+                inner_fsm : {
+                    model: model_update,
+                    model_update : model_update
+                },
                 // no effect request to be made
                 effect_req: undefined,
                 payload: undefined,
@@ -380,7 +384,7 @@ function require_outer_fsm_def(Err, utils, constants) {
 
         function transition_to_next_state(fsm_state, internal_event) {
             var effect_res = internal_event;
-            var hash_states = fsm_state.hash_states;
+            var hash_states = fsm_state.inner_fsm.hash_states;
             var from = fsm_state.internal_state.from;
             var to = fsm_state.internal_state.to;
             var model_update = utils.clone_deep(effect_res);
@@ -399,8 +403,8 @@ function require_outer_fsm_def(Err, utils, constants) {
             // - INIT events
             var automatic_event = process_automatic_events(
                 next_state,
-                fsm_state.is_auto_state,
-                fsm_state.is_init_state,
+                fsm_state.inner_fsm.is_auto_state,
+                fsm_state.inner_fsm.is_init_state,
                 previously_processed_event_data);
 
 
@@ -493,7 +497,7 @@ function require_outer_fsm_def(Err, utils, constants) {
     }
 
     function get_current_state(fsm_state) {
-        return fsm_state.hash_states[INITIAL_STATE_NAME].current_state_name;
+        return fsm_state.inner_fsm.hash_states[INITIAL_STATE_NAME].current_state_name;
     }
 
     function process_automatic_events(state_name, is_auto_state, is_init_state, previously_processed_event_data) {

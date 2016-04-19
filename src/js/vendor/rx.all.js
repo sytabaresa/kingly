@@ -1,5 +1,4 @@
 // Copyright (c) Microsoft, All rights reserved. See License.txt in the project root for license information.
-// BRUNO NOTE :L version 4.0.7
 
 ;(function (undefined) {
 
@@ -96,7 +95,7 @@
             error !== null &&
             error.stack &&
             error.stack.indexOf(STACK_JUMP_SEPARATOR) === -1
-            ) {
+        ) {
             var stacks = [];
             for (var o = observable; !!o; o = o.source) {
                 if (o.stack) {
@@ -313,42 +312,42 @@
         MAX_SAFE_INTEGER = Math.pow(2, 53) - 1;
 
     var keys = Object.keys || (function() {
-        var hasOwnProperty = Object.prototype.hasOwnProperty,
-            hasDontEnumBug = !({ toString: null }).propertyIsEnumerable('toString'),
-            dontEnums = [
-                'toString',
-                'toLocaleString',
-                'valueOf',
-                'hasOwnProperty',
-                'isPrototypeOf',
-                'propertyIsEnumerable',
-                'constructor'
-            ],
-            dontEnumsLength = dontEnums.length;
+            var hasOwnProperty = Object.prototype.hasOwnProperty,
+                hasDontEnumBug = !({ toString: null }).propertyIsEnumerable('toString'),
+                dontEnums = [
+                    'toString',
+                    'toLocaleString',
+                    'valueOf',
+                    'hasOwnProperty',
+                    'isPrototypeOf',
+                    'propertyIsEnumerable',
+                    'constructor'
+                ],
+                dontEnumsLength = dontEnums.length;
 
-        return function(obj) {
-            if (typeof obj !== 'object' && (typeof obj !== 'function' || obj === null)) {
-                throw new TypeError('Object.keys called on non-object');
-            }
-
-            var result = [], prop, i;
-
-            for (prop in obj) {
-                if (hasOwnProperty.call(obj, prop)) {
-                    result.push(prop);
+            return function(obj) {
+                if (typeof obj !== 'object' && (typeof obj !== 'function' || obj === null)) {
+                    throw new TypeError('Object.keys called on non-object');
                 }
-            }
 
-            if (hasDontEnumBug) {
-                for (i = 0; i < dontEnumsLength; i++) {
-                    if (hasOwnProperty.call(obj, dontEnums[i])) {
-                        result.push(dontEnums[i]);
+                var result = [], prop, i;
+
+                for (prop in obj) {
+                    if (hasOwnProperty.call(obj, prop)) {
+                        result.push(prop);
                     }
                 }
-            }
-            return result;
-        };
-    }());
+
+                if (hasDontEnumBug) {
+                    for (i = 0; i < dontEnumsLength; i++) {
+                        if (hasOwnProperty.call(obj, dontEnums[i])) {
+                            result.push(dontEnums[i]);
+                        }
+                    }
+                }
+                return result;
+            };
+        }());
 
     function equalObjects(object, other, equalFunc, isLoose, stackA, stackB) {
         var objProps = keys(object),
@@ -385,7 +384,7 @@
             if (objCtor !== othCtor &&
                 ('constructor' in object && 'constructor' in other) &&
                 !(typeof objCtor === 'function' && objCtor instanceof objCtor &&
-                    typeof othCtor === 'function' && othCtor instanceof othCtor)) {
+                typeof othCtor === 'function' && othCtor instanceof othCtor)) {
                 return false;
             }
         }
@@ -403,8 +402,8 @@
 
             case numberTag:
                 return (object !== +object) ?
-                    other !== +other :
-                    object === +other;
+                other !== +other :
+                object === +other;
 
             case regexpTag:
             case stringTag:
@@ -442,8 +441,8 @@
     }
 
     var isArray = Array.isArray || function(value) {
-        return isObjectLike(value) && isLength(value.length) && objToString.call(value) === arrayTag;
-    };
+            return isObjectLike(value) && isLength(value.length) && objToString.call(value) === arrayTag;
+        };
 
     function arraySome (array, predicate) {
         var index = -1,
@@ -480,8 +479,8 @@
             // Recursively compare arrays (susceptible to call stack limits).
             if (isLoose) {
                 if (!arraySome(other, function(othValue) {
-                    return arrValue === othValue || equalFunc(arrValue, othValue, isLoose, stackA, stackB);
-                })) {
+                        return arrValue === othValue || equalFunc(arrValue, othValue, isLoose, stackA, stackB);
+                    })) {
                     return false;
                 }
             } else if (!(arrValue === othValue || equalFunc(arrValue, othValue, isLoose, stackA, stackB))) {
@@ -1287,9 +1286,9 @@
         }
 
         var reNative = new RegExp('^' +
-                String(toString)
-                    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-                    .replace(/toString| for [^\]]+/g, '.*?') + '$'
+            String(toString)
+                .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+                .replace(/toString| for [^\]]+/g, '.*?') + '$'
         );
 
         var setImmediate = typeof (setImmediate = freeGlobal && moduleExports && freeGlobal.setImmediate) == 'function' &&
@@ -1339,7 +1338,7 @@
             scheduleMethod = function (action) {
                 var id = nextHandle++;
                 tasksByHandle[id] = action;
-                root.postMessage(MSG_PREFIX + currentId, '*');
+                root.postMessage(MSG_PREFIX + id, '*');
                 return id;
             };
         } else if (!!root.MessageChannel) {
@@ -1433,6 +1432,16 @@
             var disposable = new SingleAssignmentDisposable(),
                 id = localSetTimeout(scheduleAction(disposable, action, this, state), dueTime);
             return new BinaryDisposable(disposable, new LocalClearDisposable(id));
+        };
+
+        function scheduleLongRunning(state, action, disposable) {
+            return function () { action(state, disposable); };
+        }
+
+        DefaultScheduler.prototype.scheduleLongRunning = function (state, action) {
+            var disposable = disposableCreate(noop);
+            scheduleMethod(scheduleLongRunning(state, action, disposable));
+            return disposable;
         };
 
         return DefaultScheduler;
@@ -1742,7 +1751,7 @@
 
         // Must be implemented by other observers
         AbstractObserver.prototype.next = notImplemented;
-        AbstractObserver.prototype.fatal_error = notImplemented;
+        AbstractObserver.prototype.error = notImplemented;
         AbstractObserver.prototype.completed = notImplemented;
 
         /**
@@ -1823,7 +1832,7 @@
          * Calls the onError action.
          * @param {Any} error The error that has occurred.
          */
-        AnonymousObserver.prototype.fatal_error = function (error) {
+        AnonymousObserver.prototype.error = function (error) {
             this._onError(error);
         };
 
@@ -1899,7 +1908,7 @@
             this.queue.push(enqueueNext(this.observer, x));
         };
 
-        ScheduledObserver.prototype.fatal_error = function (e) {
+        ScheduledObserver.prototype.error = function (e) {
             this.queue.push(enqueueError(this.observer, e));
         };
 
@@ -1956,8 +1965,8 @@
             this.ensureActive();
         };
 
-        ObserveOnObserver.prototype.fatal_error = function (e) {
-            __super__.prototype.fatal_error.call(this, e);
+        ObserveOnObserver.prototype.error = function (e) {
+            __super__.prototype.error.call(this, e);
             this.ensureActive();
         };
 
@@ -2136,7 +2145,7 @@
             this.o.onNext(this._wrapResult(result, x, i));
         };
 
-        InnerObserver.prototype.fatal_error = function(e) { this.o.onError(e); };
+        InnerObserver.prototype.error = function(e) { this.o.onError(e); };
 
         InnerObserver.prototype.completed = function() { this.o.onCompleted(); };
 
@@ -2202,7 +2211,7 @@
         inherits(InnerObserver, AbstractObserver);
 
         InnerObserver.prototype.next = function (x) { this._state.o.onNext(x); };
-        InnerObserver.prototype.fatal_error = function (e) { this._state.o.onError(e); };
+        InnerObserver.prototype.error = function (e) { this._state.o.onError(e); };
         InnerObserver.prototype.completed = function () { this._recurse(this._state); };
 
         return ConcatEnumerableObservable;
@@ -2257,7 +2266,7 @@
         inherits(InnerObserver, AbstractObserver);
 
         InnerObserver.prototype.next = function (x) { this._state.o.onNext(x); };
-        InnerObserver.prototype.fatal_error = function (e) { this._state.lastError = e; this._recurse(this._state); };
+        InnerObserver.prototype.error = function (e) { this._state.lastError = e; this._recurse(this._state); };
         InnerObserver.prototype.completed = function () { this._state.o.onCompleted(); };
 
         return CatchErrorObservable;
@@ -2265,58 +2274,6 @@
 
     Enumerable.prototype.catchError = function () {
         return new CatchErrorObservable(this);
-    };
-
-    Enumerable.prototype.catchErrorWhen = function (notificationHandler) {
-        var sources = this;
-        return new AnonymousObservable(function (o) {
-            var exceptions = new Subject(),
-                notifier = new Subject(),
-                handled = notificationHandler(exceptions),
-                notificationDisposable = handled.subscribe(notifier);
-
-            var e = sources[$iterator$]();
-
-            var state = { isDisposed: false },
-                lastError,
-                subscription = new SerialDisposable();
-            var cancelable = currentThreadScheduler.scheduleRecursive(null, function (_, self) {
-                if (state.isDisposed) { return; }
-                var currentItem = tryCatch(e.next).call(e);
-                if (currentItem === errorObj) { return o.onError(currentItem.e); }
-
-                if (currentItem.done) {
-                    if (lastError) {
-                        o.onError(lastError);
-                    } else {
-                        o.onCompleted();
-                    }
-                    return;
-                }
-
-                // Check if promise
-                var currentValue = currentItem.value;
-                isPromise(currentValue) && (currentValue = observableFromPromise(currentValue));
-
-                var outer = new SingleAssignmentDisposable();
-                var inner = new SingleAssignmentDisposable();
-                subscription.setDisposable(new BinaryDisposable(inner, outer));
-                outer.setDisposable(currentValue.subscribe(
-                    function(x) { o.onNext(x); },
-                    function (exn) {
-                        inner.setDisposable(notifier.subscribe(self, function(ex) {
-                            o.onError(ex);
-                        }, function() {
-                            o.onCompleted();
-                        }));
-
-                        exceptions.onNext(exn);
-                    },
-                    function() { o.onCompleted(); }));
-            });
-
-            return new NAryDisposable([notificationDisposable, subscription, cancelable, new IsDisposedDisposable(state)]);
-        });
     };
 
     var RepeatEnumerable = (function (__super__) {
@@ -2463,9 +2420,17 @@
         }
 
         FromPromiseObservable.prototype.subscribeCore = function(o) {
-            var sad = new SingleAssignmentDisposable(), self = this;
+            var sad = new SingleAssignmentDisposable(), self = this, p = this._p;
 
-            this._p
+            if (isFunction(p)) {
+                p = tryCatch(p)();
+                if (p === errorObj) {
+                    o.onError(p.e);
+                    return sad;
+                }
+            }
+
+            p
                 .then(function (data) {
                     sad.setDisposable(self._s.schedule([o, data], scheduleNext));
                 }, function (err) {
@@ -2533,7 +2498,7 @@
         }
 
         InnerObserver.prototype.next = function (x) { this.a.push(x); };
-        InnerObserver.prototype.fatal_error = function (e) { this.o.onError(e);  };
+        InnerObserver.prototype.error = function (e) { this.o.onError(e);  };
         InnerObserver.prototype.completed = function () { this.o.onNext(this.a); this.o.onCompleted(); };
 
         return ToArrayObservable;
@@ -2553,7 +2518,7 @@
      *  var res = Rx.Observable.create(function (observer) { return function () { } );
    *  var res = Rx.Observable.create(function (observer) { return Rx.Disposable.empty; } );
    *  var res = Rx.Observable.create(function (observer) { } );
-   * @param {Function} subscribe Implementation of the resulting observable sequence's subscribe method, returning a function that will be wrapped in a Disposable.
+     * @param {Function} subscribe Implementation of the resulting observable sequence's subscribe method, returning a function that will be wrapped in a Disposable.
      * @returns {Observable} The observable sequence with the specified implementation for the Subscribe method.
      */
     Observable.create = function (subscribe, parent) {
@@ -2821,37 +2786,41 @@
     var GenerateObservable = (function (__super__) {
         inherits(GenerateObservable, __super__);
         function GenerateObservable(state, cndFn, itrFn, resFn, s) {
-            this._state = state;
+            this._initialState = state;
             this._cndFn = cndFn;
             this._itrFn = itrFn;
             this._resFn = resFn;
             this._s = s;
-            this._first = true;
             __super__.call(this);
         }
 
-        function scheduleRecursive(self, recurse) {
-            if (self._first) {
-                self._first = false;
+        function scheduleRecursive(state, recurse) {
+            if (state.first) {
+                state.first = false;
             } else {
-                self._state = tryCatch(self._itrFn)(self._state);
-                if (self._state === errorObj) { return self._o.onError(self._state.e); }
+                state.newState = tryCatch(state.self._itrFn)(state.newState);
+                if (state.newState === errorObj) { return state.o.onError(state.newState.e); }
             }
-            var hasResult = tryCatch(self._cndFn)(self._state);
-            if (hasResult === errorObj) { return self._o.onError(hasResult.e); }
+            var hasResult = tryCatch(state.self._cndFn)(state.newState);
+            if (hasResult === errorObj) { return state.o.onError(hasResult.e); }
             if (hasResult) {
-                var result = tryCatch(self._resFn)(self._state);
-                if (result === errorObj) { return self._o.onError(result.e); }
-                self._o.onNext(result);
-                recurse(self);
+                var result = tryCatch(state.self._resFn)(state.newState);
+                if (result === errorObj) { return state.o.onError(result.e); }
+                state.o.onNext(result);
+                recurse(state);
             } else {
-                self._o.onCompleted();
+                state.o.onCompleted();
             }
         }
 
         GenerateObservable.prototype.subscribeCore = function (o) {
-            this._o = o;
-            return this._s.scheduleRecursive(this, scheduleRecursive);
+            var state = {
+                o: o,
+                self: this,
+                first: true,
+                newState: this._initialState
+            };
+            return this._s.scheduleRecursive(state, scheduleRecursive);
         };
 
         return GenerateObservable;
@@ -3322,7 +3291,7 @@
 
         CatchObserver.prototype.next = function (x) { this._o.onNext(x); };
         CatchObserver.prototype.completed = function () { return this._o.onCompleted(); };
-        CatchObserver.prototype.fatal_error = function (e) {
+        CatchObserver.prototype.error = function (e) {
             var result = tryCatch(this._fn)(e);
             if (result === errorObj) { return this._o.onError(result.e); }
             isPromise(result) && (result = observableFromPromise(result));
@@ -3448,7 +3417,7 @@
             }
         };
 
-        CombineLatestObserver.prototype.fatal_error = function (e) {
+        CombineLatestObserver.prototype.error = function (e) {
             this._o.onError(e);
         };
 
@@ -3495,7 +3464,7 @@
         }
 
         ConcatObserver.prototype.next = function (x) { this._s.o.onNext(x); };
-        ConcatObserver.prototype.fatal_error = function (e) { this._s.o.onError(e); };
+        ConcatObserver.prototype.error = function (e) { this._s.o.onError(e); };
         ConcatObserver.prototype.completed = function () { this._s.i++; this._fn(this._s); };
 
         return ConcatObserver;
@@ -3610,7 +3579,7 @@
                 this.q.push(innerSource);
             }
         };
-        MergeObserver.prototype.fatal_error = function (e) { this.o.onError(e); };
+        MergeObserver.prototype.error = function (e) { this.o.onError(e); };
         MergeObserver.prototype.completed = function () { this.done = true; this.activeCount === 0 && this.o.onCompleted(); };
 
         function InnerObserver(parent, sad) {
@@ -3622,7 +3591,7 @@
         inherits(InnerObserver, __super__);
 
         InnerObserver.prototype.next = function (x) { this.parent.o.onNext(x); };
-        InnerObserver.prototype.fatal_error = function (e) { this.parent.o.onError(e); };
+        InnerObserver.prototype.error = function (e) { this.parent.o.onError(e); };
         InnerObserver.prototype.completed = function () {
             this.parent.g.remove(this.sad);
             if (this.parent.q.length > 0) {
@@ -3706,7 +3675,7 @@
             sad.setDisposable(innerSource.subscribe(new InnerObserver(this, sad)));
         };
 
-        MergeAllObserver.prototype.fatal_error = function (e) {
+        MergeAllObserver.prototype.error = function (e) {
             this.o.onError(e);
         };
 
@@ -3726,7 +3695,7 @@
         InnerObserver.prototype.next = function (x) {
             this.parent.o.onNext(x);
         };
-        InnerObserver.prototype.fatal_error = function (e) {
+        InnerObserver.prototype.error = function (e) {
             this.parent.o.onError(e);
         };
         InnerObserver.prototype.completed = function () {
@@ -3801,7 +3770,7 @@
             inner.setDisposable(x.subscribe(new InnerObserver(inner, this._group, this._state)));
         };
 
-        MergeDelayErrorObserver.prototype.fatal_error = function (e) {
+        MergeDelayErrorObserver.prototype.error = function (e) {
             this._state.errors.push(e);
             this._state.isStopped = true;
             this._group.length === 1 && setCompletion(this._state.o, this._state.errors);
@@ -3821,7 +3790,7 @@
         }
 
         InnerObserver.prototype.next = function (x) { this._state.o.onNext(x); };
-        InnerObserver.prototype.fatal_error = function (e) {
+        InnerObserver.prototype.error = function (e) {
             this._state.errors.push(e);
             this._group.remove(this._inner);
             this._state.isStopped && this._group.length === 1 && setCompletion(this._state.o, this._state.errors);
@@ -3907,7 +3876,7 @@
         }
 
         OnErrorResumeNextObserver.prototype.next = function (x) { this._state.o.onNext(x); };
-        OnErrorResumeNextObserver.prototype.fatal_error = function () { this._recurse(this._state); };
+        OnErrorResumeNextObserver.prototype.error = function () { this._recurse(this._state); };
         OnErrorResumeNextObserver.prototype.completed = function () { this._recurse(this._state); };
 
         return OnErrorResumeNextObserver;
@@ -3966,7 +3935,7 @@
             this._p._open && this._o.onNext(x);
         };
 
-        SkipUntilSourceObserver.prototype.fatal_error = function (err) {
+        SkipUntilSourceObserver.prototype.error = function (err) {
             this._o.onError(err);
         };
 
@@ -3991,7 +3960,7 @@
             this._r.dispose();
         };
 
-        SkipUntilOtherObserver.prototype.fatal_error = function (err) {
+        SkipUntilOtherObserver.prototype.error = function (err) {
             this._o.onError(err);
         };
 
@@ -4041,7 +4010,7 @@
             d.setDisposable(innerSource.subscribe(new InnerObserver(this, id)));
         };
 
-        SwitchObserver.prototype.fatal_error = function (e) {
+        SwitchObserver.prototype.error = function (e) {
             this.o.onError(e);
         };
 
@@ -4060,7 +4029,7 @@
             this.parent.latest === this.id && this.parent.o.onNext(x);
         };
 
-        InnerObserver.prototype.fatal_error = function (e) {
+        InnerObserver.prototype.error = function (e) {
             this.parent.latest === this.id && this.parent.o.onError(e);
         };
 
@@ -4112,7 +4081,7 @@
             this._o.onCompleted();
         };
 
-        TakeUntilObserver.prototype.fatal_error = function (err) {
+        TakeUntilObserver.prototype.error = function (err) {
             this._o.onError(err);
         };
 
@@ -4187,7 +4156,7 @@
             this._state.hasValueAll = this._state.hasValue.every(identity);
         };
 
-        WithLatestFromOtherObserver.prototype.fatal_error = function (e) {
+        WithLatestFromOtherObserver.prototype.error = function (e) {
             this._o.onError(e);
         };
 
@@ -4213,7 +4182,7 @@
             this._o.onNext(res);
         };
 
-        WithLatestFromSourceObserver.prototype.fatal_error = function (e) {
+        WithLatestFromSourceObserver.prototype.error = function (e) {
             this._o.onError(e);
         };
 
@@ -4300,7 +4269,7 @@
             }
         };
 
-        ZipObserver.prototype.fatal_error = function (e) {
+        ZipObserver.prototype.error = function (e) {
             this._o.onError(e);
         };
 
@@ -4417,7 +4386,7 @@
             }
         };
 
-        ZipIterableObserver.prototype.fatal_error = function (e) { this._s.o.onError(e); };
+        ZipIterableObserver.prototype.error = function (e) { this._s.o.onError(e); };
 
         ZipIterableObserver.prototype.completed = function () {
             this._s.done[this._i] = true;
@@ -4465,7 +4434,7 @@
      * @param {Number} [skip] Number of elements to skip between creation of consecutive buffers. If not provided, defaults to the count.
      * @returns {Observable} An observable sequence of buffers.
      */
-    observableProto.bufferWithCount = function (count, skip) {
+    observableProto.bufferWithCount = observableProto.bufferCount = function (count, skip) {
         typeof skip !== 'number' && (skip = count);
         return this.windowWithCount(count, skip)
             .flatMap(toArray)
@@ -4495,7 +4464,7 @@
         }
 
         DematerializeObserver.prototype.next = function (x) { x.accept(this._o); };
-        DematerializeObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        DematerializeObserver.prototype.error = function (e) { this._o.onError(e); };
         DematerializeObserver.prototype.completed = function () { this._o.onCompleted(); };
 
         return DematerializeObserver;
@@ -4552,7 +4521,7 @@
                 this.o.onNext(x);
             }
         };
-        DistinctUntilChangedObserver.prototype.fatal_error = function(e) {
+        DistinctUntilChangedObserver.prototype.error = function(e) {
             this.o.onError(e);
         };
         DistinctUntilChangedObserver.prototype.completed = function () {
@@ -4601,7 +4570,7 @@
             if (res === errorObj) { this.o.onError(res.e); }
             this.o.onNext(x);
         };
-        InnerObserver.prototype.fatal_error = function(err) {
+        InnerObserver.prototype.error = function(err) {
             var res = tryCatch(this.t.onError).call(this.t, err);
             if (res === errorObj) { return this.o.onError(res.e); }
             this.o.onError(err);
@@ -4778,7 +4747,7 @@
         }
 
         MaterializeObserver.prototype.next = function (x) { this._o.onNext(notificationCreateOnNext(x)) };
-        MaterializeObserver.prototype.fatal_error = function (e) { this._o.onNext(notificationCreateOnError(e)); this._o.onCompleted(); };
+        MaterializeObserver.prototype.error = function (e) { this._o.onNext(notificationCreateOnError(e)); this._o.onCompleted(); };
         MaterializeObserver.prototype.completed = function () { this._o.onNext(notificationCreateOnCompleted()); this._o.onCompleted(); };
 
         return MaterializeObserver;
@@ -4815,19 +4784,184 @@
         return enumerableRepeat(this, retryCount).catchError();
     };
 
-    /**
-     *  Repeats the source observable sequence upon error each time the notifier emits or until it successfully terminates.
-     *  if the notifier completes, the observable sequence completes.
-     *
-     * @example
-     *  var timer = Observable.timer(500);
-     *  var source = observable.retryWhen(timer);
-     * @param {Observable} [notifier] An observable that triggers the retries or completes the observable with onNext or onCompleted respectively.
-     * @returns {Observable} An observable sequence producing the elements of the given sequence repeatedly until it terminates successfully.
-     */
+    function repeat(value) {
+        return {
+            '@@iterator': function () {
+                return {
+                    next: function () {
+                        return { done: false, value: value };
+                    }
+                };
+            }
+        };
+    }
+
+    var RetryWhenObservable = (function(__super__) {
+        function createDisposable(state) {
+            return {
+                isDisposed: false,
+                dispose: function () {
+                    if (!this.isDisposed) {
+                        this.isDisposed = true;
+                        state.isDisposed = true;
+                    }
+                }
+            };
+        }
+
+        function RetryWhenObservable(source, notifier) {
+            this.source = source;
+            this._notifier = notifier;
+            __super__.call(this);
+        }
+
+        inherits(RetryWhenObservable, __super__);
+
+        RetryWhenObservable.prototype.subscribeCore = function (o) {
+            var exceptions = new Subject(),
+                notifier = new Subject(),
+                handled = this._notifier(exceptions),
+                notificationDisposable = handled.subscribe(notifier);
+
+            var e = this.source['@@iterator']();
+
+            var state = { isDisposed: false },
+                lastError,
+                subscription = new SerialDisposable();
+            var cancelable = currentThreadScheduler.scheduleRecursive(null, function (_, recurse) {
+                if (state.isDisposed) { return; }
+                var currentItem = e.next();
+
+                if (currentItem.done) {
+                    if (lastError) {
+                        o.onError(lastError);
+                    } else {
+                        o.onCompleted();
+                    }
+                    return;
+                }
+
+                // Check if promise
+                var currentValue = currentItem.value;
+                isPromise(currentValue) && (currentValue = observableFromPromise(currentValue));
+
+                var outer = new SingleAssignmentDisposable();
+                var inner = new SingleAssignmentDisposable();
+                subscription.setDisposable(new BinaryDisposable(inner, outer));
+                outer.setDisposable(currentValue.subscribe(
+                    function(x) { o.onNext(x); },
+                    function (exn) {
+                        inner.setDisposable(notifier.subscribe(recurse, function(ex) {
+                            o.onError(ex);
+                        }, function() {
+                            o.onCompleted();
+                        }));
+
+                        exceptions.onNext(exn);
+                        outer.dispose();
+                    },
+                    function() { o.onCompleted(); }));
+            });
+
+            return new NAryDisposable([notificationDisposable, subscription, cancelable, createDisposable(state)]);
+        };
+
+        return RetryWhenObservable;
+    }(ObservableBase));
+
     observableProto.retryWhen = function (notifier) {
-        return enumerableRepeat(this).catchErrorWhen(notifier);
+        return new RetryWhenObservable(repeat(this), notifier);
     };
+
+    function repeat(value) {
+        return {
+            '@@iterator': function () {
+                return {
+                    next: function () {
+                        return { done: false, value: value };
+                    }
+                };
+            }
+        };
+    }
+
+    var RepeatWhenObservable = (function(__super__) {
+        function createDisposable(state) {
+            return {
+                isDisposed: false,
+                dispose: function () {
+                    if (!this.isDisposed) {
+                        this.isDisposed = true;
+                        state.isDisposed = true;
+                    }
+                }
+            };
+        }
+
+        function RepeatWhenObservable(source, notifier) {
+            this.source = source;
+            this._notifier = notifier;
+            __super__.call(this);
+        }
+
+        inherits(RepeatWhenObservable, __super__);
+
+        RepeatWhenObservable.prototype.subscribeCore = function (o) {
+            var completions = new Subject(),
+                notifier = new Subject(),
+                handled = this._notifier(completions),
+                notificationDisposable = handled.subscribe(notifier);
+
+            var e = this.source['@@iterator']();
+
+            var state = { isDisposed: false },
+                lastError,
+                subscription = new SerialDisposable();
+            var cancelable = currentThreadScheduler.scheduleRecursive(null, function (_, recurse) {
+                if (state.isDisposed) { return; }
+                var currentItem = e.next();
+
+                if (currentItem.done) {
+                    if (lastError) {
+                        o.onError(lastError);
+                    } else {
+                        o.onCompleted();
+                    }
+                    return;
+                }
+
+                // Check if promise
+                var currentValue = currentItem.value;
+                isPromise(currentValue) && (currentValue = observableFromPromise(currentValue));
+
+                var outer = new SingleAssignmentDisposable();
+                var inner = new SingleAssignmentDisposable();
+                subscription.setDisposable(new BinaryDisposable(inner, outer));
+                outer.setDisposable(currentValue.subscribe(
+                    function(x) { o.onNext(x); },
+                    function (exn) { o.onError(exn); },
+                    function() {
+                        inner.setDisposable(notifier.subscribe(recurse, function(ex) {
+                            o.onError(ex);
+                        }, function() {
+                            o.onCompleted();
+                        }));
+
+                        completions.onNext(null);
+                        outer.dispose();
+                    }));
+            });
+
+            return new NAryDisposable([notificationDisposable, subscription, cancelable, createDisposable(state)]);
+        };
+
+        return RepeatWhenObservable;
+    }(ObservableBase));
+
+    observableProto.repeatWhen = function (notifier) {
+        return new RepeatWhenObservable(repeat(this), notifier);
+    };
+
     var ScanObservable = (function(__super__) {
         inherits(ScanObservable, __super__);
         function ScanObservable(source, accumulator, hasSeed, seed) {
@@ -4873,7 +5007,7 @@
             this._i++;
         };
 
-        ScanObserver.prototype.fatal_error = function (e) {
+        ScanObserver.prototype.error = function (e) {
             this._o.onError(e);
         };
 
@@ -4930,7 +5064,7 @@
             this._q.length > this._c && this._o.onNext(this._q.shift());
         };
 
-        SkipLastObserver.prototype.fatal_error = function (e) {
+        SkipLastObserver.prototype.error = function (e) {
             this._o.onError(e);
         };
 
@@ -4971,7 +5105,7 @@
             scheduler = immediateScheduler;
         }
         for(var args = [], i = start, len = arguments.length; i < len; i++) { args.push(arguments[i]); }
-        return enumerableOf([observableFromArray(args, scheduler), this]).concat();
+        return observableConcat.apply(null, [observableFromArray(args, scheduler), this]);
     };
 
     var TakeLastObserver = (function (__super__) {
@@ -4988,7 +5122,7 @@
             this._q.length > this._c && this._q.shift();
         };
 
-        TakeLastObserver.prototype.fatal_error = function (e) {
+        TakeLastObserver.prototype.error = function (e) {
             this._o.onError(e);
         };
 
@@ -5030,7 +5164,7 @@
             this._q.length > this._c && this._q.shift();
         };
 
-        TakeLastBufferObserver.prototype.fatal_error = function (e) {
+        TakeLastBufferObserver.prototype.error = function (e) {
             this._o.onError(e);
         };
 
@@ -5065,7 +5199,7 @@
      * @param {Number} [skip] Number of elements to skip between creation of consecutive windows. If not specified, defaults to the count.
      * @returns {Observable} An observable sequence of windows.
      */
-    observableProto.windowWithCount = function (count, skip) {
+    observableProto.windowWithCount = observableProto.windowCount = function (count, skip) {
         var source = this;
         +count || (count = 0);
         Math.abs(count) === Infinity && (count = 0);
@@ -5223,7 +5357,7 @@
             this._o.onNext(x);
         };
 
-        DefaultIfEmptyObserver.prototype.fatal_error = function (e) {
+        DefaultIfEmptyObserver.prototype.error = function (e) {
             this._o.onError(e);
         };
 
@@ -5305,7 +5439,7 @@
             this._h.push(key) && this._o.onNext(x);
         };
 
-        DistinctObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        DistinctObserver.prototype.error = function (e) { this._o.onError(e); };
         DistinctObserver.prototype.completed = function () { this._o.onCompleted(); };
 
         return DistinctObserver;
@@ -5466,7 +5600,7 @@
             this.o.onNext(result);
         };
 
-        InnerObserver.prototype.fatal_error = function (e) {
+        InnerObserver.prototype.error = function (e) {
             this.o.onError(e);
         };
 
@@ -5503,7 +5637,7 @@
                 }
             }
             return currentProp;
-        }
+        };
     }
 
     /**
@@ -5519,7 +5653,7 @@
         return this.map(plucker(args, len));
     };
 
-    observableProto.flatMap = observableProto.selectMany = function(selector, resultSelector, thisArg) {
+    observableProto.flatMap = observableProto.selectMany = observableProto.mergeMap = function(selector, resultSelector, thisArg) {
         return new FlatMapObservable(this, selector, resultSelector, thisArg).mergeAll();
     };
 
@@ -5575,9 +5709,10 @@
         }, source).mergeAll();
     };
 
-    Rx.Observable.prototype.flatMapLatest = function(selector, resultSelector, thisArg) {
+    observableProto.flatMapLatest = observableProto.switchMap = function(selector, resultSelector, thisArg) {
         return new FlatMapObservable(this, selector, resultSelector, thisArg).switchLatest();
     };
+
     var SkipObservable = (function(__super__) {
         inherits(SkipObservable, __super__);
         function SkipObservable(source, count) {
@@ -5605,7 +5740,7 @@
                 this._r--;
             }
         };
-        SkipObserver.prototype.fatal_error = function(e) { this._o.onError(e); };
+        SkipObserver.prototype.error = function(e) { this._o.onError(e); };
         SkipObserver.prototype.completed = function() { this._o.onCompleted(); };
 
         return SkipObservable;
@@ -5655,7 +5790,7 @@
             }
             this._r && this._o.onNext(x);
         };
-        SkipWhileObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        SkipWhileObserver.prototype.error = function (e) { this._o.onError(e); };
         SkipWhileObserver.prototype.completed = function () { this._o.onCompleted(); };
 
         return SkipWhileObserver;
@@ -5704,7 +5839,7 @@
             }
         };
 
-        TakeObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        TakeObserver.prototype.error = function (e) { this._o.onError(e); };
         TakeObserver.prototype.completed = function () { this._o.onCompleted(); };
 
         return TakeObservable;
@@ -5759,7 +5894,7 @@
                 this._o.onCompleted();
             }
         };
-        TakeWhileObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        TakeWhileObserver.prototype.error = function (e) { this._o.onError(e); };
         TakeWhileObserver.prototype.completed = function () { this._o.onCompleted(); };
 
         return TakeWhileObserver;
@@ -5815,7 +5950,7 @@
             shouldYield && this.o.onNext(x);
         };
 
-        InnerObserver.prototype.fatal_error = function (e) {
+        InnerObserver.prototype.error = function (e) {
             this.o.onError(e);
         };
 
@@ -5884,7 +6019,7 @@
             if (comparison >= 0) { this._l.push(x); }
         };
 
-        ExtremaByObserver.prototype.fatal_error = function (e) {
+        ExtremaByObserver.prototype.error = function (e) {
             this._o.onError(e);
         };
 
@@ -5945,7 +6080,7 @@
             this._i++;
         };
 
-        ReduceObserver.prototype.fatal_error = function (e) {
+        ReduceObserver.prototype.error = function (e) {
             this._o.onError(e);
         };
 
@@ -6009,7 +6144,7 @@
                 this._o.onCompleted();
             }
         };
-        SomeObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        SomeObserver.prototype.error = function (e) { this._o.onError(e); };
         SomeObserver.prototype.completed = function () {
             this._o.onNext(false);
             this._o.onCompleted();
@@ -6053,7 +6188,7 @@
             this._o.onNext(false);
             this._o.onCompleted();
         };
-        IsEmptyObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        IsEmptyObserver.prototype.error = function (e) { this._o.onError(e); };
         IsEmptyObserver.prototype.completed = function () {
             this._o.onNext(true);
             this._o.onCompleted();
@@ -6104,7 +6239,7 @@
                 this._o.onCompleted();
             }
         };
-        EveryObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        EveryObserver.prototype.error = function (e) { this._o.onError(e); };
         EveryObserver.prototype.completed = function () {
             this._o.onNext(true);
             this._o.onCompleted();
@@ -6169,7 +6304,7 @@
                 this._o.onCompleted();
             }
         };
-        IncludesObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        IncludesObserver.prototype.error = function (e) { this._o.onError(e); };
         IncludesObserver.prototype.completed = function () { this._o.onNext(false); this._o.onCompleted(); };
 
         return IncludesObserver;
@@ -6221,7 +6356,7 @@
                 this._c++;
             }
         };
-        CountObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        CountObserver.prototype.error = function (e) { this._o.onError(e); };
         CountObserver.prototype.completed = function () {
             this._o.onNext(this._c);
             this._o.onCompleted();
@@ -6283,7 +6418,7 @@
             }
             this._i++;
         };
-        IndexOfObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        IndexOfObserver.prototype.error = function (e) { this._o.onError(e); };
         IndexOfObserver.prototype.completed = function () { this._o.onNext(-1); this._o.onCompleted(); };
 
         return IndexOfObserver;
@@ -6337,7 +6472,7 @@
                 this._c += x;
             }
         };
-        SumObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        SumObserver.prototype.error = function (e) { this._o.onError(e); };
         SumObserver.prototype.completed = function () {
             this._o.onNext(this._c);
             this._o.onCompleted();
@@ -6380,7 +6515,7 @@
      * @returns {Observable} An observable sequence containing a single element with the minimum element in the source sequence.
      */
     observableProto.min = function (comparer) {
-        return this.minBy(identity, comparer).map(function (x) { return firstOnly(x); });
+        return this.minBy(identity, comparer).map(firstOnly);
     };
 
     /**
@@ -6406,7 +6541,7 @@
      * @returns {Observable} An observable sequence containing a single element with the maximum element in the source sequence.
      */
     observableProto.max = function (comparer) {
-        return this.maxBy(identity, comparer).map(function (x) { return firstOnly(x); });
+        return this.maxBy(identity, comparer).map(firstOnly);
     };
 
     var AverageObservable = (function (__super__) {
@@ -6445,7 +6580,7 @@
                 this._t += x;
             }
         };
-        AverageObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        AverageObserver.prototype.error = function (e) { this._o.onError(e); };
         AverageObserver.prototype.completed = function () {
             if (this._c === 0) { return this._o.onError(new EmptyError()); }
             this._o.onNext(this._t / this._c);
@@ -6579,7 +6714,7 @@
                 this._o.onCompleted();
             }
         };
-        ElementAtObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        ElementAtObserver.prototype.error = function (e) { this._o.onError(e); };
         ElementAtObserver.prototype.completed = function () {
             if (this._d === undefined) {
                 this._o.onError(new ArgumentOutOfRangeError());
@@ -6632,7 +6767,7 @@
                 this._v = x;
             }
         };
-        SingleObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        SingleObserver.prototype.error = function (e) { this._o.onError(e); };
         SingleObserver.prototype.completed = function () {
             if (this._hv) {
                 this._o.onNext(this._v);
@@ -6712,7 +6847,7 @@
                 this._o.onCompleted();
             }
         };
-        FirstObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        FirstObserver.prototype.error = function (e) { this._o.onError(e); };
         FirstObserver.prototype.completed = function () {
             if (this._obj.defaultValue === undefined) {
                 this._o.onError(new EmptyError());
@@ -6788,7 +6923,7 @@
                 this._v = x;
             }
         };
-        LastObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        LastObserver.prototype.error = function (e) { this._o.onError(e); };
         LastObserver.prototype.completed = function () {
             if (this._hv) {
                 this._o.onNext(this._v);
@@ -6849,7 +6984,7 @@
             }
         };
 
-        FindValueObserver.prototype.fatal_error = function (e) {
+        FindValueObserver.prototype.error = function (e) {
             this._o.onError(e);
         };
 
@@ -6915,7 +7050,7 @@
             this._s.add(x);
         };
 
-        ToSetObserver.prototype.fatal_error = function (e) {
+        ToSetObserver.prototype.error = function (e) {
             this._o.onError(e);
         };
 
@@ -6974,7 +7109,7 @@
             this._m.set(key, elem);
         };
 
-        ToMapObserver.prototype.fatal_error = function (e) {
+        ToMapObserver.prototype.error = function (e) {
             this._o.onError(e);
         };
 
@@ -7034,7 +7169,7 @@
             }
             this._i++;
         };
-        SliceObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        SliceObserver.prototype.error = function (e) { this._o.onError(e); };
         SliceObserver.prototype.completed = function () { this._o.onCompleted(); };
 
         return SliceObserver;
@@ -7098,7 +7233,7 @@
             }
             this._i++;
         };
-        LastIndexOfObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        LastIndexOfObserver.prototype.error = function (e) { this._o.onError(e); };
         LastIndexOfObserver.prototype.completed = function () {
             if (this._hv) {
                 this._o.onNext(this._v);
@@ -7550,6 +7685,7 @@
         EventPatternDisposable.prototype.dispose = function () {
             if(!this.isDisposed) {
                 isFunction(this._del) && this._del(this._fn, this._ret);
+                this.isDisposed = true;
             }
         };
 
@@ -7583,6 +7719,7 @@
         function PausableObservable(source, pauser) {
             this.source = source;
             this.controller = new Subject();
+            this.paused = true;
 
             if (pauser && pauser.subscribe) {
                 this.pauser = this.controller.merge(pauser);
@@ -7598,7 +7735,7 @@
                 subscription = conn.subscribe(o),
                 connection = disposableEmpty;
 
-            var pausable = this.pauser.distinctUntilChanged().subscribe(function (b) {
+            var pausable = this.pauser.startWith(!this.paused).distinctUntilChanged().subscribe(function (b) {
                 if (b) {
                     connection = conn.connect();
                 } else {
@@ -7611,10 +7748,12 @@
         };
 
         PausableObservable.prototype.pause = function () {
+            this.paused = true;
             this.controller.onNext(false);
         };
 
         PausableObservable.prototype.resume = function () {
+            this.paused = false;
             this.controller.onNext(true);
         };
 
@@ -7688,6 +7827,7 @@
         function PausableBufferedObservable(source, pauser) {
             this.source = source;
             this.controller = new Subject();
+            this.paused = true;
 
             if (pauser && pauser.subscribe) {
                 this.pauser = this.controller.merge(pauser);
@@ -7706,7 +7846,7 @@
             var subscription =
                 combineLatestSource(
                     this.source,
-                    this.pauser.startWith(false).distinctUntilChanged(),
+                    this.pauser.startWith(!this.paused).distinctUntilChanged(),
                     function (data, shouldFire) {
                         return { data: data, shouldFire: shouldFire };
                     })
@@ -7739,10 +7879,12 @@
         };
 
         PausableBufferedObservable.prototype.pause = function () {
+            this.paused = true;
             this.controller.onNext(false);
         };
 
         PausableBufferedObservable.prototype.resume = function () {
+            this.paused = false;
             this.controller.onNext(true);
         };
 
@@ -7815,7 +7957,7 @@
             },
             onError: function (error) {
                 this.hasFailed = true;
-                this.fatal_error = error;
+                this.error = error;
                 if (!this.enableQueue || this.queue.length === 0) {
                     this.subject.onError(error);
                     this.disposeCurrentRequest();
@@ -7908,7 +8050,7 @@
         }
 
         function scheduleMethod(s, self) {
-            self.source.request(1);
+            return self.source.request(1);
         }
 
         StopAndWaitObservable.prototype._subscribe = function (o) {
@@ -7934,13 +8076,13 @@
                 this.dispose();
             };
 
-            StopAndWaitObserver.prototype.fatal_error = function (error) {
+            StopAndWaitObserver.prototype.error = function (error) {
                 this.observer.onError(error);
                 this.dispose();
             };
 
             function innerScheduleMethod(s, self) {
-                self.observable.source.request(1);
+                return self.observable.source.request(1);
             }
 
             StopAndWaitObserver.prototype.next = function (value) {
@@ -7948,7 +8090,7 @@
                 this.scheduleDisposable = defaultScheduler.schedule(this, innerScheduleMethod);
             };
 
-            StopAndWaitObservable.dispose = function () {
+            StopAndWaitObserver.dispose = function () {
                 this.observer = null;
                 if (this.cancel) {
                     this.cancel.dispose();
@@ -7985,7 +8127,7 @@
         }
 
         function scheduleMethod(s, self) {
-            self.source.request(self.windowSize);
+            return self.source.request(self.windowSize);
         }
 
         WindowedObservable.prototype._subscribe = function (o) {
@@ -8012,13 +8154,13 @@
                 this.dispose();
             };
 
-            WindowedObserver.prototype.fatal_error = function (error) {
+            WindowedObserver.prototype.error = function (error) {
                 this.observer.onError(error);
                 this.dispose();
             };
 
             function innerScheduleMethod(s, self) {
-                self.observable.source.request(self.observable.windowSize);
+                return self.observable.source.request(self.observable.windowSize);
             }
 
             WindowedObserver.prototype.next = function (value) {
@@ -8071,7 +8213,7 @@
 
         source.subscribe(
             function (x) {
-                !dest.write(String(x)) && source.pause();
+                !dest.write(x) && source.pause();
             },
             function (err) {
                 dest.emit('error', err);
@@ -8311,6 +8453,9 @@
 
         ConnectableObservable.prototype.connect = function () {
             if (!this._connection) {
+                if (this._subject.isStopped) {
+                    return disposableEmpty;
+                }
                 var subscription = this._source.subscribe(this._subject);
                 this._connection = new ConnectDisposable(this, subscription);
             }
@@ -8670,6 +8815,7 @@
             this._o = o;
             this._p = null;
             this._hp = false;
+            __super__.call(this);
         }
 
         PairwiseObserver.prototype.next = function (x) {
@@ -8680,7 +8826,7 @@
             }
             this._p = x;
         };
-        PairwiseObserver.prototype.fatal_error = function (err) { this._o.onError(err); };
+        PairwiseObserver.prototype.error = function (err) { this._o.onError(err); };
         PairwiseObserver.prototype.completed = function () { this._o.onCompleted(); };
 
         return PairwiseObserver;
@@ -8905,7 +9051,7 @@
             this._p._ensureActive(this._s);
         };
 
-        ExpandObserver.prototype.fatal_error = function (e) {
+        ExpandObserver.prototype.error = function (e) {
             this._s.o.onError(e);
         };
 
@@ -8989,7 +9135,7 @@
             }
         };
 
-        ForkJoinObserver.prototype.fatal_error = function (e) {
+        ForkJoinObserver.prototype.error = function (e) {
             this._s.finished = true;
             this._o.onError(e);
             this._subs.dispose();
@@ -9116,46 +9262,46 @@
     }(Observable));
 
     var Map = root.Map || (function () {
-        function Map() {
-            this.size = 0;
-            this._values = [];
-            this._keys = [];
-        }
-
-        Map.prototype['delete'] = function (key) {
-            var i = this._keys.indexOf(key);
-            if (i === -1) { return false; }
-            this._values.splice(i, 1);
-            this._keys.splice(i, 1);
-            this.size--;
-            return true;
-        };
-
-        Map.prototype.get = function (key) {
-            var i = this._keys.indexOf(key);
-            return i === -1 ? undefined : this._values[i];
-        };
-
-        Map.prototype.set = function (key, value) {
-            var i = this._keys.indexOf(key);
-            if (i === -1) {
-                this._keys.push(key);
-                this._values.push(value);
-                this.size++;
-            } else {
-                this._values[i] = value;
+            function Map() {
+                this.size = 0;
+                this._values = [];
+                this._keys = [];
             }
-            return this;
-        };
 
-        Map.prototype.forEach = function (cb, thisArg) {
-            for (var i = 0; i < this.size; i++) {
-                cb.call(thisArg, this._values[i], this._keys[i]);
-            }
-        };
+            Map.prototype['delete'] = function (key) {
+                var i = this._keys.indexOf(key);
+                if (i === -1) { return false; }
+                this._values.splice(i, 1);
+                this._keys.splice(i, 1);
+                this.size--;
+                return true;
+            };
 
-        return Map;
-    }());
+            Map.prototype.get = function (key) {
+                var i = this._keys.indexOf(key);
+                return i === -1 ? undefined : this._values[i];
+            };
+
+            Map.prototype.set = function (key, value) {
+                var i = this._keys.indexOf(key);
+                if (i === -1) {
+                    this._keys.push(key);
+                    this._values.push(value);
+                    this.size++;
+                } else {
+                    this._values[i] = value;
+                }
+                return this;
+            };
+
+            Map.prototype.forEach = function (cb, thisArg) {
+                for (var i = 0; i < this.size; i++) {
+                    cb.call(thisArg, this._values[i], this._keys[i]);
+                }
+            };
+
+            return Map;
+        }());
 
     /**
      * @constructor
@@ -9285,7 +9431,7 @@
         JoinObserverPrototype.next = function (notification) {
             if (!this.isDisposed) {
                 if (notification.kind === 'E') {
-                    return this.onError(notification.fatal_error);
+                    return this.onError(notification.error);
                 }
                 this.queue.push(notification);
                 var activePlans = this.activePlans.slice(0);
@@ -9295,7 +9441,7 @@
             }
         };
 
-        JoinObserverPrototype.fatal_error = noop;
+        JoinObserverPrototype.error = noop;
         JoinObserverPrototype.completed = noop;
 
         JoinObserverPrototype.addActivePlan = function (activePlan) {
@@ -9376,7 +9522,7 @@
                     }));
                 }
             } catch (e) {
-                observableThrow(e).subscribe(o);
+                return observableThrow(e).subscribe(o);
             }
             var group = new CompositeDisposable();
             externalSubscriptions.forEach(function (joinObserver) {
@@ -9474,7 +9620,7 @@
             return _observableTimer(dueTime, scheduler);
         }
         if (dueTime instanceof Date && period !== undefined) {
-            return observableTimerDateAndPeriod(dueTime.getTime(), periodOrScheduler, scheduler);
+            return observableTimerDateAndPeriod(dueTime, periodOrScheduler, scheduler);
         }
         return observableTimerTimeSpanAndPeriod(dueTime, period, scheduler);
     };
@@ -9492,7 +9638,7 @@
                 if (notification.value.kind === 'E') {
                     q = [];
                     q.push(notification);
-                    exception = notification.value.fatal_error;
+                    exception = notification.value.error;
                     shouldRun = !running;
                 } else {
                     q.push({ value: notification.value, timestamp: notification.timestamp + dueTime });
@@ -9601,7 +9747,7 @@
             }
 
             return new BinaryDisposable(subscription, delays);
-        }, this);
+        }, source);
     }
 
     /**
@@ -9640,7 +9786,7 @@
         DebounceObservable.prototype.subscribeCore = function (o) {
             var cancelable = new SerialDisposable();
             return new BinaryDisposable(
-                this.source.subscribe(new DebounceObserver(o, this.source, this._dt, this._s, cancelable)),
+                this.source.subscribe(new DebounceObserver(o, this._dt, this._s, cancelable)),
                 cancelable);
         };
 
@@ -9649,9 +9795,8 @@
 
     var DebounceObserver = (function (__super__) {
         inherits(DebounceObserver, __super__);
-        function DebounceObserver(observer, source, dueTime, scheduler, cancelable) {
+        function DebounceObserver(observer, dueTime, scheduler, cancelable) {
             this._o = observer;
-            this._s = source;
             this._d = dueTime;
             this._scheduler = scheduler;
             this._c = cancelable;
@@ -9659,6 +9804,11 @@
             this._hv = false;
             this._id = 0;
             __super__.call(this);
+        }
+
+        function scheduleFuture(s, state) {
+            state.self._hv && state.self._id === state.currentId && state.self._o.onNext(state.x);
+            state.self._hv = false;
         }
 
         DebounceObserver.prototype.next = function (x) {
@@ -9672,7 +9822,7 @@
             }));
         };
 
-        DebounceObserver.prototype.fatal_error = function (e) {
+        DebounceObserver.prototype.error = function (e) {
             this._c.dispose();
             this._o.onError(e);
             this._hv = false;
@@ -9754,7 +9904,7 @@
      * @param {Scheduler} [scheduler]  Scheduler to run windowing timers on. If not specified, the timeout scheduler is used.
      * @returns {Observable} An observable sequence of windows.
      */
-    observableProto.windowWithTime = function (timeSpan, timeShiftOrScheduler, scheduler) {
+    observableProto.windowWithTime = observableProto.windowTime = function (timeSpan, timeShiftOrScheduler, scheduler) {
         var source = this, timeShift;
         timeShiftOrScheduler == null && (timeShift = timeSpan);
         isScheduler(scheduler) || (scheduler = defaultScheduler);
@@ -9834,7 +9984,7 @@
      * @param {Scheduler} [scheduler]  Scheduler to run windowing timers on. If not specified, the timeout scheduler is used.
      * @returns {Observable} An observable sequence of windows.
      */
-    observableProto.windowWithTimeOrCount = function (timeSpan, count, scheduler) {
+    observableProto.windowWithTimeOrCount = observableProto.windowTimeOrCount = function (timeSpan, count, scheduler) {
         var source = this;
         isScheduler(scheduler) || (scheduler = defaultScheduler);
         return new AnonymousObservable(function (observer) {
@@ -9897,7 +10047,7 @@
      * @param {Scheduler} [scheduler]  Scheduler to run buffer timers on. If not specified, the timeout scheduler is used.
      * @returns {Observable} An observable sequence of buffers.
      */
-    observableProto.bufferWithTime = function (timeSpan, timeShiftOrScheduler, scheduler) {
+    observableProto.bufferWithTime = observableProto.bufferTime = function (timeSpan, timeShiftOrScheduler, scheduler) {
         return this.windowWithTime(timeSpan, timeShiftOrScheduler, scheduler).flatMap(toArray);
     };
 
@@ -9910,7 +10060,7 @@
      * @param {Scheduler} [scheduler]  Scheduler to run bufferin timers on. If not specified, the timeout scheduler is used.
      * @returns {Observable} An observable sequence of buffers.
      */
-    observableProto.bufferWithTimeOrCount = function (timeSpan, count, scheduler) {
+    observableProto.bufferWithTimeOrCount = observableProto.bufferTimeOrCount = function (timeSpan, count, scheduler) {
         return this.windowWithTimeOrCount(timeSpan, count, scheduler).flatMap(toArray);
     };
 
@@ -9944,7 +10094,7 @@
             this._l = now;
             this._o.onNext({ value: x, interval: span });
         };
-        TimeIntervalObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        TimeIntervalObserver.prototype.error = function (e) { this._o.onError(e); };
         TimeIntervalObserver.prototype.completed = function () { this._o.onCompleted(); };
 
         return TimeIntervalObserver;
@@ -9992,7 +10142,7 @@
             this._o.onNext({ value: x, timestamp: this._s.now() });
         };
 
-        TimestampObserver.prototype.fatal_error = function (e) {
+        TimestampObserver.prototype.error = function (e) {
             this._o.onError(e);
         };
 
@@ -10018,37 +10168,74 @@
         return new TimestampObservable(this, scheduler);
     };
 
-    function sampleObservable(source, sampler) {
-        return new AnonymousObservable(function (o) {
-            var atEnd = false, value, hasValue = false;
+    var SampleObservable = (function(__super__) {
+        inherits(SampleObservable, __super__);
+        function SampleObservable(source, sampler) {
+            this.source = source;
+            this._sampler = sampler;
+            __super__.call(this);
+        }
 
-            function sampleSubscribe() {
-                if (hasValue) {
-                    hasValue = false;
-                    o.onNext(value);
-                }
-                atEnd && o.onCompleted();
-            }
+        SampleObservable.prototype.subscribeCore = function (o) {
+            var state = {
+                o: o,
+                atEnd: false,
+                value: null,
+                hasValue: false,
+                sourceSubscription: new SingleAssignmentDisposable()
+            };
 
-            var sourceSubscription = new SingleAssignmentDisposable();
-            sourceSubscription.setDisposable(source.subscribe(
-                function (newValue) {
-                    hasValue = true;
-                    value = newValue;
-                },
-                function (e) { o.onError(e); },
-                function () {
-                    atEnd = true;
-                    sourceSubscription.dispose();
-                }
-            ));
-
+            state.sourceSubscription.setDisposable(this.source.subscribe(new SampleSourceObserver(state)));
             return new BinaryDisposable(
-                sourceSubscription,
-                sampler.subscribe(sampleSubscribe, function (e) { o.onError(e); }, sampleSubscribe)
+                state.sourceSubscription,
+                this._sampler.subscribe(new SamplerObserver(state))
             );
-        }, source);
-    }
+        };
+
+        return SampleObservable;
+    }(ObservableBase));
+
+    var SamplerObserver = (function(__super__) {
+        inherits(SamplerObserver, __super__);
+        function SamplerObserver(s) {
+            this._s = s;
+            __super__.call(this);
+        }
+
+        SamplerObserver.prototype._handleMessage = function () {
+            if (this._s.hasValue) {
+                this._s.hasValue = false;
+                this._s.o.onNext(this._s.value);
+            }
+            this._s.atEnd && this._s.o.onCompleted();
+        };
+
+        SamplerObserver.prototype.next = function () { this._handleMessage(); };
+        SamplerObserver.prototype.error = function (e) { this._s.onError(e); };
+        SamplerObserver.prototype.completed = function () { this._handleMessage(); };
+
+        return SamplerObserver;
+    }(AbstractObserver));
+
+    var SampleSourceObserver = (function(__super__) {
+        inherits(SampleSourceObserver, __super__);
+        function SampleSourceObserver(s) {
+            this._s = s;
+            __super__.call(this);
+        }
+
+        SampleSourceObserver.prototype.next = function (x) {
+            this._s.hasValue = true;
+            this._s.value = x;
+        };
+        SampleSourceObserver.prototype.error = function (e) { this._s.o.onError(e); };
+        SampleSourceObserver.prototype.completed = function () {
+            this._s.atEnd = true;
+            this._s.sourceSubscription.dispose();
+        };
+
+        return SampleSourceObserver;
+    }(AbstractObserver));
 
     /**
      *  Samples the observable sequence at each interval.
@@ -10062,11 +10249,11 @@
      * @param {Scheduler} [scheduler]  Scheduler to run the sampling timer on. If not specified, the timeout scheduler is used.
      * @returns {Observable} Sampled observable sequence.
      */
-    observableProto.sample = observableProto.throttleLatest = function (intervalOrSampler, scheduler) {
+    observableProto.sample = function (intervalOrSampler, scheduler) {
         isScheduler(scheduler) || (scheduler = defaultScheduler);
         return typeof intervalOrSampler === 'number' ?
-            sampleObservable(this, observableinterval(intervalOrSampler, scheduler)) :
-            sampleObservable(this, intervalOrSampler);
+            new SampleObservable(this, observableinterval(intervalOrSampler, scheduler)) :
+            new SampleObservable(this, intervalOrSampler);
     };
 
     var TimeoutError = Rx.TimeoutError = function(message) {
@@ -10206,36 +10393,40 @@
             this._resFn = resFn;
             this._timeFn = timeFn;
             this._s = s;
-            this._first = true;
-            this._hasResult = false;
             __super__.call(this);
         }
 
-        function scheduleRecursive(self, recurse) {
-            self._hasResult && self._o.onNext(self._state);
+        function scheduleRecursive(state, recurse) {
+            state.hasResult && state.o.onNext(state.result);
 
-            if (self._first) {
-                self._first = false;
+            if (state.first) {
+                state.first = false;
             } else {
-                self._state = tryCatch(self._itrFn)(self._state);
-                if (self._state === errorObj) { return self._o.onError(self._state.e); }
+                state.newState = tryCatch(state.self._itrFn)(state.newState);
+                if (state.newState === errorObj) { return state.o.onError(state.newState.e); }
             }
-            self._hasResult = tryCatch(self._cndFn)(self._state);
-            if (self._hasResult === errorObj) { return self._o.onError(self._hasResult.e); }
-            if (self._hasResult) {
-                var result = tryCatch(self._resFn)(self._state);
-                if (result === errorObj) { return self._o.onError(result.e); }
-                var time = tryCatch(self._timeFn)(self._state);
-                if (time === errorObj) { return self._o.onError(time.e); }
-                recurse(self, time);
+            state.hasResult = tryCatch(state.self._cndFn)(state.newState);
+            if (state.hasResult === errorObj) { return state.o.onError(state.hasResult.e); }
+            if (state.hasResult) {
+                state.result = tryCatch(state.self._resFn)(state.newState);
+                if (state.result === errorObj) { return state.o.onError(state.result.e); }
+                var time = tryCatch(state.self._timeFn)(state.newState);
+                if (time === errorObj) { return state.o.onError(time.e); }
+                recurse(state, time);
             } else {
-                self._o.onCompleted();
+                state.o.onCompleted();
             }
         }
 
         GenerateAbsoluteObservable.prototype.subscribeCore = function (o) {
-            this._o = o;
-            return this._s.scheduleRecursiveFuture(this, new Date(this._s.now()), scheduleRecursive);
+            var state = {
+                o: o,
+                self: this,
+                newState: this._state,
+                first: true,
+                hasResult: false
+            };
+            return this._s.scheduleRecursiveFuture(state, new Date(this._s.now()), scheduleRecursive);
         };
 
         return GenerateAbsoluteObservable;
@@ -10274,36 +10465,41 @@
             this._resFn = resFn;
             this._timeFn = timeFn;
             this._s = s;
-            this._first = true;
-            this._hasResult = false;
             __super__.call(this);
         }
 
-        function scheduleRecursive(self, recurse) {
-            self._hasResult && self._o.onNext(self._state);
+        function scheduleRecursive(state, recurse) {
+            state.hasResult && state.o.onNext(state.result);
 
-            if (self._first) {
-                self._first = false;
+            if (state.first) {
+                state.first = false;
             } else {
-                self._state = tryCatch(self._itrFn)(self._state);
-                if (self._state === errorObj) { return self._o.onError(self._state.e); }
+                state.newState = tryCatch(state.self._itrFn)(state.newState);
+                if (state.newState === errorObj) { return state.o.onError(state.newState.e); }
             }
-            self._hasResult = tryCatch(self._cndFn)(self._state);
-            if (self._hasResult === errorObj) { return self._o.onError(self._hasResult.e); }
-            if (self._hasResult) {
-                var result = tryCatch(self._resFn)(self._state);
-                if (result === errorObj) { return self._o.onError(result.e); }
-                var time = tryCatch(self._timeFn)(self._state);
-                if (time === errorObj) { return self._o.onError(time.e); }
-                recurse(self, time);
+
+            state.hasResult = tryCatch(state.self._cndFn)(state.newState);
+            if (state.hasResult === errorObj) { return state.o.onError(state.hasResult.e); }
+            if (state.hasResult) {
+                state.result = tryCatch(state.self._resFn)(state.newState);
+                if (state.result === errorObj) { return state.o.onError(state.result.e); }
+                var time = tryCatch(state.self._timeFn)(state.newState);
+                if (time === errorObj) { return state.o.onError(time.e); }
+                recurse(state, time);
             } else {
-                self._o.onCompleted();
+                state.o.onCompleted();
             }
         }
 
         GenerateRelativeObservable.prototype.subscribeCore = function (o) {
-            this._o = o;
-            return this._s.scheduleRecursiveFuture(this, 0, scheduleRecursive);
+            var state = {
+                o: o,
+                self: this,
+                newState: this._state,
+                first: true,
+                hasResult: false
+            };
+            return this._s.scheduleRecursiveFuture(state, 0, scheduleRecursive);
         };
 
         return GenerateRelativeObservable;
@@ -10408,7 +10604,7 @@
                 this._o.onNext(this._q.shift().value);
             }
         };
-        SkipLastWithTimeObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        SkipLastWithTimeObserver.prototype.error = function (e) { this._o.onError(e); };
         SkipLastWithTimeObserver.prototype.completed = function () {
             var now = this._s.now();
             while (this._q.length > 0 && now - this._q[0].interval >= this._d) {
@@ -10469,7 +10665,7 @@
                 this._q.shift();
             }
         };
-        TakeLastWithTimeObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        TakeLastWithTimeObserver.prototype.error = function (e) { this._o.onError(e); };
         TakeLastWithTimeObserver.prototype.completed = function () {
             var now = this._s.now();
             while (this._q.length > 0) {
@@ -10605,7 +10801,7 @@
         }
 
         SkipWithTimeObserver.prototype.next = function (x) { this._p._open && this._o.onNext(x); };
-        SkipWithTimeObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        SkipWithTimeObserver.prototype.error = function (e) { this._o.onError(e); };
         SkipWithTimeObserver.prototype.completed = function () { this._o.onCompleted(); };
 
         return SkipWithTimeObserver;
@@ -10662,7 +10858,7 @@
         }
 
         SkipUntilWithTimeObserver.prototype.next = function (x) { this._p._open && this._o.onNext(x); };
-        SkipUntilWithTimeObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        SkipUntilWithTimeObserver.prototype.error = function (e) { this._o.onError(e); };
         SkipUntilWithTimeObserver.prototype.completed = function () { this._o.onCompleted(); };
 
         return SkipUntilWithTimeObserver;
@@ -10739,7 +10935,7 @@
             if (res === errorObj) { this._o.onError(res.e); }
         };
 
-        TransduceObserver.prototype.fatal_error = function (e) { this._o.onError(e); };
+        TransduceObserver.prototype.error = function (e) { this._o.onError(e); };
 
         TransduceObserver.prototype.completed = function () {
             this._xform['@@transducer/result'](this._o);
@@ -10817,7 +11013,7 @@
             }
         };
 
-        SwitchFirstObserver.prototype.fatal_error = function (e) {
+        SwitchFirstObserver.prototype.error = function (e) {
             this._s.o.onError(e);
         };
 
@@ -10834,7 +11030,7 @@
         }
 
         InnerObserver.prototype.next = function (x) { this._s.o.onNext(x); };
-        InnerObserver.prototype.fatal_error = function (e) { this._s.o.onError(e); };
+        InnerObserver.prototype.error = function (e) { this._s.o.onError(e); };
         InnerObserver.prototype.completed = function () {
             this._s.g.remove(this._i);
             this._s.hasCurrent = false;
@@ -10853,13 +11049,14 @@
         return new SwitchFirstObservable(this);
     };
 
-    observableProto.flatMapFirst = observableProto.selectManyFirst = function(selector, resultSelector, thisArg) {
+    observableProto.flatMapFirst = observableProto.exhaustMap = function(selector, resultSelector, thisArg) {
         return new FlatMapObservable(this, selector, resultSelector, thisArg).switchFirst();
     };
 
-    Rx.Observable.prototype.flatMapWithMaxConcurrent = function(limit, selector, resultSelector, thisArg) {
+    observableProto.flatMapWithMaxConcurrent = observableProto.flatMapMaxConcurrent = function(limit, selector, resultSelector, thisArg) {
         return new FlatMapObservable(this, selector, resultSelector, thisArg).merge(limit);
     };
+
     /** Provides a set of extension methods for virtual time scheduling. */
     var VirtualTimeScheduler = Rx.VirtualTimeScheduler = (function (__super__) {
         inherits(VirtualTimeScheduler, __super__);
@@ -11119,7 +11316,7 @@
         if (other === this) { return true; }
         if (other == null) { return false; }
         if (other.kind !== 'E') { return false; }
-        return this.predicate(other.fatal_error);
+        return this.predicate(other.error);
     };
 
     var ReactiveTest = Rx.ReactiveTest = {
@@ -11617,7 +11814,7 @@
             }
         };
 
-        AutoDetachObserverPrototype.fatal_error = function (err) {
+        AutoDetachObserverPrototype.error = function (err) {
             var result = tryCatch(this.observer.onError).call(this.observer, err);
             this.dispose();
             result === errorObj && thrower(result.e);
@@ -11694,7 +11891,7 @@
                     return new InnerSubscription(this, o);
                 }
                 if (this.hasError) {
-                    o.onError(this.fatal_error);
+                    o.onError(this.error);
                     return disposableEmpty;
                 }
                 o.onCompleted();
@@ -11704,7 +11901,7 @@
              * Indicates whether the subject has observers subscribed to it.
              * @returns {Boolean} Indicates whether the subject has observers subscribed to it.
              */
-            hasObservers: function () { return this.observers.length > 0; },
+            hasObservers: function () { checkDisposed(this); return this.observers.length > 0; },
             /**
              * Notifies all subscribed observers about the end of the sequence.
              */
@@ -11727,7 +11924,7 @@
                 checkDisposed(this);
                 if (!this.isStopped) {
                     this.isStopped = true;
-                    this.fatal_error = error;
+                    this.error = error;
                     this.hasError = true;
                     for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
                         os[i].onError(error);
@@ -11800,7 +11997,7 @@
                 }
 
                 if (this.hasError) {
-                    o.onError(this.fatal_error);
+                    o.onError(this.error);
                 } else if (this.hasValue) {
                     o.onNext(this.value);
                     o.onCompleted();
@@ -11814,10 +12011,7 @@
              * Indicates whether the subject has observers subscribed to it.
              * @returns {Boolean} Indicates whether the subject has observers subscribed to it.
              */
-            hasObservers: function () {
-                checkDisposed(this);
-                return this.observers.length > 0;
-            },
+            hasObservers: function () { checkDisposed(this); return this.observers.length > 0; },
             /**
              * Notifies all subscribed observers about the end of the sequence, also causing the last received value to be sent out (if any).
              */
@@ -11852,7 +12046,7 @@
                 if (!this.isStopped) {
                     this.isStopped = true;
                     this.hasError = true;
-                    this.fatal_error = error;
+                    this.error = error;
 
                     for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
                         os[i].onError(error);
@@ -11877,7 +12071,7 @@
             dispose: function () {
                 this.isDisposed = true;
                 this.observers = null;
-                this.fatal_error = null;
+                this.error = null;
                 this.value = null;
             }
         });
@@ -11909,7 +12103,7 @@
                     return new InnerSubscription(this, o);
                 }
                 if (this.hasError) {
-                    o.onError(this.fatal_error);
+                    o.onError(this.error);
                 } else {
                     o.onCompleted();
                 }
@@ -11924,14 +12118,14 @@
              */
             getValue: function () {
                 checkDisposed(this);
-                if (this.hasError) { thrower(this.fatal_error); }
+                if (this.hasError) { thrower(this.error); }
                 return this.value;
             },
             /**
              * Indicates whether the subject has observers subscribed to it.
              * @returns {Boolean} Indicates whether the subject has observers subscribed to it.
              */
-            hasObservers: function () { return this.observers.length > 0; },
+            hasObservers: function () { checkDisposed(this); return this.observers.length > 0; },
             /**
              * Notifies all subscribed observers about the end of the sequence.
              */
@@ -11954,7 +12148,7 @@
                 if (this.isStopped) { return; }
                 this.isStopped = true;
                 this.hasError = true;
-                this.fatal_error = error;
+                this.error = error;
 
                 for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
                     os[i].onError(error);
@@ -11981,7 +12175,7 @@
                 this.isDisposed = true;
                 this.observers = null;
                 this.value = null;
-                this.fatal_error = null;
+                this.error = null;
             }
         });
 
@@ -12037,7 +12231,7 @@
                 }
 
                 if (this.hasError) {
-                    so.onError(this.fatal_error);
+                    so.onError(this.error);
                 } else if (this.isStopped) {
                     so.onCompleted();
                 }
@@ -12049,9 +12243,7 @@
              * Indicates whether the subject has observers subscribed to it.
              * @returns {Boolean} Indicates whether the subject has observers subscribed to it.
              */
-            hasObservers: function () {
-                return this.observers.length > 0;
-            },
+            hasObservers: function () { checkDisposed(this); return this.observers.length > 0; },
             _trim: function (now) {
                 while (this.q.length > this.bufferSize) {
                     this.q.shift();
@@ -12085,7 +12277,7 @@
                 checkDisposed(this);
                 if (this.isStopped) { return; }
                 this.isStopped = true;
-                this.fatal_error = error;
+                this.error = error;
                 this.hasError = true;
                 var now = this.scheduler.now();
                 this._trim(now);
