@@ -165,7 +165,7 @@ function require_outer_fsm_def(Err, utils, constants) {
 
             var event = internal_event.code;
             var event_data = internal_event.payload;
-            var model = fsm_state.model;
+            var model = fsm_state.inner_fsm.model;
             var hash_states = fsm_state.inner_fsm.hash_states;
             var current_state = hash_states[INITIAL_STATE_NAME].current_state_name;
             var event_handler = hash_states[current_state][event];

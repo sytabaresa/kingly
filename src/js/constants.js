@@ -10,6 +10,7 @@ define(function (require) {
         EV_CODE_INIT : 'init',
         INITIAL_STATE_NAME : 'nok',
         ACTION_IDENTITY : 'identity',
-        STATE_PROTOTYPE_NAME : 'State'
+        STATE_PROTOTYPE_NAME : 'State',
+        CHECK_TYPE : true
 }
 });

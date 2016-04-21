@@ -284,7 +284,6 @@ define(function (require) {
                 }
             };
             assert.deepEqual(arr_traces[6], expected_error_one_predicate_must_be_satisfied, 'If an event handler is defined for a state, that event occurs, but none of the guards specified is fulfilled, then a recoverable error is generated, model is not updated, and the state remsins the same.');
-            // TODO : review how effect_res error are handled. In principle, error_res instanceof Error, and should be catched somewhere action_result
 
             done();
         });
@@ -408,6 +407,7 @@ define(function (require) {
 
     });
 
+    // TODO : add a test to document the model_update : undefined -> undefined, null -> null
 
     // SUBGROUP : ...
     // T1. ...

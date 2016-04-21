@@ -673,9 +673,9 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       dispose(trace_intentS);
     }
 
-    function dispose(subject) {
-      subject.onCompleted();
-      subject.dispose();
+    function dispose(disposable) {
+      disposable instanceof Rx.Subject && disposable.onCompleted();
+      disposable.dispose();
     }
 
     // Trace mechanism
