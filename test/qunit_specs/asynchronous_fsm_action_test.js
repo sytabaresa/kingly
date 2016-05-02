@@ -35,6 +35,24 @@ define(function (require) {
     return obj;
   }
 
+  function clean(arr_fsm_traces) {
+    arr_fsm_traces.forEach(function clean_array_traces(fsm_trace) {
+      delete fsm_trace.inner_fsm.hash_states;
+      delete fsm_trace.inner_fsm.is_auto_state;
+      delete fsm_trace.inner_fsm.is_group_state;
+      delete fsm_trace.inner_fsm.is_init_state;
+      delete  fsm_trace.dispose_listeners;
+      fsm_trace.recoverable_error && delete fsm_trace.recoverable_error.timestamp;
+      return arr_fsm_traces;
+    });
+    return arr_fsm_traces;
+  }
+
+  function test_on_error(e) {
+    console.error('error found in testing stream', e);
+    assert.ok(false, 'unexpected error found in testing stream');
+  }
+
   ////////
   // GROUP : Basic transition mechanism
   // SUBGROUP : Pure and effectul actions and action sequences
@@ -44,18 +62,12 @@ define(function (require) {
     return function set_dummy_field(model, event_payload) {
       assert.deepEqual({model: model, ep: event_payload},
           {model: {}, ep: DUMMY_EVENT_DATA_VALUE},
-          'Actions are executed with the parameters (model, event_data) in that order');
+          'Pure actions are executed with the parameters (model, event_data) in that order');
       done();
       var model_update = {};
       model_update [DUMMY_FIELD] = event_payload;
       return model_update;
     }
-  }
-
-  function set_dummy_field_to_false(model, event_payload) {
-    var model_update = {};
-    model_update [DUMMY_FIELD] = false;
-    return model_update;
   }
 
   function set_dummy_field_to_true(model, event_payload) {
@@ -73,41 +85,39 @@ define(function (require) {
     return !model[DUMMY_FIELD];
   }
 
-  QUnit.test("Action mechanism - Pure action", function (assert) {
+  QUnit.test("Basic transition mechanism - Pure actions", function (assert) {
     ////////
     // GIVEN a chart spec :
     // no state hierarchy
-    // model0 :: {test_field : 24}
-    // state definition :: {A: '', B: ''}
-    // event enumeration :: ['event1', 'event2']
+    // model0 :: undefined
+    // state definition :: {A: '', B: '', C:'', D:'',E:''}
+    // event enumeration :: ['event1', 'event2', 'event3']
     // action list :: []
     // transition definition ::
     // - NOK : INIT -> A
-    // - A : event1 -> B : pure action set_dummy_field to true, test_field : 42)
+    // - A : event1 -> B
     // - B : event2 / true -> C
     // - C : event2 / ?dummy_field -> D : set field 'dummy_field' to true
     // - C : event2 / !dummy_field -> C : set field 'dummy_field' to event data
+    // - D : event2 -> D : throw some exception
+    // - D : event3 -> E
+    // - E : event3 / false -> E : set field 'dummy_field' to false
 
-    var done = assert.async(); // Cf. https://api.qunitjs.com/async/
+    var done = assert.async(2); // Cf. https://api.qunitjs.com/async/
 
     var model0 = undefined;
     var states_definition = {A: '', B: '', C: '', D: '', E: ''};
     var states = fsm_helpers.create_state_enum(states_definition);
     var event_enum = ['event1', 'event2', 'event3'];
     var events = fsm_helpers.create_event_enum(event_enum);
-    var action_list = [set_dummy_field(assert, done), set_dummy_field_to_false, set_dummy_field_to_true];
-    var action_struct = fsm_helpers.make_action_DSL(action_list);
-    var action_enum = action_struct.action_enum;
-    var action_hash = action_struct.action_hash;
-    var spy_actions = sinon.spy(action_hash, 'set_dummy_field');
     var transitions = [
       {from: states.NOK, to: states.A, event: events[EV_CODE_INIT]},
       {from: states.A, to: states.B, event: events.EVENT1},
       {from: states.B, to: states.C, event: events.EVENT2, predicate: utils.always(true)},
       {
         from: states.C, event: events.EVENT2, guards: [
-        {predicate: has_dummy_field, to: states.D, action: action_enum.set_dummy_field_to_true},
-        {predicate: has_not_dummy_field, to: states.C, action: action_enum.set_dummy_field}
+        {predicate: has_dummy_field, to: states.D, action: set_dummy_field_to_true},
+        {predicate: has_not_dummy_field, to: states.C, action: set_dummy_field(assert, done)}
       ]
       },
       //            {from: states.D, to: states.D, event: events.EVENT2, predicate: utils.always(true), action: action_enum.throw_dummy_error},
@@ -118,21 +128,22 @@ define(function (require) {
       model: model0,
       state_hierarchy: states,
       events: events,
-      action_hash: action_hash,
       transitions: transitions
     };
     var arr_fsm_traces = [];
 
     var ehfsm = fsm.make_fsm(state_chart, undefined); // intent$ is undefined here as we will simulate events
     ehfsm.model_update$.subscribe(function (model_update) {
-      console.log('model update', model_update);
+      console.warn('model update', model_update);
     }); // We also have to subscribe to the external dataflow
     ehfsm.fsm_state$
-        .finally(function(){console.log('ending test event sequence')})
+        .finally(function () {
+          console.log('ending test event sequence', arr_fsm_traces)
+        })
         .subscribe(function on_next(fsm_state) {
-      console.log('fsm_state', utils.clone_deep(fsm_state));
-      arr_fsm_traces.push(utils.clone_deep(fsm_state));
-    }, test_on_error, test_on_complete);
+          console.log('fsm_state...', utils.clone_deep(fsm_state));
+          arr_fsm_traces.push(utils.clone_deep(fsm_state));
+        }, test_on_error, test_on_complete);
     ehfsm.start(); // `start` initiates the inner dataflow subscription
     // NOTE : The init event is sent automatically AND synchronously so we can put the stop trace right after
 
@@ -143,30 +154,232 @@ define(function (require) {
     exec_on_tick(ehfsm.send_event, 70)(events.EVENT2, DUMMY_EVENT_DATA_VALUE);
     exec_on_tick(ehfsm.send_event, 90)(events.EVENT2);
     exec_on_tick(ehfsm.send_event, 110)(events.EVENT3);
-    ehfsm.stop();
-
-    function test_on_error(e) {
-      console.error('error found in testing stream', e);
-      assert.ok(false, 'unexpected error found in testing stream');
-    }
+    exec_on_tick(ehfsm.stop, 130)();
 
     function test_on_complete() {
       // T1. Initial transition
       // WHEN starting the statechart
       // THEN it should transitions to A
       //
+      clean(arr_fsm_traces);
+
       var expected_init_trace = {
-        "event": {
+        automatic_event: undefined,
+        effect_req: undefined,
+        event: {
           "code": EV_CODE_INIT,
           "payload": {}
         },
-        "model": {},
-        "model_update": {},
-        "resulting_state": "A"
+        inner_fsm: {
+          "model": {}
+        },
+        internal_state: {
+          expecting: "intent",
+          from: "nok",
+          is_model_dirty: true,
+          to: "A"
+        },
+        model_update: {},
+        payload: undefined,
+        recoverable_error: undefined
       };
-      assert.deepEqual(arr_traces[0], expected_init_trace, 'Starting the state machine sends an INIT event to the top-level state. The defined transition for that event is taken.');
+      assert.deepEqual(arr_fsm_traces[0], expected_init_trace, 'Starting the state machine sends an INIT event to the top-level state. The defined transition for that event is taken.');
+      assert.deepEqual(true, true, 'That INIT event has the initial value of the model as event data');
+      assert.deepEqual(true, true, 'falsy initial model are dealt with as empty objects');
 
-      assert.deepEqual(arr_traces[1], expected_no_event_handler_trace, 'If an event is triggered, and there is no transition defined for that event in the current state of the state machine, the event is ignored, and a recoverable error is reported.');
+      // T2. No transition exists for that event
+      // WHEN after starting the statechart, event 'dummy' is sent
+      // THEN :
+      //   - event is ignored (no effect)
+      //   - recoverable error is generated in the outer fsm and visible in traces
+      //   - model is updated (only internals!!)
+      //   - the inner FSM current state remains the same
+      //
+      var expected_no_event_handler_trace = {
+        automatic_event: undefined,
+        effect_req: undefined,
+        event: {
+          "code": EV_CODE_INIT,
+          "payload": {}
+        },
+        inner_fsm: {
+          "model": {}
+        },
+        internal_state: {
+          expecting: "intent",
+          from: "A",
+          is_model_dirty: true,
+          to: "A"
+        },
+        model_update: {},
+        payload: undefined,
+        "recoverable_error": {
+          "error": "There is no transition associated to that event!",
+          "event": "dummy",
+          "event_data": "dummy",
+          "resulting_state": "A"
+        }
+      };
+      assert.deepEqual(arr_fsm_traces[1], expected_no_event_handler_trace, 'If an event is triggered, and there is no transition defined for that event in the current state of the state machine, the event is ignored, and a recoverable error is reported.');
+      assert.deepEqual(true, true, 'The resulting state in case of such recoverable error will be the same as prior the error.');
+
+      // T3. Transition with one guard and no action
+      // WHEN after starting the statechart, event `event1` is sent
+      // THEN :
+      //   - it should transition to B
+      //   - model is unchanged
+      //
+      var expected_transition_to_B_trace = {
+        automatic_event: undefined,
+        effect_req: undefined,
+        event: {
+          "code": "EVENT1",
+          "payload": {}
+        },
+        inner_fsm: {
+          "model": {}
+        },
+        internal_state: {
+          expecting: "intent",
+          from: "A",
+          is_model_dirty: true,
+          to: "B"
+        },
+        model_update: {},
+        payload: undefined,
+        recoverable_error: undefined
+      };
+      assert.deepEqual(arr_fsm_traces[2], expected_transition_to_B_trace, 'If an event is triggered, and there is a transition defined for that event in the current state of the state machine, that transition is taken. If no action is specified, the model is kept unchanged.');
+
+      // T4. Transition with one guard satisfied and no action
+      // WHEN after starting the statechart, event `event2` is sent
+      // THEN :
+      //   - it should transition to C
+      //   - model is unchanged
+      //
+      var expected_transition_to_C_with_guard_trace = {
+        automatic_event: undefined,
+        effect_req: undefined,
+        event: {
+          "code": "EVENT2",
+          "payload": {}
+        },
+        inner_fsm: {
+          "model": {}
+        },
+        internal_state: {
+          expecting: "intent",
+          from: "B",
+          is_model_dirty: true,
+          to: "C"
+        },
+        model_update: {},
+        payload: undefined,
+        recoverable_error: undefined
+      };
+      assert.deepEqual(arr_fsm_traces[3], expected_transition_to_C_with_guard_trace, 'When a guard is specified, and satisfied, the corresponding transition is taken');
+
+      // T5. Transition with one guard satisfied, and one action
+      // WHEN after starting the statechart, event `event2` is sent with event data 24
+      // THEN :
+      //   - it should transition to C
+      //   - it should modify model according to the action defined (model' = {dummy_field: 24})
+      //   - the action should be called with the parameters (inner fsm model : {}, event payload : 24)
+      //
+      var expected_transition_to_C_with_guard_trace_2 = {
+        automatic_event: undefined,
+        effect_req: undefined,
+        event: {
+          "code": "EVENT2",
+          "payload": 24
+        },
+        inner_fsm: {
+          model: {
+            dummy_field: 24
+          },
+        },
+        internal_state: {
+          expecting: "intent",
+          from: "C",
+          is_model_dirty: true,
+          to: "C"
+        },
+        model_update: {
+          dummy_field: 24
+        },
+        payload: undefined,
+        recoverable_error: undefined
+      };
+      assert.deepEqual(arr_fsm_traces[4], expected_transition_to_C_with_guard_trace_2, 'When a guard is specified, and satisfied, the corresponding action is executed and leads to the corresponding model update');
+
+      // T6. Transition with one guard satisfied, and one action
+      // WHEN after starting the statechart, event `event2` is sent with no event data
+      // THEN :
+      //   - it should transition to D
+      //   - it should modify model according to the action defined (model' = {dummy_field: true})
+      //   - the action should be called with the parameters (inner fsm model : {dummy_field: 24}, event payload : undefined)
+      //
+      var expected_transition_to_D_no_guard_trace = {
+        automatic_event: undefined,
+        effect_req: undefined,
+        "event": {
+          "code": "EVENT2",
+          "payload": undefined
+        },
+        inner_fsm: {
+          "model": {
+            "dummy_field": true
+          },
+        },
+        internal_state: {
+          expecting: "intent",
+          from: "C",
+          is_model_dirty: true,
+          to: "D"
+        },
+        "model_update": {
+          "dummy_field": true
+        },
+        payload: undefined,
+        recoverable_error: undefined
+      };
+      assert.deepEqual(arr_fsm_traces[5], expected_transition_to_D_no_guard_trace, 'All specified guards are evaluated till one is satisfied, then the corresponding action is executed and leads to the corresponding model update');
+
+      // T8. Transition for event defined, but no guard satisfied when event occurs
+      // WHEN after starting the statechart, event `event3` is sent with no event data
+      // THEN :
+      //   - it should emit recoverable error
+      //   - it should not update the model except meta data
+      //   - no actions is executed
+      //   - state should remain the same
+      var expected_error_one_predicate_must_be_satisfied = {
+        automatic_event: undefined,
+        effect_req: undefined,
+        "event": {
+          "code": "EVENT2",
+          "payload": undefined
+        },
+        inner_fsm: {
+          "model": {
+            "dummy_field": true
+          }
+        },
+        internal_state: {
+          expecting: "intent",
+          from: "D",
+          is_model_dirty: true,
+          to: "D"
+        },
+        model_update: {},
+        payload: undefined,
+        "recoverable_error": {
+          "error": "No transition found while processing the event EVENT3 while transitioning from state D .\n It is possible that no guard predicates were fulfilled.",
+          "event": "EVENT3",
+          "event_data": undefined,
+          "resulting_state": "D"
+        }
+      };
+      assert.deepEqual(arr_fsm_traces[6], expected_error_one_predicate_must_be_satisfied, 'If an event handler is defined for a state, that event occurs, but none of the guards specified is fulfilled, then a recoverable error is generated, model is not updated, and the state remains the same.');
 
       done();
     }
@@ -181,22 +394,6 @@ define(function (require) {
   // THEN ...
 
 });
-
-////////
-// GIVEN a chart spec :
-// no state hierarchy
-// model0 :: {test_field : 24}
-// state definition :: {A: '', B: ''}
-// event enumeration :: ['event1']
-// action list :: []
-// transition definition ::
-// - NOK : INIT -> A
-// - A : event1 -> B : pure action set_dummy_field to true, test_field : 42)
-// WHEN event1
-// THEN
-// - fsm_state is correct (model and model_update are in it already)
-//   i.e. model -> {dummy : true, test_field : 42}
-//        model_update -> {dummy : true, test_field : 42}
 
 ////////
 // GIVEN a chart spec :

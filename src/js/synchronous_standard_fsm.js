@@ -57,7 +57,7 @@ function require_synchronous_standard_fsm(utils, Err) {
 
             if (predicate(fsm_state, internal_event)) {
                 var decorated_action = advice ? advice(action) : action;
-                var action_result = Err.tryCatch(decorated_action)(fsm_state, internal_event);
+                var action_result = Err.try_catch(decorated_action)(fsm_state, internal_event);
                 var action_error = (action_result instanceof Error) ? action_result : undefined;
 
                 evaluation_result = {

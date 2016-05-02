@@ -1,7 +1,4 @@
-// TODO : check if fsm is multi-instances (i.e. new instance every time, no shared data)
-// TODO : switch internal state machine to synchronous state machine?? I'd say yes
-// TODO : add the weak abortion feature? unless it can be simulated with standard statechart?
-//        for instance, action = http request, and cancel event in same state, no need for weak abortion
+// TODO : add the weak abortion feature? unless it can be simulated with standard statechart?//        for instance, action = http request, and cancel event in same state, no need for weak abortion
 // TODO : add new feature : actions can send events - first design it
 // TODO : architecture a la ELM, write actions as a comonad
 //        in the action enum, maybe add a breakdown of the action into pure (model update), and effectful
@@ -12,12 +9,16 @@
 //        The advantage of using one's own constructor is that it can be instrumented for tracing and debugging purposes
 // TODO : check that the action_res received is the action_res expected i.e. keep action_req at hand, and send action_req with action_res
 //        also, give a unique ID (time+counter) to the request - so modify to_observable or add a function after it
-// TODO : function de/serialize -> allow to save and recreate the state of the FSM
 // TODO : write documentation in readme.md - argue use case for HFSM, give roadmap
-// TODO : add the possibility to add conditions one by one on a given transition (preprocessing the array beforehand?)
+// TODO : DSL
+// TODO : write program which takes a transition specifications and draw a nice graph out of it with yed or else
+// TODO : think about the concurrent states (AND state
+// NOTE : AND states gives problems of processing events (an action_res can be received by several states)
+//        so 1 AND state could have received its action result and move on, while the second is still waiting for an action res to come...
+// TODO : switch internal state machine to synchronous state machine?? I'd say yes
+// TODO : function de/serialize -> allow to save and recreate the state of the FSM
 // TODO : entry and exit actions?? annoying as it forces to add up more intermediate state in the internal state machine
-// TODO : maybe remove or optionalize the internal state metadata passing in the model
-// TODO : also guard against an action res coming not associated with the action_res we are expecting
+// TODO : add the possibility to add conditions one by one on a given transition (preprocessing the array beforehand?)
 //{from: states.cd_loaded_group, to: states.cd_stopped, event: cd_player_events.NEXT_TRACK, condition: is_last_track, action: stop},
 //{from: states.cd_loaded_group, to: states.history.cd_loaded_group, event: cd_player_events.NEXT_TRACK, condition: is_not_last_track, action: go_next_track},
 ////vs. {from: states.cd_loaded_group, to: states.cd_stopped, event: cd_player_events.NEXT_TRACK, conditions: [
@@ -26,11 +27,6 @@
 ////    ]},
 // TODO : Add termination connector (T)?
 // TODO : abstract the tree traversal for the build states part
-// TODO : DSL
-// TODO : write program which takes a transition specifications and draw a nice graph out of it with yed or else
-// TODO : think about the concurrent states (AND state
-// NOTE : AND states gives problems of processing events (an action_res can be received by several states)
-//        so 1 AND state could have received its action result and move on, while the second is still waiting for an action res to come...
 
 // TERMINOLOGY
 // Reminder : there are two kinds of intents : user generated intent, and program generated intent
@@ -46,10 +42,11 @@
 // - To break out of it, maybe put a guard that if we remain in the same state for X steps, transition automatically (to error or else)
 
 // Implementation contracts
-// CONTRACT :Actions cannot return an object of type error if not error (check code again)
+// CONTRACT : Actions cannot return an object of type error if not error (check code again)
 // CONTRACT : event handlers and predicates MUST be pure (they will be executed several times with the same input)
 // CONTRACT : guards/predicates cannot throw (not detected for now, but I should try to catch it and emit fatal error)
 // CONTRACT : some events are reserved init,auto,and another one
+// CONTRACT : in automatic events, the event data is carried over with the automatic event
 
 // Serialization mechanism :
 // - Model should come with a serialize method
@@ -68,15 +65,16 @@ define(function (require) {
   var Err = require('custom_errors');
   var Rx = require('rx');
   var _ = require('lodash');
+  var Hashmap = require('hashmap');
   var synchronous_fsm = require('synchronous_standard_fsm');
   var outer_fsm_def = require('outer_fsm_def');
   var constants = require('constants');
   var fsm_helpers = require('fsm_helpers');
 
-  return require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err, utils, constants);
+  return require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Hashmap, Rx, Err, utils, constants);
 });
 
-function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err, utils, constants) {
+function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Hashmap, Rx, Err, utils, constants) {
 
   // CONSTANTS
   // !!must be the function name for the constructor State, i.e. State
@@ -89,6 +87,14 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
   const EV_INTENT = constants.EV_INTENT;
   const EV_EFFECT_RES = constants.EV_EFFECT_RES;
   const EV_TRACE = constants.EV_TRACE;
+  const PURE_ACTION_HANDLER = constants.PURE_ACTION_HANDLER;
+  const ACTION_SEQUENCE_HANDLER = constants.ACTION_SEQUENCE_HANDLER;
+  const EVENT_HANDLER_RESULT = constants.EVENT_HANDLER_RESULT;
+  const ACTION_HANDLER_IDENTITY = constants.ACTION_HANDLER_IDENTITY;
+  const COMMAND_EXECUTE = constants.commands.EXECUTE;
+  const COMMAND_CANCEL = constants.commands.CANCEL;
+  const EFFECT_HANDLER = constants.EFFECT_HANDLER;
+  const DRIVER_FACTORY = constants.DRIVER_FACTORY;
 
   function make_intent(code, payload) {
     return {code: code, payload: payload}
@@ -117,7 +123,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     var is_group_state = {};
 
     // Add the starting state
-    states = {nok: states_};
+    var states = {nok: states_};
 
     ////////
     // Helper functions
@@ -131,6 +137,13 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
               hash_states[parent_name].history.last_seen_state = last_seen_state_name;
             }
           }));
+    }
+
+    function dispose_listeners() {
+      last_seen_state_listener_disposables.forEach(function (disposable) {
+        disposable.dispose();
+      });
+      last_seen_state_event_emitter.dispose();
     }
 
     function build_state_reducer(states, curr_constructor) {
@@ -191,7 +204,8 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
 
     return {
       hash_states: hash_states,
-      is_group_state: is_group_state
+      is_group_state: is_group_state,
+      dispose_listeners: dispose_listeners
     };
   }
 
@@ -199,12 +213,13 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     // Create the nested hierarchical
     var states = state_chart.state_hierarchy;
     var events = state_chart.events;
-    var special_actions = {identity: ACTION_IDENTITY};
+    var special_actions = {identity: ACTION_HANDLER_IDENTITY};
     var transitions = state_chart.transitions;
     var hash_states_struct = build_nested_state_structure(states);
     // {Object<state_name,boolean>}, allows to know whether a state is a group of state or not
     var is_group_state = hash_states_struct.is_group_state;
     var hash_states = hash_states_struct.hash_states;
+    var dispose_listeners = hash_states_struct.dispose_listeners;
 
     // {Object<state_name,boolean>}, allows to know whether a state has a init transition defined
     var is_init_state = get_init_transitions(transitions);
@@ -219,7 +234,6 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     return {
       inner_fsm: {
         model: utils.clone_deep(model_0), // clone the initial value of the model
-        model_update: undefined,
         hash_states: hash_states,
         is_init_state: is_init_state, // TODO : refactor to init state hash?
         is_auto_state: is_auto_state,
@@ -228,13 +242,16 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       internal_state: {
         expecting: constants.EXPECTING_INTENT,
         is_model_dirty: true,
-        from: undefined,
+        from: INITIAL_STATE_NAME,
         to: undefined
       },
       payload: undefined,
       effect_req: undefined,
       recoverable_error: undefined,
-      automatic_event: undefined
+      automatic_event: undefined,
+      event: undefined,
+      model_update: undefined,
+      dispose_listeners: dispose_listeners
     };
 
     function get_init_transitions(transitions) {
@@ -274,6 +291,15 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     }
 
     function set_event_handlers(transitions, /*OUT*/hash_states, special_actions) {
+      // TODO In fact never used in the current implementation, remove later
+      var reduce_fn_no_predicate = function (from, to) {
+        return function default_predicate() {
+          return utils.new_typed_object(
+              {action_seq_handler: undefined, from: from, to: to, predicate: undefined},
+              EVENT_HANDLER_RESULT)
+        }
+      }
+
       transitions.forEach(function (transition) {
         // console.log("Processing transition:", transition);
         var from = transition.from, to = transition.to;
@@ -294,7 +320,6 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
         //console.log("Predicates:", arr_predicate);
 
         from_proto[event] = arr_predicate.reduce(function (acc, guards, index) {
-          var action = guards.action;
           var condition_checking_fn = (function (guards) {
             var condition_suffix = '';
             // We add the `current_state` because the current state might be different from the `from` field here
@@ -306,26 +331,41 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
               condition_suffix = predicate ? '_checking_condition_' + index : '';
               var to = guards.to;
               if (!predicate || predicate(model_, event_data)) {
-                // CASE : condition for transition is fulfilled so we can execute the actions...
-                utils.info("IN STATE ", from);
-                utils.info("WITH model, event data BEING ", model_, event_data);
-                utils.info("CASE : "
-                    + (predicate ? "predicate " + predicate.name + " for transition is fulfilled"
-                        : "automatic transition"));
-
-                return action
-                  // allows for chaining and stop chaining condition
-                    ? {effect_code: action, from: from, to: to}
-                  // CASE : I have a condition which is fulfilled but no action
-                  // so, the model does not change, but the transition should happen
-                    : {effect_code: special_actions.identity, from: from, to: to};
+                // CASE : condition for transition is fulfilled so we can associate an action handler...
+                var action = guards.action;
+                var has_syntax_error = false;
+                var return_value = utils.new_typed_object({
+                      action_seq_handler: utils.is_function(action)
+                        // CASE : just an action function passed : it MUST be a pure action
+                          ? make_action_sequence_handler_from_pure_action(action)
+                        // CASE : an array of action is passed : it MUST be a sequence of effectful actions
+                          : utils.is_array(action)
+                          ? make_action_sequence_handler_from_effectful_action_array(action)
+                          : utils.is_undefined(action)
+                        // CASE : I have a condition which is fulfilled but no action
+                        // so, the model does not change, but the transition should happen
+                          ? make_action_sequence_handler_from_pure_action(special_actions.identity)// TODO : update special_actions.identity (to pass in constants by the way)
+                        // CASE : syntax error, action does not have one of the authorized value/type
+                          : (has_syntax_error = true, undefined),
+                      predicate: predicate, // passed only for logging/tracing purposes
+                      from: from,
+                      to: to
+                    },
+                    EVENT_HANDLER_RESULT);
+                if (has_syntax_error) {
+                  throw 'syntax error, action does not have one of the authorized value/type'
+                } else {
+                  return return_value;
+                }
               }
               else {
                 // CASE : condition for transition is not fulfilled
                 console.log("CASE : "
                     + (predicate ? "predicate " + predicate.name + " for transition NOT fulfilled..."
                         : "no predicate"));
-                return {effect_code: undefined, from: from, to: to};
+                return utils.new_typed_object(
+                    {action_seq_handler: undefined, predicate: undefined, from: from, to: to},
+                    EVENT_HANDLER_RESULT)
               }
             };
             condition_checking_fn.displayName = from + condition_suffix;
@@ -334,15 +374,58 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
 
           return function arr_predicate_reduce_fn(model_, event_data, current_state) {
             var condition_checked = acc(model_, event_data, current_state);
-            return condition_checked.effect_code
-                ? condition_checked // would be the effect code to interpret
+            return condition_checked.action_seq_handler
+                ? condition_checked
                 : condition_checking_fn(model_, event_data, current_state);
           }
-        }, function default_predicate() {
-          return {effect_code: undefined, from: from}
-        });
+        }, reduce_fn_no_predicate);
       });
     }
+  }
+
+  /**
+   * Lifts a pure action (i.e. model update) into a sequence handler
+   * @param {Function} action. Where action :: model -> event_data -> model_update
+   * @returns {Function}
+   */
+  function make_action_sequence_handler_from_pure_action(action) {
+    utils.assert_signature('make_action_sequence_handler_from_pure_action :: function', arguments);
+    // Reminder : pure actions (model updates) cannot throw, i.e. any error occurring is not catched (fatal error)
+    /**
+     * @param {Object} model.
+     * @param {Object} event_data.
+     * @param {Object} effect_res.
+     * @param {Number} index.
+     */
+    return utils.new_typed_object(
+        function action_sequence_handler_from_pure_action(model, event_data, effect_res, index) {
+          // TODO : when types are defined, adjust the signature
+          utils.assert_signature('action_sequence_handler_from_pure_action :: object -> * -> ?object -> ?number', arguments);
+          return {
+            model_update: action(model, event_data),
+            effect_req: undefined
+          };
+        },
+        ACTION_SEQUENCE_HANDLER)
+  }
+
+  /**
+   * Lifts a sequence of effectful actions into a sequence handler
+   * @param {Array<Function>} arr_actions. Where action :: model -> event_data -> effect_res -> (model_update, effect_req)
+   * @returns {Function}
+   */
+  function make_action_sequence_handler_from_effectful_action_array(arr_actions) {
+    /**
+     * @param {Object} model.
+     * @param {Object} event_data.
+     * @param {Object} effect_res.
+     * @param {Number} index.
+     */
+    return utils.new_typed_object(
+        function action_sequence_handler_from_effectful_action_array(model, event_data, effect_res, index) {
+          return arr_actions[index](model, event_data, effect_res);
+        },
+        ACTION_SEQUENCE_HANDLER)
   }
 
   function outer_fsm_write_trace(traceS, /*OUT*/fsm_state, internal_fsm_def, internal_event_type, internal_event, evaluation_result) {
@@ -402,15 +485,6 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     return arr_traces;
   }
 
-  /**
-   * Side-effects:
-   * - possibly emits a message on the trace subject
-   * - modifies fsm_state
-   * @param update_fn
-   * @param fsm_state
-   * @param traceS
-   * @returns
-   */
   function update_trace_record(update_fn, /*OUT*/arr_traces, recoverable_error, resulting_state, model, model_update, traceS, emit_traces) {
     emit_traces = (typeof(emit_traces) === 'boolean') ? emit_traces : true;
     var incomplete_record = arr_traces.pop();
@@ -507,7 +581,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       // `merged_labelled_input` should only have one key, which is the event type
       var internal_event_type = Object.keys(merged_labelled_input)[0];
       // the actual event has the following shape according to the event type:
-      // intent -> {code, payload}, action_res -> Object
+      // intent -> {code, payload}, effect_res -> Object
       var internal_event = merged_labelled_input[internal_event_type];
 
       var evaluation_result = synchronous_fsm.evaluate_internal_transitions(
@@ -522,6 +596,8 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
         var fsm_state_update = evaluation_result.fsm_state_update;
         var model_update = fsm_state_update && fsm_state_update.inner_fsm ? fsm_state_update.inner_fsm.model : {};
         update_fsm_state(/*OUT*/fsm_state, fsm_state_update);
+        // Also for tracing reasons put the model update on fsm_state
+        fsm_state.model_update = model_update;
         fsm_write_trace(traceS, fsm_state, fsm_def, internal_event_type, internal_event, evaluation_result);
 
         return fsm_state;
@@ -552,8 +628,6 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
    * @returns {{fsm_state${Rx.Observable}, effect_req${Rx.Observable}}
  */
   function transduce_fsm_streams(state_chart, user_generated_intent$, effect_res$, program_generated_intent$, trace_intentS) {
-    // TODO : put as a constant all the 'effect_req', 'trace' etc. (becomes hidden dependency otherwise)
-
     // Build the sinks :
     // - there are three source origins:
     //   - intents : they divide into user intents and automatic actions (program generated intents) from the state machine
@@ -565,6 +639,8 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     var traceS = new Rx.BehaviorSubject([]);
 
     var fsm_initial_state = compute_fsm_initial_state(state_chart);
+    var dispose_listeners = fsm_initial_state.dispose_listeners;
+    fsm_initial_state.dispose_listeners = undefined; // We don't delete properties as it supposedly prevent compiler optimizations
 
     var outer_fsm = outer_fsm_def.get_internal_sync_fsm();
 
@@ -573,6 +649,9 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
         effect_res$.map(utils.label(EV_EFFECT_RES)),
         trace_intentS.map(utils.label(EV_TRACE))
     )
+        .finally(function () {
+          console.log('merged_labelled_sources$ terminated!!!!')
+        })
         .do(function (x) {
           utils.rxlog(utils.get_label(x))(x[Object.keys(x)[0]]);
         });
@@ -583,10 +662,13 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
           console.error('error while process_fsm_internal_transition', e);
           return Rx.Observable.throw(e);
         })
-        .shareReplay(1)// test to remove it to see if it makes a difference, share should be enough I think
+        .share();
 
     // The stream of effect requests
     var effect_req$ = fsm_state$
+        .finally(function () {
+          console.log('fsm_state$ terminated!!!!')
+        })
         .filter(utils.get_prop('effect_req'))
         .map(function (fsm_state) {
           return {
@@ -628,12 +710,13 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
         .publish();
 
     return {
-      fsm_state$: fsm_state$,
-      model_update$: model_update$, // object representing the updates to do on the current model
-      model$: model$, // the updated model TODO : maybe remove, as it is already in fsm_state, and that avoid desync
-      effect_req$: effect_req$,
+      fsm_state$: fsm_state$, // NOTE : already shared
+      model_update$: model_update$.share(), // object representing the updates to do on the current model
+      model$: model$.share(), // the updated model TODO : maybe remove, as it is already in fsm_state, and that avoid desync
+      effect_req$: effect_req$.shareReplay(1),
       program_generated_intent_req$: program_generated_intent_req$,
-      trace$: traceS
+      trace$: traceS,
+      dispose_listeners: dispose_listeners
     }
   }
 
@@ -655,6 +738,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
         .finally(utils.rxlog('ending tracing'))
         .share();
     var final_traceS = new Rx.AsyncSubject();
+    var dispose_listeners = fsm_sinks.dispose_listeners;
 
     function start() {
       // Connecting requests streams to responses
@@ -667,15 +751,32 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     }
 
     function stop() {
-      // NOTE : once stopped the state machine cannot be restarted... maybe destroy is a better name?
-      dispose(effect_req_disposable);
-      dispose(program_generated_intent_req_disposable);
+      // NOTE : once stopped the state machine cannot be restarted... maybe destroy or dispose is a better name?
+      dispose_listeners();
+      dispose(debug_intentS);
+      dispose(program_generated_intentS);
+      dispose(effect_resS);
       dispose(trace_intentS);
+      // No need to dispose the subscriptions, they are disposed automatically when their source observable completes
+      //      dispose(effect_req_disposable);
+      //      dispose(program_generated_intent_req_disposable);
     }
 
     function dispose(disposable) {
-      disposable instanceof Rx.Subject && disposable.onCompleted();
-      disposable.dispose();
+      if (!Rx.Disposable.isDisposable(disposable)) {
+        throw 'dispose : disposable parameter does not have a dispose function?!'
+      }
+      // Case : disposable is a subject, hence an observer : signal completion to allow downstream streams to finalize cleanly
+      disposable.onCompleted && disposable.onCompleted();
+      // setTimeout necessary as it allows to avoid `Uncaught ObjectDisposedError: Object has been disposed`
+      // Why is that ? This happens when obs$.subscribe(subS) and subS has been disposed, subscription has not been
+      // disposed, and obs$ emits values
+      setTimeout(function () {
+        // This allows to cover both subjects and subscriptions disposal
+        if (!disposable.isDisposed) {
+          disposable.dispose();
+        }
+      }, 0);
     }
 
     // Trace mechanism
@@ -742,7 +843,6 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       stop: stop,
       model$: fsm_sinks.model$.share(), // defensively share the model in case it is subscribed several times over
       model_update$: fsm_sinks.model_update$.share(),
-      // TODO : can be exposed as a living trace of the state of the system instead of modifying the model with meta properties
       fsm_state$: fsm_sinks.fsm_state$,
       trace$: final_traceS, // by subscribing to trace$, only one value will be output, the array of traces recorded
       start_trace: start_trace,
@@ -772,6 +872,9 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       };
 
       var effect_res$ = effect_req$
+          .finally(function () {
+            console.log('effect_res$ terminated!!!!')
+          })
           .flatMap(function (effect_req) {
             var effect_payload = effect_req.payload;
             var effect_enum = effect_req.effect_req;
@@ -779,7 +882,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
             var effect = effect_hash[effect_enum];
             if (effect) {
               // CASE : we do have some actions to execute
-              var effect_res = Err.tryCatch(function execute_effect(effect, effect_payload) {
+              var effect_res = Err.try_catch(function execute_effect(effect, effect_payload) {
                 console.info("THEN : we execute the effect " + effect.name);
                 return effect(model, effect_payload);
               })(effect, effect_payload);
@@ -802,8 +905,260 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     make_fsm: make_fsm,
     transduce_fsm_streams: transduce_fsm_streams,
     process_fsm_internal_transition: process_fsm_internal_transition
+  };
+
+
+  /**
+   * @typedef {object} Driver_Settings
+   */
+  /**
+   * @typedef {function(Rx.Observable):Rx.Observable} Driver_Operator
+   */
+  /**
+   * @typedef {{settings: Driver_Settings, operator:Driver_Operator}} Driver_Record
+   */
+  /**
+   * @typedef {Object<String, Driver_Record>} Driver_Registry
+   * @dict driver_name
+   */
+  /**
+   * @typedef {function(effect_req_params : object)} Effect_Handler
+   */
+  /**
+   * @typedef {Object<String, (Effect_Handler|Driver_Registry)>} Effect_Registry
+   * @dict driver_family
+   */
+  /**
+   *
+   * @param {Effect_Registry} effect_registry
+   * @returns {Function}
+   */
+  function make_effect_driver(effect_registry) {
+
+    ///////////
+    // Helpers
+    function filter_request_by_driver_family(driver) {
+      return function filter_request_by_driver_family(effect_req) {
+        return (effect_req.driver.family === driver.family
+        && _.isEqual(effect_req.driver.settings, driver.settings));
+      }
+    }
+
+    function filter_out_cancelled_request(decorated_request_info$, cancelled_requests) {
+      // IMPLEMENTATION NOTE : Cancel mechanism
+      // If the cancel is received before the result comes : fine
+      // If the cancel comes afterward, the effect response might still go through but it should be filtered then
+      // downstream by the state machine using the token
+      return decorated_request_info$
+          .filter(function filter_out_cancelled_request_(decorated_request_info) {
+            var address = decorated_request_info.address;
+            var address_uri = address.uri;
+            var address_token = address.token;
+
+            // Case : request is NOT cancelled
+            // IMPLEMENTATION NOTE : this implementation works because `cancelled_requests` is a de facto observable
+            // As a matter of fact, it is passed by reference and updated within the scan (eq. to using a subject)
+            // DOCUMENTATION NOTE : token is PER fsm (not per driver), so each request emitted by the fsm has a different token
+            // that means address.uri is fsm_uri and address.token is request_uri
+            // or uri: {fsm :: string, request :: number}
+            return !(cancelled_requests[address_uri] && cancelled_requests[address_uri][address_token])
+          })
+    }
+
+    function decorate_with_request_info(effect_result$, effect_req$) {
+      return Rx.observable.zip(
+          effect_result$,
+          effect_req$,
+          function (effect_result, effect_req) {
+            return {effect_result: effect_result, address: effect_req.address, driver: effect_req.driver};
+          }
+      )
+    }
+
+    function validate_driver_registry_key(key) {
+      // key :: {family:: driver_family, settings:: driver_settings}
+      var driver_settings = key.settings;
+      var driver_family = key.family;
+      if (!driver_family) throw 'effect_driver_initial_state.cache : validate_key : invalid key passed!'
+      if (!driver_settings) throw 'effect_driver_initial_state.cache : validate_key : invalid key passed!'
+      // NOTE : JSON.stringify does not guarantee order of scanning through object properties,
+      // so it is possible to have identitical objects with different parsing!!
+      var json_parsed_settings = JSON.stringify(driver_settings);
+      if (JSON.parse(json_parsed_settings) !== driver_settings) {
+        throw 'effect_driver_initial_state.cache : validate_key : cannot use settings as part of a key!'
+      }
+      return [driver_family, json_parsed_settings].join('|');
+    }
+
+    /**
+     * Side-effects : updates `effect_driver_state.cancelled_requests`
+     * @param effect_driver_state
+     * @param effect_req
+     * @returns {*}
+     */
+    function process_effect_request_cancellation(effect_driver_state, effect_req) {
+      var address = effect_req.address;
+      var address_uri = address.uri;
+      var address_token = address.token;
+      var driver = effect_req.driver;
+
+      var cancelled_requests = effect_driver_state.cancelled_requests || {};
+      if (!(cancelled_requests[address_uri] && cancelled_requests[address_uri][address_token])) {
+        // Case : cancelled command is not already in the cancelled commands structure
+        // Add it
+        cancelled_requests[address_uri] = cancelled_requests[address_uri] || {};
+        cancelled_requests[address_uri][address_token] = {driver: driver}
+      }
+      return effect_driver_state;
+    }
+
+    /**
+     * Side-effects : updates `effect_driver_state.effect_response$`
+     * @param effect_driver_state
+     * @param effect_req
+     * @param effect_registry
+     * @param effect_req$
+     * @returns {*}
+     */
+    function process_effect_request_execution(effect_driver_state, effect_req, effect_registry, effect_req$) {
+      var driver = effect_req.driver;
+      var effect_req_params = effect_req.params;
+      var driver_family = driver.family;
+      var driver_name = driver.name;
+      var effect_result$ = undefined;
+      var effect_driver_cache = effect_driver_state.cache;
+      var effect_handler_or_factory = effect_registry[driver_family];
+
+      if (utils.has_custom_type(effect_handler_or_factory, EFFECT_HANDLER)) {
+        var effect_result = Err.try_catch(function execute_effect_handler(effect_req_params) {
+          console.info("THEN : we execute the effect " + effect_handler_or_factory.name); // TODO :name, or display name???
+          return effect_handler_or_factory(effect_req_params);
+        })(effect_req_params);
+        // Covers both successful and error-throwing effect execution - the error is encapsulated in the effect result
+        // NOTE : !! If the effect handler wants to return an observable, it must encapsulate it
+        //        i.e. (in effect handler body) ... return Rx.Observable.return(obs$)
+        //        otherwise the `mergeAll` will inline it
+        //        This allows for example to use ractive stream adaptor to continously display a stream of values
+        effect_result$ = utils.to_observable(effect_result);
+      }
+      else if (utils.has_custom_type(effect_handler_or_factory, DRIVER_FACTORY)) {
+        // case : effect_req calls for a driver which is defined in the registry AND is dealt with by a stream operator
+        var driver_key = driver_name;
+        var effect_driver = effect_driver_cache.get(driver_key);
+
+        if (!effect_driver) {
+          // Case : driver is not in cache
+          // apply the driver to the effect request sources, filtering for the requests relevant to it
+          effect_driver = effect_handler_or_factory(driver_settings);
+          effect_driver_state.cache.set(driver_key, driver);
+          effect_result$ = effect_driver(effect_req$.filter(filter_request_by_driver_family(driver)))
+              .catch(function catch_effect_driver_errors(e) {
+                // NOTE : driver is terminated after error, remove the driver from cache, so it is recreated next time
+                console.error('compute_effect_res :', e);
+                effect_driver_state.cache.remove(driver_key);
+                return Rx.Observable.return(e);
+                // TODO : test it
+                // NOTE : retryWhen will not work if we use a shared replayed effect_req$
+                // It will retry with the current effect_req, not with the next one... maybe if we use .skip(1)?
+                // TODO : test it
+              });
+          // TODO : effect_req$ must be shared upstream
+          // TODO : effect_req$ in fact might have to be shared replayed...
+        }
+        else {
+          // Case : driver is in cache
+          // That means the driver is already set to handle its stream of requests, so there is nothing more to do
+        }
+      }
+      else {
+        // case : we don't know what to do with that unknown type
+        throw 'effect_driver : received effect request with an unknown effect (driver, handler) type'
+      }
+
+      // TODO : have the driver implement a cancel API?? and if it has a cancel API execute it??
+      effect_driver_state.effect_response$ = effect_result$
+          ? filter_out_cancelled_request(
+          decorate_with_request_info(
+              effect_result$,
+              effect_req$),
+          effect_driver_state.cancelled_requests)
+          : undefined;
+      return effect_driver_state;
+    }
+
+    function compute_effect_res(effect_req$) {
+      return function compute_effect_res(effect_driver_state, effect_req) {
+        var driver = effect_req.driver;
+        var command = effect_req.command;
+        var driver_family = driver.family;
+        var is_execute_command = (command === COMMAND_EXECUTE);
+        var is_cancel_command = (command === COMMAND_CANCEL);
+
+        // Edge case : effect_req calls for a driver which is not defined in the registry
+        if (!(driver_family in effect_registry)) {
+          throw new Error('compute_effect_res : driver not defined in effect registry')
+        }
+
+        // Edge case : unexpected or unknown command
+        if (!is_execute_command && !is_cancel_command) throw 'compute_effect_res : unknown command :' + command;
+
+        return is_execute_command
+          // Case : execute command
+          // NOTE : this implementation supposes that a request can be required to be cancelled only after having been requested
+            ? process_effect_request_execution(/*OUT*/effect_driver_state, effect_req, effect_registry, effect_req$)
+          // Case : cancel command
+          // Add the command to the cancelled command hash if not already there
+            : process_effect_request_cancellation(/*OUT*/effect_driver_state, effect_req);
+      }
+    }
+
+    // Effect_Registry ::
+    // Hash {<driver_family :: String> : Effect_Handler
+    //      |<driver_family :: String> : <driver_name :: String> : {
+    //                                          driver_settings :: Driver Settings,
+    //                                          driver_operator :: Driver Operator}
+
+    ///////////
+    // Body
+
+    // IMPLEMENTATION NOTE :
+    // 1. a registry is used instead of a cache as it is not expected to have a lot many drivers
+    // 2. No cleaning up of resources is implemented, the cache should be automatically dereferenced and garbage-collected
+    //    after effect_req$ completion
+    // 3. to make it simple, the registry key is serialized to a string, but that limits the setttings to JSON serializable objects
+    // nice to have : implement (i.e. find library) a real registry (i.e. hashmap where the key can be any object)
+    //                this seems promising : https://github.com/timdown/jshashtable (300 LOC though)
+    //                or https://github.com/flesler/hashmap#hashmap-constructor-overloads (160 LOC)
+    //                or http://mauriciosantos.github.io/Buckets-JS/symbols/buckets.Dictionary.html (several DS, 196 LOC)!!
+    //                   - for keys being custom objects, a function that converts keys to unique strings must be provided.
+    //                Be careful to review the unit testing!!
+    var effect_driver_initial_state = {
+      cache: new Hashmap(),
+      cancelled_requests: {},
+      effect_response$: undefined
+    };
+
+    return function effect_driver(effect_req$) {
+      var effect_response$ = effect_req$
+          .scan(compute_effect_res(effect_req$), effect_driver_initial_state)
+          .pluck('effect_response$')
+          .filter(utils.identity) // filtering undefined `effect_response` (case : cancel command)
+          .mergeAll();
+      return effect_response$;
+    };
   }
+
+  // TODO:
+  // 1. Test registry
+  // 2. Test creation command
+  // 2.a. normal function
+  // 2.a.1. successful exec
+  // 2.a.2. error exec
+  // 2.b. drivers (signal transform)
+  // 2.b.1. successful exec
+  // 2.b.2. error exec
+  // 3. Test cancellation command
+  // 3a. canceling request made
+  // 3b. canceling request not made
 }
 
-// TODO : rewrite the action driver to actually have a transducer for each type of operation and pass the stream to that transducer
-// operator let??

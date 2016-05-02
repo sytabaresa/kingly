@@ -389,7 +389,7 @@ define(function (require) {
     // NOTE : enforced via in_auto_state only true for grouping state
     // CONTRACT : Automatic actions with no events and only conditions are not allowed in nesting state (aka grouping state)
     // NOTE : That would lead to non-determinism if A < B < C and both A and B have such automatic actions
-    // CONTRACT : every nesting state MUST have at MAX ONE init transition
+    // CONTRACT : every nesting state MUST have at MAX ONE init transition and at LEAST ONE init transition
     // CONTRACT : if there is a transition with destination a nesting state (standard or history), that nesting state much
     // have an init transition defined
     // - HISTORY MECHANISM

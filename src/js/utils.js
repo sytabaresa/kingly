@@ -1,29 +1,16 @@
 define(function (require) {
   var Rx = require('rx');
   var _ = require('lodash');
+  var Err = require('custom_errors');
   var constants = require('constants');
-  const LOG_CLONE_OBJECTS = false;
-  var clone_deep = LOG_CLONE_OBJECTS ? _.cloneDeep : function (x) {
-    return x
-  };
-  return require_utils(Rx, _, clone_deep, constants);
+  return require_utils(Rx, _, Err, constants);
 });
 
-function require_utils(Rx, _, clone_deep, constants) {
+function require_utils(Rx, _, Err, constants) {
   // Set Rx error option to visualize extra stack trace information
   Rx && (Rx.config) && (Rx.config.longStackSupport = true);
 
   var CHECK_TYPE = constants.CHECK_TYPE;
-
-  _.mixin({
-    'inherit': function (child, base, props) {
-      child.prototype = _.create(base.prototype, _.assign({
-        '_super': base.prototype,
-        'constructor': child
-      }, props));
-      return child;
-    }
-  });
 
   function identity(x, y) {
     return x
@@ -50,9 +37,27 @@ function require_utils(Rx, _, clone_deep, constants) {
     }
   }
 
+  function and(fn1, fn2) {
+    return function and() {
+      return fn1.apply(null, arguments) && fn2.apply(null, arguments);
+    }
+  }
+
+  function or(fn1, fn2) {
+    return function or() {
+      return fn1.apply(null, arguments) || fn2.apply(null, arguments);
+    }
+  }
+
+  function not(fn) {
+    return function not() {
+      return !fn.apply(null, arguments);
+    }
+  }
+
   function always(value) {
-    return function () {
-      return value
+    return function always() {
+      return value;
     }
   }
 
@@ -82,10 +87,15 @@ function require_utils(Rx, _, clone_deep, constants) {
   }
 
   function clone_deep(obj) {
+    var clone_deep_fn;
+
     if (typeof(obj) === 'undefined') return undefined;
-    var clone_deep_fn = _.cloneDeep.bind(_);
+    if (typeof(obj) === 'function') return obj;
+    if (is_null(obj)) return obj;
     if ((obj.clone_deep && is_function(obj.clone_deep)) || (obj.cloneDeep && is_function(obj.cloneDeep))) {
       clone_deep_fn = obj.clone_deep ? obj.clone_deep.bind(obj) : obj.cloneDeep.bind(obj);
+    } else {
+      clone_deep_fn = _.cloneDeep.bind(_);
     }
     return clone_deep_fn(obj);
   }
@@ -115,27 +125,16 @@ function require_utils(Rx, _, clone_deep, constants) {
     return new Date();
   }
 
-  // TODO : review that function in line with the display method chosen (ractive, virtual-dom, etc.)
   // In this current implementation:
-  // - promises will have to first resolve for a value to be passed to the display method
-  // - observable will be passed immediately to the display method
-  //   + ractive for example has an adaptor which allows to display observable (promise too but we make the choice not to use it)
-  // - other types of object will be passed directly to the display method
-  function to_observable(action_result) {
+  // - promises are turned into observables
+  // - observables are reduced to their last value (i.e. forced up to a promise)
+  // - other types of values are wrapped into a single value observable
+  function to_observable(effect_result) {
     // Reminder : basic data types
     // Boolean,         Null,         Undefined,         Number,        String
-    if (action_result.then) return Rx.Observable.fromPromise(action_result);
-    // !! If the action returns an array we do not want to stream that array
-    if (action_result.length && action_result.length > 0) return Rx.Observable.return(action_result);
-    if (action_result instanceof Rx.Observable) return Rx.Observable.return(action_result);
-    if (typeof action_result === 'object'
-        || typeof action_result === 'string'
-        || typeof action_result === 'number'
-        || typeof action_result === 'boolean'
-        || typeof action_result === 'undefined'
-    ) return Rx.Observable.of(action_result);
-    // Else we can't really find a way to convert it to an observable, so we throw an error
-    throw 'ERROR: data received from action is of unexpected type!'
+    if (is_promise(effect_result)) return Rx.Observable.fromPromise(effect_result);
+    if (is_observable(effect_result)) return effect_result.last();
+    return Rx.Observable.return(effect_result);
   }
 
   function args_to_array(argument) {
@@ -167,12 +166,29 @@ function require_utils(Rx, _, clone_deep, constants) {
     return tokens[1];
   }
 
-  function new_typed_object(type, obj) {
+  function new_typed_object(obj, type) {
     if (!type) throw 'new_typed_object : expected truthy type!'
     if (!obj) throw  'new_typed_object : expected truthy object!'
+    var current_types = obj.__type;
+    // duplicate the array of types (passed by reference, here we want passed by values)
+    current_types = current_types ? obj.__type.slice() : [];
+    if (current_types.indexOf(type) === -1) {
+      // type not in the array yet
+      current_types.push(type);
+    }
     var typed_obj = clone_deep(obj);
-    typed_obj.__type = type;
+    typed_obj.__type = current_types;
     return typed_obj;
+  }
+
+  function has_custom_type(obj, custom_type) {
+    assert_signature('has_custom_type :: object -> string', arguments);
+    // TODO : add the ? and ! semantics
+    var parsed_string = parse_type_string(custom_type);
+    if (parsed_string.is_check_null && is_null(obj)) return true;
+    if (parsed_string.is_check_undefined && is_undefined(obj)) return true;
+
+    return obj.__type.indexOf(parsed_string.type_name) > -1;
   }
 
   /**
@@ -198,29 +214,27 @@ function require_utils(Rx, _, clone_deep, constants) {
     if (CHECK_TYPE) {
       var hash_errors = [];
       var arr_parameter_names = get_parameter_name_list(arguments.callee.caller);
-      console.log('arr_parameter_names', arr_parameter_names);
 
       // get the function name
       var double_colon_split = str_signature.split('::');
       var function_name = double_colon_split[0].trim();
       if (double_colon_split.length === 1 || function_name === '') throw 'Expecting a function name for the function to be type checked!';
       var type_split = double_colon_split[1].split('->');
-      if (type_split.length === 1) throw 'Expecting at least two types connected by an arrow for the function to be type checked!';
+      // TODO : deal with the case of function :: () - what ius the poit of type checking a function without arguments??
+      // if (type_split.length === 1) throw 'Expecting at least two types connected by an arrow for the function to be type checked!';
       type_split.forEach(function (type, index) {
-        debugger;
         type = type.trim();
+        // NOTE : not including type === '*' as the joker character is used alone
         if (type === '' || type === '?' || type === '!') throw 'Expecting types to be at least one character';
-        var first_char = type.charAt(0);
-        var type_name = (first_char === '?' || first_char === "!") ? type.substring(1) : type;
-        var is_check_undefined = first_char === '?';
-        var is_check_null = first_char === '!';
+        var parsed_type_string = parse_type_string(type);
+        var type_name = parsed_type_string.type_name;
+        var is_check_undefined = parsed_type_string.is_check_undefined;
+        var is_check_null = parsed_type_string.is_check_null;
+        var is_check_any = parsed_type_string.is_check_any;
         var parameter_name = arr_parameter_names[index];
         var argument = arr_args[index];
-        console.log('type name', type_name);
-        console.log('parameter_name', parameter_name);
-        console.log('argument', argument);
 
-        if (!check_type(argument, type_name, is_check_undefined, is_check_null)) {
+        if (!check_type(argument, type_name, is_check_undefined, is_check_null, is_check_any)) {
           var undefined_clause = is_check_undefined ? 'or undefined' : '';
           var null_clause = is_check_null ? 'or null' : '';
           var found_clause = is_undefined(argument) ? 'undefined'
@@ -246,6 +260,25 @@ function require_utils(Rx, _, clone_deep, constants) {
     }
   }
 
+  function parse_type_string(type_string) {
+    var first_char = type_string.charAt(0);
+    return {
+      type_name: (first_char === '?' || first_char === "!" || first_char === "*") ? type_string.substring(1) : type_string,
+      is_check_undefined: first_char === '?',
+      is_check_null: first_char === '!',
+      is_check_any: first_char === '*'
+    }
+  }
+
+  function assert_custom_type(obj, type, error_msg) {
+    if (CHECK_TYPE) {
+      if (!has_custom_type(obj, type)) {
+        console.error('assert_custom_type : expected type ' + type + ' for object ', obj);
+        throw ['assert_custom_type : expected type ' + type + ' for object ' + obj, error_msg].join('\n');
+      }
+    }
+  }
+
   /**
    * Examples of tests
    * 'function (a,b,c)...' // returns ["a","b","c"]
@@ -266,7 +299,7 @@ function require_utils(Rx, _, clone_deep, constants) {
    * @returns {Array.<T>}
    */
   function get_parameter_name_list(func) {
-// NOTE : taken verbatim from http://stackoverflow.com/questions/1007981/how-to-get-function-parameter-names-values-dynamically-from-javascript
+    // NOTE : taken verbatim from http://stackoverflow.com/questions/1007981/how-to-get-function-parameter-names-values-dynamically-from-javascript
     return (func + '').replace(/\s+/g, '')
         .replace(/[/][*][^/*]*[*][/]/g, '') // strip simple comments
         .split('){', 1)[0].replace(/^[^(]*[(]/, '') // extract the parameters
@@ -295,6 +328,20 @@ function require_utils(Rx, _, clone_deep, constants) {
     return obj === Object(obj);
   }
 
+  function is_promise(obj) {
+    // NOTE: very simple duck-typing test for now
+    return !!obj.then;
+  }
+
+  function is_observable(obj) {
+    // NOTE: very simple duck-typing test for now - suits Rxjs 4, 5
+    return !!obj.subscribe;
+  }
+
+  function is_array(obj) {
+    return Array.isArray(obj);
+  }
+
   /**
    * Returns false if the argument passed as parameter fail type checking
    * @param argument
@@ -303,7 +350,8 @@ function require_utils(Rx, _, clone_deep, constants) {
    * @param {Boolean} is_check_null
    * @returns Boolean Returns true if the argument passes the type checking
    */
-  function check_type(argument, type_name, is_check_undefined, is_check_null) {
+  function check_type(argument, type_name, is_check_undefined, is_check_null, is_check_any) {
+    if (is_check_any) return true;
     if (is_check_undefined && is_undefined(argument)) return true;
     if (is_check_null && is_null(argument)) return true;
     // TODO : complete the logic, for now we use the __type field
@@ -352,6 +400,138 @@ function require_utils(Rx, _, clone_deep, constants) {
     return get_fn_name(object.constructor);
   }
 
+  /**
+   * Creates and register a registry with the configuration passed as parameters. The registry implements an interface
+   * with default implementation which can be modified through methods passed in the configuration object.
+   *
+   * @param {String | Object} reg_config
+   * @param {String} reg_config.name
+   * @param {function (String)} [reg_config.validate_key] Takes a key and returns a validated key or throws a registry exception. By default, is the identity function.
+   * @param {function (String)} [reg_config.validate_value] Takes a value and returns a validated value or throws a registry exception. By default, is the identity function.
+   * @param {Boolean} [reg_config.overwrite=false]  If false, attempt to set a value for a key already present in the registry results in an exception
+   * @param {Boolean} [reg_config.silent_validation=false] If true, in a `add` operation, when a key/value fails validation no exception is raised, and registry is not updated
+   * @param {Boolean} [reg_config.silent_delete=false] If false, raises an exception when attempting to delete a key which does not exist
+   * @param {String} [reg_config.overwrite_error_message] Contains the exception message in case of forbidden overwrite
+   * @param {function set(*, String, *)} [reg_config.set] Function with signature (registry, config, key, value)
+   * @param {function get(*, String, *)} [reg_config.get] Function with signature (registry, config, key)
+   * @param {function remove(*, String, *)} [reg_config.remove] Function with signature (registry, config, key)
+   * @param {function has_key(*, Object, String)} [reg_config.has_key]
+   * @returns {{}}
+   */
+  function make_registry(reg_config) {
+    var reg_proto = {};
+    // NOTE : in default implementations, undefined is used to mark for deletion, null and false are considered
+    // normal key values
+    var fn_has_key_default = function fn_has_key(registry, key) {
+          return !is_undefined(registry[key]);
+        },
+        fn_add_default = function add(/*OUT*/registry, key, value) {
+          registry[key] = value;
+        },
+        fn_remove_default = function remove(/*OUT*/registry, key) {
+          registry[key] = undefined;
+        },
+        fn_get_default = function get_key(registry, key) {
+          return registry[key];
+        };
+
+    reg_proto.add_entry = function addEntry(/*OUT*/reg, full_reg_config, key, value) {
+      var validate_key = full_reg_config.validate_key,
+          validate_value = full_reg_config.validate_value,
+          fn_has_key = full_reg_config.fn_has_key,
+          fn_set = full_reg_config.fn_set,
+          registry = reg.registry;
+      var validated_key = Err.try_catch(validate_key)(key);
+      if (validated_key instanceof Error) {
+        if (full_reg_config.silent_validation) {
+          return null;
+        }
+        throw validated_key;
+      }
+      var validated_value = Err.try_catch(validate_value)(value);
+      if (validated_value instanceof Error) {
+        if (full_reg_config.silent_validation) {
+          return null;
+        }
+        throw validated_value;
+      }
+
+      if (fn_has_key(registry, validated_key) && !full_reg_config.overwrite) {
+        // throw error
+        throw Err.Registry_Error({
+          message: "Attempted to overwrite an existing key in a non-overwritable registry!",
+          extendedInfo: {registry: registry, key: key, validated_key: validated_key, value: value}
+        })
+      }
+      else {
+        // set the value in the registry
+        fn_set(registry, validated_key, validated_value);
+      }
+    };
+
+    reg_proto.get_entry = function get_entry(/*OUT*/reg, full_reg_config, key) {
+      var validate_key = full_reg_config.validate_key,
+          fn_has_key = full_reg_config.fn_has_key,
+          fn_get = full_reg_config.fn_get,
+          registry = reg.registry;
+      var validated_key = validate_key(key);
+
+      return fn_has_key(registry, validated_key)
+          ? fn_get(registry, validated_key)
+          : undefined
+    };
+
+    reg_proto.remove_entry = function remove_entry(/*OUT*/reg, full_reg_config, key) {
+      var validate_key = full_reg_config.validate_key,
+          fn_has_key = full_reg_config.fn_has_key,
+          fn_remove = full_reg_config.fn_remove,
+          registry = reg.registry;
+      var validated_key = validate_key(key);
+
+      if (!fn_has_key(registry, validated_key)) {
+        if (!full_reg_config.silent_delete) {
+          // If the key to delete do not exist and we asked (config) to not swallow the edge case, then raise an error
+          throw Err.Registry_Error({
+            message: "Attempted to remove a key which does not exist in the corresponding registry!",
+            extendedInfo: {registry: registry, key: key, validated_key: validated_key}
+          })
+        }
+        return null;
+      }
+      else {
+        // set the value in the registry
+        fn_remove(registry, validated_key);
+      }
+    };
+
+    reg_proto.has_key = function has_key(reg, full_reg_config, key) {
+      return full_reg_config.fn_has_key(reg.registry, full_reg_config.validate_key(key));
+    };
+
+    var full_reg_config = {
+      validate_key: reg_config.validate_key || identity, // validate_key :: key -> validated_key | Registry_Error
+      validate_value: reg_config.validate_value || identity, // validate_value :: value -> validated_value | Registry_Error
+      overwrite: reg_config.overwrite || false,
+      silent_validation: reg_config.silent_validation || false,
+      silent_delete: reg_config.silent_delete || false,
+      overwrite_error_message: reg_config.overwrite_error_message || "Tried to overwrite a registry with " +
+      "an entry whose key is already present : cannot overwrite!",
+      fn_set: reg_config.set || fn_add_default,
+      fn_get: reg_config.get || fn_get_default,
+      fn_has_key: reg_config.has_key || fn_has_key_default,
+      fn_remove: reg_config.remove || fn_remove_default
+    };
+
+    var new_reg = {};
+    new_reg.registry = {};
+    new_reg.set = reg_proto.add_entry.bind(new_reg, new_reg, full_reg_config);
+    new_reg.get = reg_proto.get_entry.bind(new_reg, new_reg, full_reg_config);
+    new_reg.remove = reg_proto.remove_entry.bind(new_reg, new_reg, full_reg_config);
+    new_reg.has_key = reg_proto.has_key.bind(new_reg, new_reg, full_reg_config);
+
+    return new_reg;
+  }
+
   return {
     identity: identity,
     sum: sum,
@@ -367,19 +547,50 @@ function require_utils(Rx, _, clone_deep, constants) {
     always: always,
     defer_fn: defer_fn,
     compose_fns: compose_fns,
+    and: and,
+    or: or,
+    not: not,
+    noop: noop,
     args_to_array: args_to_array,
     get_prop: get_prop,
     get_timestamp: get_timestamp,
     clone_deep: clone_deep,
-    noop: noop,
     is_function: is_function,
     is_object: is_object,
+    is_promise: is_promise,
+    is_observable: is_observable,
+    is_array: is_array,
     is_empty: is_empty,
     is_null: is_null,
     is_undefined: is_undefined,
     merge: merge,
     get_fn_name: get_fn_name,
     new_typed_object: new_typed_object,
-    assert_signature : assert_signature
+    assert_signature: assert_signature,
+    assert_custom_type: assert_custom_type,
+    has_custom_type: has_custom_type,
+    make_registry: make_registry
   }
 }
+
+/**
+ @typedef url
+ @type {String}
+ Example : '/url_seg?qry_seg{obj_seg_prop: value}/url_seg1?qry_seg1{obj_seg1_prop: value}#hash'
+ */
+
+/**
+ @typedef url_frag
+ @type {Array<url>}
+ Example :
+ */
+
+/**
+ @typedef p_url_seg
+ @type {Object}
+ @property {String} url_seg xxx
+ @property {Object} [qry_seg] xxx
+ @property {Object} [obj_seg] xxx
+ @property {String} [hash] xxx
+ Example : {}
+ */

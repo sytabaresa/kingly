@@ -2,14 +2,15 @@ define(function (require) {
     // SOURCE : http://www.bennadel.com/blog/2828-creating-custom-error-objects-in-node-js-with-error-capturestacktrace.htm
     // Cf. also, http://stackoverflow.com/questions/1382107/whats-a-good-way-to-extend-error-in-javascript/27925672#27925672
     //   answer by Ruben Verborgh, it seems the best
-    var utils = require('utils');
     var _ = require('lodash');
 
-    return require_custom_errors(utils, _);
+    return require_custom_errors(_);
 });
 
-function require_custom_errors(utils, _) {
-    var log = utils.log;
+function require_custom_errors(_) {
+    function log(x) {
+        console.log(_.cloneDeep(x));
+    }
 
     function AppErrorToString(error) {
         log(error.stack);
@@ -82,9 +83,17 @@ function require_custom_errors(utils, _) {
         fnToString(this);
     }
 
-    _.inherit(AppError, Error);
+    function inherit(child, base, props) {
+        child.prototype = _.create(base.prototype, _.assign({
+            '_super': base.prototype,
+            'constructor': child
+        }, props));
+        return child;
+    }
 
-    // custom tryCatch function to catch errors before deciding on action
+    inherit(AppError, Error);
+
+    // custom try_catch function to catch errors before deciding on action
     function tryCatcherGen(tryCatchTarget) {
         return function tryCatcher() {
             try {
@@ -104,7 +113,8 @@ function require_custom_errors(utils, _) {
     };
 
     return {
-        tryCatch: tryCatch,
-        SM_Error: createAppError('SM_Error')
+        try_catch: tryCatch,
+        SM_Error: createAppError('SM_Error'),
+        Registry_Error : createAppError('Registry_Error'),
     }
 }

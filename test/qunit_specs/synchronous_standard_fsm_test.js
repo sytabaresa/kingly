@@ -174,7 +174,7 @@ define(function (require) {
             },
             to: 'irrelevant here'
         };
-        var error = Err.tryCatch(arr_transitions.action)();
+        var error = Err.try_catch(arr_transitions.action)();
 
         assert.deepEqual(
             synchronous_fsm.evaluate_internal_transitions(fsm_internal_states, arr_transitions, fsm_state, internal_event),
