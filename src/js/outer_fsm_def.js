@@ -7,20 +7,20 @@ define(function (require) {
 });
 
 function require_outer_fsm_def(Err, utils, constants) {
-  const EXPECTING_INTENT = constants.EXPECTING_INTENT;
-  const EXPECTING_EFFECT_RESULT = constants.EXPECTING_ACTION_RESULT;
+  var EXPECTING_INTENT = constants.EXPECTING_INTENT;
+  var EXPECTING_EFFECT_RESULT = constants.EXPECTING_ACTION_RESULT;
   // The following three are events for the outer fsm
-  const EV_INTENT = constants.EV_INTENT;
-  const EV_EFFECT_RES = constants.EV_EFFECT_RES;
-  const EV_TRACE = constants.EV_TRACE;
+  var EV_INTENT = constants.EV_INTENT;
+  var EV_EFFECT_RES = constants.EV_EFFECT_RES;
+  var EV_TRACE = constants.EV_TRACE;
   // The following three are events for the inner fsm
-  const EV_CODE_TRACE = constants.EV_CODE_TRACE;
-  const EV_CODE_AUTO = constants.EV_CODE_AUTO;
-  const EV_CODE_INIT = constants.EV_CODE_INIT;
-  const INITIAL_STATE_NAME = constants.INITIAL_STATE_NAME;
+  var EV_CODE_TRACE = constants.EV_CODE_TRACE;
+  var EV_CODE_AUTO = constants.EV_CODE_AUTO;
+  var EV_CODE_INIT = constants.EV_CODE_INIT;
+  var INITIAL_STATE_NAME = constants.INITIAL_STATE_NAME;
   // Action-handler-related constants
-  const PURE_ACTION_HANDLER = constants.PURE_ACTION_HANDLER;
-  const EVENT_HANDLER_RESULT = constants.EVENT_HANDLER_RESULT;
+  var PURE_ACTION_HANDLER = constants.PURE_ACTION_HANDLER;
+  var EVENT_HANDLER_RESULT = constants.EVENT_HANDLER_RESULT;
 
   function get_internal_sync_fsm() {
     ////////////

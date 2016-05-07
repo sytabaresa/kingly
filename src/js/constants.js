@@ -10,7 +10,7 @@ define(function (require) {
     EV_CODE_INIT: 'init',
     INITIAL_STATE_NAME: 'nok',
     ACTION_IDENTITY: 'identity',
-    STATE_PROTOTYPE_NAME: 'State',
+    STATE_PROTOTYPE_NAME: 'State', // !!must be the function name for the constructor State, i.e. State
     CHECK_TYPE: true,
     ACTION_HANDLER_IDENTITY: function action_handler_identity(model, event_data) {
       return model;
@@ -20,7 +20,7 @@ define(function (require) {
     ACTION_SEQUENCE_HANDLER: 'action_sequence_handler',
     EVENT_HANDLER_RESULT: 'event_handler_result',
     EFFECT_HANDLER : 'effect_handler',
-    DRIVER_FACTORY : 'driver_factory',
+    DRIVER_REGISTRY : 'driver_registry',
     commands : {
       EXECUTE : 'command_execute',
       CANCEL : 'command_cancel'

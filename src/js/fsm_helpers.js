@@ -1,8 +1,8 @@
 define(function (require) {
     var constants = require('constants');
     var utils = require('utils');
-    const INITIAL_STATE_NAME = constants.INITIAL_STATE_NAME;
-    const EV_CODE_INIT = constants.EV_CODE_INIT;
+    var  INITIAL_STATE_NAME = constants.INITIAL_STATE_NAME;
+    var  EV_CODE_INIT = constants.EV_CODE_INIT;
 
     function make_action_DSL(action_list) {
         // action_list is an array whose entries are actions (functions)

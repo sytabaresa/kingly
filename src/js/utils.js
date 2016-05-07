@@ -118,6 +118,10 @@ function require_utils(Rx, _, Err, constants) {
     }
   }
 
+  function emits (label){
+    return function(x){console.log.call(console, label,x)}
+  }
+
   function noop() {
   }
 
@@ -162,7 +166,10 @@ function require_utils(Rx, _, Err, constants) {
   function get_fn_name(fn) {
     var tokens =
         /^[\s\r\n]*function[\s\r\n]*([^\(\s\r\n]*?)[\s\r\n]*\([^\)\s\r\n]*\)[\s\r\n]*\{((?:[^}]*\}?)+)\}\s*$/
-            .exec(fn.toString());
+            .exec(fn.toString())
+          // For some reasons the previous regexp does not work with function of two parameters
+          // But this one does not filter out possible comments in between `function` and function name...
+        || fn.toString().match(/function ([^\(]+)/)
     return tokens[1];
   }
 
@@ -182,8 +189,7 @@ function require_utils(Rx, _, Err, constants) {
   }
 
   function has_custom_type(obj, custom_type) {
-    assert_signature('has_custom_type :: object -> string', arguments);
-    // TODO : add the ? and ! semantics
+    // assert_signature('has_custom_type :: object -> string', arguments);
     var parsed_string = parse_type_string(custom_type);
     if (parsed_string.is_check_null && is_null(obj)) return true;
     if (parsed_string.is_check_undefined && is_undefined(obj)) return true;
@@ -234,7 +240,7 @@ function require_utils(Rx, _, Err, constants) {
         var parameter_name = arr_parameter_names[index];
         var argument = arr_args[index];
 
-        if (!check_type(argument, type_name, is_check_undefined, is_check_null, is_check_any)) {
+        if (!assert_type(argument, type_name, undefined, is_check_undefined, is_check_null, is_check_any)) {
           var undefined_clause = is_check_undefined ? 'or undefined' : '';
           var null_clause = is_check_null ? 'or null' : '';
           var found_clause = is_undefined(argument) ? 'undefined'
@@ -277,6 +283,77 @@ function require_utils(Rx, _, Err, constants) {
         throw ['assert_custom_type : expected type ' + type + ' for object ' + obj, error_msg].join('\n');
       }
     }
+  }
+
+  /**
+   * Returns false if the argument passed as parameter fail type checking
+   * @param argument
+   * @param {String} type_name
+   * @param {Boolean} is_check_undefined A value of `true` means that the value undefined passes the type checking
+   * @param {Boolean} is_check_null
+   * @returns {*} Returns true if the argument passes the type checking
+   * @param error_msg
+   * @param is_check_any
+   */
+  function assert_type(argument, type_name, error_msg, is_check_undefined, is_check_null, is_check_any) {
+    if (is_check_any) return true;
+    if (is_undefined(argument)) return either(is_check_undefined, error_msg);
+    if (is_null(argument)) return either(is_check_null, error_msg);
+    // TODO : complete the logic, for now we use the __type field
+    // TODO : also does not discriminate array and regexp (there are seen as regular objects)
+    if (is_object(argument)) {
+      return either(((typeof argument === type_name)
+          || is_type_in_prototype_chain(argument, type_name)
+          || (argument && has_custom_type(argument, type_name))),
+          error_msg);
+    }
+    else {
+      // primitive type (!! null and undefined are primitive types too)
+      if (typeof argument === "undefined") return either(false, error_msg);
+      if (argument === null && typeof argument === "object") return either(false, error_msg); // obsolete now
+      return either(typeof argument === type_name, error_msg);
+    }
+  }
+
+  function either(bool, error_msg) {
+    if (!bool && error_msg) throw_err(error_msg);
+    return bool;
+  }
+
+  function throw_err(error_msg) {
+    console.error(error_msg);
+    throw (Err[error_msg.type] || Err.SM_Error)(error_msg);
+  }
+
+  function is_type_in_prototype_chain(object, type) {
+
+    var curObj = object,
+        inst_of,
+        aTypes;
+
+    if (typeof type !== 'string' && typeof type.length === 'undefined') {
+      // neither array nor string
+      throw 'is_type_in_prototype_chain: wrong parameter type for parameter type: expected string or array'
+    }
+    aTypes = (typeof type === 'string') ? [type] : type;
+
+    //check that object is of type object, otherwise it is a core type, which is out of scope
+    // !! : null has type 'object' but is in no prototype chain
+    if ('object' !== typeof object || object === null) {
+      return false;
+    }
+
+    do {
+      inst_of = get_constructor_name(Object.getPrototypeOf(curObj));
+      curObj = Object.getPrototypeOf(curObj);
+    }
+    while (inst_of !== 'Object' && aTypes.indexOf(inst_of) === -1);
+    return (aTypes.indexOf(inst_of) !== -1);
+  }
+
+  function get_constructor_name(object) {
+    // NOTE : that would fail in case of function /*asdas*/ name()
+    return get_fn_name(object.constructor);
   }
 
   /**
@@ -330,74 +407,16 @@ function require_utils(Rx, _, Err, constants) {
 
   function is_promise(obj) {
     // NOTE: very simple duck-typing test for now
-    return !!obj.then;
+    return obj && !!obj.then;
   }
 
   function is_observable(obj) {
     // NOTE: very simple duck-typing test for now - suits Rxjs 4, 5
-    return !!obj.subscribe;
+    return obj && !!obj.subscribe;
   }
 
   function is_array(obj) {
     return Array.isArray(obj);
-  }
-
-  /**
-   * Returns false if the argument passed as parameter fail type checking
-   * @param argument
-   * @param {String} type_name
-   * @param {Boolean} is_check_undefined A value of `true` means that the value undefined passes the type checking
-   * @param {Boolean} is_check_null
-   * @returns Boolean Returns true if the argument passes the type checking
-   */
-  function check_type(argument, type_name, is_check_undefined, is_check_null, is_check_any) {
-    if (is_check_any) return true;
-    if (is_check_undefined && is_undefined(argument)) return true;
-    if (is_check_null && is_null(argument)) return true;
-    // TODO : complete the logic, for now we use the __type field
-    // TODO : also does not discriminate array and regexp (there are seen as regular objects)
-    if (is_object(argument)) {
-      return ((typeof argument === type_name)
-      || is_type_in_prototype_chain(argument, type_name)
-      || (argument && argument.__type === type_name));
-    }
-    else {
-      // primitive type (!! null and undefined are primitive types too)
-      if (typeof argument === "undefined") return false;
-      if (argument === null && typeof argument === "object") return false;
-      return typeof argument === type_name;
-    }
-  }
-
-  function is_type_in_prototype_chain(object, type) {
-
-    var curObj = object,
-        inst_of,
-        aTypes;
-
-    if (typeof type !== 'string' && typeof type.length === 'undefined') {
-      // neither array nor string
-      throw 'is_type_in_prototype_chain: wrong parameter type for parameter type: expected string or array'
-    }
-    aTypes = (typeof type === 'string') ? [type] : type;
-
-    //check that object is of type object, otherwise it is a core type, which is out of scope
-    // !! : null has type 'object' but is in no prototype chain
-    if ('object' !== typeof object || object === null) {
-      return false;
-    }
-
-    do {
-      inst_of = get_constructor_name(Object.getPrototypeOf(curObj));
-      curObj = Object.getPrototypeOf(curObj);
-    }
-    while (inst_of !== 'Object' && aTypes.indexOf(inst_of) === -1);
-    return (aTypes.indexOf(inst_of) !== -1);
-  }
-
-  function get_constructor_name(object) {
-    // NOTE : that would fail in case of function /*asdas*/ name()
-    return get_fn_name(object.constructor);
   }
 
   /**
@@ -460,7 +479,7 @@ function require_utils(Rx, _, Err, constants) {
         // throw error
         throw Err.Registry_Error({
           message: "Attempted to overwrite an existing key in a non-overwritable registry!",
-          extendedInfo: {registry: registry, key: key, validated_key: validated_key, value: value}
+          extended_info: {registry: registry, key: key, validated_key: validated_key, value: value}
         })
       }
       else {
@@ -493,7 +512,7 @@ function require_utils(Rx, _, Err, constants) {
           // If the key to delete do not exist and we asked (config) to not swallow the edge case, then raise an error
           throw Err.Registry_Error({
             message: "Attempted to remove a key which does not exist in the corresponding registry!",
-            extendedInfo: {registry: registry, key: key, validated_key: validated_key}
+            extended_info: {registry: registry, key: key, validated_key: validated_key}
           })
         }
         return null;
@@ -568,22 +587,11 @@ function require_utils(Rx, _, Err, constants) {
     new_typed_object: new_typed_object,
     assert_signature: assert_signature,
     assert_custom_type: assert_custom_type,
+    assert_type: assert_type,
     has_custom_type: has_custom_type,
     make_registry: make_registry
   }
 }
-
-/**
- @typedef url
- @type {String}
- Example : '/url_seg?qry_seg{obj_seg_prop: value}/url_seg1?qry_seg1{obj_seg1_prop: value}#hash'
- */
-
-/**
- @typedef url_frag
- @type {Array<url>}
- Example :
- */
 
 /**
  @typedef p_url_seg

@@ -13,7 +13,7 @@
     <!-- <script data-main="requirejs-starter" src="../src/js/vendor/require.js"></script>-->
     <script src="../src/js/vendor/require.js"></script>
     <!-- Blanket-->
-    <script src="../src/js/vendor/blanket.min.js" data-cover-never="//.*_test|.*vendor|utils/i"></script>
+    <script src="../src/js/vendor/blanket.js" data-cover-never="//.*_test|.*vendor|utils/i"></script>
 </head>
 <body>
 <!--  testing ----------- -->
@@ -50,8 +50,8 @@
         // but here the path for `require` dependencies is still relative to the `index.html`
 //        "qunit_specs/synchronous_standard_fsm_test.js",
 //        "qunit_specs/asynchronous_fsm_test.js",
-        "qunit_specs/utils_test.js",
-//        "qunit_specs/asynchronous_fsm_action_test.js"
+//        "qunit_specs/utils_test.js",
+        "qunit_specs/asynchronous_fsm_action_test.js"
     ], function () {
         console.info("Starting QUnit tests");
         QUnit.start();

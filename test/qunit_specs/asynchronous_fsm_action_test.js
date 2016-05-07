@@ -6,7 +6,8 @@ define(function (require) {
   var fsm_helpers = require('fsm_helpers');
   var constants = require('constants');
 
-  var EV_CODE_INIT = constants.EV_CODE_INIT;
+  const EV_CODE_INIT = constants.EV_CODE_INIT;
+  const EXECUTE = constants.commands.EXECUTE;
 
   window.onerror = function (msg, url, lineNo, columnNo, error) {
     console.error(error);
@@ -385,6 +386,132 @@ define(function (require) {
     }
 
     // END
+  });
+
+  QUnit.test("make_effect_driver(effect_registry_)(effect_req$)", function (assert) {
+    var done = assert.async(1); // Cf. https://api.qunitjs.com/async/
+    function test_on_complete() {
+      console.log('arr_traces', arr_traces);
+      done()
+    }
+
+    var effect_response$;
+    var arr_traces = [];
+
+    var effect_req$ = new Rx.BehaviorSubject();
+    effect_req$.subscribe(function () {
+    }, function (e) {
+      console.log('effect_req error', e), function () {
+        console.log('replay completed..')
+      }
+    });
+
+    var effect_registry = {
+      factory_test_driver_no_err: {
+        factory: function (settings, a) {
+          assert.deepEqual(settings, effect_registry.factory_test_driver_no_err.settings.factory_test_driver_name, 'factory function for driver is called with `settings` parameter as unique parameter')
+          assert.deepEqual(undefined, a, '');
+          return function driver_stream_operator_no_err(effect_req$) {
+            //            return Rx.Observable.from([24, 42, 66]);
+            return effect_req$
+                .do(utils.rxlog('effect_req entry in driver'))
+              //                .map(function(effect_req){return effect_req.params + 24})
+                .flatMap(function (effect_req) {
+                  return Rx.Observable.from([effect_req.params + 24, effect_req.params + 42, effect_req.params + 66]);
+                })
+            // TODO !! shoud return one value for each effect_req... how to enforce it????? We can't!!
+            // both those values will come with the same token!!
+            // use withLatestFrom, sample, first??
+          }
+        },
+        settings: {
+          factory_test_driver_name: {key: 'value'}
+        }
+      },
+      factory_test_driver_throw_err: {
+        factory: function (settings, a) {
+          return function factory_test_driver_throw_err(effect_req$) {
+            throw (new Error('factory_test_driver_throw_err rerr!'));
+          }
+        },
+        settings: {
+          factory_test_driver_name: {key: 'value'}
+        }
+      },
+      factory_test_driver_returns_err: {
+        factory: function (settings, a) {
+          return function factory_test_driver_returns_err(effect_req$) {
+            return Rx.Observable.throw(new Error('factory_test_driver_returns_err error!'));
+          }
+        },
+        settings: {
+          factory_test_driver_name: {key: 'value'}
+        }
+      },
+      handler_test_driver: function test_handler(req_params) {
+        assert.deepEqual(req_params, 'test_params');
+        return 'test_handler_return_value';
+      }
+    };
+    effect_response$ = fsm.make_effect_driver(effect_registry)(effect_req$);
+    effect_response$.subscribe(
+        function record_sequence(x) {
+          console.log('pushing value')
+          arr_traces.push(x);
+        }, function error(e) {
+          console.error('effect_response errror', e);
+          throw e;
+        },
+        test_on_complete);
+
+
+    // Sequence of testing events
+    //    /*
+    exec_on_tick(effect_req$.onNext.bind(effect_req$), 10)({
+      driver: {family: 'factory_test_driver_no_err', name: 'factory_test_driver_name'},
+      address: {},
+      params: 0,
+      command: EXECUTE
+    });
+    //    */
+    /*
+     exec_on_tick(effect_req$.onNext.bind(effect_req$), 20)({
+     driver: {family: 'handler_test_driver', name: 'handler_test_driver_name'},
+     address: {token: 1},
+     params: 'test_params',
+     command: EXECUTE
+     });
+     exec_on_tick(effect_req$.onNext.bind(effect_req$), 30)({
+     driver: {family: 'factory_test_driver_throw_err', name: 'factory_test_driver_name'},
+     address: {uri: 'another_test_uri', token: 2},
+     command: EXECUTE
+     });
+     */
+    //       /*
+    exec_on_tick(effect_req$.onNext.bind(effect_req$), 40)({
+      driver: {family: 'factory_test_driver_no_err', name: 'factory_test_driver_name'},
+      address: {uri: 'test_uri', token: 3},
+      params: 10,
+      command: EXECUTE
+    });
+    exec_on_tick(effect_req$.onNext.bind(effect_req$), 40)({
+      driver: {family: 'factory_test_driver_no_err', name: 'factory_test_driver_name'},
+      address: {uri: 'test_uri', token: 5},
+      params: 20,
+      command: EXECUTE
+    });
+    //        */
+    /*
+     exec_on_tick(effect_req$.onNext.bind(effect_req$), 50)({
+     driver: {family: 'factory_test_driver_returns_err', name: 'factory_test_driver_name'},
+     address: {uri: 'yet_another_test_uri', token: 4},
+     command: EXECUTE
+     });
+     */
+
+    exec_on_tick(effect_req$.onCompleted.bind(effect_req$), 200)();
+
+
   });
 
   // SUBGROUP : ...

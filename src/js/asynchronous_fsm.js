@@ -65,36 +65,34 @@ define(function (require) {
   var Err = require('custom_errors');
   var Rx = require('rx');
   var _ = require('lodash');
-  var Hashmap = require('hashmap');
   var synchronous_fsm = require('synchronous_standard_fsm');
   var outer_fsm_def = require('outer_fsm_def');
   var constants = require('constants');
   var fsm_helpers = require('fsm_helpers');
 
-  return require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Hashmap, Rx, Err, utils, constants);
+  return require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err, utils, constants);
 });
 
-function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Hashmap, Rx, Err, utils, constants) {
+function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err, utils, constants) {
 
   // CONSTANTS
-  // !!must be the function name for the constructor State, i.e. State
-  const STATE_PROTOTYPE_NAME = constants.STATE_PROTOTYPE_NAME;
-  const ACTION_IDENTITY = constants.ACTION_IDENTITY;
-  const INITIAL_STATE_NAME = constants.INITIAL_STATE_NAME;
-  const EV_CODE_TRACE = constants.EV_CODE_TRACE;
-  const EV_CODE_AUTO = constants.EV_CODE_AUTO;
-  const EV_CODE_INIT = constants.EV_CODE_INIT;
-  const EV_INTENT = constants.EV_INTENT;
-  const EV_EFFECT_RES = constants.EV_EFFECT_RES;
-  const EV_TRACE = constants.EV_TRACE;
-  const PURE_ACTION_HANDLER = constants.PURE_ACTION_HANDLER;
-  const ACTION_SEQUENCE_HANDLER = constants.ACTION_SEQUENCE_HANDLER;
-  const EVENT_HANDLER_RESULT = constants.EVENT_HANDLER_RESULT;
-  const ACTION_HANDLER_IDENTITY = constants.ACTION_HANDLER_IDENTITY;
-  const COMMAND_EXECUTE = constants.commands.EXECUTE;
-  const COMMAND_CANCEL = constants.commands.CANCEL;
-  const EFFECT_HANDLER = constants.EFFECT_HANDLER;
-  const DRIVER_FACTORY = constants.DRIVER_FACTORY;
+  var STATE_PROTOTYPE_NAME = constants.STATE_PROTOTYPE_NAME;
+  var ACTION_IDENTITY = constants.ACTION_IDENTITY;
+  var INITIAL_STATE_NAME = constants.INITIAL_STATE_NAME;
+  var EV_CODE_TRACE = constants.EV_CODE_TRACE;
+  var EV_CODE_AUTO = constants.EV_CODE_AUTO;
+  var EV_CODE_INIT = constants.EV_CODE_INIT;
+  var EV_INTENT = constants.EV_INTENT;
+  var EV_EFFECT_RES = constants.EV_EFFECT_RES;
+  var EV_TRACE = constants.EV_TRACE;
+  var PURE_ACTION_HANDLER = constants.PURE_ACTION_HANDLER;
+  var ACTION_SEQUENCE_HANDLER = constants.ACTION_SEQUENCE_HANDLER;
+  var EVENT_HANDLER_RESULT = constants.EVENT_HANDLER_RESULT;
+  var ACTION_HANDLER_IDENTITY = constants.ACTION_HANDLER_IDENTITY;
+  var COMMAND_EXECUTE = constants.commands.EXECUTE;
+  var COMMAND_CANCEL = constants.commands.CANCEL;
+  var EFFECT_HANDLER = constants.EFFECT_HANDLER;
+  var DRIVER_REGISTRY = constants.DRIVER_REGISTRY;
 
   function make_intent(code, payload) {
     return {code: code, payload: payload}
@@ -515,7 +513,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Hashmap,
     record.model = model;
     record.model_update = model_update || {};
     record.timestamp = utils.get_timestamp();
-    recoverable_error && (record.recoverable_error = recoverable_error);
+    if (recoverable_error) record.recoverable_error = recoverable_error;
     return record;
   }
 
@@ -713,7 +711,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Hashmap,
       fsm_state$: fsm_state$, // NOTE : already shared
       model_update$: model_update$.share(), // object representing the updates to do on the current model
       model$: model$.share(), // the updated model TODO : maybe remove, as it is already in fsm_state, and that avoid desync
-      effect_req$: effect_req$.shareReplay(1),
+      effect_req$: effect_req$.replay(1),
       program_generated_intent_req$: program_generated_intent_req$,
       trace$: traceS,
       dispose_listeners: dispose_listeners
@@ -742,7 +740,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Hashmap,
 
     function start() {
       // Connecting requests streams to responses
-      effect_req_disposable = make_effect_handler_operator(effect_hash)(fsm_sinks.effect_req$)
+      effect_req_disposable = make_effect_driver(effect_hash)(fsm_sinks.effect_req$)
           .subscribe(effect_resS);
       program_generated_intent_req_disposable = fsm_sinks.program_generated_intent_req$
           .subscribe(program_generated_intentS);
@@ -855,71 +853,23 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Hashmap,
     }
   }
 
-  function make_effect_handler_operator(effect_hash) {
-    // An effect is a function :: model -> event_data -> model
-    // 1. From the function list, we derive an enumeration from the function names
-    //    By construction there cannot be two functions with the same name
-    //    The function names will serve as the DSL to represent the actions
-    // The resulting DSL is generated to serve as input to the main
-    // effect_req maker
-    return function effect_req_interpreter(effect_req$) {
-      // 1. Look up effect_req in list of actions
-      // 2. If not there, return error code or send error through subject
-      // 3. If there, then execute the action
-      var error_handler = function error_handler(e) {
-        console.error('effect_req_interpreter : error ', e);
-        return Rx.Observable.throw(e);
-      };
-
-      var effect_res$ = effect_req$
-          .finally(function () {
-            console.log('effect_res$ terminated!!!!')
-          })
-          .flatMap(function (effect_req) {
-            var effect_payload = effect_req.payload;
-            var effect_enum = effect_req.effect_req;
-            var model = effect_req.model;
-            var effect = effect_hash[effect_enum];
-            if (effect) {
-              // CASE : we do have some actions to execute
-              var effect_res = Err.try_catch(function execute_effect(effect, effect_payload) {
-                console.info("THEN : we execute the effect " + effect.name);
-                return effect(model, effect_payload);
-              })(effect, effect_payload);
-              if (effect_res instanceof Error) {
-                return Rx.Observable.return(effect_res);
-              }
-              else return utils.to_observable(effect_res);
-            }
-            else {
-              // TODO : be careful, they say flatMap swallow errors, That should be a fatal error
-              return Rx.Observable.throw('no effect found for effect code ' + effect_enum);
-            }
-          })
-          .catch(error_handler);
-      return effect_res$;
-    }
-  }
-
-  return {
-    make_fsm: make_fsm,
-    transduce_fsm_streams: transduce_fsm_streams,
-    process_fsm_internal_transition: process_fsm_internal_transition
-  };
-
-
   /**
-   * @typedef {object} Driver_Settings
+   * @typedef {Object} Driver_Settings
+   */
+  /**
+   * @typedef {Object<String, Driver_Settings>} Driver_Settings_Registry
+   * @dict driver_name
    */
   /**
    * @typedef {function(Rx.Observable):Rx.Observable} Driver_Operator
    */
   /**
-   * @typedef {{settings: Driver_Settings, operator:Driver_Operator}} Driver_Record
+   * @typedef {function(Driver_Settings):Driver_Operator} Driver_Factory
    */
   /**
-   * @typedef {Object<String, Driver_Record>} Driver_Registry
-   * @dict driver_name
+   * @typedef {Object} Driver_Registry
+   * @property {factory} Driver_Factory
+   * @property {settings} Driver_Settings_Registry
    */
   /**
    * @typedef {function(effect_req_params : object)} Effect_Handler
@@ -929,18 +879,80 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Hashmap,
    * @dict driver_family
    */
   /**
+   * @typedef {Object} Effect_Request
+   * @property {Driver_Struct} driver
+   * @property {Address_Struct} address
+   * @property {String} command
+   */
+  /**
+   * @typedef {Object} Driver_Struct
+   * @property {String} family
+   * @property {String} name
+   */
+  /**
+   * @typedef {Object} Address_Struct
+   * @property {String} uri
+   * @property {Number|String} token
+   */
+
+  /**
    *
-   * @param {Effect_Registry} effect_registry
+   * @param {Effect_Registry} effect_registry_
    * @returns {Function}
    */
-  function make_effect_driver(effect_registry) {
-
+  function make_effect_driver(effect_registry_) {
     ///////////
     // Helpers
-    function filter_request_by_driver_family(driver) {
+    // TODO : update the types above to the changed API
+    //        now Effect_Registry is double dict {family : { driver_name : function | {factory, settings}}
+    function set_effect_registry_custom_types(effect_registry) {
+      var typed_registry = {};
+      _.forEach(effect_registry, function (effect_handler_or_driver_registry, driver_family) {
+        if (utils.is_function(effect_handler_or_driver_registry)) {
+          // Case : effect_handler
+          typed_registry[driver_family] = utils.new_typed_object(effect_handler_or_driver_registry, EFFECT_HANDLER);
+        }
+        else {
+          utils.assert_type(effect_handler_or_driver_registry, 'object', {
+            message: 'set_effect_registry_custom_types : effect_registry : found an driver_family which is undefined or not an object!',
+            extended_info: {effect_registry: effect_registry, driver_family: driver_family}
+          });
+          var factory = effect_handler_or_driver_registry.factory;
+          utils.assert_type(factory, 'function', {
+            message: 'set_effect_registry_custom_types : effect_registry : factory for driver family must be a function!',
+            extended_info: {
+              effect_registry: effect_registry,
+              effect_handler_or_driver_registry: effect_handler_or_driver_registry
+            }
+          });
+          var settings_registry = effect_handler_or_driver_registry.settings;
+          if (utils.is_undefined(settings_registry)) throw Err.Registry_Error({
+            message: 'set_effect_registry_custom_types : effect_registry : no driver settings found for driver family!',
+            extended_info: {
+              effect_registry: effect_registry,
+              driver_family: driver_family
+            }
+          });
+          _.forEach(settings_registry, function (settings, driver_name) {
+            utils.assert_type(driver_name, 'string', {
+              message: 'set_effect_registry_custom_types : effect_registry : driver name must be a non-empty string!',
+              extended_info: {
+                effect_registry: effect_registry,
+                driver_family: driver_family,
+                driver_name: driver_name
+              }
+            });
+          });
+          typed_registry[driver_family] = utils.new_typed_object(effect_handler_or_driver_registry, DRIVER_REGISTRY)
+        }
+      });
+      return typed_registry;
+    }
+
+    function filter_request_by_driver_family(family, driver_name) {
       return function filter_request_by_driver_family(effect_req) {
-        return (effect_req.driver.family === driver.family
-        && _.isEqual(effect_req.driver.settings, driver.settings));
+        return (effect_req.driver.family === family
+        && effect_req.driver.name === driver_name);
       }
     }
 
@@ -966,7 +978,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Hashmap,
     }
 
     function decorate_with_request_info(effect_result$, effect_req$) {
-      return Rx.observable.zip(
+      return Rx.Observable.zip(
           effect_result$,
           effect_req$,
           function (effect_result, effect_req) {
@@ -975,39 +987,35 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Hashmap,
       )
     }
 
-    function validate_driver_registry_key(key) {
-      // key :: {family:: driver_family, settings:: driver_settings}
-      var driver_settings = key.settings;
-      var driver_family = key.family;
-      if (!driver_family) throw 'effect_driver_initial_state.cache : validate_key : invalid key passed!'
-      if (!driver_settings) throw 'effect_driver_initial_state.cache : validate_key : invalid key passed!'
-      // NOTE : JSON.stringify does not guarantee order of scanning through object properties,
-      // so it is possible to have identitical objects with different parsing!!
-      var json_parsed_settings = JSON.stringify(driver_settings);
-      if (JSON.parse(json_parsed_settings) !== driver_settings) {
-        throw 'effect_driver_initial_state.cache : validate_key : cannot use settings as part of a key!'
-      }
-      return [driver_family, json_parsed_settings].join('|');
+    function enrich_effect_res_error(error, effect_registry, effect_req) {
+      error.extended_info = error.extended_info || {};
+      error.extended_info.effect_registry = effect_registry;
+      error.extended_info.effect_req = effect_req;
+    }
+
+    function execute_effect_handler(effect_handler_or_driver_registry, effect_req_params) {
+      console.info("THEN : we execute the effect " + effect_handler_or_driver_registry.name);
+      return effect_handler_or_driver_registry(effect_req_params);
     }
 
     /**
      * Side-effects : updates `effect_driver_state.cancelled_requests`
      * @param effect_driver_state
-     * @param effect_req
+     * @param {Effect_Request} effect_req
      * @returns {*}
      */
     function process_effect_request_cancellation(effect_driver_state, effect_req) {
+      /** @type Address_Struct*/
       var address = effect_req.address;
       var address_uri = address.uri;
       var address_token = address.token;
-      var driver = effect_req.driver;
 
       var cancelled_requests = effect_driver_state.cancelled_requests || {};
       if (!(cancelled_requests[address_uri] && cancelled_requests[address_uri][address_token])) {
         // Case : cancelled command is not already in the cancelled commands structure
         // Add it
         cancelled_requests[address_uri] = cancelled_requests[address_uri] || {};
-        cancelled_requests[address_uri][address_token] = {driver: driver}
+        cancelled_requests[address_uri][address_token] = {}; // any truthy value here works
       }
       return effect_driver_state;
     }
@@ -1015,25 +1023,33 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Hashmap,
     /**
      * Side-effects : updates `effect_driver_state.effect_response$`
      * @param effect_driver_state
-     * @param effect_req
-     * @param effect_registry
-     * @param effect_req$
+     * @param {Effect_Request} effect_req
+     * @param {Effect_Registry} effect_registry
+     * @param {Rx.Observable} effect_req$
      * @returns {*}
      */
-    function process_effect_request_execution(effect_driver_state, effect_req, effect_registry, effect_req$) {
+    function process_effect_request_execution(effect_driver_state, effect_registry, effect_req, effect_req$) {
       var driver = effect_req.driver;
       var effect_req_params = effect_req.params;
       var driver_family = driver.family;
       var driver_name = driver.name;
       var effect_result$ = undefined;
-      var effect_driver_cache = effect_driver_state.cache;
-      var effect_handler_or_factory = effect_registry[driver_family];
+      var active_drivers = effect_driver_state.hashmap;
+      var effect_handler_or_driver_registry = effect_registry[driver_family];
+      var filtered_effect_req$ = effect_req$
+//              .startWith(effect_req)
+              .do(utils.rxlog('effect_req after compute_effect_res'))
+              .filter(filter_request_by_driver_family(driver_family, driver_name))
+              .do(utils.rxlog('filtered_effect_req'))
+          ;
 
-      if (utils.has_custom_type(effect_handler_or_factory, EFFECT_HANDLER)) {
-        var effect_result = Err.try_catch(function execute_effect_handler(effect_req_params) {
-          console.info("THEN : we execute the effect " + effect_handler_or_factory.name); // TODO :name, or display name???
-          return effect_handler_or_factory(effect_req_params);
-        })(effect_req_params);
+      utils.assert_type(driver_family, 'string', {
+        message: 'process_effect_request_execution : effect_registry : driver_family must be a string!',
+        extended_info: {effect_registry: effect_registry}
+      });
+
+      if (utils.has_custom_type(effect_handler_or_driver_registry, EFFECT_HANDLER)) {
+        var effect_result = Err.try_catch(execute_effect_handler)(effect_handler_or_driver_registry, effect_req_params);
         // Covers both successful and error-throwing effect execution - the error is encapsulated in the effect result
         // NOTE : !! If the effect handler wants to return an observable, it must encapsulate it
         //        i.e. (in effect handler body) ... return Rx.Observable.return(obs$)
@@ -1041,29 +1057,65 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Hashmap,
         //        This allows for example to use ractive stream adaptor to continously display a stream of values
         effect_result$ = utils.to_observable(effect_result);
       }
-      else if (utils.has_custom_type(effect_handler_or_factory, DRIVER_FACTORY)) {
+      else if (utils.has_custom_type(effect_handler_or_driver_registry, DRIVER_REGISTRY)) {
         // case : effect_req calls for a driver which is defined in the registry AND is dealt with by a stream operator
-        var driver_key = driver_name;
-        var effect_driver = effect_driver_cache.get(driver_key);
+        var is_driver_active = active_drivers[driver_name];
+        var factory = effect_handler_or_driver_registry.factory; // NOTE : already type checked
+        var driver_setting_registry = effect_handler_or_driver_registry.settings;
+        var driver_settings = driver_setting_registry[driver_name]; // NOTE : is allowed to be undefined
 
-        if (!effect_driver) {
-          // Case : driver is not in cache
+        if (!is_driver_active) {
+          // Case : driver is not active
           // apply the driver to the effect request sources, filtering for the requests relevant to it
-          effect_driver = effect_handler_or_factory(driver_settings);
-          effect_driver_state.cache.set(driver_key, driver);
-          effect_result$ = effect_driver(effect_req$.filter(filter_request_by_driver_family(driver)))
-              .catch(function catch_effect_driver_errors(e) {
-                // NOTE : driver is terminated after error, remove the driver from cache, so it is recreated next time
-                console.error('compute_effect_res :', e);
-                effect_driver_state.cache.remove(driver_key);
-                return Rx.Observable.return(e);
-                // TODO : test it
-                // NOTE : retryWhen will not work if we use a shared replayed effect_req$
-                // It will retry with the current effect_req, not with the next one... maybe if we use .skip(1)?
-                // TODO : test it
-              });
-          // TODO : effect_req$ must be shared upstream
-          // TODO : effect_req$ in fact might have to be shared replayed...
+          var effect_driver_operator = Err.try_catch(factory)(driver_settings);
+          utils.assert_type(effect_driver_operator, 'function', {
+            message: 'process_effect_request_execution : DRIVER_REGISTRY : factories must return a function!',
+            extended_info: {effect_registry: effect_registry, effect_driver_operator: effect_driver_operator}
+          });
+
+          // TODO : error management : have a place where errors are filtered
+          // if error in driver factory, that driver cannot be used, but other drivers can, so log the error and continue
+          // or abort ?? As much as possible don't swallow errors silently though
+          // That discrimination could happen based on the type of exception generated so have a code for each??
+          var effect_res$ = Err.try_catch(effect_driver_operator)(filtered_effect_req$);
+          // Case : driver THROWS an error - whatever kind of error it is, it is returned as error code (no throwing)
+          //        to be dealth with upstream (for instance at FSM level)
+          //        Driver was not active, and we leave it that way, so it is retryed with the next request
+          if (effect_res$ instanceof Error) {
+            enrich_effect_res_error(/*OUT*/effect_res$, effect_registry, effect_req);
+            effect_result$ = Rx.Observable.return(Err.Effect_Error(effect_res$));
+          }
+          else {
+            // Case : drivers RETURNS an error or a normal result
+            utils.assert_type(effect_res$, 'Observable', {
+              message: 'process_effect_request_execution : DRIVER_REGISTRY : factories must return an observable!',
+              extended_info: {effect_driver_operator: effect_driver_operator, effect_res$: effect_res$}
+            });
+
+            // Set the driver as already active (i.e. dealing with the associated `effect_req` stream)
+            // TODO wrong, driver name is not the key, the key is driver name + driver family
+            active_drivers[driver_name] = true;
+            effect_result$ = effect_res$
+                .do(utils.rxlog('effect_res'))
+                .finally(function () {
+                  // NOTE : driver is terminated after error or graciouly,
+                  // remove the driver from cache, so it is recreated next time
+                  // TODO see if it is possible to have it only there instead of duplicated within the `catch`
+                  active_drivers.driver_name = undefined;
+                })
+                .catch(function catch_effect_driver_errors(e) {
+                  // NOTE : driver is terminated after error, remove the driver from cache, so it is recreated next time
+                  active_drivers.driver_name = undefined;
+                  enrich_effect_res_error(/*OUT*/e, effect_registry, effect_req);
+                  return Rx.Observable.return(Err.Effect_Error(e));
+                  // TODO : test it
+                  // NOTE : retryWhen will not work if we use a shared replayed effect_req$
+                  // It will retry with the current effect_req, not with the next one... maybe if we use .skip(1)?
+                  // TODO : test it
+                });
+            // TODO : effect_req$ must be shared upstream
+            // TODO : effect_req$ in fact might have to be shared replayed...
+          }
         }
         else {
           // Case : driver is in cache
@@ -1072,22 +1124,71 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Hashmap,
       }
       else {
         // case : we don't know what to do with that unknown type
-        throw 'effect_driver : received effect request with an unknown effect (driver, handler) type'
+        throw Err.Registry_Error({
+          message: 'process_effect_request_execution : effect_handler_or_driver_registry : driver_family has unset or unexpected custom type!',
+          extended_info: {effect_handler_or_factory: effect_handler_or_driver_registry}
+        });
       }
 
       // TODO : have the driver implement a cancel API?? and if it has a cancel API execute it??
-      effect_driver_state.effect_response$ = effect_result$
-          ? filter_out_cancelled_request(
-          decorate_with_request_info(
-              effect_result$,
-              effect_req$),
-          effect_driver_state.cancelled_requests)
-          : undefined;
+      effect_driver_state.effect_response$ = undefined;
+      if (effect_result$) {
+        effect_driver_state.effect_response$ =
+//            filter_out_cancelled_request(
+                filtered_effect_req$.zip(effect_result$, function (filtered_effect_req, effect_result) {
+                  return {
+                    effect_result: effect_result,
+                    address: filtered_effect_req.address,
+                    driver: filtered_effect_req.driver
+                  };
+                })//,
+                /*
+                 filtered_effect_req$.flatMap(function (filtered_effect_req) {
+                 console.log('filtered_effect_req in flatmap', filtered_effect_req)
+                 return effect_result$
+                 .do(utils.rxlog('effect_result in flatmap'))
+                 .take(1)
+                 .map(function (effect_result) {
+                 return {
+                 effect_result: effect_result,
+                 address: filtered_effect_req.address,
+                 driver: filtered_effect_req.driver
+                 };
+                 })
+                 }),
+                 */
+                /*
+                 decorate_with_request_info(
+                 effect_result$
+                 .do(utils.rxlog('effect_result'))
+                 .buffer(filtered_effect_req$.do(utils.rxlog('to skip')).skip(1))
+                 .map(function get_last_of_buffer(buffer) {
+                 // TODO : side-effect... no value is produced till there is another effect_req...
+                 return buffer.pop();
+                 }),
+                 }),
+                 filtered_effect_req$),
+                 */
+//                effect_driver_state.cancelled_requests)
+      }
       return effect_driver_state;
+    }
+
+    function check_effect_req_format(effect_req) {
+      if (!effect_req) throw Err.Effect_Error({message: 'check_effect_req_format : effect_req cannot be undefined!'});
+      if (!effect_req.driver) throw Err.Effect_Error({message: 'check_effect_req_format : driver cannot be undefined!'});
+      if (!effect_req.address) throw Err.Effect_Error({message: 'check_effect_req_format : address cannot be undefined!'});
+      if (!effect_req.command || (effect_req.command !== COMMAND_EXECUTE && effect_req.command !== COMMAND_CANCEL)) {
+        throw Err.Effect_Error({message: 'check_effect_req_format : command can only be "execute" or "cancel"!'});
+      }
+      if (!effect_req.driver.family) throw Err.Effect_Error({message: 'check_effect_req_format : driver family cannot be undefined!'});
+      if (!effect_req.driver.name) throw Err.Effect_Error({message: 'check_effect_req_format : driver names within a driver family must be non-empty strings!'});
     }
 
     function compute_effect_res(effect_req$) {
       return function compute_effect_res(effect_driver_state, effect_req) {
+        check_effect_req_format(effect_req);
+
         var driver = effect_req.driver;
         var command = effect_req.command;
         var driver_family = driver.family;
@@ -1099,13 +1200,10 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Hashmap,
           throw new Error('compute_effect_res : driver not defined in effect registry')
         }
 
-        // Edge case : unexpected or unknown command
-        if (!is_execute_command && !is_cancel_command) throw 'compute_effect_res : unknown command :' + command;
-
         return is_execute_command
           // Case : execute command
           // NOTE : this implementation supposes that a request can be required to be cancelled only after having been requested
-            ? process_effect_request_execution(/*OUT*/effect_driver_state, effect_req, effect_registry, effect_req$)
+            ? process_effect_request_execution(effect_driver_state, effect_registry, effect_req, effect_req$)
           // Case : cancel command
           // Add the command to the cancelled command hash if not already there
             : process_effect_request_cancellation(/*OUT*/effect_driver_state, effect_req);
@@ -1113,43 +1211,44 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Hashmap,
     }
 
     // Effect_Registry ::
-    // Hash {<driver_family :: String> : Effect_Handler
-    //      |<driver_family :: String> : <driver_name :: String> : {
+    // Dict {<driver_family :: String> : Effect_Handler
+    //      |<driver_family :: String> : Dict {<driver_name :: String> : Hash {
     //                                          driver_settings :: Driver Settings,
-    //                                          driver_operator :: Driver Operator}
+    //                                          driver_factory :: Driver Factory}}
 
     ///////////
     // Body
 
-    // IMPLEMENTATION NOTE :
-    // 1. a registry is used instead of a cache as it is not expected to have a lot many drivers
-    // 2. No cleaning up of resources is implemented, the cache should be automatically dereferenced and garbage-collected
-    //    after effect_req$ completion
-    // 3. to make it simple, the registry key is serialized to a string, but that limits the setttings to JSON serializable objects
-    // nice to have : implement (i.e. find library) a real registry (i.e. hashmap where the key can be any object)
-    //                this seems promising : https://github.com/timdown/jshashtable (300 LOC though)
-    //                or https://github.com/flesler/hashmap#hashmap-constructor-overloads (160 LOC)
-    //                or http://mauriciosantos.github.io/Buckets-JS/symbols/buckets.Dictionary.html (several DS, 196 LOC)!!
-    //                   - for keys being custom objects, a function that converts keys to unique strings must be provided.
-    //                Be careful to review the unit testing!!
+    // Case : no effect registry : possible as we can have FSM with only pure actions
+    var effect_registry = set_effect_registry_custom_types(effect_registry_) || {};
     var effect_driver_initial_state = {
-      cache: new Hashmap(),
+      hashmap: {},
       cancelled_requests: {},
       effect_response$: undefined
     };
 
     return function effect_driver(effect_req$) {
       var effect_response$ = effect_req$
+          .filter(utils.identity) // filtering undefined `effect_response` (case : cancel command)
+          .do(utils.rxlog('effect_req before compute_effect_res'))
           .scan(compute_effect_res(effect_req$), effect_driver_initial_state)
+        // TODO : add a catch here for unhandled errors happening in the scan!! but fatal errors should pass...
           .pluck('effect_response$')
           .filter(utils.identity) // filtering undefined `effect_response` (case : cancel command)
+          .do(utils.rxlog('stream to merge'))
           .mergeAll();
       return effect_response$;
     };
   }
 
+  return {
+    make_fsm: make_fsm,
+    make_effect_driver: make_effect_driver,
+    transduce_fsm_streams: transduce_fsm_streams,
+    process_fsm_internal_transition: process_fsm_internal_transition
+  };
+
   // TODO:
-  // 1. Test registry
   // 2. Test creation command
   // 2.a. normal function
   // 2.a.1. successful exec
