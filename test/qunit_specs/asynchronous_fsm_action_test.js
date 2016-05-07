@@ -462,15 +462,12 @@ define(function (require) {
 
 
     // Sequence of testing events
-    //    /*
     exec_on_tick(effect_req$.onNext.bind(effect_req$), 10)({
       driver: {family: 'factory_test_driver_no_err', name: 'factory_test_driver_name'},
       address: {},
       params: 0,
       command: EXECUTE
     });
-    //    */
-    /*
      exec_on_tick(effect_req$.onNext.bind(effect_req$), 20)({
      driver: {family: 'handler_test_driver', name: 'handler_test_driver_name'},
      address: {token: 1},
@@ -482,7 +479,6 @@ define(function (require) {
      address: {uri: 'another_test_uri', token: 2},
      command: EXECUTE
      });
-     */
     //       /*
     exec_on_tick(effect_req$.onNext.bind(effect_req$), 40)({
       driver: {family: 'factory_test_driver_no_err', name: 'factory_test_driver_name'},
@@ -490,20 +486,18 @@ define(function (require) {
       params: 10,
       command: EXECUTE
     });
-    exec_on_tick(effect_req$.onNext.bind(effect_req$), 40)({
-      driver: {family: 'factory_test_driver_no_err', name: 'factory_test_driver_name'},
-      address: {uri: 'test_uri', token: 5},
-      params: 20,
-      command: EXECUTE
-    });
     //        */
-    /*
      exec_on_tick(effect_req$.onNext.bind(effect_req$), 50)({
      driver: {family: 'factory_test_driver_returns_err', name: 'factory_test_driver_name'},
      address: {uri: 'yet_another_test_uri', token: 4},
      command: EXECUTE
      });
-     */
+    exec_on_tick(effect_req$.onNext.bind(effect_req$), 60)({
+      driver: {family: 'factory_test_driver_no_err', name: 'factory_test_driver_name'},
+      address: {uri: 'test_uri', token: 5},
+      params: 20,
+      command: EXECUTE
+    });
 
     exec_on_tick(effect_req$.onCompleted.bind(effect_req$), 200)();
 

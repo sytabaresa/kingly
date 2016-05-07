@@ -956,35 +956,32 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       }
     }
 
-    function filter_out_cancelled_request(decorated_request_info$, cancelled_requests) {
+    function filter_out_cancelled_request(cancelled_requests) {
       // IMPLEMENTATION NOTE : Cancel mechanism
       // If the cancel is received before the result comes : fine
       // If the cancel comes afterward, the effect response might still go through but it should be filtered then
       // downstream by the state machine using the token
-      return decorated_request_info$
-          .filter(function filter_out_cancelled_request_(decorated_request_info) {
-            var address = decorated_request_info.address;
-            var address_uri = address.uri;
-            var address_token = address.token;
+      return function filter_out_cancelled_request_(decorated_request_info) {
+        var address = decorated_request_info.address;
+        var address_uri = address.uri;
+        var address_token = address.token;
 
-            // Case : request is NOT cancelled
-            // IMPLEMENTATION NOTE : this implementation works because `cancelled_requests` is a de facto observable
-            // As a matter of fact, it is passed by reference and updated within the scan (eq. to using a subject)
-            // DOCUMENTATION NOTE : token is PER fsm (not per driver), so each request emitted by the fsm has a different token
-            // that means address.uri is fsm_uri and address.token is request_uri
-            // or uri: {fsm :: string, request :: number}
-            return !(cancelled_requests[address_uri] && cancelled_requests[address_uri][address_token])
-          })
+        // Case : request is NOT cancelled
+        // IMPLEMENTATION NOTE : this implementation works because `cancelled_requests` is a de facto observable
+        // As a matter of fact, it is passed by reference and updated within the scan (eq. to using a subject)
+        // DOCUMENTATION NOTE : token is PER fsm (not per driver), so each request emitted by the fsm has a different token
+        // that means address.uri is fsm_uri and address.token is request_uri
+        // or uri: {fsm :: string, request :: number}
+        return !(cancelled_requests[address_uri] && cancelled_requests[address_uri][address_token])
+      };
     }
 
-    function decorate_with_request_info(effect_result$, effect_req$) {
-      return Rx.Observable.zip(
-          effect_result$,
-          effect_req$,
-          function (effect_result, effect_req) {
-            return {effect_result: effect_result, address: effect_req.address, driver: effect_req.driver};
-          }
-      )
+    function decorate_result_with_request_info(filtered_effect_req, effect_result) {
+      return {
+        effect_result: effect_result,
+        address: filtered_effect_req.address,
+        driver: filtered_effect_req.driver
+      };
     }
 
     function enrich_effect_res_error(error, effect_registry, effect_req) {
@@ -1050,9 +1047,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       var active_drivers = effect_driver_state.hashmap;
       var effect_handler_or_driver_registry = effect_registry[driver_family];
       var filtered_effect_req$ = effect_req$
-              .do(utils.rxlog('effect_req after compute_effect_res'))
               .filter(filter_request_by_driver_family(driver_family, driver_name))
-              .do(utils.rxlog('filtered_effect_req'))
           ;
 
       utils.assert_type(driver_family, 'string', {
@@ -1141,20 +1136,13 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
         });
       }
 
-      // TODO : have the driver implement a cancel API?? and if it has a cancel API execute it??
-      effect_driver_state.effect_response$ = undefined;
-      if (effect_result$) {
-        effect_driver_state.effect_response$ =
-            filter_out_cancelled_request(
-                filtered_effect_req$.zip(effect_result$, function (filtered_effect_req, effect_result) {
-                  return {
-                    effect_result: effect_result,
-                    address: filtered_effect_req.address,
-                    driver: filtered_effect_req.driver
-                  };
-                }),
-                effect_driver_state.cancelled_requests)
-      }
+      // nice to have : have the driver implement a cancel API?? a retry API?? NO FOR NOW
+      effect_driver_state.effect_response$ = effect_result$
+          ? filtered_effect_req$
+          .zip(effect_result$, decorate_result_with_request_info)
+          .filter(filter_out_cancelled_request(effect_driver_state.cancelled_requests))
+          : undefined;
+
       return effect_driver_state;
     }
 
