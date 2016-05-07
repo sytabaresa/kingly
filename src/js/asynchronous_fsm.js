@@ -1020,6 +1020,19 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       return effect_driver_state;
     }
 
+    function get_is_active_driver(hashmap, driver_family, driver_name) {
+      return driver_family && driver_name && hashmap[driver_family] && !!hashmap[driver_family][driver_name]
+    }
+
+    function set_in_active_drivers(hashmap, driver_family, driver_name, flag){
+      hashmap[driver_family] = hashmap[driver_family] || [];
+      hashmap[driver_family][driver_name] = flag;
+    }
+
+    function remove_from_active_drivers (hashmap, driver_family, driver_name){
+      hashmap[driver_family][driver_name] = undefined;
+    }
+
     /**
      * Side-effects : updates `effect_driver_state.effect_response$`
      * @param effect_driver_state
@@ -1037,7 +1050,6 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       var active_drivers = effect_driver_state.hashmap;
       var effect_handler_or_driver_registry = effect_registry[driver_family];
       var filtered_effect_req$ = effect_req$
-//              .startWith(effect_req)
               .do(utils.rxlog('effect_req after compute_effect_res'))
               .filter(filter_request_by_driver_family(driver_family, driver_name))
               .do(utils.rxlog('filtered_effect_req'))
@@ -1059,12 +1071,12 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       }
       else if (utils.has_custom_type(effect_handler_or_driver_registry, DRIVER_REGISTRY)) {
         // case : effect_req calls for a driver which is defined in the registry AND is dealt with by a stream operator
-        var is_driver_active = active_drivers[driver_name];
+        var is_active_driver = get_is_active_driver(active_drivers, driver_family, driver_name);
         var factory = effect_handler_or_driver_registry.factory; // NOTE : already type checked
         var driver_setting_registry = effect_handler_or_driver_registry.settings;
         var driver_settings = driver_setting_registry[driver_name]; // NOTE : is allowed to be undefined
 
-        if (!is_driver_active) {
+        if (!is_active_driver) {
           // Case : driver is not active
           // apply the driver to the effect request sources, filtering for the requests relevant to it
           var effect_driver_operator = Err.try_catch(factory)(driver_settings);
@@ -1094,18 +1106,18 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
 
             // Set the driver as already active (i.e. dealing with the associated `effect_req` stream)
             // TODO wrong, driver name is not the key, the key is driver name + driver family
-            active_drivers[driver_name] = true;
+            set_in_active_drivers(active_drivers, driver_family, driver_name, true);
             effect_result$ = effect_res$
                 .do(utils.rxlog('effect_res'))
                 .finally(function () {
                   // NOTE : driver is terminated after error or graciouly,
                   // remove the driver from cache, so it is recreated next time
                   // TODO see if it is possible to have it only there instead of duplicated within the `catch`
-                  active_drivers.driver_name = undefined;
+                  remove_from_active_drivers (active_drivers, driver_family, driver_name);
                 })
                 .catch(function catch_effect_driver_errors(e) {
                   // NOTE : driver is terminated after error, remove the driver from cache, so it is recreated next time
-                  active_drivers.driver_name = undefined;
+                  remove_from_active_drivers (active_drivers, driver_family, driver_name);
                   enrich_effect_res_error(/*OUT*/e, effect_registry, effect_req);
                   return Rx.Observable.return(Err.Effect_Error(e));
                   // TODO : test it
@@ -1134,42 +1146,42 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       effect_driver_state.effect_response$ = undefined;
       if (effect_result$) {
         effect_driver_state.effect_response$ =
-//            filter_out_cancelled_request(
-                filtered_effect_req$.zip(effect_result$, function (filtered_effect_req, effect_result) {
-                  return {
-                    effect_result: effect_result,
-                    address: filtered_effect_req.address,
-                    driver: filtered_effect_req.driver
-                  };
-                })//,
-                /*
-                 filtered_effect_req$.flatMap(function (filtered_effect_req) {
-                 console.log('filtered_effect_req in flatmap', filtered_effect_req)
-                 return effect_result$
-                 .do(utils.rxlog('effect_result in flatmap'))
-                 .take(1)
-                 .map(function (effect_result) {
-                 return {
-                 effect_result: effect_result,
-                 address: filtered_effect_req.address,
-                 driver: filtered_effect_req.driver
-                 };
-                 })
-                 }),
-                 */
-                /*
-                 decorate_with_request_info(
-                 effect_result$
-                 .do(utils.rxlog('effect_result'))
-                 .buffer(filtered_effect_req$.do(utils.rxlog('to skip')).skip(1))
-                 .map(function get_last_of_buffer(buffer) {
-                 // TODO : side-effect... no value is produced till there is another effect_req...
-                 return buffer.pop();
-                 }),
-                 }),
-                 filtered_effect_req$),
-                 */
-//                effect_driver_state.cancelled_requests)
+          //            filter_out_cancelled_request(
+            filtered_effect_req$.zip(effect_result$, function (filtered_effect_req, effect_result) {
+              return {
+                effect_result: effect_result,
+                address: filtered_effect_req.address,
+                driver: filtered_effect_req.driver
+              };
+            })//,
+        /*
+         filtered_effect_req$.flatMap(function (filtered_effect_req) {
+         console.log('filtered_effect_req in flatmap', filtered_effect_req)
+         return effect_result$
+         .do(utils.rxlog('effect_result in flatmap'))
+         .take(1)
+         .map(function (effect_result) {
+         return {
+         effect_result: effect_result,
+         address: filtered_effect_req.address,
+         driver: filtered_effect_req.driver
+         };
+         })
+         }),
+         */
+        /*
+         decorate_with_request_info(
+         effect_result$
+         .do(utils.rxlog('effect_result'))
+         .buffer(filtered_effect_req$.do(utils.rxlog('to skip')).skip(1))
+         .map(function get_last_of_buffer(buffer) {
+         // TODO : side-effect... no value is produced till there is another effect_req...
+         return buffer.pop();
+         }),
+         }),
+         filtered_effect_req$),
+         */
+        //                effect_driver_state.cancelled_requests)
       }
       return effect_driver_state;
     }
