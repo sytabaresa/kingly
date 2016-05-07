@@ -1024,12 +1024,12 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       return driver_family && driver_name && hashmap[driver_family] && !!hashmap[driver_family][driver_name]
     }
 
-    function set_in_active_drivers(hashmap, driver_family, driver_name, flag){
+    function set_in_active_drivers(hashmap, driver_family, driver_name, flag) {
       hashmap[driver_family] = hashmap[driver_family] || [];
       hashmap[driver_family][driver_name] = flag;
     }
 
-    function remove_from_active_drivers (hashmap, driver_family, driver_name){
+    function remove_from_active_drivers(hashmap, driver_family, driver_name) {
       hashmap[driver_family][driver_name] = undefined;
     }
 
@@ -1105,7 +1105,6 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
             });
 
             // Set the driver as already active (i.e. dealing with the associated `effect_req` stream)
-            // TODO wrong, driver name is not the key, the key is driver name + driver family
             set_in_active_drivers(active_drivers, driver_family, driver_name, true);
             effect_result$ = effect_res$
                 .do(utils.rxlog('effect_res'))
@@ -1113,11 +1112,11 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
                   // NOTE : driver is terminated after error or graciouly,
                   // remove the driver from cache, so it is recreated next time
                   // TODO see if it is possible to have it only there instead of duplicated within the `catch`
-                  remove_from_active_drivers (active_drivers, driver_family, driver_name);
+                  remove_from_active_drivers(active_drivers, driver_family, driver_name);
                 })
                 .catch(function catch_effect_driver_errors(e) {
                   // NOTE : driver is terminated after error, remove the driver from cache, so it is recreated next time
-                  remove_from_active_drivers (active_drivers, driver_family, driver_name);
+                  remove_from_active_drivers(active_drivers, driver_family, driver_name);
                   enrich_effect_res_error(/*OUT*/e, effect_registry, effect_req);
                   return Rx.Observable.return(Err.Effect_Error(e));
                   // TODO : test it
@@ -1146,42 +1145,15 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       effect_driver_state.effect_response$ = undefined;
       if (effect_result$) {
         effect_driver_state.effect_response$ =
-          //            filter_out_cancelled_request(
-            filtered_effect_req$.zip(effect_result$, function (filtered_effect_req, effect_result) {
-              return {
-                effect_result: effect_result,
-                address: filtered_effect_req.address,
-                driver: filtered_effect_req.driver
-              };
-            })//,
-        /*
-         filtered_effect_req$.flatMap(function (filtered_effect_req) {
-         console.log('filtered_effect_req in flatmap', filtered_effect_req)
-         return effect_result$
-         .do(utils.rxlog('effect_result in flatmap'))
-         .take(1)
-         .map(function (effect_result) {
-         return {
-         effect_result: effect_result,
-         address: filtered_effect_req.address,
-         driver: filtered_effect_req.driver
-         };
-         })
-         }),
-         */
-        /*
-         decorate_with_request_info(
-         effect_result$
-         .do(utils.rxlog('effect_result'))
-         .buffer(filtered_effect_req$.do(utils.rxlog('to skip')).skip(1))
-         .map(function get_last_of_buffer(buffer) {
-         // TODO : side-effect... no value is produced till there is another effect_req...
-         return buffer.pop();
-         }),
-         }),
-         filtered_effect_req$),
-         */
-        //                effect_driver_state.cancelled_requests)
+            filter_out_cancelled_request(
+                filtered_effect_req$.zip(effect_result$, function (filtered_effect_req, effect_result) {
+                  return {
+                    effect_result: effect_result,
+                    address: filtered_effect_req.address,
+                    driver: filtered_effect_req.driver
+                  };
+                }),
+                effect_driver_state.cancelled_requests)
       }
       return effect_driver_state;
     }
@@ -1241,7 +1213,6 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
 
     return function effect_driver(effect_req$) {
       var effect_response$ = effect_req$
-          .filter(utils.identity) // filtering undefined `effect_response` (case : cancel command)
           .do(utils.rxlog('effect_req before compute_effect_res'))
           .scan(compute_effect_res(effect_req$), effect_driver_initial_state)
         // TODO : add a catch here for unhandled errors happening in the scan!! but fatal errors should pass...

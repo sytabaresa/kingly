@@ -398,7 +398,7 @@ define(function (require) {
     var effect_response$;
     var arr_traces = [];
 
-    var effect_req$ = new Rx.BehaviorSubject();
+    var effect_req$ = new Rx.ReplaySubject(1);
     effect_req$.subscribe(function () {
     }, function (e) {
       console.log('effect_req error', e), function () {
@@ -412,16 +412,12 @@ define(function (require) {
           assert.deepEqual(settings, effect_registry.factory_test_driver_no_err.settings.factory_test_driver_name, 'factory function for driver is called with `settings` parameter as unique parameter')
           assert.deepEqual(undefined, a, '');
           return function driver_stream_operator_no_err(effect_req$) {
-            //            return Rx.Observable.from([24, 42, 66]);
             return effect_req$
                 .do(utils.rxlog('effect_req entry in driver'))
-              //                .map(function(effect_req){return effect_req.params + 24})
                 .flatMap(function (effect_req) {
                   return Rx.Observable.from([effect_req.params + 24, effect_req.params + 42, effect_req.params + 66]);
                 })
             // TODO !! shoud return one value for each effect_req... how to enforce it????? We can't!!
-            // both those values will come with the same token!!
-            // use withLatestFrom, sample, first??
           }
         },
         settings: {
