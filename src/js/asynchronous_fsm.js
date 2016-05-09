@@ -854,11 +854,17 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
   }
 
   /**
+   * @typedef {String} Driver_Name
+   */
+  /**
+   * @typedef {String} Driver_Family_Name
+   */
+  /**
    * @typedef {Object} Driver_Settings
    */
   /**
-   * @typedef {Object<String, Driver_Settings>} Driver_Settings_Registry
-   * @dict driver_name
+   * @typedef {Object<Driver_Name, Driver_Settings>} Driver_Settings_Registry
+   * @dict
    */
   /**
    * @typedef {function(Rx.Observable):Rx.Observable} Driver_Operator
@@ -875,8 +881,8 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
    * @typedef {function(effect_req_params : object)} Effect_Handler
    */
   /**
-   * @typedef {Object<String, (Effect_Handler|Driver_Registry)>} Effect_Registry
-   * @dict driver_family
+   * @typedef {Object<Driver_Family_Name, (Effect_Handler|Driver_Registry)>} Effect_Registry
+   * @dict
    */
   /**
    * @typedef {Object} Effect_Request
@@ -903,8 +909,6 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
   function make_effect_driver(effect_registry_) {
     ///////////
     // Helpers
-    // TODO : update the types above to the changed API
-    //        now Effect_Registry is double dict {family : { driver_name : function | {factory, settings}}
     function set_effect_registry_custom_types(effect_registry) {
       var typed_registry = {};
       _.forEach(effect_registry, function (effect_handler_or_driver_registry, driver_family) {
@@ -1106,7 +1110,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
                 .finally(function () {
                   // NOTE : driver is terminated after error or graciouly,
                   // remove the driver from cache, so it is recreated next time
-                  // TODO see if it is possible to have it only there instead of duplicated within the `catch`
+                  // TODO : add a test to
                   remove_from_active_drivers(/*OUT*/active_drivers, driver_family, driver_name);
                 })
                 .catch(function catch_effect_driver_errors(e) {
@@ -1219,10 +1223,5 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     transduce_fsm_streams: transduce_fsm_streams,
     process_fsm_internal_transition: process_fsm_internal_transition
   };
-
-  // TODO:
-  // 3. Test cancellation command
-  // 3a. canceling request made
-  // 3b. canceling request not made
 }
 

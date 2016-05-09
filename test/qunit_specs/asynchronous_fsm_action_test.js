@@ -573,6 +573,16 @@ define(function (require) {
             'If any other types, the value returned by the handler is passed as `effect_result` ',
             'It results from this that it is possible to pass an observable as effect result by wrapping it in another observable.'].join('\n')
       );
+      // 2.a.1.1 effect handler returning an observable as effect result
+      arr_traces[11].effect_result.toArray().subscribe(function (x) {
+        assert.deepEqual(x, [100, 110],
+            'Effect handlers : To return an observable as an effect result, wrap that observable into another observable. i.e. `return Rx.Observable.return(obs$)`'
+        );
+        assert.deepEqual(x, [100, 110],
+            'Effect handlers : If `effect_result` is an observable, the first value emitted by this observable is passed as effect_result. ');
+        done();
+      });
+
       // 2.a.2. error exec
       assert.deepEqual(arr_traces[1], {
             "address": {"token": 1},
@@ -614,21 +624,21 @@ define(function (require) {
           {1: 1, 2: 12, 4: 31}, ''
       );
 
-      // 2.b.1.2 effect handler returning an observable as effect result
-      arr_traces[11].effect_result.toArray().subscribe(function (x) {
-        assert.deepEqual(x, [100, 110],
-            'Effect handlers : To return an observable as an effect result, wrap that observable into another observable. i.e. `return Rx.Observable.return(obs$)`'
-        );
-        assert.deepEqual(x, [100, 110],
-            'Effect handlers : If `effect_result` is an observable, the first value emitted by this observable is passed as effect_result. ');
-        done();
-      });
+      // 2.b.2 early normal termination and recreation
+      // TODO : add a test for driver ending prematurely but with normal termination not error termination
 
       // 2.b.2. error exec
       var returned_error = arr_traces[8].effect_result;
       assert.deepEqual(returned_error instanceof Err.AppError && returned_error.name === 'Effect_Error',
           true,
           'When a driver is interrupted with an error, that driver is terminated and an `AppError`, with subtype Effect_Error, is returned as the effect result');
+
+      // TODO:
+      // 3. Test cancellation command
+      // 3a. canceling request made
+      //   Send request with a long delay, send cancel request, check that nowhere in the result array there is a response
+      // 3b. canceling request not made
+      //   Send cancel request with a no existing token. Check that all non-cancelled request are there as expected
 
       done();
     }
