@@ -118,8 +118,8 @@ function require_utils(Rx, _, Err, constants) {
     }
   }
 
-  function emits (label){
-    return function(x){console.log.call(console, label,x)}
+  function emits(label) {
+    return function (x) {console.log.call(console, label, x)}
   }
 
   function noop() {
@@ -131,14 +131,21 @@ function require_utils(Rx, _, Err, constants) {
 
   // In this current implementation:
   // - promises are turned into observables
-  // - observables are reduced to their last value (i.e. forced up to a promise)
+  // - observables are reduced to their first value (i.e. forced up to a promise) (by coherence with treatment of drivers)
   // - other types of values are wrapped into a single value observable
   function to_observable(effect_result) {
     // Reminder : basic data types
     // Boolean,         Null,         Undefined,         Number,        String
     if (is_promise(effect_result)) return Rx.Observable.fromPromise(effect_result);
-    if (is_observable(effect_result)) return effect_result.last();
+    if (is_observable(effect_result)) return effect_result.first();
+    if (effect_result instanceof Error) return Rx.Observable.return(Err.Effect_Error(effect_result));
     return Rx.Observable.return(effect_result);
+  }
+
+  function to_error(e, error_constructor) {
+    return e instanceof Error
+        ? e
+        : error_constructor ? new error_constructor(e) : new Error(e);
   }
 
   function args_to_array(argument) {
@@ -560,6 +567,7 @@ function require_utils(Rx, _, Err, constants) {
     label: label,
     get_label: get_label,
     to_observable: to_observable,
+    to_error: to_error,
     clone: clone,
     update_prop: update_prop,
     rxlog: rxlog,

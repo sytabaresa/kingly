@@ -389,12 +389,7 @@ define(function (require) {
   });
 
   QUnit.test("make_effect_driver(effect_registry_)(effect_req$)", function (assert) {
-    var done = assert.async(1); // Cf. https://api.qunitjs.com/async/
-    function test_on_complete() {
-      console.log('arr_traces', arr_traces);
-      done()
-    }
-
+    var done = assert.async(2); // Cf. https://api.qunitjs.com/async/
     var effect_response$;
     var arr_traces = [];
 
@@ -409,15 +404,14 @@ define(function (require) {
     var effect_registry = {
       factory_test_driver_no_err: {
         factory: function (settings, a) {
-          assert.deepEqual(settings, effect_registry.factory_test_driver_no_err.settings.factory_test_driver_name, 'factory function for driver is called with `settings` parameter as unique parameter')
-          assert.deepEqual(undefined, a, '');
+          assert.deepEqual(settings, effect_registry.factory_test_driver_no_err.settings.factory_test_driver_name, 'factory function for driver is called with `settings` as first parameter')
+          assert.deepEqual(undefined, a, '- That `settings` is also the only parameter passed to the factory function.');
           return function driver_stream_operator_no_err(effect_req$) {
             return effect_req$
                 .do(utils.rxlog('effect_req entry in driver'))
                 .flatMap(function (effect_req) {
                   return Rx.Observable.from([effect_req.params + 24, effect_req.params + 42, effect_req.params + 66]);
                 })
-            // TODO !! shoud return one value for each effect_req... how to enforce it????? We can't!!
           }
         },
         settings: {
@@ -444,9 +438,36 @@ define(function (require) {
           factory_test_driver_name: {key: 'value'}
         }
       },
-      handler_test_driver: function test_handler(req_params) {
-        assert.deepEqual(req_params, 'test_params');
+      factory_test_driver_with_later_err_with_state: {
+        factory: function (settings, a) {
+          // could be for instance connection to a database or getting an handle on a file
+          // but here just a counter
+          var stateful_property = 0;
+          return function driver_stream_operator_no_err(effect_req$) {
+            return effect_req$
+                .map(function (effect_req) {
+                  if (stateful_property > 1) throw 'factory_test_driver_with_later_err_with_state provoked error'
+                  return effect_req.params + ++stateful_property;
+                })
+          }
+        },
+        settings: {
+          factory_test_driver_name: {key: 'value'}
+        }
+      },
+      handler_test_driver_no_err: function test_handler_no_err(req_params) {
+        assert.deepEqual(req_params, 'test_params',
+            'Effects can be managed through regular functions called error handlers. They have the following signature `req_params -> effect_result`. ' +
+            'They receive as first parameter the property `params` of the corresponding effect request.');
         return 'test_handler_return_value';
+      },
+      handler_test_driver_with_err: function test_handler_with_err(req_params) {
+        throw 'test_handler_with_err error!'
+      },
+      handler_test_driver_no_err_returns_observable: function test_handler_with_err(req_params) {
+        //        var observable$ = Rx.Observable.return(req_params).delay(100).concat(req_params + 10);
+        var observable$ = Rx.Observable.return(req_params).delay(100).concat(Rx.Observable.return(req_params + 10));
+        return Rx.Observable.from([observable$, 2000]);
       }
     };
     effect_response$ = fsm.make_effect_driver(effect_registry)(effect_req$);
@@ -468,38 +489,149 @@ define(function (require) {
       params: 0,
       command: EXECUTE
     });
-     exec_on_tick(effect_req$.onNext.bind(effect_req$), 20)({
-     driver: {family: 'handler_test_driver', name: 'handler_test_driver_name'},
-     address: {token: 1},
-     params: 'test_params',
-     command: EXECUTE
-     });
-     exec_on_tick(effect_req$.onNext.bind(effect_req$), 30)({
-     driver: {family: 'factory_test_driver_throw_err', name: 'factory_test_driver_name'},
-     address: {uri: 'another_test_uri', token: 2},
-     command: EXECUTE
-     });
-    //       /*
+    exec_on_tick(effect_req$.onNext.bind(effect_req$), 20)({
+      driver: {family: 'handler_test_driver_no_err', name: 'handler_test_driver_name'},
+      address: {token: 1},
+      params: 'test_params',
+      command: EXECUTE
+    });
+    exec_on_tick(effect_req$.onNext.bind(effect_req$), 30)({
+      driver: {family: 'factory_test_driver_throw_err', name: 'factory_test_driver_name'},
+      address: {uri: 'another_test_uri', token: 2},
+      command: EXECUTE
+    });
     exec_on_tick(effect_req$.onNext.bind(effect_req$), 40)({
       driver: {family: 'factory_test_driver_no_err', name: 'factory_test_driver_name'},
       address: {uri: 'test_uri', token: 3},
       params: 10,
       command: EXECUTE
     });
-    //        */
-     exec_on_tick(effect_req$.onNext.bind(effect_req$), 50)({
-     driver: {family: 'factory_test_driver_returns_err', name: 'factory_test_driver_name'},
-     address: {uri: 'yet_another_test_uri', token: 4},
-     command: EXECUTE
-     });
+    exec_on_tick(effect_req$.onNext.bind(effect_req$), 50)({
+      driver: {family: 'factory_test_driver_returns_err', name: 'factory_test_driver_name'},
+      address: {uri: 'yet_another_test_uri', token: 4},
+      command: EXECUTE
+    });
     exec_on_tick(effect_req$.onNext.bind(effect_req$), 60)({
       driver: {family: 'factory_test_driver_no_err', name: 'factory_test_driver_name'},
       address: {uri: 'test_uri', token: 5},
       params: 20,
       command: EXECUTE
     });
+    exec_on_tick(effect_req$.onNext.bind(effect_req$), 70)({
+      driver: {family: 'factory_test_driver_with_later_err_with_state', name: 'factory_test_driver_name'},
+      address: {uri: 'test_uri', token: 6},
+      params: 0,
+      command: EXECUTE
+    });
+    exec_on_tick(effect_req$.onNext.bind(effect_req$), 80)({
+      driver: {family: 'factory_test_driver_with_later_err_with_state', name: 'factory_test_driver_name'},
+      address: {uri: 'test_uri', token: 7},
+      params: 10,
+      command: EXECUTE
+    });
+    exec_on_tick(effect_req$.onNext.bind(effect_req$), 90)({
+      driver: {family: 'factory_test_driver_with_later_err_with_state', name: 'factory_test_driver_name'},
+      address: {uri: 'test_uri', token: 8},
+      params: 20,
+      command: EXECUTE
+    });
+    exec_on_tick(effect_req$.onNext.bind(effect_req$), 100)({
+      driver: {family: 'factory_test_driver_with_later_err_with_state', name: 'factory_test_driver_name'},
+      address: {uri: 'test_uri', token: 9},
+      params: 30,
+      command: EXECUTE
+    });
+    exec_on_tick(effect_req$.onNext.bind(effect_req$), 110)({
+      driver: {family: 'handler_test_driver_with_err', name: 'handler_test_driver_with_err'},
+      address: {uri: 'test_uri', token: 10},
+      params: 'does not matter',
+      command: EXECUTE
+    });
+    exec_on_tick(effect_req$.onNext.bind(effect_req$), 120)({
+      driver: {family: 'handler_test_driver_no_err_returns_observable', name: 'any name is fine'},
+      address: {uri: 'test_uri', token: 11},
+      params: 100,
+      command: EXECUTE
+    });
 
     exec_on_tick(effect_req$.onCompleted.bind(effect_req$), 200)();
+
+    // Actual testing
+    function test_on_complete() {
+      console.log('arr_traces', arr_traces);
+      // 2. Test creation command
+      // 2.a. normal function
+      // 2.a.1. successful exec
+      assert.deepEqual(arr_traces[1], {
+            "address": {"token": 1},
+            "driver": {"family": "handler_test_driver_no_err", "name": "handler_test_driver_name"},
+            "effect_result": "test_handler_return_value"
+          },
+          ['For effect handlers\' return value: ',
+            'If `effect_result` is a Promise, the resolved value is passed as effect result. ',
+            'If `effect_result` is an observable, the first value emitted by this observable is passed as effect_result. ',
+            'If any other types, the value returned by the handler is passed as `effect_result` ',
+            'It results from this that it is possible to pass an observable as effect result by wrapping it in another observable.'].join('\n')
+      );
+      // 2.a.2. error exec
+      assert.deepEqual(arr_traces[1], {
+            "address": {"token": 1},
+            "driver": {"family": "handler_test_driver_no_err", "name": "handler_test_driver_name"},
+            "effect_result": "test_handler_return_value"
+          },
+          ['When an effect handler is interrupted with an error, an `AppError`, with subtype Effect_Error, is returned as the effect result'].join('\n')
+      );
+
+      // 2.b. drivers (stream operators)
+      // 2.b.1. successful exec
+      // 2.b.1.1. one/several requests on same driver
+      assert.ok(true, 'When a driver is specified to handle requests and is instantiated, it receives all the requests destined to it (i.e. with matching (family, name))');
+      assert.deepEqual(
+          {1: arr_traces[0], 2: arr_traces[3], 3: arr_traces[5]},
+          {
+            1: {
+              "effect_result": 24,
+              "address": {},
+              "driver": {"family": "factory_test_driver_no_err", "name": "factory_test_driver_name"}
+            },
+            2: {
+              "effect_result": 42,
+              "address": {"uri": "test_uri", "token": 3},
+              "driver": {"family": "factory_test_driver_no_err", "name": "factory_test_driver_name"}
+            },
+            3: {
+              "effect_result": 66,
+              "address": {"uri": "test_uri", "token": 5},
+              "driver": {"family": "factory_test_driver_no_err", "name": "factory_test_driver_name"}
+            }
+          },
+          'There should be only one result value for one request value. If there are more, only the first result will be used.');
+
+      assert.equal(arr_traces[8].effect_result instanceof Error, true,
+          'When a driver ends because of error or other standard termination, subsequent requests will recreate the driver'
+      );
+      assert.deepEqual({1: arr_traces[6].effect_result, 2: arr_traces[7].effect_result, 4: arr_traces[9].effect_result},
+          {1: 1, 2: 12, 4: 31}, ''
+      );
+
+      // 2.b.1.2 effect handler returning an observable as effect result
+      arr_traces[11].effect_result.toArray().subscribe(function (x) {
+        assert.deepEqual(x, [100, 110],
+            'Effect handlers : To return an observable as an effect result, wrap that observable into another observable. i.e. `return Rx.Observable.return(obs$)`'
+        );
+        assert.deepEqual(x, [100, 110],
+            'Effect handlers : If `effect_result` is an observable, the first value emitted by this observable is passed as effect_result. ');
+        done();
+      });
+
+      // 2.b.2. error exec
+      var returned_error = arr_traces[8].effect_result;
+      assert.deepEqual(returned_error instanceof Err.AppError && returned_error.name === 'Effect_Error',
+          true,
+          'When a driver is interrupted with an error, that driver is terminated and an `AppError`, with subtype Effect_Error, is returned as the effect result');
+
+      done();
+    }
 
 
   });

@@ -128,8 +128,10 @@ function require_custom_errors(_) {
 
   return {
     try_catch: tryCatch,
+    AppError : AppError,
     SM_Error: createAppError('SM_Error'),
     Registry_Error: createAppError('Registry_Error'),
     Effect_Error: createAppError('Effect_Error'),
+    Fatal_Error : createAppError('Fatal_Error'),
   }
 }

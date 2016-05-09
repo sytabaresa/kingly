@@ -1100,27 +1100,21 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
             });
 
             // Set the driver as already active (i.e. dealing with the associated `effect_req` stream)
-            set_in_active_drivers(active_drivers, driver_family, driver_name, true);
+            set_in_active_drivers(/*OUT*/active_drivers, driver_family, driver_name, true);
             effect_result$ = effect_res$
                 .do(utils.rxlog('effect_res'))
                 .finally(function () {
                   // NOTE : driver is terminated after error or graciouly,
                   // remove the driver from cache, so it is recreated next time
                   // TODO see if it is possible to have it only there instead of duplicated within the `catch`
-                  remove_from_active_drivers(active_drivers, driver_family, driver_name);
+                  remove_from_active_drivers(/*OUT*/active_drivers, driver_family, driver_name);
                 })
                 .catch(function catch_effect_driver_errors(e) {
                   // NOTE : driver is terminated after error, remove the driver from cache, so it is recreated next time
-                  remove_from_active_drivers(active_drivers, driver_family, driver_name);
-                  enrich_effect_res_error(/*OUT*/e, effect_registry, effect_req);
+                  remove_from_active_drivers(/*OUT*/active_drivers, driver_family, driver_name);
+                  enrich_effect_res_error(/*OUT*/utils.to_error(e), effect_registry, effect_req);
                   return Rx.Observable.return(Err.Effect_Error(e));
-                  // TODO : test it
-                  // NOTE : retryWhen will not work if we use a shared replayed effect_req$
-                  // It will retry with the current effect_req, not with the next one... maybe if we use .skip(1)?
-                  // TODO : test it
                 });
-            // TODO : effect_req$ must be shared upstream
-            // TODO : effect_req$ in fact might have to be shared replayed...
           }
         }
         else {
@@ -1203,7 +1197,14 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       var effect_response$ = effect_req$
           .do(utils.rxlog('effect_req before compute_effect_res'))
           .scan(compute_effect_res(effect_req$), effect_driver_initial_state)
-        // TODO : add a catch here for unhandled errors happening in the scan!! but fatal errors should pass...
+          .catch(function catch_fatal_errors(e){
+            // Case : recoverable errors are supposed to be caught upstream and returned as error codes
+            // Fatal errors are thrown (type contracts, etc.)
+            // We catch them here and return them also as error code but with a specific code
+            // so the FSM can decide how to react to this type of error
+            console.error('catch_fatal_errors', e);
+            return Rx.Observable.return(Err.Fatal_Error(e));
+          })
           .pluck('effect_response$')
           .filter(utils.identity) // filtering undefined `effect_response` (case : cancel command)
           .do(utils.rxlog('stream to merge'))
@@ -1220,13 +1221,6 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
   };
 
   // TODO:
-  // 2. Test creation command
-  // 2.a. normal function
-  // 2.a.1. successful exec
-  // 2.a.2. error exec
-  // 2.b. drivers (signal transform)
-  // 2.b.1. successful exec
-  // 2.b.2. error exec
   // 3. Test cancellation command
   // 3a. canceling request made
   // 3b. canceling request not made
