@@ -38,8 +38,13 @@ function require_utils(Rx, _, Err, constants) {
   }
 
   function and(fn1, fn2) {
+   var args = args_to_array(arguments);
+    // TODO with multiple arguments
     return function and() {
-      return fn1.apply(null, arguments) && fn2.apply(null, arguments);
+      var args2 = args_to_array(arguments);
+      return args.every(function and(fn){
+        return !!fn.apply(null, args2);
+      });
     }
   }
 
@@ -183,6 +188,7 @@ function require_utils(Rx, _, Err, constants) {
   function new_typed_object(obj, type) {
     if (!type) throw 'new_typed_object : expected truthy type!'
     if (!obj) throw  'new_typed_object : expected truthy object!'
+    if (is_string(obj)) obj = new String(obj);
     var current_types = obj.__type;
     // duplicate the array of types (passed by reference, here we want passed by values)
     current_types = current_types ? obj.__type.slice() : [];
@@ -424,6 +430,11 @@ function require_utils(Rx, _, Err, constants) {
 
   function is_array(obj) {
     return Array.isArray(obj);
+  }
+
+  function is_string(obj) {
+    // NOTE: We don't consider object of type String to be strings (!) but to be objects
+    return (typeof obj === 'string')
   }
 
   /**

@@ -13,7 +13,8 @@ define(function (require) {
     STATE_PROTOTYPE_NAME: 'State', // !!must be the function name for the constructor State, i.e. State
     CHECK_TYPE: true,
     ACTION_HANDLER_IDENTITY: function action_handler_identity(model, event_data) {
-      return model;
+      // we return nothing because pure handlers only return model updates, and there are no updates
+      return {};
     },
     // Types
     PURE_ACTION_HANDLER: 'pure_action_handler',

@@ -266,7 +266,7 @@ where:
 
 ### make_fsm
 
-`make_fsm :: statechart -> intent$ -> effect_res$ -> display_engine -> {fsm_state$, effect_req$})`
+`make_fsm :: statechart -> intent$ -> effect_res$ -> display_engine -> {fsm_state$, effect_request$})`
 
 Takes a statechart `{initial_model, state_hierarchy, event_enum, action_hash, transitions}` and creates the corresponding
  state machine with the following semantics:
@@ -275,8 +275,8 @@ Takes a statechart `{initial_model, state_hierarchy, event_enum, action_hash, tr
  * `intent$` will issue the events to which the state machine will listen to, in order to possibly transition to another 
  state. `intent$ :: Rx.Observable<{code, payload}>` where `code` is the event enum code, `payload` is any object that will 
  be passed as parameter to the predicate and action functions.
- * on evaluating a valid transition with a corresponding action, the state machine emits the action enum code on `effect_req$`
-  where `effect_req$ :: Rx.Observble<action_enum_code>`
+ * on evaluating a valid transition with a corresponding action, the state machine emits the action enum code on `effect_request$`
+  where `effect_request$ :: Rx.Observble<action_enum_code>`
  * after emission of such code, the state machine listens on `effect_res$` for the return value of the action execution
   where `effect_res$ :: Rx.Observable<effect_res>`
  * on receiving such result of executed effect, the state machine :

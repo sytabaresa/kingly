@@ -24,14 +24,6 @@ define(function (require) {
     }
   }
 
-  function remove_timestamp_array_traces(arr_obj) {
-    arr_obj.forEach(function (obj) {
-      remove_timestamp(obj);
-      remove_timestamp(obj.recoverable_error)
-    });
-    return arr_obj;
-  }
-
   function remove_timestamp(obj) {
     obj && obj.timestamp && (delete obj.timestamp);
     return obj;
@@ -51,8 +43,7 @@ define(function (require) {
   }
 
   function test_on_error(e) {
-    console.error('error found in testing stream', e);
-    assert.ok(false, 'unexpected error found in testing stream');
+    console.error('unexpected error found in testing stream', e);
   }
 
   ////////
@@ -87,7 +78,7 @@ define(function (require) {
     return !model[DUMMY_FIELD];
   }
 
-  QUnit.test("Basic transition mechanism - Pure actions", function (assert) {
+  QUnit.skip("Basic transition mechanism - Pure actions", function test_pure_actions(assert) {
     ////////
     // GIVEN a chart spec :
     // no state hierarchy
@@ -389,7 +380,7 @@ define(function (require) {
     // END
   });
 
-  QUnit.test("make_effect_driver(effect_registry_)(effect_req$)", function (assert) {
+  QUnit.skip("make_effect_driver(effect_registry_)(effect_request$)", function (assert) {
     var done = assert.async(2); // Cf. https://api.qunitjs.com/async/
     var effect_response$;
     var arr_traces = [];
@@ -397,7 +388,7 @@ define(function (require) {
     var effect_req$ = new Rx.ReplaySubject(1);
     effect_req$.subscribe(function () {
     }, function (e) {
-      console.log('effect_req error', e), function () {
+      console.log('effect_request error', e), function () {
         console.log('replay completed..')
       }
     });
@@ -409,7 +400,7 @@ define(function (require) {
           assert.deepEqual(undefined, a, '- That `settings` is also the only parameter passed to the factory function.');
           return function driver_stream_operator_no_err(effect_req$) {
             return effect_req$
-              .do(utils.rxlog('effect_req entry in driver'))
+              .do(utils.rxlog('effect_request entry in driver'))
               .flatMap(function (effect_req) {
                 return Rx.Observable.from([effect_req.params + 24, effect_req.params + 42, effect_req.params + 66]);
               })
@@ -689,10 +680,141 @@ define(function (require) {
 
       done();
     }
+  });
+
+  QUnit.test("Basic transition mechanism - Effectful actions", function test_effectful_actions(assert) {
+
+    var hash_storage = {};
+
+    var effect_registry = {
+      array_storage : {
+        factory : function array_storage_factory (settings){
+          var storage = new Array(settings.size);
+          var index = 0;
+          return function array_storage_driver (effect_requests$){
+            return effect_requests$
+              .do(function store_value(x){storage[index++] = x.params;})
+              .map(function(){return storage;})
+          }
+        },
+        settings : {
+          size_10 : {
+            size : 10
+          },
+          size_20 : {
+            size : 20
+          }
+        }
+      },
+      hash_storage : function hash_storage_handler (req_params){
+        hash_storage [req_params.key] = req_params.value;
+        return Rx.Observable.return(hash_storage);
+      }
+    };
+
+    function effect_array_storage_1(model, event_data, effect_res) {
+      // reminder : returns {model_update : , effect_request: }
+      // TODO : write down the types
+      assert.deepEqual(effect_res, undefined, 'Effectful actions : effect functions are called with the model, event data, and effect result as parameters.');
+      assert.deepEqual(effect_res, undefined, 'Effectful actions : the first effect function is called with no effect result.');
+      return {
+        model_update: {trace : event_data},
+        effect_request: {
+          driver: {
+            family : 'array_storage',
+            name : 'size_10'
+          },
+          params: 'element 1'
+        }
+      }
+    }
+
+    function effect_array_storage_2(model, event_data, effect_res) {
+      // reminder : returns {model_update : , effect_request:}
+      assert.deepEqual(model, undefined, 'Effectful actions : the second effect function is called with the updated model from the effect result of the first effect function.');
+      assert.deepEqual(effect_res, undefined, 'Effectful actions : the second effect function is called with the effect result of the first effect function.');
+      assert.deepEqual(event_data, model.event_data, 'Effectful actions : All effect functions are called with the same event data.');
+      return {
+        model_update: {
+          trace : [model.trace, event_data, effect_res]
+        },
+        effect_request: undefined
+      }
+    }
+
+    function effect_hash_storage(model, event_data, effect_res) {
+
+    }
+
+    var model0 = undefined;
+    var states_definition = {A: '', B: '', C: '', D: '', E: ''};
+    var states = fsm_helpers.create_state_enum(states_definition);
+    var event_enum = ['event1', 'event2', 'event3'];
+    var events = fsm_helpers.create_event_enum(event_enum);
+    var transitions = [
+      {from: states.NOK, to: states.A, event: events[EV_CODE_INIT]},
+      {from: states.A, to: states.B, event: events.EVENT1, action : [effect_array_storage_1, effect_array_storage_2]},
+    ];
+    var state_chart = {
+      model: model0,
+      state_hierarchy: states,
+      events: events,
+      effect_registry : effect_registry,
+      transitions: transitions
+    };
+    var arr_fsm_traces = [];
+
+    var ehfsm = fsm.make_fsm(state_chart, undefined); // intent$ is undefined here as we will simulate events
+    ehfsm.fsm_state$
+      .finally(function () {
+        console.log('ending test event sequence', arr_fsm_traces)
+      })
+      .subscribe(function on_next(fsm_state) {
+        console.log('fsm_state...', utils.clone_deep(fsm_state));
+        arr_fsm_traces.push(utils.clone_deep(fsm_state));
+      }, test_on_error, test_on_complete);
+    ehfsm.start(); // `start` initiates the inner dataflow subscription
+    // NOTE : The init event is sent automatically AND synchronously so we can put the stop trace right after
+
+    // Sequence of testing events
+    exec_on_tick(ehfsm.send_event, 10)(events.EVENT1, {});
+    exec_on_tick(ehfsm.stop, 130)();
+
+    var done = assert.async(1); // Cf. https://api.qunitjs.com/async/
+
+    function test_on_complete() {
+      // TODO
+      // T1. Initial transition
+      // WHEN starting the statechart
+      // THEN it should transitions to A
+      //
+      clean(arr_fsm_traces);
+
+      var expected_init_trace = {
+        // TODO
+      };
+      assert.deepEqual(arr_fsm_traces[0], expected_init_trace, 'TODO');
+
+      // TODO
+      // 1. Effectful actions/action sequences
+      // 1.a. Action with one effect
+      // 1.a.1 model is updated twice correctly
+      // 1.a.2 inner and outer state are changed accordingly
+      // 1.a.3 effect is executed
+      // 1.a.3.1 action is executed with the right arguments
+      // 1.a.3.2 the right effect is executed
+      // 1.b. Action with two effects
+      // 1.c. Receiving an effect result which is not expected
+      // 1.d. Effect error
+      // 1.d.1 Effect error - no error handler
+      // 1.d.2 Effect error - error handler
+
+
+      done();
+    }
 
 
   });
-
   // SUBGROUP : ...
   // T1. ...
   // GIVEN ...

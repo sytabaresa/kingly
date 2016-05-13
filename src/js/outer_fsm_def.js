@@ -88,15 +88,29 @@ function require_outer_fsm_def(Err, utils, constants) {
     fsm_internal_transitions[EXPECTING_EFFECT_RESULT] = {};
     fsm_internal_transitions[EXPECTING_EFFECT_RESULT][fsm_internal_events.EV_EFFECT_RES] = [
       {
-        // CASE : the effect could not be executed satisfactorily
-        predicate: is_effect_error,
-        action: set_internal_state_to_expecting_intent_but_reporting_effect_error,
+        // CASE : the effect received is not the one we are waiting for
+        predicate: utils.not(is_effect_expected),
+        action: warning_received_unexpected_effect_result,
+        to: EXPECTING_EFFECT_RESULT
+      },
+      // TODO : I am there
+      {
+        // CASE : the effect is the one expected could not be executed satisfactorily
+        predicate: utils.and(is_effect_expected, is_effect_error),
+        action: set_internal_state_to_expecting_intent_but_reporting_effect_error, // TODO : update code with the graph specs
         to: EXPECTING_INTENT
       },
       {
-        // CASE : effect was executed correctly
-        predicate: utils.always(true),
-        action: _transition_to_next_state,
+        // CASE : effect was executed correctly, and there is some more to execute before changing state
+        predicate: utils.and(is_effect_expected, utils.not(is_effect_error), has_more_effects_to_execute),
+        // TODO : check I can use the same function
+        action: update_model_and_send_effect_request,
+        to: EXPECTING_EFFECT_RESULT
+      },
+      {
+        // CASE : effect was executed correctly, and there is some more to execute before changing state
+        predicate: utils.and(is_effect_expected, utils.not(is_effect_error), utils.not(has_more_effects_to_execute)),
+        action: update_model_and_transition_to_next_state,
         to: EXPECTING_INTENT
       }
     ];
@@ -137,7 +151,7 @@ function require_outer_fsm_def(Err, utils, constants) {
       var current_state = hash_states[INITIAL_STATE_NAME].current_state_name;
       var event_handler = hash_states[current_state][event];
       return has_event_handler(fsm_state, internal_event)
-          && event_handler(model, event_data, current_state).action_seq_handler;
+        && event_handler(model, event_data, current_state).action_seq_handler;
     }
 
     function is_seq_handler_of_pure_action(fsm_state, internal_event) {
@@ -149,12 +163,27 @@ function require_outer_fsm_def(Err, utils, constants) {
       var event_handler = hash_states[current_state][event];
       var action_seq_handler;
       return has_event_handler(fsm_state, internal_event)
-          && (action_seq_handler = event_handler(model, event_data, current_state).action_seq_handler)
-          && is_pure_action_handler(action_seq_handler);
+        && (action_seq_handler = event_handler(model, event_data, current_state).action_seq_handler)
+        && is_pure_action_handler(action_seq_handler);
     }
 
     function is_pure_action_handler(action_seq_handler) {
       return utils.has_custom_type(action_seq_handler, PURE_ACTION_HANDLER);
+    }
+
+    function is_effect_expected(fsm_state, internal_event) {
+      // TODO : check format of internal event
+      var effect_response = internal_event;
+      var response_effect_request = effect_response.effect_request;
+      var effect_result = effect_response.effect_result;
+
+      // Check that the request who generated the response is the request that we are expecting
+      var expected_effect_request = fsm_state.effect_request;
+      return _.isEqual(expected_effect_request, response_effect_request);
+    }
+
+    function has_more_effects_to_execute(fsm_state, internal_event) {
+      // TODO
     }
 
     function is_effect_error(fsm_state, internal_event) {
@@ -184,7 +213,7 @@ function require_outer_fsm_def(Err, utils, constants) {
       var to = event_handler_result.to;
       var previously_processed_event_data = fsm_state.event ? fsm_state.event.payload : undefined;
       var effect_res = undefined; // In that branch case, we do not have an effect result to process
-      var index = 0; // In that branch case, we do not have an array of action, so index is 0
+      // reset effect execution state
 
       utils.assert_custom_type(event_handler_result, EVENT_HANDLER_RESULT);
 
@@ -193,8 +222,8 @@ function require_outer_fsm_def(Err, utils, constants) {
       utils.log("found event handler!");
       utils.info("WITH model, event data BEING ", model, event_data);
       utils.info("CASE : "
-          + (predicate ? "predicate " + predicate.name + " for transition is fulfilled"
-              : "automatic transition"));
+        + (predicate ? "predicate " + predicate.name + " for transition is fulfilled"
+          : "automatic transition"));
 
       // Go to next state
       transition_to_next_state(fsm_state, from, to);
@@ -205,13 +234,13 @@ function require_outer_fsm_def(Err, utils, constants) {
       //    - transitions without events
       //    - INIT events
       var automatic_event = process_automatic_events(
-          next_state,
-          fsm_state.inner_fsm.is_auto_state,
-          fsm_state.inner_fsm.is_init_state,
-          previously_processed_event_data);
+        next_state,
+        fsm_state.inner_fsm.is_auto_state,
+        fsm_state.inner_fsm.is_init_state,
+        previously_processed_event_data);
 
       var action_seq_handler_result = action_seq_handler(model, event_data, effect_res, index);
-      var effect_struct = action_seq_handler_result.effect_req;
+      var effect_struct = action_seq_handler_result.effect_request;
       if (utils.is_null(effect_struct) || utils.is_undefined(effect_struct)) {
         // case pure action handler as expected
         var model_update = action_seq_handler_result.model_update;
@@ -237,10 +266,9 @@ function require_outer_fsm_def(Err, utils, constants) {
       var predicate = event_handler_result.predicate;
       var action_seq_handler = event_handler_result.action_seq_handler;
       var from = event_handler_result.from;
-      var to = ['-',event_handler_result.to,'-']; // wrap the target state to indicate it is pending
+      var to = '?' + event_handler_result.to + '?'; // wrap the target state to indicate it is pending
       var previously_processed_event_data = fsm_state.event ? fsm_state.event.payload : undefined;
       var effect_res = undefined; // In that branch case, we do not have an effect result to process
-      var index = 0; // In that branch case, we do not have an array of action, so index is 0
 
       utils.assert_custom_type(event_handler_result, EVENT_HANDLER_RESULT);
 
@@ -249,24 +277,43 @@ function require_outer_fsm_def(Err, utils, constants) {
       utils.log("found event handler!");
       utils.info("WITH model, event data BEING ", model, event_data);
       utils.info("CASE : " + (predicate
-              ? "predicate " + predicate.name + " for transition is fulfilled"
-              : "automatic transition"));
+          ? "predicate " + predicate.name + " for transition is fulfilled"
+          : "automatic transition"));
 
       // Update fsm state
       var action_seq_handler_result = action_seq_handler(model, event_data, effect_res, index);
+      utils.assert_type(action_seq_handler_result, 'object', 'update_model_and_send_effect_request : action_seq_handler did not return an object as expected!');
+
       var model_update = action_seq_handler_result.model_update;
-      var effect_req = action_seq_handler_result.effect_req;
-      if (utils.is_null(effect_req) || utils.is_undefined(effect_req)) {
-        throw 'update_model_and_send_effect_request : if an effectful handler is used, there has to be an effect to execute!'
-      } else {
-        return get_effectful_action_outer_fsm_model_update(effect_req, model_update, from, to, internal_event);
-        // TODO : automatic event makes sense here? no, it is when I have a next state to go to
-        // CONTRACT : Automatic actions with no events and only conditions are not allowed in nesting state (aka grouping state)
-      }
+      var effect_request = action_seq_handler_result.effect_request;
+      utils.assert_type(effect_request, 'object', 'update_model_and_send_effect_request : effect request is not an object as expected!');
+
+      // Set effect execution state
+      var effect_execution_state = fsm_state.effect_execution_state || {};
+      effect_execution_state.index = effect_execution_state.index + 1 || 0;
+      effect_execution_state.has_more_effects_to_execute = !!effect_request;
+
+      return get_effectful_action_outer_fsm_model_update(effect_request, effect_execution_state, model_update, from, to, internal_event);
+      // TODO : automatic event makes sense here? no, it is when I have a next state to go to
+      // CONTRACT : Automatic actions with no events and only conditions are not allowed in nesting state (aka grouping state)
 
     }
 
-    function get_effectful_action_outer_fsm_model_update(effect_req, model_update, from, to, internal_event){
+    function warning_received_unexpected_effect_result(fsm_state, internal_event) {
+      // TODO : emit an error? Can't think of a reasonable case where that situation can occur
+      //        could throw an error with extended info
+      console.warn('received wrong effect result!');
+      return {
+        // no updates
+      };
+    }
+
+    function update_model_and_transition_to_next_state(fsm_state, internal_event) {
+      console.warn('intenral event', internal_event)
+      //      return {}
+    }
+
+    function get_effectful_action_outer_fsm_model_update(effect_request, effect_execution_state, model_update, from, to, internal_event) {
       return {
         // set the automatic event if any (will be undefined if there is none)
         automatic_event: undefined,
@@ -288,9 +335,9 @@ function require_outer_fsm_def(Err, utils, constants) {
           model: model_update
         },
         // no effect request to be made
-        effect_req: effect_req,
+        effect_request: effect_request,
+        effect_execution_state: effect_execution_state,
         payload: undefined, // TODO : deprecated - remove at some point
-        // TODO : define format of effect_req and also effect factory
         // no error
         recoverable_error: undefined
       }
@@ -432,7 +479,7 @@ function require_outer_fsm_def(Err, utils, constants) {
           to: to
         },
         // pass down the effect to execute with its parameters
-        effect_req: effect_code,
+        effect_request: effect_code,
         payload: event_data,
         // no automatic event, we are sending an effect request
         automatic_event: undefined,
@@ -463,7 +510,8 @@ function require_outer_fsm_def(Err, utils, constants) {
         // no automatic event here
         automatic_event: undefined,
         // no effect to execute
-        effect_req: undefined,
+        effect_request: undefined,
+        effect_execution_state: undefined,
         payload: undefined
       }
     }
@@ -490,7 +538,8 @@ function require_outer_fsm_def(Err, utils, constants) {
           model: model_update
         },
         // no effect request to be made
-        effect_req: undefined,
+        effect_request: undefined,
+        effect_execution_state: undefined,
         payload: undefined,
         // no error
         recoverable_error: undefined
@@ -519,7 +568,8 @@ function require_outer_fsm_def(Err, utils, constants) {
         // no automatic event
         automatic_event: undefined,
         // no effect request to be made
-        effect_req: undefined,
+        effect_request: undefined,
+        effect_execution_state: undefined,
         payload: undefined
       }
     }
@@ -563,10 +613,10 @@ function require_outer_fsm_def(Err, utils, constants) {
       // - transitions without events
       // - INIT events
       var automatic_event = process_automatic_events(
-          next_state,
-          fsm_state.inner_fsm.is_auto_state,
-          fsm_state.inner_fsm.is_init_state,
-          previously_processed_event_data);
+        next_state,
+        fsm_state.inner_fsm.is_auto_state,
+        fsm_state.inner_fsm.is_init_state,
+        previously_processed_event_data);
 
 
       // TODO
@@ -642,9 +692,9 @@ function require_outer_fsm_def(Err, utils, constants) {
       var target_state = hash_states[state_to_name].history.last_seen_state;
       state_to_name = target_state
         // CASE : history state (H) && existing history, target state is the last seen state
-          ? target_state
+        ? target_state
         // CASE : history state (H) && no history (i.e. first time state is entered), target state is the entered state
-          : state_to_name;
+        : state_to_name;
     }
     // CASE : normal state
     else if (to) {
