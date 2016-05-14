@@ -17,14 +17,19 @@ define(function (require) {
       return {};
     },
     // Types
+    INTENT : 'intent',
+    TRACE_INTENT : 'trace_intent',
     PURE_ACTION_HANDLER: 'pure_action_handler',
     ACTION_SEQUENCE_HANDLER: 'action_sequence_handler',
     EVENT_HANDLER_RESULT: 'event_handler_result',
     EFFECT_HANDLER : 'effect_handler',
+    EFFECT_RESPONSE : 'effect_response',
     DRIVER_REGISTRY : 'driver_registry',
+    LAST_EFFECT_REQUEST : 'last_effect_request',
     commands : {
       EXECUTE : 'command_execute',
-      CANCEL : 'command_cancel'
+      CANCEL : 'command_cancel',
+      IGNORE : 'command_ignore'
     }
     // TODO : add a second level to constants
     // for instance, types : {EFFECT_HANDLER...}, commands : {EXECUTE}

@@ -21,6 +21,11 @@ function require_outer_fsm_def(Err, utils, constants) {
   // Action-handler-related constants
   var PURE_ACTION_HANDLER = constants.PURE_ACTION_HANDLER;
   var EVENT_HANDLER_RESULT = constants.EVENT_HANDLER_RESULT;
+  var LAST_EFFECT_REQUEST = constants.LAST_EFFECT_REQUEST;
+  var EFFECT_RESPONSE = constants.EFFECT_RESPONSE;
+  var INTENT = constants.INTENT;
+  var EXECUTE = constants.commands.EXECUTE;
+  var IGNORE = constants.commands.IGNORE;
 
   function get_internal_sync_fsm() {
     ////////////
@@ -134,6 +139,11 @@ function require_outer_fsm_def(Err, utils, constants) {
       }
     ];
 
+    // Helpers
+    function unwrap(wrapped_to) {
+      return wrapped_to.slice(1).slice(0, -1);
+    }
+
     ////////////
     // Predicates
     function has_event_handler(fsm_state, internal_event) {
@@ -175,15 +185,15 @@ function require_outer_fsm_def(Err, utils, constants) {
       // TODO : check format of internal event
       var effect_response = internal_event;
       var response_effect_request = effect_response.effect_request;
-      var effect_result = effect_response.effect_result;
 
       // Check that the request who generated the response is the request that we are expecting
-      var expected_effect_request = fsm_state.effect_request;
+      var expected_effect_request = fsm_state.effect_execution_state.effect_request;
       return _.isEqual(expected_effect_request, response_effect_request);
     }
 
     function has_more_effects_to_execute(fsm_state, internal_event) {
-      // TODO
+      return utils.has_custom_type(internal_event, EFFECT_RESPONSE)
+        && fsm_state.effect_execution_state.has_more_effects_to_execute
     }
 
     function is_effect_error(fsm_state, internal_event) {
@@ -212,8 +222,6 @@ function require_outer_fsm_def(Err, utils, constants) {
       var from = event_handler_result.from;
       var to = event_handler_result.to;
       var previously_processed_event_data = fsm_state.event ? fsm_state.event.payload : undefined;
-      var effect_res = undefined; // In that branch case, we do not have an effect result to process
-      // reset effect execution state
 
       utils.assert_custom_type(event_handler_result, EVENT_HANDLER_RESULT);
 
@@ -233,13 +241,16 @@ function require_outer_fsm_def(Err, utils, constants) {
       // -  AUTO event to trigger transitions which are automatic :
       //    - transitions without events
       //    - INIT events
+      // TODO : test, this could be buggy for INIT events entered with event_data and previous event_data (second transition is INIT)
+      // This works because automatic events do not have event data associated so they rely on the previous event data
       var automatic_event = process_automatic_events(
         next_state,
         fsm_state.inner_fsm.is_auto_state,
         fsm_state.inner_fsm.is_init_state,
         previously_processed_event_data);
 
-      var action_seq_handler_result = action_seq_handler(model, event_data, effect_res, index);
+      // In that branch case, we do not have an effect result to process, and index is 0
+      var action_seq_handler_result = action_seq_handler(model, event_data, undefined, 0);
       var effect_struct = action_seq_handler_result.effect_request;
       if (utils.is_null(effect_struct) || utils.is_undefined(effect_struct)) {
         // case pure action handler as expected
@@ -252,117 +263,187 @@ function require_outer_fsm_def(Err, utils, constants) {
       }
     }
 
-    function update_model_and_send_effect_request(fsm_state, internal_event) {
-      // CASE : There is a transition associated to that event :
-      // - some effects have to be executed
-      // - before effect request take place, a pure update of the inner FSM model has to be performed
-
+    function get_fsm_state_update_when_first_effect(fsm_state, internal_event) {
+      var fsm_state_update = {effect_execution_state: {}, inner_fsm: {}, internal_state: {}};
+      fsm_state_update.effect_execution_state.event = internal_event;
       var event_data = internal_event.payload;
       var model = fsm_state.inner_fsm.model;
-      var hash_states = fsm_state.inner_fsm.hash_states;
       var current_state = get_current_state(fsm_state);
       var event_handler = get_event_handler(fsm_state, internal_event);
       var event_handler_result = event_handler(model, event_data, current_state);
-      var predicate = event_handler_result.predicate;
-      var action_seq_handler = event_handler_result.action_seq_handler;
-      var from = event_handler_result.from;
-      var to = '?' + event_handler_result.to + '?'; // wrap the target state to indicate it is pending
-      var previously_processed_event_data = fsm_state.event ? fsm_state.event.payload : undefined;
-      var effect_res = undefined; // In that branch case, we do not have an effect result to process
-
       utils.assert_custom_type(event_handler_result, EVENT_HANDLER_RESULT);
 
+      var predicate = event_handler_result.predicate;
+      var action_seq_handler = event_handler_result.action_seq_handler;
+      var effect_res = undefined; // In that branch case, we do not have an effect result to process
+
       utils.info("WHEN EVENT ", internal_event.code);
-      utils.info("IN STATE ", from);
-      utils.log("found event handler!");
+      utils.info("IN STATE ", event_handler_result.from);
+      utils.log("found event handler associated to effectful actions!");
       utils.info("WITH model, event data BEING ", model, event_data);
       utils.info("CASE : " + (predicate
           ? "predicate " + predicate.name + " for transition is fulfilled"
           : "automatic transition"));
+      utils.info("executing action handler: " + action_seq_handler.name);
 
       // Update fsm state
-      var action_seq_handler_result = action_seq_handler(model, event_data, effect_res, index);
+      var action_seq_handler_result = action_seq_handler(model, event_data, effect_res, 0); // index = 0 for first effect
       utils.assert_type(action_seq_handler_result, 'object', 'update_model_and_send_effect_request : action_seq_handler did not return an object as expected!');
 
       var model_update = action_seq_handler_result.model_update;
       var effect_request = action_seq_handler_result.effect_request;
       utils.assert_type(effect_request, 'object', 'update_model_and_send_effect_request : effect request is not an object as expected!');
 
+      fsm_state_update.recoverable_error = undefined;
+      fsm_state_update.automatic_event = undefined;
+      fsm_state_update.event = internal_event;
+
+      fsm_state_update.inner_fsm.model = model_update;
+
+      fsm_state_update.effect_execution_state.action_seq_handler = action_seq_handler;
+      fsm_state_update.effect_execution_state.index = 0;
+      fsm_state_update.effect_execution_state.effect_request = effect_request;
+      fsm_state_update.effect_execution_state.effect_request.command = EXECUTE;
+      fsm_state_update.effect_execution_state.has_more_effects_to_execute = true;
+
+      fsm_state_update.internal_state.is_model_dirty = true;
+      fsm_state_update.internal_state.expecting = EXPECTING_EFFECT_RESULT;
+      // Reminder : the `to` state is wrapped with some character to indicate that the transition is pending
+      fsm_state_update.internal_state.from = event_handler_result.from;
+      // wrap the target state to indicate it is pending
+      fsm_state_update.internal_state.to = '?' + event_handler_result.to + '?';
+      return fsm_state_update;
+    }
+
+    function get_fsm_state_update_when_subsequent_effects(fsm_state, internal_event) {
+      var fsm_state_update = {effect_execution_state: {}, inner_fsm: {}, internal_state: {}};
+      var last_effect_request = utils.new_typed_object({}, LAST_EFFECT_REQUEST);
+      var effect_res = internal_event;
+      var model = fsm_state.inner_fsm.model;
+      var event_data = fsm_state.event.payload;
+      var index = ++fsm_state.effect_execution_state.index;
+      var action_seq_handler = fsm_state.effect_execution_state.action_seq_handler;
+      var action_seq_handler_result = action_seq_handler(model, event_data, effect_res, index);
+      utils.assert_type(action_seq_handler_result, 'object', 'update_model_and_send_effect_request : action_seq_handler did not return an object as expected!');
+
+      var model_update = action_seq_handler_result.model_update;
+      var effect_request = action_seq_handler_result.effect_request;
+
+      if (effect_request) {
+        utils.info("Processing effect", effect_request.driver.family, effect_request.driver.name, effect_request.params);
+      } else {
+        utils.info("Processing model update only");
+      }
+      utils.info("IN STATE ", fsm_state.internal_state.from);
+      utils.info("WITH model, event data BEING ", model, event_data);
+      utils.info("executing action handler: " + action_seq_handler.name, index);
+
+      // Update fsm state
+      fsm_state_update.recoverable_error = undefined;
+      fsm_state_update.automatic_event = undefined;
+      // fsm_state_update.event = internal_event; no change!!!
+
+      fsm_state_update.inner_fsm.model = model_update;
+
       // Set effect execution state
-      var effect_execution_state = fsm_state.effect_execution_state || {};
-      effect_execution_state.index = effect_execution_state.index + 1 || 0;
-      effect_execution_state.has_more_effects_to_execute = !!effect_request;
+      // We pass a dummy effect request to signal completion (eq. to stream's `onCompleted` event)
 
-      return get_effectful_action_outer_fsm_model_update(effect_request, effect_execution_state, model_update, from, to, internal_event);
-      // TODO : automatic event makes sense here? no, it is when I have a next state to go to
-      // CONTRACT : Automatic actions with no events and only conditions are not allowed in nesting state (aka grouping state)
+      // fsm_state_update.effect_execution_state.action_seq_handler = action_seq_handler;  no change!!!
+      fsm_state_update.effect_execution_state.index = index;
+      fsm_state_update.effect_execution_state.effect_request = effect_request ? effect_request : last_effect_request;
+      fsm_state_update.effect_execution_state.effect_request.command = effect_request ? EXECUTE : IGNORE;
+      fsm_state_update.effect_execution_state.has_more_effects_to_execute
+        = !utils.has_custom_type(fsm_state_update.effect_execution_state.effect_request, LAST_EFFECT_REQUEST);
 
+      fsm_state_update.internal_state.expecting = EXPECTING_EFFECT_RESULT;
+      // Reminder : the `to` state is wrapped with some character to indicate that the transition is pending
+      // fsm_state_update.internal_state.from = event_handler_result.from; no change!!!
+      // same for .to!!!
+
+      return fsm_state_update;
+    }
+
+    function update_model_and_send_effect_request(fsm_state, internal_event) {
+      // CASE : There is a transition associated to that event :
+      // - some effects have to be executed
+      // - before effect request take place, a pure update of the inner FSM model has to be performed
+
+      console.log('update_model_and_send_effect_request : internal_event', internal_event);
+
+      var fsm_state_update;
+
+      // There are three sub-cases here :
+      if (utils.has_custom_type(internal_event, INTENT)) {
+        // 1. First effect is to be requested
+        //    `internal_event` will be user intent or program-generated intent
+        //    We keep track of the event to reuse its event data for calling the event handler
+        //    We also keep track of the action handler (instead of recomputing it each time)
+        fsm_state_update = get_fsm_state_update_when_first_effect(fsm_state, internal_event);
+      }
+      else if (utils.has_custom_type(internal_event, EFFECT_RESPONSE)) {
+        if (fsm_state.effect_execution_state.has_more_effects_to_execute) {
+          // 2. Remaining effects (if any) are to be requested
+          fsm_state_update = get_fsm_state_update_when_subsequent_effects(fsm_state, internal_event);
+        }
+        else {
+          // (case 3. (end of effects) dealt separately with)
+          // dead branch
+          throw 'that code branch should be dead!!!'
+        }
+      }
+      else {
+        throw 'unexpected event type!!'
+      }
+
+      return fsm_state_update;
     }
 
     function warning_received_unexpected_effect_result(fsm_state, internal_event) {
       // TODO : emit an error? Can't think of a reasonable case where that situation can occur
       //        could throw an error with extended info
+      var fsm_state_update = {effect_execution_state: {effect_request : {command : IGNORE}}, inner_fsm: {}, internal_state: {}};
       console.warn('received wrong effect result!');
-      return {
-        // no updates
-      };
+      // no updates but remove the effect request field to avoid resending the request downstream
+      return fsm_state_update;
     }
+
+    // TODO : check that model is passed down only when model_update is not empty or falsy
 
     function update_model_and_transition_to_next_state(fsm_state, internal_event) {
-      console.warn('intenral event', internal_event)
-      //      return {}
-    }
-
-    function get_effectful_action_outer_fsm_model_update(effect_request, effect_execution_state, model_update, from, to, internal_event) {
-      return {
-        // set the automatic event if any (will be undefined if there is none)
-        automatic_event: undefined,
-        // serves as a trace of the event which provoked the transition
-        event: internal_event,
-        // model has been modified
-        internal_state: {
-          is_model_dirty: true,
-          // but we remain in the internal state EXPECTING_INTENT as there are automatic events
-          // to process. Those events come through the intent$ channel, like other user-originated
-          // events.
-          expecting: EXPECTING_EFFECT_RESULT,
-          // Reminder : the `to` state is wrapped with some character to indicate that the transition is pending
-          from: from,
-          to: to
-        },
-        // update model private props which are computed properties based on `fsm_state`
-        inner_fsm: {
-          model: model_update
-        },
-        // no effect request to be made
-        effect_request: effect_request,
-        effect_execution_state: effect_execution_state,
-        payload: undefined, // TODO : deprecated - remove at some point
-        // no error
-        recoverable_error: undefined
-      }
-    }
-
-    function update_internals_with_effect_code(fsm_state, internal_event) {
-      // CASE : There is a transition associated to that event : an effect has to be executed
-      // Reminder : When there is no action defined in the transition, we set the effect to identity
-
-      utils.log("found event handler!");
-      utils.info("WHEN EVENT ", internal_event.code);
-      utils.info("with payload ", internal_event.payload);
-
-      var event = internal_event.code;
-      var event_data = internal_event.payload;
-      var model = fsm_state.inner_fsm.model;
+      var fsm_state_update = {effect_execution_state: {}, inner_fsm: {}, internal_state: {}};
       var hash_states = fsm_state.inner_fsm.hash_states;
-      var current_state = hash_states[INITIAL_STATE_NAME].current_state_name;
-      var event_handler = hash_states[current_state][event];
-      var effect_struct = event_handler(model, event_data, current_state);
-      var effect_code = effect_struct.action_seq_handler;
-      var from = effect_struct.from;
-      var to = effect_struct.to;
+      var event_data = fsm_state.event.payload;
+      var effect_request = fsm_state.effect_execution_state.effect_request;
 
-      return get_pure_action_outer_fsm_model_update(/*OUT*/fsm_state, from, to, undefined, model_update);
+      // 3. No more effects is to be requested
+      //    The action handler returned falsy `effect_request` field (case 2.)
+
+      //    We reset all temporary fields
+      fsm_state_update.recoverable_error = undefined;
+
+      fsm_state_update.effect_execution_state = undefined;
+
+      fsm_state_update.internal_state.expecting = EXPECTING_INTENT;
+      var from = fsm_state.internal_state.from;
+      var to = fsm_state_update.internal_state.to = unwrap(fsm_state.internal_state.to);
+      utils.info("Finished processing effects", effect_request.driver.family, effect_request.driver.name, effect_request.params);
+
+      //    We set for automatic events if any
+      // TODO : refactor this - it is not DRY - repeated twice
+
+      // Go to next state
+      transition_to_next_state(fsm_state, from, to);
+      var next_state = get_next_state(to, hash_states);
+
+      var automatic_event = process_automatic_events(
+        next_state,
+        fsm_state.inner_fsm.is_auto_state,
+        fsm_state.inner_fsm.is_init_state,
+        event_data);
+
+      fsm_state_update.internal_state.automatic_event = automatic_event;
+
+      return fsm_state_update;
     }
 
     function emit_no_guard_satisfied_recoverable_error(fsm_state, internal_event) {
@@ -524,7 +605,6 @@ function require_outer_fsm_def(Err, utils, constants) {
         event: internal_event,
         // model has been modified
         internal_state: {
-          is_model_dirty: true,
           // but we remain in the internal state EXPECTING_INTENT as there are automatic events
           // to process. Those events come through the intent$ channel, like other user-originated
           // events.
@@ -538,9 +618,7 @@ function require_outer_fsm_def(Err, utils, constants) {
           model: model_update
         },
         // no effect request to be made
-        effect_request: undefined,
         effect_execution_state: undefined,
-        payload: undefined,
         // no error
         recoverable_error: undefined
       }

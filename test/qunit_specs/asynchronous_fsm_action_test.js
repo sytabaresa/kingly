@@ -698,11 +698,11 @@ define(function (require) {
           }
         },
         settings : {
+          size_5 : {
+            size : 5
+          },
           size_10 : {
             size : 10
-          },
-          size_20 : {
-            size : 20
           }
         }
       },
@@ -722,7 +722,7 @@ define(function (require) {
         effect_request: {
           driver: {
             family : 'array_storage',
-            name : 'size_10'
+            name : 'size_5'
           },
           params: 'element 1'
         }
@@ -777,7 +777,7 @@ define(function (require) {
     // NOTE : The init event is sent automatically AND synchronously so we can put the stop trace right after
 
     // Sequence of testing events
-    exec_on_tick(ehfsm.send_event, 10)(events.EVENT1, {});
+    exec_on_tick(ehfsm.send_event, 10)(events.EVENT1, {event_data:'value'});
     exec_on_tick(ehfsm.stop, 130)();
 
     var done = assert.async(1); // Cf. https://api.qunitjs.com/async/

@@ -207,7 +207,7 @@ function require_utils(Rx, _, Err, constants) {
     if (parsed_string.is_check_null && is_null(obj)) return true;
     if (parsed_string.is_check_undefined && is_undefined(obj)) return true;
 
-    return obj.__type.indexOf(parsed_string.type_name) > -1;
+    return obj && obj.__type && obj.__type.indexOf(parsed_string.type_name) > -1;
   }
 
   /**
