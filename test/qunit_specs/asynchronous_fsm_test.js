@@ -128,7 +128,7 @@ define(function (require) {
             transitions: transitions
         };
 
-        var ehfsm = fsm.make_fsm(state_chart, undefined); // intent$ is undefined here as we will simulate events
+        var ehfsm = fsm.make_fsm('fsm_uri',state_chart, undefined); // intent$ is undefined here as we will simulate events
         ehfsm.model_update$.subscribe(function (model_update) {
             console.log('model update', model_update);
         }); // We also have to subscribe to the external dataflow

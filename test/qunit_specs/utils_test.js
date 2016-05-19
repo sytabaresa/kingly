@@ -11,4 +11,17 @@ define(function (require) {
     // We test the curried function by running through a set of parameters
   });
 
+  QUnit.test("merge (object, sources)", function (assert) {
+    var obj = {key1: 'value1', key2: {key21: 'value21'}, key3: {key4: {key5: 'value41'}}, key6: undefined};
+    var obj_update = {"-key2-": {keyNew: 'valueNew'}, key3: {"-key4-": undefined}};
+    var expected_updated_obj = {
+      "key1": "value1",
+      "key2": {"keyNew": "valueNew"},
+      "key3": {"key4": undefined},
+      key6 : undefined
+    };
+    utils.merge(obj, obj_update);
+    assert.deepEqual(obj, expected_updated_obj, 'keys whose values are to be entirely replaced are wrapped in "-" characters.');
+  });
+
 });

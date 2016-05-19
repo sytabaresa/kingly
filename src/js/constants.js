@@ -1,10 +1,11 @@
 define(function (require) {
   return {
+    WRAP_CHAR : '-',
     EXPECTING_INTENT: 'intent',
     EXPECTING_ACTION_RESULT: 'expecting_action_result',
-    EV_INTENT: 'intent',
-    EV_EFFECT_RES: 'effect_res',
-    EV_TRACE: 'trace',
+    EV_INTENT: '<intent>',
+    EV_EFFECT_RES: '<effect response>',
+    EV_TRACE: '<trace>',
     EV_CODE_TRACE: 'trace',
     EV_CODE_AUTO: 'auto',
     EV_CODE_INIT: 'init',

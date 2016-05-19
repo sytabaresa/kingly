@@ -10,6 +10,12 @@ define(function (require) {
   const EXECUTE = constants.commands.EXECUTE;
   const CANCEL = constants.commands.CANCEL;
 
+  // Common set-up
+  var states_definition = {A: '', B: '', C: '', D: '', E: ''};
+  var states = fsm_helpers.create_state_enum(states_definition);
+  var event_enum = ['event1', 'event2', 'event3'];
+  var events = fsm_helpers.create_event_enum(event_enum);
+
   window.onerror = function (msg, url, lineNo, columnNo, error) {
     console.error(error);
     return false;
@@ -35,8 +41,12 @@ define(function (require) {
       delete fsm_trace.inner_fsm.is_auto_state;
       delete fsm_trace.inner_fsm.is_group_state;
       delete fsm_trace.inner_fsm.is_init_state;
-      delete  fsm_trace.dispose_listeners;
+      delete fsm_trace.dispose_listeners;
       fsm_trace.recoverable_error && delete fsm_trace.recoverable_error.timestamp;
+
+      var action_seq_handler = fsm_trace.effect_execution_state && fsm_trace.effect_execution_state.action_seq_handler;
+      action_seq_handler && (fsm_trace.effect_execution_state.action_seq_handler = action_seq_handler.name);
+
       return arr_fsm_traces;
     });
     return arr_fsm_traces;
@@ -125,7 +135,7 @@ define(function (require) {
     };
     var arr_fsm_traces = [];
 
-    var ehfsm = fsm.make_fsm(state_chart, undefined); // intent$ is undefined here as we will simulate events
+    var ehfsm = fsm.make_fsm('fsm_uri', state_chart, undefined); // intent$ is undefined here as we will simulate events
     ehfsm.model_update$.subscribe(function (model_update) {
       console.warn('model update', model_update);
     }); // We also have to subscribe to the external dataflow
@@ -685,28 +695,30 @@ define(function (require) {
   QUnit.test("Basic transition mechanism - Effectful actions", function test_effectful_actions(assert) {
 
     var hash_storage = {};
+    var model0 = {key1: 'value'};
+    var event_data1 = {event_data: 'value'};
 
     var effect_registry = {
-      array_storage : {
-        factory : function array_storage_factory (settings){
+      array_storage: {
+        factory: function array_storage_factory(settings) {
           var storage = new Array(settings.size);
           var index = 0;
-          return function array_storage_driver (effect_requests$){
+          return function array_storage_driver(effect_requests$) {
             return effect_requests$
-              .do(function store_value(x){storage[index++] = x.params;})
-              .map(function(){return storage;})
+              .do(function store_value(x) {storage[index++] = x.params;})
+              .map(function () {return storage;})
           }
         },
-        settings : {
-          size_5 : {
-            size : 5
+        settings: {
+          size_5: {
+            size: 5
           },
-          size_10 : {
-            size : 10
+          size_10: {
+            size: 10
           }
         }
       },
-      hash_storage : function hash_storage_handler (req_params){
+      hash_storage: function hash_storage_handler(req_params) {
         hash_storage [req_params.key] = req_params.value;
         return Rx.Observable.return(hash_storage);
       }
@@ -715,14 +727,16 @@ define(function (require) {
     function effect_array_storage_1(model, event_data, effect_res) {
       // reminder : returns {model_update : , effect_request: }
       // TODO : write down the types
-      assert.deepEqual(effect_res, undefined, 'Effectful actions : effect functions are called with the model, event data, and effect result as parameters.');
+      assert.deepEqual({model: model, event_data: event_data, effect_res: effect_res}, {
+        model: model0, event_data: event_data1, effect_res: undefined
+      }, 'Effectful actions : effect functions are called with the model, event data, and effect result as parameters.');
       assert.deepEqual(effect_res, undefined, 'Effectful actions : the first effect function is called with no effect result.');
       return {
-        model_update: {trace : event_data},
+        model_update: {trace: event_data},
         effect_request: {
           driver: {
-            family : 'array_storage',
-            name : 'size_5'
+            family: 'array_storage',
+            name: 'size_5'
           },
           params: 'element 1'
         }
@@ -731,12 +745,16 @@ define(function (require) {
 
     function effect_array_storage_2(model, event_data, effect_res) {
       // reminder : returns {model_update : , effect_request:}
-      assert.deepEqual(model, undefined, 'Effectful actions : the second effect function is called with the updated model from the effect result of the first effect function.');
-      assert.deepEqual(effect_res, undefined, 'Effectful actions : the second effect function is called with the effect result of the first effect function.');
-      assert.deepEqual(event_data, model.event_data, 'Effectful actions : All effect functions are called with the same event data.');
+      var updated_model0 = model0;
+      updated_model0.trace = event_data1;
+      var first_effect_result = new Array(5);
+      first_effect_result[0] = 'element 1';
+      assert.deepEqual(model, updated_model0, 'Effectful actions : the second effect function is called with the updated model from the effect result of the first effect function.');
+      assert.deepEqual(effect_res, first_effect_result, 'Effectful actions : the second effect function is called with the effect result of the first effect function.');
+      assert.deepEqual(event_data, event_data1, 'Effectful actions : All effect functions are called with the same event data.');
       return {
         model_update: {
-          trace : [model.trace, event_data, effect_res]
+          trace: [model.trace, event_data, effect_res]
         },
         effect_request: undefined
       }
@@ -746,25 +764,20 @@ define(function (require) {
 
     }
 
-    var model0 = undefined;
-    var states_definition = {A: '', B: '', C: '', D: '', E: ''};
-    var states = fsm_helpers.create_state_enum(states_definition);
-    var event_enum = ['event1', 'event2', 'event3'];
-    var events = fsm_helpers.create_event_enum(event_enum);
     var transitions = [
       {from: states.NOK, to: states.A, event: events[EV_CODE_INIT]},
-      {from: states.A, to: states.B, event: events.EVENT1, action : [effect_array_storage_1, effect_array_storage_2]},
+      {from: states.A, to: states.B, event: events.EVENT1, action: [effect_array_storage_1, effect_array_storage_2]}
     ];
     var state_chart = {
       model: model0,
       state_hierarchy: states,
       events: events,
-      effect_registry : effect_registry,
+      effect_registry: effect_registry,
       transitions: transitions
     };
     var arr_fsm_traces = [];
 
-    var ehfsm = fsm.make_fsm(state_chart, undefined); // intent$ is undefined here as we will simulate events
+    var ehfsm = fsm.make_fsm('fsm_uri', state_chart, undefined); // intent$ is undefined here as we will simulate events
     ehfsm.fsm_state$
       .finally(function () {
         console.log('ending test event sequence', arr_fsm_traces)
@@ -777,7 +790,7 @@ define(function (require) {
     // NOTE : The init event is sent automatically AND synchronously so we can put the stop trace right after
 
     // Sequence of testing events
-    exec_on_tick(ehfsm.send_event, 10)(events.EVENT1, {event_data:'value'});
+    exec_on_tick(ehfsm.send_event, 10)(events.EVENT1, event_data1);
     exec_on_tick(ehfsm.stop, 130)();
 
     var done = assert.async(1); // Cf. https://api.qunitjs.com/async/
@@ -790,10 +803,66 @@ define(function (require) {
       //
       clean(arr_fsm_traces);
 
-      var expected_init_trace = {
-        // TODO
-      };
-      assert.deepEqual(arr_fsm_traces[0], expected_init_trace, 'TODO');
+      var expected_init_trace =
+          [{
+            "automatic_event": undefined,
+            "effect_execution_state": undefined,
+            "recoverable_error": undefined,
+            "inner_fsm": {"model": {"key1": "value"}, "model_update": {}},
+            "internal_state": {"expecting": "intent", "from": "nok", "to": "A"},
+            "event": {"code": "init", "payload": {"key1": "value"}, "__type": ["intent"]}
+          }, {
+            "automatic_event": undefined,
+            "recoverable_error": undefined,
+            "inner_fsm": {
+              "model": {"key1": "value", "trace": {"event_data": "value"}},
+              "model_update": {"trace": {"event_data": "value"}}
+            },
+            "internal_state": {"expecting": "expecting_action_result", "from": "A", "to": "-B-"},
+            "effect_execution_state": {
+              "action_seq_handler": "action_sequence_handler_from_effectful_action_array",
+              "index": 0,
+              "effect_request": {
+                "driver": {"family": "array_storage", "name": "size_5"},
+                "params": "element 1",
+                "command": "command_execute",
+              },
+              "has_more_effects_to_execute": true
+            },
+            "event": {"code": "EVENT1", "payload": {"event_data": "value"}, "__type": ["intent"]}
+          }, {
+            "automatic_event": undefined,
+            "recoverable_error": undefined,
+            "inner_fsm": {
+              "model": {
+                "key1": "value",
+                "trace": [{"event_data": "value"}, {"event_data": "value"}, ["element 1", undefined, undefined, undefined, undefined]]
+              },
+              "model_update": {"trace": [{"event_data": "value"}, {"event_data": "value"}, ["element 1", undefined, undefined, undefined, undefined]]}
+            },
+            "internal_state": {"expecting": "expecting_action_result", "from": "A", "to": "-B-"},
+            "effect_execution_state": {
+              "action_seq_handler": "action_sequence_handler_from_effectful_action_array",
+              "index": 1,
+              "effect_request": {"__type": ["last_effect_request"], "command": "command_ignore", "driver": {}},
+              "has_more_effects_to_execute": false
+            },
+            "event": {"code": "EVENT1", "payload": {"event_data": "value"}, "__type": ["intent"]}
+          }, {
+            "automatic_event": undefined,
+            "recoverable_error": undefined,
+            "effect_execution_state": undefined,
+            "inner_fsm": {
+              "model": {
+                "key1": "value",
+                "trace": [{"event_data": "value"}, {"event_data": "value"}, ["element 1", undefined, undefined, undefined, undefined]]
+              }
+            },
+            "internal_state": {"expecting": "intent", "to": "B"},
+            "event": {"code": "EVENT1", "payload": {"event_data": "value"}, "__type": ["intent"]}
+          }]
+        ;
+      assert.deepEqual(arr_fsm_traces, expected_init_trace, 'TODO');
 
       // TODO
       // 1. Effectful actions/action sequences
@@ -808,8 +877,10 @@ define(function (require) {
       // 1.d. Effect error
       // 1.d.1 Effect error - no error handler
       // 1.d.2 Effect error - error handler
-
-
+      // TODO : check statechart format
+      // TODO : regression testing - remove skip from other tests
+      // TODO : make sure action handlers are called with effect result not effect responses
+      // TODO : write an adapter for model_update -> ractive, because ractive.set expect a path - TEST traversal library
       done();
     }
 

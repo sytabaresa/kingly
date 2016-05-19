@@ -11,6 +11,8 @@ function require_utils(Rx, _, Err, constants) {
   Rx && (Rx.config) && (Rx.config.longStackSupport = true);
 
   var CHECK_TYPE = constants.CHECK_TYPE;
+  var WRAP_CHAR = constants.WRAP_CHAR;
+  var MAX_DEPTH = 100; // for object traversal
 
   function identity(x, y) {
     return x
@@ -21,7 +23,17 @@ function require_utils(Rx, _, Err, constants) {
   }
 
   function wrap(str) {
-    return ['-', str, '-'].join("");
+    if (is_number(str)) str = ""+str; // Case : array indices
+    return [WRAP_CHAR, str, WRAP_CHAR].join("");
+  }
+
+  function unwrap(str) {
+    if (is_number(str)) str = ""+str; // Case : array indices
+    return str && str.slice(1).slice(0, -1);
+  }
+
+  function is_wrapped_key(str) {
+    return wrap(unwrap(str)) === str
   }
 
   function defer_fn(fn, args) {
@@ -38,11 +50,11 @@ function require_utils(Rx, _, Err, constants) {
   }
 
   function and(fn1, fn2) {
-   var args = args_to_array(arguments);
+    var args = args_to_array(arguments);
     // TODO with multiple arguments
     return function and() {
       var args2 = args_to_array(arguments);
-      return args.every(function and(fn){
+      return args.every(function and(fn) {
         return !!fn.apply(null, args2);
       });
     }
@@ -149,8 +161,8 @@ function require_utils(Rx, _, Err, constants) {
 
   function to_error(e, error_constructor) {
     return e instanceof Error
-        ? e
-        : error_constructor ? new error_constructor(e) : new Error(e);
+      ? e
+      : error_constructor ? new error_constructor(e) : new Error(e);
   }
 
   function args_to_array(argument) {
@@ -161,12 +173,112 @@ function require_utils(Rx, _, Err, constants) {
   // merge({ p : {} }, { p : { q: undefined }}) --> { p : { q: undefined }}
   function merge(object, sources) {
     var args = Array.prototype.slice.call(arguments);
-    var customizer_fn = function (destValue, srcValue, key, destParent) {
-      if (srcValue === undefined) destParent[key] = undefined;
+    var customizer_fn = function (destValue, srcValue, key, destParent, srcParent) {
+      if (is_wrapped_key(key)) {
+        var unwrapped_key = unwrap(key);
+        destParent[unwrapped_key] = srcValue;
+        return '';
+      }
+      else if (srcValue === undefined) destParent[key] = undefined;
       // NOTE : could also be delete destParent[key] to remove the property
     };
     args.push(customizer_fn);
-    return _.mergeWith.apply(null, args);
+    // this will put some -key- keys in object...
+    _.mergeWith.apply(null, args);
+    // ... now we remove them
+    return omit_by_recursively_in_place(object, function predicate(value, key){return is_wrapped_key(key)});
+    // TODO : find a better solution, this unfortunately does not conserve the constructor
+  }
+
+  function omit_by_recursively_in_place(object, iteratee) {
+    _.each(object, function (value, key) {
+      if(iteratee(value, key)) {
+      _.unset(object, key);
+    } else if(is_object(value)) {
+      omit_by_recursively_in_place(value, iteratee);
+    }
+  });
+
+  return object;
+}
+
+  /**
+   * Walks object recursively
+   * @param {Object} object
+   * @param {Function} cb
+   * @param {*} ctx
+   * @param {Boolean} mode
+   * @param {Boolean} ignore
+   * @param {Number} max
+   * @returns {Object}
+   */
+  function walk(object, cb, ctx, mode, ignore, max) {
+    var stack = [[], 0, Object.keys(object).sort(), object];
+    var cache = [];
+
+    do {
+      var node = stack.pop();
+      var keys = stack.pop();
+      var depth = stack.pop();
+      var path = stack.pop();
+
+      cache.push(node);
+
+      while(keys[0]) {
+        var key = keys.shift();
+        var value = node[key];
+        var way = path.concat(key);
+        var strategy = cb.call(ctx, node, value, key, way, depth);
+
+        if (strategy === true) {
+          continue;
+        } else if (strategy === false) {
+          stack.length = 0;
+          break;
+        } else {
+          if(max <= depth || !is_object(value)) continue;
+
+          if (cache.indexOf(value) !== -1) {
+            if (ignore) continue;
+            throw new Error('Circular reference');
+          }
+
+          if (mode) {
+            stack.unshift(way, depth + 1, Object.keys(value).sort(), value);
+          } else {
+            stack.push(path, depth, keys, node);
+            stack.push(way, depth + 1, Object.keys(value).sort(), value);
+            break;
+          }
+        }
+      }
+    } while(stack[0]);
+
+    return object;
+  }
+  /**
+   * Walks object recursively
+   * @param {Object} object
+   * @param {function (node, value, key, path, depth) : Boolean|undefined} callback.
+   *         If the callback returns :
+   *         - undefined : the whole object is traversed
+   *         - true : If "value" is {Object|Array}, then "return true" will prevent step into this object
+   *         - false : break the loop (cf. cf. https://github.com/nervgh/object-traverse)
+   * @param {*} [context]
+   * @param {Number} [mode=0] 0 : depth first, 1: breadth first
+   * @param {Boolean} [ignoreCircularReferences=false] By default, if detected circular reference then will throw an exception
+   * @param {Number} [maxDepth=100]
+   * @returns {Object}
+   * cf. https://github.com/nervgh/object-traverse
+   */
+  function traverseWithPath(object, callback, context, mode, ignoreCircularReferences, maxDepth) {
+    var cb = callback;
+    var ctx = context;
+    var _mode = mode === 1;
+    var ignore = !!ignoreCircularReferences;
+    var max = is_number(maxDepth) ? maxDepth : MAX_DEPTH;
+
+    return walk(object, cb, ctx, _mode, ignore, max);
   }
 
   /**
@@ -177,11 +289,11 @@ function require_utils(Rx, _, Err, constants) {
    */
   function get_fn_name(fn) {
     var tokens =
-        /^[\s\r\n]*function[\s\r\n]*([^\(\s\r\n]*?)[\s\r\n]*\([^\)\s\r\n]*\)[\s\r\n]*\{((?:[^}]*\}?)+)\}\s*$/
-            .exec(fn.toString())
-          // For some reasons the previous regexp does not work with function of two parameters
-          // But this one does not filter out possible comments in between `function` and function name...
-        || fn.toString().match(/function ([^\(]+)/)
+      /^[\s\r\n]*function[\s\r\n]*([^\(\s\r\n]*?)[\s\r\n]*\([^\)\s\r\n]*\)[\s\r\n]*\{((?:[^}]*\}?)+)\}\s*$/
+        .exec(fn.toString())
+        // For some reasons the previous regexp does not work with function of two parameters
+        // But this one does not filter out possible comments in between `function` and function name...
+      || fn.toString().match(/function ([^\(]+)/)
     return tokens[1];
   }
 
@@ -257,7 +369,7 @@ function require_utils(Rx, _, Err, constants) {
           var undefined_clause = is_check_undefined ? 'or undefined' : '';
           var null_clause = is_check_null ? 'or null' : '';
           var found_clause = is_undefined(argument) ? 'undefined'
-              : is_null(argument) ? 'null' : '';
+            : is_null(argument) ? 'null' : '';
           hash_errors[parameter_name] = [
             'Wrong type for parameter', parameter_name,
             '. Expected type', type_name, undefined_clause, null_clause,
@@ -302,23 +414,22 @@ function require_utils(Rx, _, Err, constants) {
    * Returns false if the argument passed as parameter fail type checking
    * @param argument
    * @param {String} type_name
-   * @param {Boolean} is_check_undefined A value of `true` means that the value undefined passes the type checking
-   * @param {Boolean} is_check_null
+   * @param {String} error_msg
+   * @param {Boolean=} is_check_undefined A value of `true` means that the value undefined passes the type checking
+   * @param {Boolean=} is_check_null
+   * @param {Boolean=} is_check_any
    * @returns {*} Returns true if the argument passes the type checking
-   * @param error_msg
-   * @param is_check_any
    */
   function assert_type(argument, type_name, error_msg, is_check_undefined, is_check_null, is_check_any) {
     if (is_check_any) return true;
     if (is_undefined(argument)) return either(is_check_undefined, error_msg);
     if (is_null(argument)) return either(is_check_null, error_msg);
-    // TODO : complete the logic, for now we use the __type field
-    // TODO : also does not discriminate array and regexp (there are seen as regular objects)
+    // nice to have : discriminate array and regexp (there are seen as regular objects)
     if (is_object(argument)) {
       return either(((typeof argument === type_name)
-          || is_type_in_prototype_chain(argument, type_name)
-          || (argument && has_custom_type(argument, type_name))),
-          error_msg);
+        || is_type_in_prototype_chain(argument, type_name)
+        || (argument && has_custom_type(argument, type_name))),
+        error_msg);
     }
     else {
       // primitive type (!! null and undefined are primitive types too)
@@ -341,8 +452,8 @@ function require_utils(Rx, _, Err, constants) {
   function is_type_in_prototype_chain(object, type) {
 
     var curObj = object,
-        inst_of,
-        aTypes;
+      inst_of,
+      aTypes;
 
     if (typeof type !== 'string' && typeof type.length === 'undefined') {
       // neither array nor string
@@ -391,10 +502,10 @@ function require_utils(Rx, _, Err, constants) {
   function get_parameter_name_list(func) {
     // NOTE : taken verbatim from http://stackoverflow.com/questions/1007981/how-to-get-function-parameter-names-values-dynamically-from-javascript
     return (func + '').replace(/\s+/g, '')
-        .replace(/[/][*][^/*]*[*][/]/g, '') // strip simple comments
-        .split('){', 1)[0].replace(/^[^(]*[(]/, '') // extract the parameters
-        .replace(/=[^,]+/g, '') // strip any ES6 defaults
-        .split(',').filter(Boolean); // split & filter [""]
+      .replace(/[/][*][^/*]*[*][/]/g, '') // strip simple comments
+      .split('){', 1)[0].replace(/^[^(]*[(]/, '') // extract the parameters
+      .replace(/=[^,]+/g, '') // strip any ES6 defaults
+      .split(',').filter(Boolean); // split & filter [""]
   }
 
   function is_null(obj) {
@@ -438,6 +549,16 @@ function require_utils(Rx, _, Err, constants) {
   }
 
   /**
+   * Returns "true" if any is number
+   * @param {*} any
+   * @returns {Boolean}
+   */
+  function is_number(any) {
+    var isNaN = window.isNaN;
+    return typeof any === 'number' && !isNaN(any);
+  }
+
+  /**
    * Creates and register a registry with the configuration passed as parameters. The registry implements an interface
    * with default implementation which can be modified through methods passed in the configuration object.
    *
@@ -460,24 +581,24 @@ function require_utils(Rx, _, Err, constants) {
     // NOTE : in default implementations, undefined is used to mark for deletion, null and false are considered
     // normal key values
     var fn_has_key_default = function fn_has_key(registry, key) {
-          return !is_undefined(registry[key]);
-        },
-        fn_add_default = function add(/*OUT*/registry, key, value) {
-          registry[key] = value;
-        },
-        fn_remove_default = function remove(/*OUT*/registry, key) {
-          registry[key] = undefined;
-        },
-        fn_get_default = function get_key(registry, key) {
-          return registry[key];
-        };
+        return !is_undefined(registry[key]);
+      },
+      fn_add_default = function add(/*OUT*/registry, key, value) {
+        registry[key] = value;
+      },
+      fn_remove_default = function remove(/*OUT*/registry, key) {
+        registry[key] = undefined;
+      },
+      fn_get_default = function get_key(registry, key) {
+        return registry[key];
+      };
 
     reg_proto.add_entry = function addEntry(/*OUT*/reg, full_reg_config, key, value) {
       var validate_key = full_reg_config.validate_key,
-          validate_value = full_reg_config.validate_value,
-          fn_has_key = full_reg_config.fn_has_key,
-          fn_set = full_reg_config.fn_set,
-          registry = reg.registry;
+        validate_value = full_reg_config.validate_value,
+        fn_has_key = full_reg_config.fn_has_key,
+        fn_set = full_reg_config.fn_set,
+        registry = reg.registry;
       var validated_key = Err.try_catch(validate_key)(key);
       if (validated_key instanceof Error) {
         if (full_reg_config.silent_validation) {
@@ -508,21 +629,21 @@ function require_utils(Rx, _, Err, constants) {
 
     reg_proto.get_entry = function get_entry(/*OUT*/reg, full_reg_config, key) {
       var validate_key = full_reg_config.validate_key,
-          fn_has_key = full_reg_config.fn_has_key,
-          fn_get = full_reg_config.fn_get,
-          registry = reg.registry;
+        fn_has_key = full_reg_config.fn_has_key,
+        fn_get = full_reg_config.fn_get,
+        registry = reg.registry;
       var validated_key = validate_key(key);
 
       return fn_has_key(registry, validated_key)
-          ? fn_get(registry, validated_key)
-          : undefined
+        ? fn_get(registry, validated_key)
+        : undefined
     };
 
     reg_proto.remove_entry = function remove_entry(/*OUT*/reg, full_reg_config, key) {
       var validate_key = full_reg_config.validate_key,
-          fn_has_key = full_reg_config.fn_has_key,
-          fn_remove = full_reg_config.fn_remove,
-          registry = reg.registry;
+        fn_has_key = full_reg_config.fn_has_key,
+        fn_remove = full_reg_config.fn_remove,
+        registry = reg.registry;
       var validated_key = validate_key(key);
 
       if (!fn_has_key(registry, validated_key)) {
@@ -573,6 +694,8 @@ function require_utils(Rx, _, Err, constants) {
     identity: identity,
     sum: sum,
     wrap: wrap,
+    unwrap: unwrap,
+    is_wrapped_key: is_wrapped_key,
     log: log,
     info: info,
     label: label,
@@ -602,6 +725,7 @@ function require_utils(Rx, _, Err, constants) {
     is_null: is_null,
     is_undefined: is_undefined,
     merge: merge,
+    traverseWithPath: traverseWithPath,
     get_fn_name: get_fn_name,
     new_typed_object: new_typed_object,
     assert_signature: assert_signature,
@@ -611,6 +735,7 @@ function require_utils(Rx, _, Err, constants) {
     make_registry: make_registry
   }
 }
+
 
 /**
  @typedef p_url_seg

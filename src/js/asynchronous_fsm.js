@@ -73,77 +73,6 @@ define(function (require) {
   return require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err, utils, constants);
 });
 
-// Type definitions for actions handlers
-// TODO : define effect result
-/**
- * @typedef  {function (*, *, Effect_Result, Number)} Action_Handler
- * @param {Object} model.
- * @param {Object} event_data.
- * @param {Effect_Result} effect_res.
- * @param {Number} index.
- */
-/**
- * @typedef  {function (*, *)} Pure_Action_Handler
- * @param {Object} model.
- * @param {Object} event_data.
- */
-/**
- * @typedef  {function (*, *, Effect_Result)} Effectful_Action_Handler
- * @param {Object} model.
- * @param {Object} event_data.
- * @param {Object} effect_res.
- */
-
-// Type definitions for drivers and effect handlers
-/**
- * @typedef {String} Driver_Name
- */
-/**
- * @typedef {String} Driver_Family_Name
- */
-/**
- * @typedef {Object} Driver_Settings
- */
-/**
- * @typedef {Object<Driver_Name, Driver_Settings>} Driver_Settings_Registry
- * @dict
- */
-/**
- * @typedef {function(Rx.Observable):Rx.Observable} Driver_Operator
- */
-/**
- * @typedef {function(Driver_Settings):Driver_Operator} Driver_Factory
- */
-/**
- * @typedef {Object} Driver_Registry
- * @property {factory} Driver_Factory
- * @property {settings} Driver_Settings_Registry
- */
-/**
- * @typedef {function(effect_request_params : object)} Effect_Handler
- */
-/**
- * @typedef {Object<Driver_Family_Name, (Effect_Handler|Driver_Registry)>} Effect_Registry
- * @dict
- */
-/**
- * @typedef {Object} Effect_Request
- * @property {Driver_Struct} driver
- * @property {Address_Struct} address
- * @property {String} command
- */
-/**
- * @typedef {Object} Driver_Struct
- * @property {String} family
- * @property {String} name
- */
-/**
- * @typedef {Object} Address_Struct
- * @property {String} uri
- * @property {Number|String} token
- */
-
-
 function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err, utils, constants) {
 
   // CONSTANTS
@@ -315,7 +244,6 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       },
       internal_state: {
         expecting: constants.EXPECTING_INTENT,
-        is_model_dirty: true,
         from: INITIAL_STATE_NAME,
         to: undefined
       },
@@ -323,7 +251,6 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       recoverable_error: undefined,
       automatic_event: undefined,
       event: undefined,
-      model_update: undefined,
       dispose_listeners: dispose_listeners
     };
 
@@ -663,10 +590,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       }
       else {
         var fsm_state_update = evaluation_result.fsm_state_update;
-        var model_update = fsm_state_update && fsm_state_update.inner_fsm ? fsm_state_update.inner_fsm.model : {};
         update_fsm_state(/*OUT*/fsm_state, fsm_state_update);
-        // Also for tracing reasons put the model update on fsm_state
-        fsm_state.model_update = model_update;
         fsm_write_trace(traceS, fsm_state, fsm_def, internal_event_type, internal_event, evaluation_result);
 
         return fsm_state;
@@ -674,8 +598,17 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     }
   }
 
-  function update_fsm_state(model, model_update) {
-    // in-place update of the model
+  function update_fsm_state(fsm_state, fsm_state_update) {
+    // The model is updated through a custom merge algorithm which allows for specifying CRUD operations
+    // The rest of fsm_state is updated through extend (replacing entirely existing properties)
+    var model = fsm_state.inner_fsm.model;
+    var model_update = fsm_state.inner_fsm.model_update || {};
+    _.extend(fsm_state, fsm_state_update);
+    fsm_state.inner_fsm.model = update_model(model, model_update);
+    // TODO : write tests for it!!
+  }
+
+  function update_model(model, model_update) {
     return utils.merge(model, model_update);
   }
 
@@ -690,13 +623,15 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
    *   - from : state from which the described transition operates
    *   - to : target state for the described transition
    * @param state_chart
+   * @param fsm_uri
    * @param user_generated_intent$
    * @param effect_response$
    * @param program_generated_intent$
    * @param trace_intentS
    * @returns {{fsm_state${Rx.Observable}, effect_requests${Rx.Observable}}
  */
-  function transduce_fsm_streams(state_chart, user_generated_intent$, effect_response$, program_generated_intent$, trace_intentS) {
+  function transduce_fsm_streams(state_chart, fsm_uri,
+                                 user_generated_intent$, effect_response$, program_generated_intent$, trace_intentS) {
     //// Helpers
     //
     function set_custom_type(type) {
@@ -708,6 +643,20 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     function filter_out_empty_effect_request(fsm_state) {
       return fsm_state.effect_execution_state
         && fsm_state.effect_execution_state.effect_request;
+    }
+
+    function enrich_effect_request(acc, fsm_state) {
+      var effect_req = fsm_state.effect_execution_state.effect_request;
+      var next_token = acc.token++;
+      effect_req.address = {
+        uri: fsm_uri,
+        token: next_token
+      };
+
+      return {
+        token: next_token,
+        effect_request: effect_req //TODO : would be safer to clone deep the request
+      };
     }
 
     // Build the sinks :
@@ -759,20 +708,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
         console.log('fsm_state$ terminated!!!!')
       })
       .filter(filter_out_empty_effect_request)
-      .scan(function enrich_effect_request(acc, fsm_state) {
-        var effect_req = fsm_state.effect_execution_state.effect_request;
-        var next_token = acc.token++;
-        effect_req.address = {
-          uri: 0, //TODO : enrich effect request with token and uri of fsm
-          token: next_token
-        };
-
-        return {
-          token: next_token,
-          effect_request: effect_req //TODO : would be safer to clone deep the request
-        };
-      }, {token: 0})
-      .do(utils.rxlog('pre effect request$'))
+      .scan(enrich_effect_request, {token: 0})
       .pluck('effect_request')
       .filter(utils.identity)
       .do(utils.rxlog('effect request$'))
@@ -823,7 +759,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     // TODO
   }
 
-  function make_fsm(statechart, user_generated_intent$) {
+  function make_fsm(fsm_uri, statechart, user_generated_intent$) {
     var effect_requests_disposable, program_generated_intent_req_disposable;
     var effect_registry = statechart.effect_registry;
     var effect_responseS = new Rx.ReplaySubject(1);
@@ -834,7 +770,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     // TODO : check statechart format
     check_statechart_format(statechart);
 
-    var fsm_sinks = transduce_fsm_streams(statechart,
+    var fsm_sinks = transduce_fsm_streams(statechart, fsm_uri,
       Rx.Observable.merge(user_generated_intent$, debug_intentS),
       effect_responseS, program_generated_intentS,
       trace_intentS
@@ -964,7 +900,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
   /**
    *
    * @param {Effect_Registry} effect_registry_
-   * @returns {Function}
+   * @returns {Function (Request_Stream) : Response_Stream}
    */
   function make_effect_driver(effect_registry_) {
     ///////////
@@ -1027,9 +963,9 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
 
     function filter_request_by_driver_family(family, driver_name) {
       return function filter_request_by_driver_family(effect_request) {
-        return (effect_request.driver.family === family
+        return (effect_request.command !== COMMAND_IGNORE)
+        && effect_request.driver.family === family
         && effect_request.driver.name === driver_name
-        && effect_request.command !== COMMAND_IGNORE);
       }
     }
 
@@ -1163,10 +1099,6 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
             extended_info: {effect_registry: effect_registry, effect_driver_operator: effect_driver_operator}
           });
 
-          // TODO : error management : have a place where errors are filtered
-          // if error in driver factory, that driver cannot be used, but other drivers can, so log the error and continue
-          // or abort ?? As much as possible don't swallow errors silently though
-          // That discrimination could happen based on the type of exception generated so have a code for each??
           var effect_res$ = Err.try_catch(effect_driver_operator)(filtered_effect_requests$);
           // Case : driver THROWS an error - whatever kind of error it is, it is returned as error code (no throwing)
           //        to be dealth with upstream (for instance at FSM level)
@@ -1185,7 +1117,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
             // Set the driver as already active (i.e. dealing with the associated `effect_request` stream)
             set_in_active_drivers(/*OUT*/active_drivers, driver_family, driver_name, true);
             effect_result$ = effect_res$
-              .do(utils.rxlog('effect_res'))
+              .do(utils.rxlog('effect_result'))
               .finally(function () {
                 // NOTE : driver is terminated after error or graciouly,
                 // remove the driver from cache, so it is recreated next time
@@ -1226,13 +1158,13 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       return function compute_effect_res(/*OUT*/effect_driver_state, effect_request) {
         var driver = effect_request.driver;
         var command = effect_request.command;
-        var driver_family = driver.family;
+        var driver_family = driver.family; // if command is ignore, there is not necessarily a driver field
         var is_execute_command = (command === COMMAND_EXECUTE);
         var is_cancel_command = (command === COMMAND_CANCEL);
         var is_ignore_command = (command === COMMAND_IGNORE);
 
         // Edge case : effect_request calls for a driver which is not defined in the registry
-        if (!(driver_family in effect_registry)) {
+        if (!is_ignore_command && !(driver_family in effect_registry)) {
           throw new Error('compute_effect_res : driver not defined in effect registry')
         }
 
@@ -1267,7 +1199,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       effect_response$: undefined
     };
 
-    // TODO : cancelled request array is ever growing, find a way to remove cancelled requests from the array
+    // TODO : cancelled request array is ever growing, find a way to remove cancelled requests from the array (closure)
     return function effect_driver(effect_requests$) {
       var effect_driver_state$ = effect_requests$
         .do(check_effect_request_format) // throws an exception if wrong format
@@ -1304,3 +1236,120 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
   };
 }
 
+// Type definitions for actions handlers
+/**
+ * @typedef {String} State
+ */
+/**
+ * @typedef {*} Effect_Result
+ */
+/**
+ * @typedef {Object} Unaddressed_Effect_Request
+ * @property {Driver_Struct} driver
+ * @property {*} params
+ */
+/**
+ * @typedef {Rx.Observable<Effect_Request>} Request_Stream
+ */
+/**
+ * @typedef {Rx.Observable<Effect_Response>} Response_Stream
+ */
+/**
+ * @typedef {Object} Effect_Response
+ * @property {Effect_Request} effect_request
+ * @property {Effect_Result} effect_result
+ */
+/**
+ * @typedef  {Object} Action_Handler_Result
+ * @property {*} model_update
+ * @property {Unaddressed_Effect_Request} effect_request
+ */
+/**
+ * @typedef  {function (*, *, Effect_Result, Number)} Action_Handler
+ * @param {Object} model.
+ * @param {Object} event_data.
+ * @param {Effect_Result} effect_res.
+ * @param {Number} index.
+ */
+/**
+ * @typedef  {function (*, *)} Pure_Action_Handler
+ * @param {Object} model.
+ * @param {Object} event_data.
+ */
+/**
+ * @typedef  {function (*, *, Effect_Result)} Effectful_Action_Handler
+ * @param {Object} model.
+ * @param {Object} event_data.
+ * @param {Object} effect_res.
+ */
+
+// Typedefs for event handler
+/**
+ * @typedef  {function (*, *, *)} Event_Handler
+ * @param {*} model.
+ * @param {*} event_data.
+ * @param {*} current_state.
+ */
+/**
+ * @typedef  {Object} Event_Handler_Result
+ * @property {Predicate} predicate
+ * @property {Action_Handler} action_seq_handler
+ * @property {State} from
+ * @property {State} to
+ *
+ */
+/**
+ * @typedef {function (*,*) : Boolean} Predicate
+ * @param {*} model.
+ * @param {*} event_data.
+ */
+
+// Type definitions for drivers and effect handlers
+/**
+ * @typedef {String} Driver_Name
+ */
+/**
+ * @typedef {String} Driver_Family_Name
+ */
+/**
+ * @typedef {Object} Driver_Settings
+ */
+/**
+ * @typedef {Object<Driver_Name, Driver_Settings>} Driver_Settings_Registry
+ * @dict
+ */
+/**
+ * @typedef {function(Rx.Observable):Rx.Observable} Driver_Operator
+ */
+/**
+ * @typedef {function(Driver_Settings):Driver_Operator} Driver_Factory
+ */
+/**
+ * @typedef {Object} Driver_Registry
+ * @property {factory} Driver_Factory
+ * @property {settings} Driver_Settings_Registry
+ */
+/**
+ * @typedef {function(effect_request_params : object)} Effect_Handler
+ */
+/**
+ * @typedef {Object<Driver_Family_Name, (Effect_Handler|Driver_Registry)>} Effect_Registry
+ * @dict
+ */
+/**
+ * @typedef {Object} Effect_Request
+ * @property {String} command
+ * @property {Driver_Struct} driver
+ * @property {Address_Struct} address
+ * @property {*} params
+ */
+/**
+ * @typedef {Object} Driver_Struct
+ * @property {String} family
+ * @property {String} name
+ */
+/**
+ * @typedef {Object} Address_Struct
+ * @property {String} uri
+ * @property {Number|String} token
+ */
