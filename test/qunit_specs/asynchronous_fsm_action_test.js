@@ -865,13 +865,13 @@ define(function (require) {
       assert.deepEqual(arr_fsm_traces, expected_init_trace, 'TODO');
 
       // TODO
-      // 1. Effectful actions/action sequences
-      // 1.a. Action with one effect
-      // 1.a.1 model is updated twice correctly
-      // 1.a.2 inner and outer state are changed accordingly
-      // 1.a.3 effect is executed
-      // 1.a.3.1 action is executed with the right arguments
-      // 1.a.3.2 the right effect is executed
+      // 1. Effectful actions/action sequences                              //
+      // 1.a. Action with one effect                                        //
+      // 1.a.1 model is updated twice correctly                             //
+      // 1.a.2 inner and outer state are changed accordingly                //
+      // 1.a.3 effect is executed                                           //
+      // 1.a.3.1 action is executed with the right arguments                //
+      // 1.a.3.2 the right effect is executed                               //
       // 1.b. Action with two effects
       // 1.c. Receiving an effect result which is not expected
       // 1.d. Effect error
@@ -879,7 +879,6 @@ define(function (require) {
       // 1.d.2 Effect error - error handler
       // TODO : check statechart format
       // TODO : regression testing - remove skip from other tests
-      // TODO : make sure action handlers are called with effect result not effect responses
       // TODO : write an adapter for model_update -> ractive, because ractive.set expect a path - TEST traversal library
       done();
     }

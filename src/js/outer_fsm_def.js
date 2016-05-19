@@ -56,7 +56,7 @@ function require_outer_fsm_def(Err, utils, constants) {
       {
         // CASE : There is a transition associated to that event - the corresponding action implies a sequence of effects
         predicate: utils.and(has_event_handler, has_action_seq_handler, utils.not(is_seq_handler_of_pure_action)),
-        action: update_model_and_send_effect_request, // TODO : update the logic
+        action: update_model_and_send_effect_request,
         to: EXPECTING_EFFECT_RESULT
       },
       {
@@ -293,7 +293,7 @@ function require_outer_fsm_def(Err, utils, constants) {
 
       var predicate = event_handler_result.predicate;
       var action_seq_handler = event_handler_result.action_seq_handler;
-      var effect_res = undefined; // In that branch case, we do not have an effect result to process
+      var effect_result = undefined; // In that branch case, we do not have an effect result to process
 
       utils.info("WHEN EVENT ", internal_event.code);
       utils.info("IN STATE ", event_handler_result.from);
@@ -305,7 +305,7 @@ function require_outer_fsm_def(Err, utils, constants) {
       utils.info("executing action handler: " + action_seq_handler.name);
 
       // Update fsm state
-      var action_seq_handler_result = action_seq_handler(model, event_data, effect_res, 0); // index = 0 for first effect
+      var action_seq_handler_result = action_seq_handler(model, event_data, effect_result, 0); // index = 0 for first effect
       utils.assert_type(action_seq_handler_result, 'object', 'update_model_and_send_effect_request : action_seq_handler did not return an object as expected!');
 
       var model_update = action_seq_handler_result.model_update;
@@ -332,8 +332,6 @@ function require_outer_fsm_def(Err, utils, constants) {
       fsm_state_update.internal_state.to = utils.wrap(event_handler_result.to);
       return fsm_state_update;
     }
-
-    // TODO : when it comes to the internal of fsm state I have to put ALL the fields, as I use extend now...
 
     function get_fsm_state_update_when_subsequent_effects(fsm_state, internal_event) {
       var fsm_state_update = fsm_state;
@@ -429,8 +427,6 @@ function require_outer_fsm_def(Err, utils, constants) {
       // no updates but remove the effect request field to avoid resending the request downstream
       return fsm_state_update;
     }
-
-    // TODO : check that model is passed down only when model_update is not empty or falsy
 
     function update_model_and_transition_to_next_state(fsm_state, internal_event) {
       var fsm_state_update = {effect_execution_state: {}, inner_fsm: {}, internal_state: {}};
@@ -613,33 +609,6 @@ function require_outer_fsm_def(Err, utils, constants) {
         effect_request: undefined,
         effect_execution_state: undefined,
         payload: undefined
-      }
-    }
-
-    function get_pure_action_outer_fsm_model_update(automatic_event, model_update, from, to, internal_event) {
-      return {
-        // set the automatic event if any (will be undefined if there is none)
-        automatic_event: automatic_event,
-        // serves as a trace of the event which provoked the transition
-        event: internal_event,
-        // model has been modified
-        internal_state: {
-          // but we remain in the internal state EXPECTING_INTENT as there are automatic events
-          // to process. Those events come through the intent$ channel, like other user-originated
-          // events.
-          expecting: EXPECTING_INTENT,
-          // EXPECTING_INTENT internal state does not make use of from and to
-          from: from,
-          to: to
-        },
-        // update model private props which are computed properties based on `fsm_state`
-        inner_fsm: {
-          model: model_update
-        },
-        // no effect request to be made
-        effect_execution_state: undefined,
-        // no error
-        recoverable_error: undefined
       }
     }
 

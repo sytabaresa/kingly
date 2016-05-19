@@ -735,14 +735,3 @@ function require_utils(Rx, _, Err, constants) {
     make_registry: make_registry
   }
 }
-
-
-/**
- @typedef p_url_seg
- @type {Object}
- @property {String} url_seg xxx
- @property {Object} [qry_seg] xxx
- @property {Object} [obj_seg] xxx
- @property {String} [hash] xxx
- Example : {}
- */
