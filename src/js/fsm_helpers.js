@@ -12,7 +12,6 @@ define(function (require) {
         var action_list_min = {identity: utils.identity};
         return action_list.reduce(function build_action_enum(action_struct, action_fn, index) {
             var action_name = action_fn.name;
-            // TODO : make and throw an internal app error with some info in it
             if (!action_name) throw 'ERROR : when processing action list, found an action function without a name! (index ' + index + ')'
             action_struct.action_enum[action_name] = action_name;
             action_struct.action_hash[action_name] = action_fn;

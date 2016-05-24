@@ -9,7 +9,7 @@ define(function (require) {
 
 function require_custom_errors(_) {
   function log() {
-    console.warn.apply(console,arguments);
+//    console.warn.apply(console,arguments);
   }
 
   function AppErrorToString(error) {
@@ -18,7 +18,7 @@ function require_custom_errors(_) {
     error.message && log("Message: " + error.message);
     error.detail && log("Detail: ", error.detail);
     error.extended_info && log("Extended Info: ", error.extended_info);
-    error.errorCode && log("Error Code: " + error.errorCode);
+    error.error_code && log("Error Code: " + error.error_code);
     error.innerStack && log("Inner stack: " + error.innerStack);
   }
 
@@ -45,7 +45,7 @@ function require_custom_errors(_) {
   // * message: I am the reason the error is being thrown.
   // * detail: I am an explanation of the error.
   // * extended_info: I am additional information about the error context.
-  // * errorCode: I am a custom error code associated with this type of error.
+  // * error_code: I am a custom error code associated with this type of error.
   // --
   // The implementationContext argument is an optional argument that can be used to trim
   // the generated stacktrace. If not provided, it defaults to AppError.
@@ -70,7 +70,7 @@ function require_custom_errors(_) {
     this.message = ( settings.message || "An error occurred." );
     this.detail = ( settings.detail || "" );
     this.extended_info = ( settings.extended_info || "" );
-    this.errorCode = ( settings.errorCode || "" );
+    this.error_code = ( settings.error_code || "" );
 
     // This is just a flag that will indicate if the error is a custom AppError. If this
     // is not an AppError, this property will be undefined, which is a Falsey.
@@ -126,8 +126,15 @@ function require_custom_errors(_) {
     return tryCatcherGen(fn);
   };
 
+  function enrich_error (err, extended_info) {
+    err.extended_info = err.extended_info || {};
+    _.assign(err.extended_info, extended_info);
+    return err;
+  }
+
   return {
     try_catch: tryCatch,
+    enrich_error : enrich_error,
     AppError : AppError,
     SM_Error: createAppError('SM_Error'),
     Registry_Error: createAppError('Registry_Error'),

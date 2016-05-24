@@ -5,6 +5,7 @@ define(function (require) {
   var fsm = require('asynchronous_fsm');
   var fsm_helpers = require('fsm_helpers');
   var constants = require('constants');
+  var assert = undefined;
 
   const EV_CODE_INIT = constants.EV_CODE_INIT;
   const EXECUTE = constants.commands.EXECUTE;
@@ -16,6 +17,8 @@ define(function (require) {
   var event_enum = ['event1', 'event2', 'event3'];
   var events = fsm_helpers.create_event_enum(event_enum);
 
+  ///////
+  // Helpers
   window.onerror = function (msg, url, lineNo, columnNo, error) {
     console.error(error);
     return false;
@@ -46,6 +49,14 @@ define(function (require) {
 
       var action_seq_handler = fsm_trace.effect_execution_state && fsm_trace.effect_execution_state.action_seq_handler;
       action_seq_handler && (fsm_trace.effect_execution_state.action_seq_handler = action_seq_handler.name);
+
+      if (fsm_trace.fatal_error) {
+        delete fsm_trace.fatal_error.detail;
+        delete fsm_trace.fatal_error.error_code;
+        delete fsm_trace.fatal_error.is_app_error;
+        delete fsm_trace.fatal_error.toString;
+        fsm_trace.fatal_error = JSON.parse(JSON.stringify(fsm_trace.fatal_error));
+      }
 
       return arr_fsm_traces;
     });
@@ -725,8 +736,6 @@ define(function (require) {
     };
 
     function effect_array_storage_1(model, event_data, effect_res) {
-      // reminder : returns {model_update : , effect_request: }
-      // TODO : write down the types
       assert.deepEqual({model: model, event_data: event_data, effect_res: effect_res}, {
         model: model0, event_data: event_data1, effect_res: undefined
       }, 'Effectful actions : effect functions are called with the model, event data, and effect result as parameters.');
@@ -760,13 +769,45 @@ define(function (require) {
       }
     }
 
-    function effect_hash_storage(model, event_data, effect_res) {
+    function effect_hash_storage_1(model, event_data, effect_res) {
 
+      return {
+        model_update: {
+          args_first_call_except_model: [event_data, effect_res],
+          hash_storage: utils.clone_deep(hash_storage),
+          trace: undefined // removing previous trace fields
+        },
+        effect_request: {
+          driver: {family: 'hash_storage'},
+          params: {key: 'element 1', value: 'value1'}
+        }
+      }
+    }
+
+    function effect_hash_storage_2(model, event_data, effect_res) {
+
+      return {
+        model_update: {
+          args_second_call_except_model: [event_data, effect_res],
+          hash_storage: utils.clone_deep(hash_storage)
+        },
+        effect_request: undefined
+      }
+    }
+
+    function test_on_error(e) {
+      console.error('test in error', e);
     }
 
     var transitions = [
       {from: states.NOK, to: states.A, event: events[EV_CODE_INIT]},
-      {from: states.A, to: states.B, event: events.EVENT1, action: [effect_array_storage_1, effect_array_storage_2]}
+      {from: states.A, to: states.B, event: events.EVENT1, action: [effect_array_storage_1, effect_array_storage_2]},
+      {
+        from: states.B,
+        to: states.A,
+        event: events.EVENT2,
+        action: [effect_hash_storage_1, effect_hash_storage_2, effect_array_storage_1]
+      }
     ];
     var state_chart = {
       model: model0,
@@ -782,6 +823,17 @@ define(function (require) {
       .finally(function () {
         console.log('ending test event sequence', arr_fsm_traces)
       })
+      .catch(function stop_fsm(e) {
+        setTimeout(function () { ehfsm.stop()}, 2);
+        assert.deepEqual({name: e.name, has_effect_number: !!e.extended_info.effect_number},
+          {name: 'Effect_Error', has_effect_number: true},
+          'When a sequence of effectful actions is specified, the corresponding effect handler must generated a valid effect request for each action. Otherwise an exception is raised.');
+        var fsm_error_state = e.extended_info.fsm_state; // NOTE : by construction all errors have extended_info property
+        fsm_error_state.fatal_error = e;
+        delete fsm_error_state.fatal_error.extended_info.fsm_state;
+        // TODO : set again the log warn - should be called only once
+        return Rx.Observable.return(fsm_error_state);
+      })
       .subscribe(function on_next(fsm_state) {
         console.log('fsm_state...', utils.clone_deep(fsm_state));
         arr_fsm_traces.push(utils.clone_deep(fsm_state));
@@ -791,16 +843,22 @@ define(function (require) {
 
     // Sequence of testing events
     exec_on_tick(ehfsm.send_event, 10)(events.EVENT1, event_data1);
+    exec_on_tick(ehfsm.send_event, 30)(events.EVENT2, {});
     exec_on_tick(ehfsm.stop, 130)();
 
     var done = assert.async(1); // Cf. https://api.qunitjs.com/async/
 
     function test_on_complete() {
-      // TODO
-      // T1. Initial transition
-      // WHEN starting the statechart
-      // THEN it should transitions to A
-      //
+      // T1. Effectful actions/action sequences - Action with one effect
+      // WHEN starting the statechart, and sending EVENT1
+      // THEN
+      // - on start, it should transition to A
+      // - on EVENT1, it should transition to B
+      // - the right effect handlers are called in right order with the right parameters
+      // - model and model update fields are updated correctly
+      // - no (recoverable or fatal) errors are generated
+      // - no automatic events are generated
+
       clean(arr_fsm_traces);
 
       var expected_init_trace =
@@ -844,7 +902,7 @@ define(function (require) {
             "effect_execution_state": {
               "action_seq_handler": "action_sequence_handler_from_effectful_action_array",
               "index": 1,
-              "effect_request": {"__type": ["last_effect_request"], "command": "command_ignore", "driver": {}},
+              "effect_request": {"command": "command_ignore", "driver": {}},
               "has_more_effects_to_execute": false
             },
             "event": {"code": "EVENT1", "payload": {"event_data": "value"}, "__type": ["intent"]}
@@ -856,13 +914,33 @@ define(function (require) {
               "model": {
                 "key1": "value",
                 "trace": [{"event_data": "value"}, {"event_data": "value"}, ["element 1", undefined, undefined, undefined, undefined]]
+              },
+              "model_update": {
+                "trace": [{"event_data": "value"}, {"event_data": "value"}, ["element 1", undefined, undefined, undefined, undefined]]
               }
             },
-            "internal_state": {"expecting": "intent", "to": "B"},
+            "internal_state": {"expecting": "intent", from: "A", "to": "B"},
             "event": {"code": "EVENT1", "payload": {"event_data": "value"}, "__type": ["intent"]}
           }]
         ;
-      assert.deepEqual(arr_fsm_traces, expected_init_trace, 'TODO');
+      var arr_fsm_traces_1 = arr_fsm_traces.slice(0, 4);
+      var arr_fsm_traces_2 = arr_fsm_traces[5];
+
+      assert.deepEqual(arr_fsm_traces_1, expected_init_trace, 'Effectful actions : The state machine and model is updated as the result of both effect results and pure updates set in the effect handler logic.');
+      assert.deepEqual(arr_fsm_traces_2, {}, [
+        'Effectful actions : There must be a number of effects in relation with the length of the array passed to specify a sequence of effects.',
+        'If there are more effects than expected, ', // TODO
+        'If there are less effects than expected, a fatal error is issued which contains the current (hence not updated) state of the state machine'].join(' \n'));
+
+      // T2. Effectful actions/action sequences - Action with two effects - but on effect handler does not return an effect request
+
+      // T3. Effectful actions/action sequences - Action with two effects
+
+      // T4. Receiving unexpected effect result
+
+      // T5. Effect error - error handler (effect throws)
+
+      // T6. Effect error - no error handler (effect throws)
 
       // TODO
       // 1. Effectful actions/action sequences                              //
@@ -877,9 +955,11 @@ define(function (require) {
       // 1.d. Effect error
       // 1.d.1 Effect error - no error handler
       // 1.d.2 Effect error - error handler
+      // TODO : find a way that the fatal errors leave a trace that I can test against...
       // TODO : check statechart format
       // TODO : regression testing - remove skip from other tests
       // TODO : write an adapter for model_update -> ractive, because ractive.set expect a path - TEST traversal library
+      // TODO : test the update (model merge) functionality with arrays and objects (array-array are merged, but object-array is assigned)
       done();
     }
 
@@ -932,4 +1012,3 @@ define(function (require) {
 //   i.e. 2. model -> {test_field : 42, dummy : true}
 //           model_update -> {test_field : 42}
 //           misc. internal state and other fields
-

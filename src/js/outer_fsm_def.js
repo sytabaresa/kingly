@@ -309,7 +309,8 @@ function require_outer_fsm_def(Err, utils, constants) {
       utils.assert_type(action_seq_handler_result, 'object', 'update_model_and_send_effect_request : action_seq_handler did not return an object as expected!');
 
       var model_update = action_seq_handler_result.model_update;
-      var effect_request = action_seq_handler_result.effect_request; // unaddressed effect request
+      /** @type Unaddressed_Effect_Request*/
+      var effect_request = action_seq_handler_result.effect_request;
       utils.assert_type(effect_request, 'object', 'update_model_and_send_effect_request : effect request is not an object as expected!');
 
       fsm_state_update.recoverable_error = undefined;
@@ -319,17 +320,20 @@ function require_outer_fsm_def(Err, utils, constants) {
 
       fsm_state_update.inner_fsm.model_update = model_update;
 
-      fsm_state_update.effect_execution_state.action_seq_handler = action_seq_handler;
-      fsm_state_update.effect_execution_state.index = 0;
-      fsm_state_update.effect_execution_state.effect_request = effect_request;
-      fsm_state_update.effect_execution_state.effect_request.command = EXECUTE;
-      fsm_state_update.effect_execution_state.has_more_effects_to_execute = true;
-
-      fsm_state_update.internal_state.expecting = EXPECTING_EFFECT_RESULT;
-      // Reminder : the `to` state is wrapped with some character to indicate that the transition is pending
-      fsm_state_update.internal_state.from = event_handler_result.from;
-      // wrap the target state to indicate it is pending
-      fsm_state_update.internal_state.to = utils.wrap(event_handler_result.to);
+      effect_request.command = EXECUTE;
+      fsm_state_update.effect_execution_state = {
+        action_seq_handler: action_seq_handler,
+        index: 0,
+        effect_request: effect_request,
+        has_more_effects_to_execute: true
+      };
+      fsm_state_update.internal_state = {
+        expecting: EXPECTING_EFFECT_RESULT,
+        // Reminder : the `to` state is wrapped with some character to indicate that the transition is pending
+        from: event_handler_result.from,
+        // wrap the target state to indicate it is pending
+        to: utils.wrap(event_handler_result.to)
+      };
       return fsm_state_update;
     }
 
@@ -347,14 +351,55 @@ function require_outer_fsm_def(Err, utils, constants) {
       var model_update = action_seq_handler_result.model_update;
       var effect_request = action_seq_handler_result.effect_request;
 
+      log_messages(effect_request);
+
+      // Set effect execution state in function of expected number of requests, number of requests received
       if (effect_request) {
-        utils.info("Processing effect", effect_request.driver.family, effect_request.driver.name, effect_request.params);
-      } else {
-        utils.info("Processing model update only");
+        // Case : More effects to execute
+        effect_request.command = EXECUTE;
+        fsm_state_update.effect_execution_state = {
+          action_seq_handler: fsm_state.effect_execution_state.action_seq_handler,
+          index: index,
+          effect_request: effect_request,
+          has_more_effects_to_execute: true
+        }
       }
-      utils.info("IN STATE ", fsm_state.internal_state.from);
-      utils.info("WITH model, event data BEING ", model, event_data);
-      utils.info("executing action handler: " + action_seq_handler.name, index);
+      else {
+        // Case : Last effect request
+        var effect_number = action_seq_handler.effect_number;
+        if (effect_number !== index) {
+          // Case : unexpected end of effect requests
+          throw Err.Effect_Error({
+              message: 'Unexpected end of effect requests, expected ' + effect_number + ', encountered end of effects at index ' + index,
+              extended_info: {effect_number: effect_number, index: index}
+            }
+          )
+        }
+        else {
+          // We pass a dummy effect request to signal completion (eq. to stream's `onCompleted` event)
+          effect_request = {
+            command: IGNORE,
+            driver: {}
+          };
+          fsm_state_update.effect_execution_state = {
+            action_seq_handler: fsm_state.effect_execution_state.action_seq_handler,
+            index: index,
+            effect_request: effect_request,
+            has_more_effects_to_execute: false
+          }
+        }
+      }
+
+      function log_messages(effect_request) {
+        if (effect_request) {
+          utils.info("Processing effect", effect_request.driver.family, effect_request.driver.name, effect_request.params);
+        } else {
+          utils.info("Processing model update only");
+        }
+        utils.info("IN STATE ", fsm_state.internal_state.from);
+        utils.info("WITH model, event data BEING ", model, event_data);
+        utils.info("executing action handler: " + action_seq_handler.name, index);
+      }
 
       // Update fsm state
       fsm_state_update.recoverable_error = undefined;
@@ -363,21 +408,9 @@ function require_outer_fsm_def(Err, utils, constants) {
 
       fsm_state_update.inner_fsm.model_update = model_update;
 
-      // Set effect execution state
-      // We pass a dummy effect request to signal completion (eq. to stream's `onCompleted` event)
-
-      // fsm_state_update.effect_execution_state.action_seq_handler = action_seq_handler;  no change!!!
-      fsm_state_update.effect_execution_state.index = index;
-      fsm_state_update.effect_execution_state.effect_request = effect_request ? effect_request : last_effect_request;
-      fsm_state_update.effect_execution_state.effect_request.command = effect_request ? EXECUTE : IGNORE;
-      fsm_state_update.effect_execution_state.effect_request.driver = effect_request ? effect_request.driver : {};
-      fsm_state_update.effect_execution_state.has_more_effects_to_execute
-        = !utils.has_custom_type(fsm_state_update.effect_execution_state.effect_request, LAST_EFFECT_REQUEST);
-
       fsm_state_update.internal_state.expecting = EXPECTING_EFFECT_RESULT;
       // Reminder : the `to` state is wrapped with some character to indicate that the transition is pending
-      // fsm_state_update.internal_state.from = event_handler_result.from; no change!!!
-      // same for .to!!!
+      // fsm_state_update.internal_state.from = event_handler_result.from; no change!!! same for .to!!!
 
       return fsm_state_update;
     }
@@ -429,7 +462,7 @@ function require_outer_fsm_def(Err, utils, constants) {
     }
 
     function update_model_and_transition_to_next_state(fsm_state, internal_event) {
-      var fsm_state_update = {effect_execution_state: {}, inner_fsm: {}, internal_state: {}};
+      var fsm_state_update = fsm_state;
       var hash_states = fsm_state.inner_fsm.hash_states;
       var event_data = fsm_state.event.payload;
       var effect_request = fsm_state.effect_execution_state.effect_request;

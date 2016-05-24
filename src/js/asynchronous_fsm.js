@@ -1,31 +1,17 @@
 // TODO : add the weak abortion feature? unless it can be simulated with standard statechart?//        for instance, action = http request, and cancel event in same state, no need for weak abortion
 // TODO : add new feature : actions can send events - first design it
-// TODO : architecture a la ELM, write actions as a comonad
-//        in the action enum, maybe add a breakdown of the action into pure (model update), and effectful
-//        maybe through a type, like {STOP : new Effect(action_def), START : {pure : action_def, effect : effect_def}
-//        when only effect, the pure is identity
-//        or type constructor new Action (effect, pure). `pure` could also be called update, like in Elm
-//        or simply use a higher-order function like compose : {START : compose (effect, pure)}
-//        The advantage of using one's own constructor is that it can be instrumented for tracing and debugging purposes
-// TODO : check that the action_res received is the action_res expected i.e. keep action_req at hand, and send action_req with action_res
-//        also, give a unique ID (time+counter) to the request - so modify to_observable or add a function after it
+// TODO : function de/serialize -> allow to save and recreate the state of the FSM
 // TODO : write documentation in readme.md - argue use case for HFSM, give roadmap
 // TODO : DSL
 // TODO : write program which takes a transition specifications and draw a nice graph out of it with yed or else
 // TODO : think about the concurrent states (AND state
 // NOTE : AND states gives problems of processing events (an action_res can be received by several states)
 //        so 1 AND state could have received its action result and move on, while the second is still waiting for an action res to come...
-// TODO : switch internal state machine to synchronous state machine?? I'd say yes
-// TODO : function de/serialize -> allow to save and recreate the state of the FSM
 // TODO : entry and exit actions?? annoying as it forces to add up more intermediate state in the internal state machine
-// TODO : add the possibility to add conditions one by one on a given transition (preprocessing the array beforehand?)
-//{from: states.cd_loaded_group, to: states.cd_stopped, event: cd_player_events.NEXT_TRACK, condition: is_last_track, action: stop},
-//{from: states.cd_loaded_group, to: states.history.cd_loaded_group, event: cd_player_events.NEXT_TRACK, condition: is_not_last_track, action: go_next_track},
-////vs. {from: states.cd_loaded_group, to: states.cd_stopped, event: cd_player_events.NEXT_TRACK, conditions: [
-////      {condition: is_last_track, to: states.cd_stopped, action: stop},
-////      {condition: is_not_last_track, to: states.history.cd_loaded_group, action: go_next_track}
-////    ]},
-// TODO : Add termination connector (T)?
+// discarded : add the possibility to add conditions one by one on a given transition (preprocessing the array beforehand?)
+//             Better to have them in one place to avoid logical mistakes due to order of predicates
+// nice to have : switch internal state machine to synchronous state machine?? I'd say yes
+// nice to have : Add termination connector (T)?
 // TODO : abstract the tree traversal for the build states part
 
 // TERMINOLOGY
@@ -56,9 +42,6 @@
 // This will allow to save a copy of a state machine and its state for testing.
 
 // CONTRACT : the fsm, after emitting an effect request, blocks till it received the corresponding effect response
-// TODO : have another format for effect responses?? so the user cannot have events that could be mistaken for effect responses
-// We already have a different format as those events comes from another channel. That channel has to be hidden to avoid
-// having other agents sending effect_res to it!! and the internal details not disclosed (in the public documentation)
 
 define(function (require) {
   var utils = require('utils');
@@ -341,7 +324,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
                       // CASE : just an action function passed : it MUST be a pure action
                       ? make_action_handler_from_pure_action_handler(action)
                       // CASE : an array of action is passed : it MUST be a sequence of effectful actions
-                      : utils.is_array(action)
+                      : (utils.is_array(action) && action.length > 0)
                       ? make_action_sequence_handler_from_effectful_action_array(action)
                       : utils.is_undefined(action)
                       // CASE : I have a condition which is fulfilled but no action
@@ -412,16 +395,13 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
    */
   function make_action_sequence_handler_from_effectful_action_array(arr_actions) {
     /**
-     * @param {Object} model.
-     * @param {Object} event_data.
-     * @param {Object} effect_res.
-     * @param {Number} index.
+     * @type Action_Handler
      */
-    return utils.new_typed_object(
-      function action_sequence_handler_from_effectful_action_array(model, event_data, effect_res, index) {
-        return arr_actions[index](model, event_data, effect_res);
-      },
-      ACTION_SEQUENCE_HANDLER)
+    var action_sequence_handler = function action_sequence_handler_from_effectful_action_array(model, event_data, effect_res, index) {
+      return arr_actions[index](model, event_data, effect_res);
+    };
+    action_sequence_handler.effect_number = arr_actions.length - 1;
+    return utils.new_typed_object(action_sequence_handler, ACTION_SEQUENCE_HANDLER);
   }
 
   function outer_fsm_write_trace(traceS, /*OUT*/fsm_state, internal_fsm_def, internal_event_type, internal_event, evaluation_result) {
@@ -695,11 +675,12 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
 
     var fsm_state$ = merged_labelled_sources$
       .scan(process_fsm_internal_transition(outer_fsm, outer_fsm_write_trace, traceS), fsm_initial_state)
-      .catch(function (e) {
+      .catch(function catch_fsm_state_errors(e) {
         console.error('error while process_fsm_internal_transition', e);
+        console.info(e.extended_info);
+        console.warn(e.stack);
         return Rx.Observable.throw(e);
       })
-      //      .do(utils.rxlog('merge labelled sources'))
       .share();
 
     // The stream of effect requests
@@ -949,23 +930,29 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       return typed_registry;
     }
 
-    function check_effect_request_format(effect_request) {
-      if (utils.has_custom_type(effect_request, LAST_EFFECT_REQUEST)) return;
-      if (!effect_request) throw Err.Effect_Error({message: 'check_effect_request_format : effect_request cannot be undefined!'});
-      if (!effect_request.driver) throw Err.Effect_Error({message: 'check_effect_request_format : driver cannot be undefined!'});
-      if (!effect_request.address) throw Err.Effect_Error({message: 'check_effect_request_format : address cannot be undefined!'});
-      if (!effect_request.command || (effect_request.command !== COMMAND_EXECUTE && effect_request.command !== COMMAND_CANCEL)) {
-        throw Err.Effect_Error({message: 'check_effect_request_format : command can only be "execute" or "cancel"!'});
+    function check_effect_request_format(effect_registry) {
+      return function check_effect_request_format(effect_request) {
+        if (utils.has_custom_type(effect_request, LAST_EFFECT_REQUEST)) return;
+        if (!effect_request) throw Err.Effect_Error({message: 'check_effect_request_format : effect_request cannot be undefined!'});
+        if (effect_request && effect_request.command === COMMAND_IGNORE) return;
+        if (!effect_request.driver) throw Err.Effect_Error({message: 'check_effect_request_format : driver cannot be undefined!'});
+        if (!effect_request.address) throw Err.Effect_Error({message: 'check_effect_request_format : address cannot be undefined!'});
+        if (!effect_request.command || [COMMAND_EXECUTE, COMMAND_CANCEL, COMMAND_IGNORE].indexOf(effect_request.command) === -1) {
+          throw Err.Effect_Error({message: 'check_effect_request_format : command can only be "execute" or "cancel"!'});
+        }
+        if (!effect_request.driver.family) throw Err.Effect_Error({message: 'check_effect_request_format : driver family cannot be undefined!'});
+        if (!utils.has_custom_type(effect_registry[effect_request.driver.family], EFFECT_HANDLER)) {
+          // if not an effect handler, it is a driver, and name must be set to associate the settings
+          if (!effect_request.driver.name) throw Err.Effect_Error({message: 'check_effect_request_format : driver names within a driver family must be non-empty strings!'});
+        }
       }
-      if (!effect_request.driver.family) throw Err.Effect_Error({message: 'check_effect_request_format : driver family cannot be undefined!'});
-      if (!effect_request.driver.name) throw Err.Effect_Error({message: 'check_effect_request_format : driver names within a driver family must be non-empty strings!'});
     }
 
     function filter_request_by_driver_family(family, driver_name) {
       return function filter_request_by_driver_family(effect_request) {
         return (effect_request.command !== COMMAND_IGNORE)
-        && effect_request.driver.family === family
-        && effect_request.driver.name === driver_name
+          && effect_request.driver.family === family
+          && effect_request.driver.name === driver_name
       }
     }
 
@@ -1102,7 +1089,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
           var effect_res$ = Err.try_catch(effect_driver_operator)(filtered_effect_requests$);
           // Case : driver THROWS an error - whatever kind of error it is, it is returned as error code (no throwing)
           //        to be dealth with upstream (for instance at FSM level)
-          //        Driver was not active, and we leave it that way, so it is retryed with the next request
+          //        Driver was not active, and we leave it that way, so it is retried with the next request
           if (effect_res$ instanceof Error) {
             enrich_effect_res_error(/*OUT*/effect_res$, effect_registry, effect_request);
             effect_result$ = Rx.Observable.return(Err.Effect_Error(effect_res$));
@@ -1182,12 +1169,6 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       }
     }
 
-    // Effect_Registry ::
-    // Dict {<driver_family :: String> : Effect_Handler
-    //      |<driver_family :: String> : Dict {<driver_name :: String> : Hash {
-    //                                          driver_settings :: Driver Settings,
-    //                                          driver_factory :: Driver Factory}}
-
     ///////////
     // Body
 
@@ -1202,7 +1183,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     // TODO : cancelled request array is ever growing, find a way to remove cancelled requests from the array (closure)
     return function effect_driver(effect_requests$) {
       var effect_driver_state$ = effect_requests$
-        .do(check_effect_request_format) // throws an exception if wrong format
+        .do(check_effect_request_format(effect_registry)) // throws an exception if wrong format
         .scan(compute_effect_res(effect_requests$), effect_driver_initial_state)
         .catch(function catch_fatal_errors(e) {
           // Case : recoverable errors are supposed to be caught upstream and returned as error codes
@@ -1210,6 +1191,8 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
           // We catch them here and return them also as error code but with a specific code
           // so the FSM can decide how to react to this type of error
           console.error('catch_fatal_errors', e);
+          console.info(e.extended_info);
+          console.warn(e.stack);
           return Rx.Observable.return(Err.Fatal_Error(e));
         })
         .share();
@@ -1270,6 +1253,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
  * @param {Object} event_data.
  * @param {Effect_Result} effect_res.
  * @param {Number} index.
+ * @property {Number} effect_number
  */
 /**
  * @typedef  {function (*, *)} Pure_Action_Handler

@@ -51,7 +51,6 @@ function require_utils(Rx, _, Err, constants) {
 
   function and(fn1, fn2) {
     var args = args_to_array(arguments);
-    // TODO with multiple arguments
     return function and() {
       var args2 = args_to_array(arguments);
       return args.every(function and(fn) {
@@ -187,7 +186,6 @@ function require_utils(Rx, _, Err, constants) {
     _.mergeWith.apply(null, args);
     // ... now we remove them
     return omit_by_recursively_in_place(object, function predicate(value, key){return is_wrapped_key(key)});
-    // TODO : find a better solution, this unfortunately does not conserve the constructor
   }
 
   function omit_by_recursively_in_place(object, iteratee) {
