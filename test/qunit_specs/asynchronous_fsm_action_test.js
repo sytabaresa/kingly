@@ -13,6 +13,7 @@ define(function (require) {
   const EV_INTENT = constants.EV_INTENT;
   const EV_EFFECT_RES = constants.EV_EFFECT_RES;
   const INTENT = constants.INTENT;
+  const EFFECT_RESPONSE = constants.EFFECT_RESPONSE;
 
   // Common set-up
   var states_definition = {A: '', B: '', C: '', D: '', E: ''};
@@ -90,6 +91,35 @@ define(function (require) {
     ehfsm.start(); // `start` initiates the inner dataflow subscription
     // NOTE : The init event is sent automatically AND synchronously so we can put the stop trace right after
     return ehfsm;
+  }
+
+  function send_sequence_and_stop(ehfsm, event_sequence) {
+    if (!utils.is_array(event_sequence)) throw 'send_sequence_and_stop : event sequence must be an array!'
+    if (event_sequence.length === 0) throw 'send_sequence_and_stop : event sequence must at least have one event!'
+
+    var max_tick = -1;
+    event_sequence.forEach(function (event_definition) {
+      var tick = event_definition[0];
+      max_tick = Math.max(tick, max_tick);
+      var event = event_definition[1];
+      exec_on_tick(ehfsm.send_event, tick)(event);
+    });
+
+    exec_on_tick(ehfsm.stop, max_tick + 10)();
+  }
+
+  function make_intent(event_enum, event_data) {
+    var obj = {};
+    obj[EV_INTENT] = utils.new_typed_object({code: event_enum, payload: event_data}, INTENT);
+    return obj;
+  }
+
+  function make_effect_response(effect_response) {
+    var obj = {};
+    obj[EV_EFFECT_RES] = effect_response;
+    obj[EV_EFFECT_RES] = utils.new_typed_object(effect_response, EFFECT_RESPONSE);
+
+    return obj;
   }
 
   ////////
@@ -851,26 +881,14 @@ define(function (require) {
 
     var ehfsm = start_ehfsm_test('fsm_uri', state_chart, test_on_error, test_on_complete, arr_fsm_traces);
 
-    function make_intent(event_enum, event_data) {
-      var obj = {};
-      obj[EV_INTENT] = utils.new_typed_object({code: event_enum, payload: event_data}, INTENT);
-      return obj;
-    }
-
-    function make_effect_response(effect_response) {
-      var obj = {};
-      obj[EV_EFFECT_RES] = effect_response;
-      return obj;
-    }
-
     // Sequence of testing events
-    // TODO : write a function which allow to pass tick info and data info and detect ends
-    exec_on_tick(ehfsm.send_event, 10)(make_intent(events.EVENT1, event_data1));
-    exec_on_tick(ehfsm.send_event, 20)(make_intent(events.EVENT3, {}));
-    exec_on_tick(ehfsm.send_event, 30)(make_intent(events.EVENT2, event_data1));
-    exec_on_tick(ehfsm.stop, 130)();
+    send_sequence_and_stop(ehfsm, [
+      [10, make_intent(events.EVENT1, event_data1)],
+      [20, make_intent(events.EVENT3, {})],
+      [30, make_intent(events.EVENT2, event_data1)]
+    ]);
 
-    var done = assert.async(1); // Cf. https://api.qunitjs.com/async/
+    var done = assert.async(2); // Cf. https://api.qunitjs.com/async/
 
     function test_on_complete() {
       // T1. Effectful actions/action sequences - Action with one effect
@@ -1158,6 +1176,42 @@ define(function (require) {
         'There must be a number of effects in relation with the length of the array passed to specify a sequence of effects.',
         'If there are less or more effects than expected, a fatal error is issued which contains the current (hence not updated) state of the state machine'].join(' \n'));
 
+      done();
+    }
+
+    function test_on_complete2(){
+      // TODO : change for the new tests
+      var transitions = [
+        {from: states.NOK, to: states.A, event: events[EV_CODE_INIT]},
+        {from: states.A, to: states.B, event: events.EVENT1, action: [effect_array_storage_1, effect_array_storage_2]},
+        {
+          from: states.B,
+          to: states.A,
+          event: events.EVENT2,
+          action: [effect_hash_storage_1, effect_hash_storage_2, effect_array_storage_1]
+        },
+        {from: states.B, to: states.B, event: events.EVENT3, action: [effect_hash_storage_1, effect_hash_storage_2]},
+
+      ];
+      var state_chart = {
+        model: model0,
+        state_hierarchy: states,
+        events: events,
+        effect_registry: effect_registry,
+        transitions: transitions
+      };
+
+      var arr_fsm_traces = [];
+
+      var ehfsm = start_ehfsm_test('fsm_uri', state_chart, test_on_error, test_on_complete, arr_fsm_traces);
+
+      // Sequence of testing events
+      send_sequence_and_stop(ehfsm, [
+        [10, make_intent(events.EVENT1, event_data1)],
+        [20, make_intent(events.EVENT3, {})],
+        [30, make_intent(events.EVENT2, event_data1)]
+      ]);
+
       // T4. Receiving unexpected effect result
       // TODO : with the new send event send an effect result with fancy uri or token
 
@@ -1182,9 +1236,9 @@ define(function (require) {
       // TODO : regression testing - remove skip from other tests - remove traces altogether??
       // TODO : write an adapter for model_update -> ractive, because ractive.set expect a path - TEST traversal library
       // TODO : test the update (model merge) functionality with arrays and objects (array-array are merged, but object-array is assigned)
+
       done();
     }
-
 
   });
   // SUBGROUP : ...
