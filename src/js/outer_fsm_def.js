@@ -449,16 +449,9 @@ function require_outer_fsm_def(Err, utils, constants) {
     }
 
     function warning_received_unexpected_effect_result(fsm_state, internal_event) {
-      // TODO : emit an error? Can't think of a reasonable case where that situation can occur
-      //        could throw an error with extended info
-      var fsm_state_update = {
-        effect_execution_state: {effect_request: {command: IGNORE}},
-        inner_fsm: {},
-        internal_state: {}
-      };
-      console.warn('received wrong effect result!');
-      // no updates but remove the effect request field to avoid resending the request downstream
-      return fsm_state_update;
+      console.warn('received unexpected effect result!', internal_event);
+      // no updates, return undefined to avoid resending the request downstream
+      return undefined;
     }
 
     function update_model_and_transition_to_next_state(fsm_state, internal_event) {
@@ -512,7 +505,7 @@ function require_outer_fsm_def(Err, utils, constants) {
         'while transitioning from state', from,
         '.\n It is possible that no guard predicates were fulfilled.'].join(" ");
 
-      return set_internal_state_to_transition_error(/*OUT*/fsm_state, event, event_data, from, to, error_msg);
+      return set_internal_state_to_transition_error(/*-OUT-*/fsm_state, event, event_data, from, to, error_msg);
     }
 
     function emit_only_warning(fsm_state, internal_event) {
@@ -539,7 +532,7 @@ function require_outer_fsm_def(Err, utils, constants) {
       utils.info("WHEN EVENT ", event);
       console.error(error_msg);
 
-      return set_internal_state_to_transition_error(/*OUT*/fsm_state, event, event_data, from, to, error_msg);
+      return set_internal_state_to_transition_error(/*-OUT-*/fsm_state, event, event_data, from, to, error_msg);
     }
 
     function set_internal_state_to_expecting_intent_but_reporting_effect_error(fsm_state, internal_event) {
@@ -563,7 +556,7 @@ function require_outer_fsm_def(Err, utils, constants) {
       // - but we do not update the model
       console.log("Received effect_res", error);
 
-      return set_internal_state_to_expecting_intent_but_reporting_action_error_(/*OUT*/fsm_state, event, event_data, error);
+      return set_internal_state_to_expecting_intent_but_reporting_action_error_(/*-OUT-*/fsm_state, event, event_data, error);
     }
 
     function update_trace_mechanism(fsm_state, internal_event) {
@@ -708,7 +701,7 @@ function require_outer_fsm_def(Err, utils, constants) {
    * @param hash_states
    * @returns -
    */
-  function leave_state(from, /*OUT*/hash_states) {
+  function leave_state(from, /*-OUT-*/hash_states) {
     // NOTE : model is passed as a parameter for symetry reasons, no real use for it so far
     var state_from = hash_states[from];
     var state_from_name = state_from.name;

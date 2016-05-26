@@ -13,6 +13,7 @@ function require_utils(Rx, _, Err, constants) {
   var CHECK_TYPE = constants.CHECK_TYPE;
   var WRAP_CHAR = constants.WRAP_CHAR;
   var MAX_DEPTH = 100; // for object traversal
+  var TYPE_KEY = constants.TYPE_KEY;
 
   function identity(x, y) {
     return x
@@ -23,12 +24,12 @@ function require_utils(Rx, _, Err, constants) {
   }
 
   function wrap(str) {
-    if (is_number(str)) str = ""+str; // Case : array indices
+    if (is_number(str)) str = "" + str; // Case : array indices
     return [WRAP_CHAR, str, WRAP_CHAR].join("");
   }
 
   function unwrap(str) {
-    if (is_number(str)) str = ""+str; // Case : array indices
+    if (is_number(str)) str = "" + str; // Case : array indices
     return str && str.slice(1).slice(0, -1);
   }
 
@@ -185,20 +186,20 @@ function require_utils(Rx, _, Err, constants) {
     // this will put some -key- keys in object...
     _.mergeWith.apply(null, args);
     // ... now we remove them
-    return omit_by_recursively_in_place(object, function predicate(value, key){return is_wrapped_key(key)});
+    return omit_by_recursively_in_place(object, function predicate(value, key) {return is_wrapped_key(key)});
   }
 
   function omit_by_recursively_in_place(object, iteratee) {
     _.each(object, function (value, key) {
-      if(iteratee(value, key)) {
-      _.unset(object, key);
-    } else if(is_object(value)) {
-      omit_by_recursively_in_place(value, iteratee);
-    }
-  });
+      if (iteratee(value, key)) {
+        _.unset(object, key);
+      } else if (is_object(value)) {
+        omit_by_recursively_in_place(value, iteratee);
+      }
+    });
 
-  return object;
-}
+    return object;
+  }
 
   /**
    * Walks object recursively
@@ -222,7 +223,7 @@ function require_utils(Rx, _, Err, constants) {
 
       cache.push(node);
 
-      while(keys[0]) {
+      while (keys[0]) {
         var key = keys.shift();
         var value = node[key];
         var way = path.concat(key);
@@ -234,7 +235,7 @@ function require_utils(Rx, _, Err, constants) {
           stack.length = 0;
           break;
         } else {
-          if(max <= depth || !is_object(value)) continue;
+          if (max <= depth || !is_object(value)) continue;
 
           if (cache.indexOf(value) !== -1) {
             if (ignore) continue;
@@ -250,10 +251,11 @@ function require_utils(Rx, _, Err, constants) {
           }
         }
       }
-    } while(stack[0]);
+    } while (stack[0]);
 
     return object;
   }
+
   /**
    * Walks object recursively
    * @param {Object} object
@@ -295,19 +297,29 @@ function require_utils(Rx, _, Err, constants) {
     return tokens[1];
   }
 
+  function get_label(obj) {
+    // used to get the label back from labelled objects
+    // Only two cases should happen:
+    // - 1. the object is custom typed, in which case it has two keys
+    // - 2. the object is not custom typed, in which case it has one key
+    // nice to have : make the custom type a non enumerable property
+    var keys = Object.keys(obj);
+    return (keys[0] === TYPE_KEY) ? keys[1] : keys[0];
+  }
+
   function new_typed_object(obj, type) {
     if (!type) throw 'new_typed_object : expected truthy type!'
     if (!obj) throw  'new_typed_object : expected truthy object!'
     if (is_string(obj)) obj = new String(obj);
-    var current_types = obj.__type;
+    var current_types = obj[TYPE_KEY];
     // duplicate the array of types (passed by reference, here we want passed by values)
-    current_types = current_types ? obj.__type.slice() : [];
+    current_types = current_types ? obj[TYPE_KEY].slice() : [];
     if (current_types.indexOf(type) === -1) {
       // type not in the array yet
       current_types.push(type);
     }
     var typed_obj = clone_deep(obj);
-    typed_obj.__type = current_types;
+    typed_obj[TYPE_KEY] = current_types;
     return typed_obj;
   }
 
@@ -317,7 +329,7 @@ function require_utils(Rx, _, Err, constants) {
     if (parsed_string.is_check_null && is_null(obj)) return true;
     if (parsed_string.is_check_undefined && is_undefined(obj)) return true;
 
-    return obj && obj.__type && obj.__type.indexOf(parsed_string.type_name) > -1;
+    return obj && obj[TYPE_KEY] && obj[TYPE_KEY].indexOf(parsed_string.type_name) > -1;
   }
 
   /**
@@ -725,6 +737,7 @@ function require_utils(Rx, _, Err, constants) {
     merge: merge,
     traverseWithPath: traverseWithPath,
     get_fn_name: get_fn_name,
+    get_label: get_label,
     new_typed_object: new_typed_object,
     assert_signature: assert_signature,
     assert_custom_type: assert_custom_type,

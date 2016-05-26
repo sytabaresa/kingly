@@ -10,6 +10,9 @@ define(function (require) {
   const EV_CODE_INIT = constants.EV_CODE_INIT;
   const EXECUTE = constants.commands.EXECUTE;
   const CANCEL = constants.commands.CANCEL;
+  const EV_INTENT = constants.EV_INTENT;
+  const EV_EFFECT_RES = constants.EV_EFFECT_RES;
+  const INTENT = constants.INTENT;
 
   // Common set-up
   var states_definition = {A: '', B: '', C: '', D: '', E: ''};
@@ -65,6 +68,28 @@ define(function (require) {
 
   function test_on_error(e) {
     console.error('unexpected error found in testing stream', e);
+  }
+
+  function start_ehfsm_test(fsm_uri, state_chart, error_cb, complete_cb, /*-OUT-*/arr_fsm_traces) {
+    var ehfsm = fsm.make_fsm('fsm_uri', state_chart, undefined); // intent$ is undefined here as we will simulate events
+    ehfsm.fsm_state$
+      .finally(function () {
+        console.log('ending test event sequence', arr_fsm_traces)
+      })
+      .catch(function stop_fsm(e) {
+        setTimeout(function () { ehfsm.stop()}, 2);
+        var fsm_error_state = e.extended_info.fsm_state; // NOTE : by construction all errors have extended_info property
+        fsm_error_state.fatal_error = e;
+        delete fsm_error_state.fatal_error.extended_info.fsm_state;
+        return Rx.Observable.return(fsm_error_state);
+      })
+      .subscribe(function on_next(fsm_state) {
+        console.log('fsm_state...', utils.clone_deep(fsm_state));
+        arr_fsm_traces.push(utils.clone_deep(fsm_state));
+      }, error_cb, complete_cb);
+    ehfsm.start(); // `start` initiates the inner dataflow subscription
+    // NOTE : The init event is sent automatically AND synchronously so we can put the stop trace right after
+    return ehfsm;
   }
 
   ////////
@@ -824,56 +849,25 @@ define(function (require) {
     };
     var arr_fsm_traces = [];
 
-    var ehfsm = fsm.make_fsm('fsm_uri', state_chart, undefined); // intent$ is undefined here as we will simulate events
+    var ehfsm = start_ehfsm_test('fsm_uri', state_chart, test_on_error, test_on_complete, arr_fsm_traces);
 
-    function start_ehfsm_test(fsm_uri, state_chart, arr_fsm_traces){
-      ehfsm.fsm_state$
-        .finally(function () {
-          console.log('ending test event sequence', arr_fsm_traces)
-        })
-        .catch(function stop_fsm(e) {
-          setTimeout(function () { ehfsm.stop()}, 2);
-          assert.deepEqual({name: e.name, has_effect_number: !!e.extended_info.effect_number},
-            {name: 'Effect_Error', has_effect_number: true},
-            'When a sequence of effectful actions is specified, the corresponding effect handler must generated a valid effect request for each action. Otherwise an exception is raised.');
-          var fsm_error_state = e.extended_info.fsm_state; // NOTE : by construction all errors have extended_info property
-          fsm_error_state.fatal_error = e;
-          delete fsm_error_state.fatal_error.extended_info.fsm_state;
-          return Rx.Observable.return(fsm_error_state);
-        })
-        .subscribe(function on_next(fsm_state) {
-          console.log('fsm_state...', utils.clone_deep(fsm_state));
-          arr_fsm_traces.push(utils.clone_deep(fsm_state));
-        }, test_on_error, test_on_complete);
-      ehfsm.start(); // `start` initiates the inner dataflow subscription
-      // NOTE : The init event is sent automatically AND synchronously so we can put the stop trace right after
+    function make_intent(event_enum, event_data) {
+      var obj = {};
+      obj[EV_INTENT] = utils.new_typed_object({code: event_enum, payload: event_data}, INTENT);
+      return obj;
     }
 
-    ehfsm.fsm_state$
-      .finally(function () {
-        console.log('ending test event sequence', arr_fsm_traces)
-      })
-      .catch(function stop_fsm(e) {
-        setTimeout(function () { ehfsm.stop()}, 2);
-        assert.deepEqual({name: e.name, has_effect_number: !!e.extended_info.effect_number},
-          {name: 'Effect_Error', has_effect_number: true},
-          'When a sequence of effectful actions is specified, the corresponding effect handler must generated a valid effect request for each action. Otherwise an exception is raised.');
-        var fsm_error_state = e.extended_info.fsm_state; // NOTE : by construction all errors have extended_info property
-        fsm_error_state.fatal_error = e;
-        delete fsm_error_state.fatal_error.extended_info.fsm_state;
-        return Rx.Observable.return(fsm_error_state);
-      })
-      .subscribe(function on_next(fsm_state) {
-        console.log('fsm_state...', utils.clone_deep(fsm_state));
-        arr_fsm_traces.push(utils.clone_deep(fsm_state));
-      }, test_on_error, test_on_complete);
-    ehfsm.start(); // `start` initiates the inner dataflow subscription
-    // NOTE : The init event is sent automatically AND synchronously so we can put the stop trace right after
+    function make_effect_response(effect_response) {
+      var obj = {};
+      obj[EV_EFFECT_RES] = effect_response;
+      return obj;
+    }
 
     // Sequence of testing events
-    exec_on_tick(ehfsm.send_event, 10)(events.EVENT1, event_data1);
-    exec_on_tick(ehfsm.send_event, 20)(events.EVENT3, {});
-    exec_on_tick(ehfsm.send_event, 30)(events.EVENT2, event_data1);
+    // TODO : write a function which allow to pass tick info and data info and detect ends
+    exec_on_tick(ehfsm.send_event, 10)(make_intent(events.EVENT1, event_data1));
+    exec_on_tick(ehfsm.send_event, 20)(make_intent(events.EVENT3, {}));
+    exec_on_tick(ehfsm.send_event, 30)(make_intent(events.EVENT2, event_data1));
     exec_on_tick(ehfsm.stop, 130)();
 
     var done = assert.async(1); // Cf. https://api.qunitjs.com/async/
@@ -1165,6 +1159,7 @@ define(function (require) {
         'If there are less or more effects than expected, a fatal error is issued which contains the current (hence not updated) state of the state machine'].join(' \n'));
 
       // T4. Receiving unexpected effect result
+      // TODO : with the new send event send an effect result with fancy uri or token
 
       // T5. Effect error - error handler (effect throws)
 

@@ -213,7 +213,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     // {Object<state_name,boolean>}, allows to know whether a state has an automatic transition defined
     var is_auto_state = get_auto_states(transitions, events, is_group_state, is_init_state);
 
-    set_event_handlers(transitions, /*OUT*/hash_states, special_actions);
+    set_event_handlers(transitions, /*-OUT-*/hash_states, special_actions);
 
     var model_0 = state_chart.model || {};
 
@@ -273,7 +273,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       }, {});
     }
 
-    function set_event_handlers(transitions, /*OUT*/hash_states, special_actions) {
+    function set_event_handlers(transitions, /*-OUT-*/hash_states, special_actions) {
       // nice to have : for specifying statechart actions, the best would be to use a synchronous generator
       //                i.e. a function which receives values through `send` and synchronously returns the next item
       //                or signals completion
@@ -404,7 +404,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     return utils.new_typed_object(action_sequence_handler, ACTION_SEQUENCE_HANDLER);
   }
 
-  function outer_fsm_write_trace(traceS, /*OUT*/fsm_state, internal_fsm_def, internal_event_type, internal_event, evaluation_result) {
+  function outer_fsm_write_trace(traceS, /*-OUT-*/fsm_state, internal_fsm_def, internal_event_type, internal_event, evaluation_result) {
     // This function will update the `fsm_state` variable with trace information if the trace flag is set
     var emit_traces = true;
     var should_trace = fsm_state.is_tracing;
@@ -442,7 +442,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       if (internal_event_type === internal_fsm_events.EV_INTENT) {
         if (recoverable_error) {
           add_trace_record(add_recoverable_error_to_trace_record(model, model_update, recoverable_error),
-            /*OUT*/arr_traces, traceS, emit_traces);
+            /*-OUT-*/arr_traces, traceS, emit_traces);
         }
         else {
           arr_traces.push({
@@ -452,7 +452,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       }
       if (internal_event_type === internal_fsm_events.EV_EFFECT_RES) {
         // TODO : deal with error when effect_res
-        update_trace_record(complete_trace_record, /*OUT*/arr_traces,
+        update_trace_record(complete_trace_record, /*-OUT-*/arr_traces,
           recoverable_error, resulting_state, model, model_update, traceS, emit_traces);
       }
     }
@@ -461,7 +461,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     return arr_traces;
   }
 
-  function update_trace_record(update_fn, /*OUT*/arr_traces, recoverable_error, resulting_state, model, model_update, traceS, emit_traces) {
+  function update_trace_record(update_fn, /*-OUT-*/arr_traces, recoverable_error, resulting_state, model, model_update, traceS, emit_traces) {
     emit_traces = (typeof(emit_traces) === 'boolean') ? emit_traces : true;
     var incomplete_record = arr_traces.pop();
     var completed_trace_record = update_fn(incomplete_record, recoverable_error, resulting_state, model, model_update);
@@ -469,14 +469,14 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     emit_traces && traceS.onNext(arr_traces);
   }
 
-  function add_trace_record(add_fn, /*OUT*/arr_traces, traceS, emit_traces) {
+  function add_trace_record(add_fn, /*-OUT-*/arr_traces, traceS, emit_traces) {
     emit_traces = (typeof(emit_traces) === 'boolean') ? emit_traces : true;
-    add_fn(/*OUT*/arr_traces);
+    add_fn(/*-OUT-*/arr_traces);
     emit_traces && traceS.onNext(arr_traces);
   }
 
   function add_recoverable_error_to_trace_record(model, model_update, recoverable_error) {
-    return function (/*OUT*/arr_traces) {
+    return function (/*-OUT-*/arr_traces) {
       arr_traces.push({
         model: utils.clone_deep(model),
         model_update: model_update || {},
@@ -486,7 +486,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     }
   }
 
-  function complete_trace_record(/*OUT*/record, recoverable_error, resulting_state, model, model_update) {
+  function complete_trace_record(/*-OUT-*/record, recoverable_error, resulting_state, model, model_update) {
     record.resulting_state = resulting_state;
     record.model = model;
     record.model_update = model_update || {};
@@ -563,15 +563,22 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       var evaluation_result = synchronous_fsm.evaluate_internal_transitions(
         fsm_internal_states,
         synchronous_fsm.get_internal_transitions(fsm_internal_transitions, fsm_current_internal_state, internal_event_type),
-        /*OUT*/fsm_state, internal_event
+        /*-OUT-*/fsm_state, internal_event
       );
+
       if (evaluation_result.fatal_error) {
         throw evaluation_result.fatal_error;
       }
       else {
         var fsm_state_update = evaluation_result.fsm_state_update;
-        update_fsm_state(/*OUT*/fsm_state, fsm_state_update);
-        fsm_write_trace(traceS, fsm_state, fsm_def, internal_event_type, internal_event, evaluation_result);
+        // Case : no update
+        // A value of `undefined` for fsm state update means that we must do nothing (no updates and nothing passed downstream)
+        if (utils.is_undefined(fsm_state_update)) return undefined;
+        else {
+          // Case : update to perform
+          update_fsm_state(/*-OUT-*/fsm_state, fsm_state_update);
+          fsm_write_trace(traceS, fsm_state, fsm_def, internal_event_type, internal_event, evaluation_result);
+        }
 
         return fsm_state;
       }
@@ -585,7 +592,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     var model_update = fsm_state.inner_fsm.model_update || {};
     _.extend(fsm_state, fsm_state_update);
     fsm_state.inner_fsm.model = update_model(model, model_update);
-    // TODO : write tests for it!!
+    // TODO : write tests to explain how the update works for the model (property merging)!!
   }
 
   function update_model(model, model_update) {
@@ -611,7 +618,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
    * @returns {{fsm_state${Rx.Observable}, effect_requests${Rx.Observable}}
  */
   function transduce_fsm_streams(state_chart, fsm_uri,
-                                 user_generated_intent$, effect_response$, program_generated_intent$, trace_intentS) {
+                                 user_generated_intent$, effect_response$, program_generated_intent$, debug_intentS, trace_intentS) {
     //// Helpers
     //
     function set_custom_type(type) {
@@ -666,6 +673,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       effect_response$
         .map(set_custom_type(EFFECT_RESPONSE))
         .map(utils.label(EV_EFFECT_RES)),
+      debug_intentS,
       trace_intentS
         .map(set_custom_type(TRACE_INTENT))
         .map(utils.label(EV_TRACE))
@@ -756,9 +764,9 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     check_statechart_format(statechart);
 
     var fsm_sinks = transduce_fsm_streams(statechart, fsm_uri,
-      Rx.Observable.merge(user_generated_intent$, debug_intentS),
+      user_generated_intent$,
       effect_responseS, program_generated_intentS,
-      trace_intentS
+      debug_intentS, trace_intentS
     );
     var trace$ = fsm_sinks.trace$
       .takeUntil(trace_intentS.filter(is_trace_intent_false))
@@ -860,9 +868,15 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       return !x.payload;
     }
 
-    function send_event(code, payload) {
-      // NOTE : debug_intent has same format as user_generated_intent i.e. {code, payload}
-      debug_intentS.onNext({code: code, payload: payload});
+    function send_event(data) {
+      // NOTE : debug_intent must be custom typed and labelled
+      var label = utils.get_label(data);
+      if ([EV_INTENT, EV_EFFECT_RES, EV_TRACE].indexOf(label) > -1) {
+        debug_intentS.onNext(data);
+      }
+      else {
+        throw 'unknown label for event!!'
+      }
     }
 
     return {
@@ -1095,7 +1109,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
           //        to be dealth with upstream (for instance at FSM level)
           //        Driver was not active, and we leave it that way, so it is retried with the next request
           if (effect_res$ instanceof Error) {
-            enrich_effect_res_error(/*OUT*/effect_res$, effect_registry, effect_request);
+            enrich_effect_res_error(/*-OUT-*/effect_res$, effect_registry, effect_request);
             effect_result$ = Rx.Observable.return(Err.Effect_Error(effect_res$));
           }
           else {
@@ -1106,19 +1120,19 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
             });
 
             // Set the driver as already active (i.e. dealing with the associated `effect_request` stream)
-            set_in_active_drivers(/*OUT*/active_drivers, driver_family, driver_name, true);
+            set_in_active_drivers(/*-OUT-*/active_drivers, driver_family, driver_name, true);
             effect_result$ = effect_res$
               .do(utils.rxlog('effect_result'))
               .finally(function () {
                 // NOTE : driver is terminated after error or graciouly,
                 // remove the driver from cache, so it is recreated next time
                 // TODO : add a test to
-                remove_from_active_drivers(/*OUT*/active_drivers, driver_family, driver_name);
+                remove_from_active_drivers(/*-OUT-*/active_drivers, driver_family, driver_name);
               })
               .catch(function catch_effect_driver_errors(e) {
                 // NOTE : driver is terminated after error, remove the driver from cache, so it is recreated next time
-                remove_from_active_drivers(/*OUT*/active_drivers, driver_family, driver_name);
-                enrich_effect_res_error(/*OUT*/utils.to_error(e), effect_registry, effect_request);
+                remove_from_active_drivers(/*-OUT-*/active_drivers, driver_family, driver_name);
+                enrich_effect_res_error(/*-OUT-*/utils.to_error(e), effect_registry, effect_request);
                 return Rx.Observable.return(Err.Effect_Error(e));
               });
           }
@@ -1146,7 +1160,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     }
 
     function compute_effect_res(effect_requests$) {
-      return function compute_effect_res(/*OUT*/effect_driver_state, effect_request) {
+      return function compute_effect_res(/*-OUT-*/effect_driver_state, effect_request) {
         var driver = effect_request.driver;
         var command = effect_request.command;
         var driver_family = driver.family; // if command is ignore, there is not necessarily a driver field
@@ -1162,13 +1176,13 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
         return is_execute_command
           // Case : execute command
           // NOTE : this implementation supposes that a request can be required to be cancelled only after having been requested
-          ? process_effect_request_execution(/*OUT*/effect_driver_state, effect_registry, effect_request, effect_requests$)
+          ? process_effect_request_execution(/*-OUT-*/effect_driver_state, effect_registry, effect_request, effect_requests$)
           // Case : cancel command
           // Add the command to the cancelled command hash if not already there
           : is_cancel_command
-          ? process_effect_request_cancellation(/*OUT*/effect_driver_state, effect_request)
+          ? process_effect_request_cancellation(/*-OUT-*/effect_driver_state, effect_request)
           : is_ignore_command
-          ? process_effect_request_ignore(/*OUT*/effect_driver_state, effect_request)
+          ? process_effect_request_ignore(/*-OUT-*/effect_driver_state, effect_request)
           : undefined
       }
     }

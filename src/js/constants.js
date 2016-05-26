@@ -1,5 +1,6 @@
 define(function (require) {
   return {
+    TYPE_KEY : '__type',
     WRAP_CHAR : '-',
     EXPECTING_INTENT: 'intent',
     EXPECTING_ACTION_RESULT: 'expecting_action_result',
