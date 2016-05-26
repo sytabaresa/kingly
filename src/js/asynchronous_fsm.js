@@ -625,7 +625,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
         && fsm_state.effect_execution_state.effect_request;
     }
 
-    function enrich_effect_request(acc, fsm_state) {
+    function enrich_effect_request(acc, /*-OUT-*/fsm_state) {
       var effect_req = fsm_state.effect_execution_state.effect_request;
       var next_token = acc.token++;
       effect_req.address = {
@@ -637,6 +637,10 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
         token: next_token,
         effect_request: effect_req //TODO : would be safer to clone deep the request
       };
+    }
+
+    function filter_in_new_model(fsm_state) {
+      return !utils.is_empty(fsm_state.inner_fsm.model_update);
     }
 
     // Build the sinks :
@@ -698,17 +702,17 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     // The stream of model updates
     // Can be anything that the function `update_model` understands
     var model_update$ = fsm_state$
-      .filter(function filter_in_new_model(fsm_state) {
-        return !utils.is_empty(fsm_state.inner_fsm.model_update);
-      })
+      .filter(filter_in_new_model)
       .pluck('inner_fsm', 'model_update')
       .startWith(fsm_initial_state.inner_fsm.model)
       .do(utils.rxlog('new model update emitted'));
 
     // The model passed out by the stream should be read-only.
+    // It should also only be passed if it has been updated (i.e. model_update is undefined)
     // Possible downstream write-effects are disarmed by deep cloning.
     // This ensures that the model is modified only here.
     var model$ = fsm_state$
+      .filter(filter_in_new_model)
       .pluck('inner_fsm', 'model')
       .map(utils.clone_deep)
       .do(utils.rxlog('new model emitted'));

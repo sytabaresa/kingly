@@ -56,7 +56,7 @@ function require_outer_fsm_def(Err, utils, constants) {
       {
         // CASE : There is a transition associated to that event - the corresponding action implies a sequence of effects
         predicate: utils.and(has_event_handler, has_action_seq_handler, utils.not(is_seq_handler_of_pure_action)),
-        action: update_model_and_send_effect_request,
+        action: update_model_and_send_first_effect_request,
         to: EXPECTING_EFFECT_RESULT
       },
       {
@@ -283,6 +283,7 @@ function require_outer_fsm_def(Err, utils, constants) {
     function get_fsm_state_update_when_first_effect(fsm_state, internal_event) {
       var fsm_state_update = fsm_state;
       fsm_state_update.effect_execution_state = {};
+      // We keep track of the event to reuse its event data for calling the event handler
       fsm_state_update.event = internal_event;
       var event_data = internal_event.payload;
       var model = fsm_state.inner_fsm.model;
@@ -292,6 +293,7 @@ function require_outer_fsm_def(Err, utils, constants) {
       utils.assert_custom_type(event_handler_result, EVENT_HANDLER_RESULT);
 
       var predicate = event_handler_result.predicate;
+      // We also keep track of the action handler (instead of recomputing it each time)
       var action_seq_handler = event_handler_result.action_seq_handler;
       var effect_result = undefined; // In that branch case, we do not have an effect result to process
 
@@ -368,7 +370,7 @@ function require_outer_fsm_def(Err, utils, constants) {
         // Case : Last effect request
         var effect_number = action_seq_handler.effect_number;
         if (effect_number !== index) {
-          // Case : unexpected end of effect requests
+          // Case : unexpected end of effect requests (i.e. is before or after the expected)
           throw Err.Effect_Error({
               message: 'Unexpected end of effect requests, expected ' + effect_number + ', encountered end of effects at index ' + index,
               extended_info: {effect_number: effect_number, index: index}
@@ -390,17 +392,6 @@ function require_outer_fsm_def(Err, utils, constants) {
         }
       }
 
-      function log_messages(effect_request) {
-        if (effect_request) {
-          utils.info("Processing effect", effect_request.driver.family, effect_request.driver.name, effect_request.params);
-        } else {
-          utils.info("Processing model update only");
-        }
-        utils.info("IN STATE ", fsm_state.internal_state.from);
-        utils.info("WITH model, event data BEING ", model, event_data);
-        utils.info("executing action handler: " + action_seq_handler.name, index);
-      }
-
       // Update fsm state
       fsm_state_update.recoverable_error = undefined;
       fsm_state_update.automatic_event = undefined;
@@ -413,26 +404,39 @@ function require_outer_fsm_def(Err, utils, constants) {
       // fsm_state_update.internal_state.from = event_handler_result.from; no change!!! same for .to!!!
 
       return fsm_state_update;
+
+      function log_messages(effect_request) {
+        if (effect_request) {
+          utils.info("Processing effect", effect_request.driver.family, effect_request.driver.name, effect_request.params);
+        } else {
+          utils.info("Processing model update only");
+        }
+        utils.info("IN STATE ", fsm_state.internal_state.from);
+        utils.info("WITH model, event data BEING ", model, event_data);
+        utils.info("executing action handler: " + action_seq_handler.name, index);
+      }
+    }
+
+    function update_model_and_send_first_effect_request (fsm_state, internal_event) {
+      // CASE : There is a transition associated to that event :
+      // - some effects have to be executed
+      // - before effect request take place, a pure update of the inner FSM model has to be performed
+
+      // 1. This is the first effect is to be requested
+      //    `internal_event` will be user intent or program-generated intent
+      return get_fsm_state_update_when_first_effect(fsm_state, internal_event);
     }
 
     function update_model_and_send_effect_request(fsm_state, internal_event) {
       // CASE : There is a transition associated to that event :
       // - some effects have to be executed
-      // - before effect request take place, a pure update of the inner FSM model has to be performed
+      // - the first effect was already requested
+      // - we are here because the corresponding effect response was received (internal_event)
 
       var fsm_state_update;
 
-      // There are three sub-cases here :
-      if (utils.has_custom_type(internal_event, INTENT)) {
-        // 1. First effect is to be requested
-        //    `internal_event` will be user intent or program-generated intent
-        //    We keep track of the event to reuse its event data for calling the event handler
-        //    We also keep track of the action handler (instead of recomputing it each time)
-        fsm_state_update = get_fsm_state_update_when_first_effect(fsm_state, internal_event);
-      }
-      else if (utils.has_custom_type(internal_event, EFFECT_RESPONSE)) {
         if (fsm_state.effect_execution_state.has_more_effects_to_execute) {
-          // 2. Remaining effects (if any) are to be requested
+          // 2. Remaining effects are to be requested
           fsm_state_update = get_fsm_state_update_when_subsequent_effects(fsm_state, internal_event);
         }
         else {
@@ -440,10 +444,6 @@ function require_outer_fsm_def(Err, utils, constants) {
           // dead branch
           throw 'that code branch should be dead!!!'
         }
-      }
-      else {
-        throw 'unexpected event type!!'
-      }
 
       return fsm_state_update;
     }
@@ -472,7 +472,7 @@ function require_outer_fsm_def(Err, utils, constants) {
 
       //    We reset all temporary fields
       fsm_state_update.recoverable_error = undefined;
-
+      fsm_state_update.inner_fsm.model_update = undefined;
       fsm_state_update.effect_execution_state = undefined;
 
       fsm_state_update.internal_state.expecting = EXPECTING_INTENT;
