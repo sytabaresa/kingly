@@ -54,17 +54,21 @@ define(function (require) {
       var action_seq_handler = fsm_trace.effect_execution_state && fsm_trace.effect_execution_state.action_seq_handler;
       action_seq_handler && (fsm_trace.effect_execution_state.action_seq_handler = action_seq_handler.name);
 
-      if (fsm_trace.fatal_error) {
-        delete fsm_trace.fatal_error.detail;
-        delete fsm_trace.fatal_error.error_code;
-        delete fsm_trace.fatal_error.is_app_error;
-        delete fsm_trace.fatal_error.toString;
-        fsm_trace.fatal_error = JSON.parse(JSON.stringify(fsm_trace.fatal_error));
-      }
-
-      return arr_fsm_traces;
+      clean_error_field(fsm_trace, 'fatal_error');
+      clean_error_field(fsm_trace, 'recoverable_error');
     });
     return arr_fsm_traces;
+
+    function clean_error_field(fsm_trace, field) {
+      if (fsm_trace[field]) {
+        delete fsm_trace[field].detail;
+        delete fsm_trace[field].error_code;
+        delete fsm_trace[field].is_app_error;
+        delete fsm_trace[field].toString;
+        fsm_trace[field] = JSON.parse(JSON.stringify(fsm_trace[field]));
+      }
+    }
+
   }
 
   function test_on_error(e) {
@@ -72,7 +76,9 @@ define(function (require) {
   }
 
   function start_ehfsm_test(fsm_uri, state_chart, error_cb, complete_cb, /*-OUT-*/arr_fsm_traces) {
+    var arr_fsm_traces = [];
     var ehfsm = fsm.make_fsm('fsm_uri', state_chart, undefined); // intent$ is undefined here as we will simulate events
+
     ehfsm.fsm_state$
       .finally(function () {
         console.log('ending test event sequence', arr_fsm_traces)
@@ -87,25 +93,56 @@ define(function (require) {
       .subscribe(function on_next(fsm_state) {
         console.log('fsm_state...', utils.clone_deep(fsm_state));
         arr_fsm_traces.push(utils.clone_deep(fsm_state));
-      }, error_cb, complete_cb);
+      }, error_cb(arr_fsm_traces), complete_cb(arr_fsm_traces));
     ehfsm.start(); // `start` initiates the inner dataflow subscription
     // NOTE : The init event is sent automatically AND synchronously so we can put the stop trace right after
+
     return ehfsm;
   }
 
-  function send_sequence_and_stop(ehfsm, event_sequence) {
+  function send_timed_sequence_and_stop(fsm, event_sequence) {
     if (!utils.is_array(event_sequence)) throw 'send_sequence_and_stop : event sequence must be an array!'
     if (event_sequence.length === 0) throw 'send_sequence_and_stop : event sequence must at least have one event!'
+
+    function stop_fsm() {
+      fsm.fsm_state_steps$.debounce(100).take(1).subscribe(utils.noop, utils.noop, stop_fsm);
+      function stop_fsm() {
+        console.log('send_synchronized_sequence_and_stop: completed');
+        fsm.stop();
+      }
+    }
 
     var max_tick = -1;
     event_sequence.forEach(function (event_definition) {
       var tick = event_definition[0];
       max_tick = Math.max(tick, max_tick);
       var event = event_definition[1];
-      exec_on_tick(ehfsm.send_event, tick)(event);
+      exec_on_tick(fsm.send_event, tick)(event);
     });
 
-    exec_on_tick(ehfsm.stop, max_tick + 10)();
+    exec_on_tick(stop_fsm, max_tick + 100)();
+  }
+
+  function send_synchronized_sequence_and_stop(fsm, event_sequence) {
+    // NOTE : synchronization is made on fsm_state_steps stream
+    if (!utils.is_array(event_sequence)) throw 'send_sequence_and_stop : event sequence must be an array!';
+    var event_sequence_length = event_sequence.length;
+    if (event_sequence_length === 0) throw 'send_sequence_and_stop : event sequence must at least have one event!';
+
+    Rx.Observable.from(event_sequence)
+      .zip(fsm.fsm_state_steps$, utils.identity)
+      .subscribe(
+      fsm.send_event,
+      utils.rxlog('send_synchronized_sequence_and_stop: error'),
+      function stop_fsm() {
+        function stop_fsm() {
+          console.log('send_synchronized_sequence_and_stop: completed');
+          fsm.stop();
+        }
+
+        fsm.fsm_state_steps$.debounce(100).take(1).subscribe(utils.noop, utils.noop, stop_fsm);
+      }
+    );
   }
 
   function make_intent(event_enum, event_data) {
@@ -126,7 +163,7 @@ define(function (require) {
   // GROUP : Basic transition mechanism
   // SUBGROUP : Pure and effectul actions and action sequences
 
-  // Actions
+  // Pure Actions
   function set_dummy_field(assert, done) {
     return function set_dummy_field(model, event_payload) {
       assert.deepEqual({model: model, ep: event_payload},
@@ -152,6 +189,120 @@ define(function (require) {
 
   function has_not_dummy_field(model, event_data) {
     return !model[DUMMY_FIELD];
+  }
+
+  // Miscellaneous params
+  var hash_storage = {};
+  var model0 = {key1: 'value'};
+  var event_data1 = {event_data: 'value'};
+  var params_1 = {key: 'element 1', value: 'value1'};
+  var params_2 = {key: 'element 2', value: 'value2'};
+
+  // Action sequence handlers
+  function get_test_sequence_handlers(assert) {
+    function effect_array_storage_1(model, event_data, effect_res) {
+      assert.deepEqual({model: model, event_data: event_data, effect_res: effect_res}, {
+        model: model0, event_data: event_data1, effect_res: undefined
+      }, 'Effectful actions : effect functions are called with the model, event data, and effect result as parameters.');
+      assert.deepEqual(effect_res, undefined, 'Effectful actions : the first effect function is called with no effect result.');
+      return {
+        model_update: {trace: event_data},
+        effect_request: {
+          driver: {
+            family: 'array_storage',
+            name: 'size_5'
+          },
+          params: 'element 1'
+        }
+      }
+    }
+
+    function effect_array_storage_2(model, event_data, effect_res) {
+      // reminder : returns {model_update : , effect_request:}
+      var updated_model0 = model0;
+      updated_model0.trace = event_data1;
+      var first_effect_result = new Array(5);
+      first_effect_result[0] = 'element 1';
+      assert.deepEqual(model, updated_model0, 'Effectful actions : the second effect function is called with the updated model from the effect result of the first effect function.');
+      assert.deepEqual(effect_res, first_effect_result, 'Effectful actions : the second effect function is called with the effect result of the first effect function.');
+      assert.deepEqual(event_data, event_data1, 'Effectful actions : All effect functions are called with the same event data.');
+      return {
+        model_update: {
+          trace: [model.trace, event_data, effect_res]
+        },
+        effect_request: undefined
+      }
+    }
+
+    function effect_hash_storage_1(model, event_data, effect_res) {
+
+      return {
+        model_update: {
+          args_first_call_except_model: [event_data, effect_res],
+          hash_storage: utils.clone_deep(hash_storage),
+          trace: undefined, // removing previous trace fields
+          key1: undefined, // removing previous trace fields
+          args_second_call_except_model: undefined // undefining for reuse of the effect function
+        },
+        effect_request: {
+          driver: {family: 'hash_storage'},
+          params: {key: 'element 1', value: 'value1'}
+        }
+      }
+    }
+
+    function effect_hash_storage_2(model, event_data, effect_res) {
+
+      return {
+        model_update: {
+          args_second_call_except_model: [event_data, effect_res],
+          hash_storage: utils.clone_deep(hash_storage)
+        },
+        effect_request: undefined
+      }
+    }
+
+    return {
+      effect_array_storage_1: effect_array_storage_1,
+      effect_array_storage_2: effect_array_storage_2,
+      effect_hash_storage_1: effect_hash_storage_1,
+      effect_hash_storage_2: effect_hash_storage_2
+    }
+  }
+
+  // Effect registry
+  var effect_registry = {
+    array_storage: {
+      factory: function array_storage_factory(settings) {
+        var storage = new Array(settings.size);
+        var index = 0;
+        return function array_storage_driver(effect_requests$) {
+          return effect_requests$
+            .do(function store_value(x) {storage[index++] = x.params;})
+            .delay(2)
+            .map(function () {return storage;})
+        }
+      },
+      settings: {
+        size_5: {
+          size: 5
+        },
+        size_10: {
+          size: 10
+        }
+      }
+    },
+    hash_storage: function hash_storage_handler(req_params) {
+      hash_storage [req_params.key] = req_params.value;
+      return Rx.Observable.return(hash_storage).delay(1);
+    }
+  };
+
+  //
+  function test_on_error(arr_fsm_traces) {
+    return function test_on_error_(e) {
+      console.error('test in error', e);
+    }
   }
 
   QUnit.skip("Basic transition mechanism - Pure actions", function test_pure_actions(assert) {
@@ -758,105 +909,12 @@ define(function (require) {
     }
   });
 
-  QUnit.test("Basic transition mechanism - Effectful actions", function test_effectful_actions(assert) {
-
-    var hash_storage = {};
-    var model0 = {key1: 'value'};
-    var event_data1 = {event_data: 'value'};
-    var params_1 = {key: 'element 1', value: 'value1'};
-    var params_2 = {key: 'element 2', value: 'value2'};
-
-    var effect_registry = {
-      array_storage: {
-        factory: function array_storage_factory(settings) {
-          var storage = new Array(settings.size);
-          var index = 0;
-          return function array_storage_driver(effect_requests$) {
-            return effect_requests$
-              .do(function store_value(x) {storage[index++] = x.params;})
-              .map(function () {return storage;})
-          }
-        },
-        settings: {
-          size_5: {
-            size: 5
-          },
-          size_10: {
-            size: 10
-          }
-        }
-      },
-      hash_storage: function hash_storage_handler(req_params) {
-        hash_storage [req_params.key] = req_params.value;
-        return Rx.Observable.return(hash_storage);
-      }
-    };
-
-    function effect_array_storage_1(model, event_data, effect_res) {
-      assert.deepEqual({model: model, event_data: event_data, effect_res: effect_res}, {
-        model: model0, event_data: event_data1, effect_res: undefined
-      }, 'Effectful actions : effect functions are called with the model, event data, and effect result as parameters.');
-      assert.deepEqual(effect_res, undefined, 'Effectful actions : the first effect function is called with no effect result.');
-      return {
-        model_update: {trace: event_data},
-        effect_request: {
-          driver: {
-            family: 'array_storage',
-            name: 'size_5'
-          },
-          params: 'element 1'
-        }
-      }
-    }
-
-    function effect_array_storage_2(model, event_data, effect_res) {
-      // reminder : returns {model_update : , effect_request:}
-      var updated_model0 = model0;
-      updated_model0.trace = event_data1;
-      var first_effect_result = new Array(5);
-      first_effect_result[0] = 'element 1';
-      assert.deepEqual(model, updated_model0, 'Effectful actions : the second effect function is called with the updated model from the effect result of the first effect function.');
-      assert.deepEqual(effect_res, first_effect_result, 'Effectful actions : the second effect function is called with the effect result of the first effect function.');
-      assert.deepEqual(event_data, event_data1, 'Effectful actions : All effect functions are called with the same event data.');
-      return {
-        model_update: {
-          trace: [model.trace, event_data, effect_res]
-        },
-        effect_request: undefined
-      }
-    }
-
-    function effect_hash_storage_1(model, event_data, effect_res) {
-
-      return {
-        model_update: {
-          args_first_call_except_model: [event_data, effect_res],
-          hash_storage: utils.clone_deep(hash_storage),
-          trace: undefined, // removing previous trace fields
-          key1: undefined, // removing previous trace fields
-          args_second_call_except_model: undefined // undefining for reuse of the effect function
-        },
-        effect_request: {
-          driver: {family: 'hash_storage'},
-          params: {key: 'element 1', value: 'value1'}
-        }
-      }
-    }
-
-    function effect_hash_storage_2(model, event_data, effect_res) {
-
-      return {
-        model_update: {
-          args_second_call_except_model: [event_data, effect_res],
-          hash_storage: utils.clone_deep(hash_storage)
-        },
-        effect_request: undefined
-      }
-    }
-
-    function test_on_error(e) {
-      console.error('test in error', e);
-    }
+  QUnit.skip("Basic transition mechanism - Effectful actions - 1 or several effects", function test_effectful_actions(assert) {
+    var test_sequence_handlers = get_test_sequence_handlers(assert);
+    var effect_array_storage_1 = test_sequence_handlers.effect_array_storage_1;
+    var effect_array_storage_2 = test_sequence_handlers.effect_array_storage_2;
+    var effect_hash_storage_1 = test_sequence_handlers.effect_hash_storage_1;
+    var effect_hash_storage_2 = test_sequence_handlers.effect_hash_storage_2;
 
     var transitions = [
       {from: states.NOK, to: states.A, event: events[EV_CODE_INIT]},
@@ -868,8 +926,8 @@ define(function (require) {
         action: [effect_hash_storage_1, effect_hash_storage_2, effect_array_storage_1]
       },
       {from: states.B, to: states.B, event: events.EVENT3, action: [effect_hash_storage_1, effect_hash_storage_2]},
-
     ];
+
     var state_chart = {
       model: model0,
       state_hierarchy: states,
@@ -877,34 +935,27 @@ define(function (require) {
       effect_registry: effect_registry,
       transitions: transitions
     };
-    var arr_fsm_traces = [];
 
-    var ehfsm = start_ehfsm_test('fsm_uri', state_chart, test_on_error, test_on_complete, arr_fsm_traces);
+    var done = assert.async(1); // Cf. https://api.qunitjs.com/async/
 
-    // Sequence of testing events
-    send_sequence_and_stop(ehfsm, [
-      [10, make_intent(events.EVENT1, event_data1)],
-      [20, make_intent(events.EVENT3, {})],
-      [30, make_intent(events.EVENT2, event_data1)]
-    ]);
+    // T1-3
+    function test_on_complete(arr_fsm_traces) {
+      return function test_on_complete() {
+        // T1. Effectful actions/action sequences - Action with one effect
+        // WHEN starting the statechart, and sending EVENT1
+        // THEN
+        // - on start, it should transition to A
+        // - on EVENT1, it should transition to B
+        // - the right effect handlers are called in right order with the right parameters
+        // - model and model update fields are updated correctly
+        // - no (recoverable or fatal) errors are generated
+        // - no automatic events are generated
 
-    var done = assert.async(2); // Cf. https://api.qunitjs.com/async/
+        clean(arr_fsm_traces);
 
-    function test_on_complete() {
-      // T1. Effectful actions/action sequences - Action with one effect
-      // WHEN starting the statechart, and sending EVENT1
-      // THEN
-      // - on start, it should transition to A
-      // - on EVENT1, it should transition to B
-      // - the right effect handlers are called in right order with the right parameters
-      // - model and model update fields are updated correctly
-      // - no (recoverable or fatal) errors are generated
-      // - no automatic events are generated
-
-      clean(arr_fsm_traces);
-
-      var expected_init_trace =
-          [{
+        var expected_init_trace = [
+          {
+            "noop": false,
             "automatic_event": undefined,
             "effect_execution_state": undefined,
             "recoverable_error": undefined,
@@ -912,6 +963,7 @@ define(function (require) {
             "internal_state": {"expecting": "intent", "from": "nok", "to": "A"},
             "event": {"code": "init", "payload": {"key1": "value"}, "__type": ["intent"]}
           }, {
+            "noop": false,
             "automatic_event": undefined,
             "recoverable_error": undefined,
             "inner_fsm": {
@@ -931,6 +983,7 @@ define(function (require) {
             },
             "event": {"code": "EVENT1", "payload": {"event_data": "value"}, "__type": ["intent"]}
           }, {
+            "noop": false,
             "automatic_event": undefined,
             "recoverable_error": undefined,
             "inner_fsm": {
@@ -949,6 +1002,7 @@ define(function (require) {
             },
             "event": {"code": "EVENT1", "payload": {"event_data": "value"}, "__type": ["intent"]}
           }, {
+            "noop": false,
             "automatic_event": undefined,
             "recoverable_error": undefined,
             "effect_execution_state": undefined,
@@ -961,284 +1015,545 @@ define(function (require) {
             },
             "internal_state": {"expecting": "intent", from: "A", "to": "B"},
             "event": {"code": "EVENT1", "payload": {"event_data": "value"}, "__type": ["intent"]}
-          }]
-        ;
-      var expected_2_effects_success_trace = [
-        {
-          "automatic_event": undefined,
-          "effect_execution_state": {
-            "action_seq_handler": "action_sequence_handler_from_effectful_action_array",
-            "effect_request": {
-              "command": "command_execute",
-              "driver": {
-                "family": "hash_storage"
+          }];
+        var expected_2_effects_success_trace = [
+          {
+            "noop": false,
+            "automatic_event": undefined,
+            "effect_execution_state": {
+              "action_seq_handler": "action_sequence_handler_from_effectful_action_array",
+              "effect_request": {
+                "command": "command_execute", "driver": {"family": "hash_storage"},
+                "params": {"key": "element 1", "value": "value1"}
               },
-              "params": {"key": "element 1", "value": "value1"}
+              "has_more_effects_to_execute": true,
+              "index": 0
             },
-            "has_more_effects_to_execute": true,
-            "index": 0
-          },
-          "event": {
-            "__type": ["intent"],
-            "code": "EVENT3",
-            "payload": {}
-          },
-          "inner_fsm": {
-            "model": {
-              "args_first_call_except_model": [{}, undefined],
-              "args_second_call_except_model": undefined,
-              "hash_storage": {},
-              "key1": undefined,
-              "trace": undefined
+            "event": {
+              "__type": ["intent"],
+              "code": "EVENT3",
+              "payload": {}
             },
-            "model_update": {
-              "args_first_call_except_model": [{}, undefined],
-              "args_second_call_except_model": undefined,
-              "hash_storage": {},
-              "key1": undefined, "trace": undefined
-            }
-          },
-          "internal_state": {
-            "expecting": "expecting_action_result",
-            "from": "B",
-            "to": "-B-"
-          },
-          "recoverable_error": undefined
-        },
-        {
-          "automatic_event": undefined,
-          "effect_execution_state": {
-            "action_seq_handler": "action_sequence_handler_from_effectful_action_array",
-            "effect_request": {
-              "command": "command_ignore",
-              "driver": {}
+            "inner_fsm": {
+              "model": {
+                "args_first_call_except_model": [{}, undefined],
+                "args_second_call_except_model": undefined,
+                "hash_storage": {},
+                "key1": undefined,
+                "trace": undefined
+              },
+              "model_update": {
+                "args_first_call_except_model": [{}, undefined],
+                "args_second_call_except_model": undefined,
+                "hash_storage": {},
+                "key1": undefined, "trace": undefined
+              }
             },
-            "has_more_effects_to_execute": false,
-            "index": 1
-          },
-          "event": {
-            "__type": ["intent"],
-            "code": "EVENT3",
-            "payload": {}
-          },
-          "inner_fsm": {
-            "model": {
-              "args_first_call_except_model": [{}, undefined],
-              "args_second_call_except_model": [{}, {"element 1": "value1"}],
-              "hash_storage": {"element 1": "value1"},
-              "key1": undefined,
-              "trace": undefined
+            "internal_state": {
+              "expecting": "expecting_action_result",
+              "from": "B",
+              "to": "-B-"
             },
-            "model_update": {
-              "args_second_call_except_model": [{}, {"element 1": "value1"}],
-              "hash_storage": {"element 1": "value1"}
-            }
+            "recoverable_error": undefined
           },
-          "internal_state": {
-            "expecting": "expecting_action_result",
-            "from": "B",
-            "to": "-B-"
-          },
-          "recoverable_error": undefined
-        },
-        {
-          "automatic_event": undefined,
-          "effect_execution_state": undefined,
-          "event": {
-            "__type": ["intent"],
-            "code": "EVENT3",
-            "payload": {}
-          },
-          "inner_fsm": {
-            "model": {
-              "args_first_call_except_model": [{}, undefined],
-              "args_second_call_except_model": [{}, {"element 1": "value1"}],
-              "hash_storage": {"element 1": "value1"},
-              "key1": undefined,
-              "trace": undefined
-            },
-            "model_update": undefined
-          },
-          "internal_state": {
-            "expecting": "intent",
-            "from": "B",
-            "to": "B"
-          },
-          "recoverable_error": undefined
-        }
-      ];
-      var expected_error_trace = [
-        {
-          "automatic_event": undefined,
-          "effect_execution_state": {
-            "action_seq_handler": "action_sequence_handler_from_effectful_action_array",
-            "effect_request": {
-              "command": "command_execute",
-              "driver": {"family": "hash_storage"},
-              "params": {"key": "element 1", "value": "value1"}
-            },
-            "has_more_effects_to_execute": true,
-            "index": 0
-          },
-          "event": {
-            "__type": ["intent"],
-            "code": "EVENT2",
-            "payload": {"event_data": "value"}
-          },
-          "inner_fsm": {
-            "model": {
-              "args_first_call_except_model": [{"event_data": "value"}, undefined],
-              "args_second_call_except_model": undefined,
-              "hash_storage": {"element 1": "value1"},
-              "key1": undefined,
-              "trace": undefined
-            },
-            "model_update": {
-              "args_first_call_except_model": [{"event_data": "value"}, undefined],
-              "args_second_call_except_model": undefined,
-              "hash_storage": {"element 1": "value1"},
-              "key1": undefined,
-              "trace": undefined
-            }
-          },
-          "internal_state": {
-            "expecting": "expecting_action_result",
-            "from": "B",
-            "to": "-A-"
-          },
-          "recoverable_error": undefined
-        },
-        {
-          "automatic_event": undefined,
-          "effect_execution_state": {
-            "action_seq_handler": "action_sequence_handler_from_effectful_action_array",
-            "effect_request": {
-              "address": {"token": 0, "uri": "fsm_uri"},
-              "command": "command_execute",
-              "driver": {"family": "hash_storage"},
-              "params": {"key": "element 1", "value": "value1"}
-            },
-            "has_more_effects_to_execute": true,
-            "index": 0
-          },
-          "event": {
-            "__type": ["intent"],
-            "code": "EVENT2",
-            "payload": {"event_data": "value"}
-          },
-          "fatal_error": {
-            "extended_info": {
-              "effect_number": 2,
-              "executed_action": "update_model_and_send_effect_request",
+          {
+            "noop": false,
+            "automatic_event": undefined,
+            "effect_execution_state": {
+              "action_seq_handler": "action_sequence_handler_from_effectful_action_array",
+              "effect_request": {"command": "command_ignore", "driver": {}},
+              "has_more_effects_to_execute": false,
               "index": 1
             },
-            "message": "Unexpected end of effect requests, expected 2, encountered end of effects at index 1",
-            "name": "Effect_Error"
-          },
-          "inner_fsm": {
-            "model": {
-              "args_first_call_except_model": [{"event_data": "value"}, undefined],
-              "args_second_call_except_model": undefined,
-              "hash_storage": {"element 1": "value1"},
-              "key1": undefined,
-              "trace": undefined
+            "event": {
+              "__type": ["intent"],
+              "code": "EVENT3",
+              "payload": {}
             },
-            "model_update": {
-              "args_first_call_except_model": [{"event_data": "value"}, undefined],
-              "args_second_call_except_model": undefined,
-              "hash_storage": {"element 1": "value1"},
-              "key1": undefined,
-              "trace": undefined
-            }
+            "inner_fsm": {
+              "model": {
+                "args_first_call_except_model": [{}, undefined],
+                "args_second_call_except_model": [{}, {"element 1": "value1"}],
+                "hash_storage": {"element 1": "value1"},
+                "key1": undefined,
+                "trace": undefined
+              },
+              "model_update": {
+                "args_second_call_except_model": [{}, {"element 1": "value1"}],
+                "hash_storage": {"element 1": "value1"}
+              }
+            },
+            "internal_state": {
+              "expecting": "expecting_action_result",
+              "from": "B",
+              "to": "-B-"
+            },
+            "recoverable_error": undefined
           },
-          "internal_state": {
-            "expecting": "expecting_action_result",
-            "from": "B",
-            "to": "-A-"
+          {
+            "noop": false,
+            "automatic_event": undefined,
+            "effect_execution_state": undefined,
+            "event": {
+              "__type": ["intent"],
+              "code": "EVENT3",
+              "payload": {}
+            },
+            "inner_fsm": {
+              "model": {
+                "args_first_call_except_model": [{}, undefined],
+                "args_second_call_except_model": [{}, {"element 1": "value1"}],
+                "hash_storage": {"element 1": "value1"},
+                "key1": undefined,
+                "trace": undefined
+              },
+              "model_update": undefined
+            },
+            "internal_state": {
+              "expecting": "intent",
+              "from": "B",
+              "to": "B"
+            },
+            "recoverable_error": undefined
+          }
+        ];
+        var expected_error_trace = [
+          {
+            "noop": false,
+            "automatic_event": undefined,
+            "effect_execution_state": {
+              "action_seq_handler": "action_sequence_handler_from_effectful_action_array",
+              "effect_request": {
+                "command": "command_execute",
+                "driver": {"family": "hash_storage"},
+                "params": {"key": "element 1", "value": "value1"}
+              },
+              "has_more_effects_to_execute": true,
+              "index": 0
+            },
+            "event": {
+              "__type": ["intent"],
+              "code": "EVENT2",
+              "payload": {"event_data": "value"}
+            },
+            "inner_fsm": {
+              "model": {
+                "args_first_call_except_model": [{"event_data": "value"}, undefined],
+                "args_second_call_except_model": undefined,
+                "hash_storage": {"element 1": "value1"},
+                "key1": undefined,
+                "trace": undefined
+              },
+              "model_update": {
+                "args_first_call_except_model": [{"event_data": "value"}, undefined],
+                "args_second_call_except_model": undefined,
+                "hash_storage": {"element 1": "value1"},
+                "key1": undefined,
+                "trace": undefined
+              }
+            },
+            "internal_state": {
+              "expecting": "expecting_action_result",
+              "from": "B",
+              "to": "-A-"
+            },
+            "recoverable_error": undefined
           },
-          "recoverable_error": undefined
-        }
-      ];
-      var arr_fsm_traces_1 = arr_fsm_traces.slice(0, 4);
-      var arr_fsm_traces_2 = arr_fsm_traces.slice(4, 7);
-      var arr_fsm_traces_3 = arr_fsm_traces.slice(7, 9);
+          {
+            "noop": true,
+            "automatic_event": undefined,
+            "effect_execution_state": {
+              "action_seq_handler": "action_sequence_handler_from_effectful_action_array",
+              "effect_request": {
+                "address": {"token": 0, "uri": "fsm_uri"},
+                "command": "command_execute",
+                "driver": {"family": "hash_storage"},
+                "params": {"key": "element 1", "value": "value1"}
+              },
+              "has_more_effects_to_execute": true,
+              "index": 0
+            },
+            "event": {
+              "__type": ["intent"],
+              "code": "EVENT2",
+              "payload": {"event_data": "value"}
+            },
+            "fatal_error": {
+              "extended_info": {
+                "effect_number": 2,
+                "executed_action": "update_model_and_send_effect_request",
+                "index": 1
+              },
+              "message": "Unexpected end of effect requests, expected 2, encountered end of effects at index 1",
+              "name": "Effect_Error"
+            },
+            "inner_fsm": {
+              "model": {
+                "args_first_call_except_model": [{"event_data": "value"}, undefined],
+                "args_second_call_except_model": undefined,
+                "hash_storage": {"element 1": "value1"},
+                "key1": undefined,
+                "trace": undefined
+              },
+              "model_update": {
+                "args_first_call_except_model": [{"event_data": "value"}, undefined],
+                "args_second_call_except_model": undefined,
+                "hash_storage": {"element 1": "value1"},
+                "key1": undefined,
+                "trace": undefined
+              }
+            },
+            "internal_state": {
+              "expecting": "expecting_action_result",
+              "from": "B",
+              "to": "-A-"
+            },
+            "recoverable_error": undefined
+          }
+        ];
+        var arr_fsm_traces_1 = arr_fsm_traces.slice(0, 4);
+        var arr_fsm_traces_2 = arr_fsm_traces.slice(4, 7);
+        var arr_fsm_traces_3 = arr_fsm_traces.slice(7, 9);
 
-      assert.deepEqual(arr_fsm_traces_1, expected_init_trace, 'Effectful actions : The state machine and model is updated as the result of both effect results and pure updates set in the effect handler logic.');
-      // T2. Effectful actions/action sequences - Action with two effects
-      assert.deepEqual(arr_fsm_traces_2, expected_2_effects_success_trace, [
-        'Effectful actions :',
-        'There must be a number of effects in relation with the length of the array passed to specify a sequence of effects.',
-        'Effects are executed as long as there is non-empty effect request returned by the effect sequence handler.'].join(' \n'));
+        assert.deepEqual(arr_fsm_traces_1, expected_init_trace, 'Effectful actions : The state machine and model is updated as the result of both effect results and pure updates set in the effect handler logic.');
+        // T2. Effectful actions/action sequences - Action with two effects
+        assert.deepEqual(arr_fsm_traces_2, expected_2_effects_success_trace, [
+          'Effectful actions :',
+          'There must be a number of effects in relation with the length of the array passed to specify a sequence of effects.',
+          'Effects are executed as long as there is non-empty effect request returned by the effect sequence handler.'].join(' \n'));
 
-      // T3. Effectful actions/action sequences - Action with two effects - but on effect handler does not return an effect request
-      assert.deepEqual(arr_fsm_traces_3, expected_error_trace, [
-        'Effectful actions :',
-        'There must be a number of effects in relation with the length of the array passed to specify a sequence of effects.',
-        'If there are less or more effects than expected, a fatal error is issued which contains the current (hence not updated) state of the state machine'].join(' \n'));
+        // T3. Effectful actions/action sequences - Action with two effects - but on effect handler does not return an effect request
+        assert.deepEqual(arr_fsm_traces_3, expected_error_trace, [
+          'Effectful actions :',
+          'There must be a number of effects in relation with the length of the array passed to specify a sequence of effects.',
+          'If there are less or more effects than expected, a fatal error is issued which contains the current (hence not updated) state of the state machine'].join(' \n'));
 
-      done();
+        done();
+      }
     }
 
-    function test_on_complete2(){
-      // TODO : change for the new tests
-      var transitions = [
-        {from: states.NOK, to: states.A, event: events[EV_CODE_INIT]},
-        {from: states.A, to: states.B, event: events.EVENT1, action: [effect_array_storage_1, effect_array_storage_2]},
-        {
-          from: states.B,
-          to: states.A,
-          event: events.EVENT2,
-          action: [effect_hash_storage_1, effect_hash_storage_2, effect_array_storage_1]
+    var ehfsm = start_ehfsm_test('fsm_uri', state_chart, test_on_error, test_on_complete);
+    send_synchronized_sequence_and_stop(ehfsm, [
+      make_intent(events.EVENT1, event_data1),
+      make_intent(events.EVENT3, {}),
+      make_intent(events.EVENT2, event_data1)
+    ]);
+  });
+
+  QUnit.test("Basic transition mechanism - Effectful actions - unexpected effect result", function test_effectful_actions(assert) {
+    var test_sequence_handlers = get_test_sequence_handlers(assert);
+    var effect_array_storage_1 = test_sequence_handlers.effect_array_storage_1;
+    var effect_array_storage_2 = test_sequence_handlers.effect_array_storage_2;
+    var effect_hash_storage_1 = test_sequence_handlers.effect_hash_storage_1;
+    var effect_hash_storage_2 = test_sequence_handlers.effect_hash_storage_2;
+
+    var transitions = [
+      {from: states.NOK, to: states.A, event: events[EV_CODE_INIT]},
+      {from: states.A, to: states.B, event: events.EVENT1, action: [effect_array_storage_1, effect_array_storage_2]},
+      {
+        from: states.B,
+        to: states.A,
+        event: events.EVENT2,
+        action: [effect_hash_storage_1, effect_hash_storage_2, effect_array_storage_1]
+      },
+      {from: states.B, to: states.B, event: events.EVENT3, action: [effect_hash_storage_1, effect_hash_storage_2]},
+    ];
+
+    var state_chart = {
+      model: model0,
+      state_hierarchy: states,
+      events: events,
+      effect_registry: effect_registry,
+      transitions: transitions
+    };
+
+    var done = assert.async(1); // Cf. https://api.qunitjs.com/async/
+
+    // T4. Receiving unexpected effect result
+    // TODO : with the new send event send an effect result with fancy uri or token
+    /** @type Effect_Response*/
+    var fake_effect_response_token = {
+      effect_result: {},
+      effect_request: {
+        command: EXECUTE,
+        driver: {
+          family: 'array_storage',
+          name: 'size_5'
         },
-        {from: states.B, to: states.B, event: events.EVENT3, action: [effect_hash_storage_1, effect_hash_storage_2]},
+        params: 'element 1',
+        address: {
+          uri: 'fsm_uri2', // same fsm id, so the request must be rejected based on the token
+          token: 2000 // non-emitted token
+        }
+      }
+    };
+    var fake_effect_response_uri = {
+      effect_result: {},
+      effect_request: {
+        command: EXECUTE,
+        driver: {
+          family: 'array_storage',
+          name: 'size_5'
+        },
+        params: 'element 1',
+        address: {
+          uri: 'fsm', // wrong fsm uri, so the request must be rejected based on uri
+          token: 0 // emitted token
+        }
+      }
+    };
 
-      ];
-      var state_chart = {
-        model: model0,
-        state_hierarchy: states,
-        events: events,
-        effect_registry: effect_registry,
-        transitions: transitions
+    var ehfsm = start_ehfsm_test('fsm_uri2', state_chart, test_on_error, test_on_complete);
+
+    send_timed_sequence_and_stop(ehfsm, [
+      [10, make_intent(events.EVENT1, event_data1)],
+      [10, make_effect_response(fake_effect_response_uri)],
+      [11, make_effect_response(fake_effect_response_token)],
+    ]);
+
+    function test_on_complete(arr_fsm_traces) {
+      return function test_on_complete() {
+        clean(arr_fsm_traces);
+        var expected_trace = [
+          {
+            "automatic_event": undefined,
+            "recoverable_error": undefined,
+            "effect_execution_state": undefined,
+            "inner_fsm": {"model": {"key1": "value"}, "model_update": {}},
+            "internal_state": {"expecting": "intent", "from": "nok", "to": "A"},
+            "event": {"code": "init", "payload": {"key1": "value"}, "__type": ["intent"]},
+            "noop": false
+          }, {
+            "automatic_event": undefined,
+            "recoverable_error": undefined,
+            "inner_fsm": {
+              "model": {"key1": "value", "trace": {"event_data": "value"}},
+              "model_update": {"trace": {"event_data": "value"}}
+            },
+            "internal_state": {"expecting": "expecting_action_result", "from": "A", "to": "-B-"},
+            "effect_execution_state": {
+              "action_seq_handler": "action_sequence_handler_from_effectful_action_array",
+              "index": 0,
+              "effect_request": {
+                "driver": {"family": "array_storage", "name": "size_5"},
+                "params": "element 1",
+                "command": "command_execute"
+              },
+              "has_more_effects_to_execute": true
+            },
+            "event": {"code": "EVENT1", "payload": {"event_data": "value"}, "__type": ["intent"]},
+            "noop": false
+          }, {
+            "automatic_event": undefined,
+            "inner_fsm": {
+              "model": {"key1": "value", "trace": {"event_data": "value"}},
+              "model_update": {"trace": {"event_data": "value"}}
+            },
+            "internal_state": {"expecting": "expecting_action_result", "from": "A", "to": "-B-"},
+            "effect_execution_state": {
+              "action_seq_handler": "action_sequence_handler_from_effectful_action_array",
+              "index": 0,
+              "effect_request": {
+                "driver": {"family": "array_storage", "name": "size_5"},
+                "params": "element 1",
+                "command": "command_execute",
+                "address": {"uri": "fsm_uri", "token": 0}
+              },
+              "has_more_effects_to_execute": true
+            },
+            "recoverable_error": {
+              "name": "SM_Error",
+              "message": "warning_received_unexpected_effect_result",
+              "extended_info": {
+                "effect_result": {
+                  "effect_result": {},
+                  "effect_request": {
+                    "command": "command_execute",
+                    "driver": {"family": "array_storage", "name": "size_5"},
+                    "params": "element 1",
+                    "address": {"uri": "fsm", "token": 0}
+                  },
+                  "__type": ["effect_response"]
+                }
+              }
+            },
+            "event": {"code": "EVENT1", "payload": {"event_data": "value"}, "__type": ["intent"]},
+            "noop": true
+          }, {
+            "automatic_event": undefined,
+            "inner_fsm": {
+              "model": {"key1": "value", "trace": {"event_data": "value"}},
+              "model_update": {"trace": {"event_data": "value"}}
+            },
+            "internal_state": {"expecting": "expecting_action_result", "from": "A", "to": "-B-"},
+            "effect_execution_state": {
+              "action_seq_handler": "action_sequence_handler_from_effectful_action_array",
+              "index": 0,
+              "effect_request": {
+                "driver": {"family": "array_storage", "name": "size_5"},
+                "params": "element 1",
+                "command": "command_execute",
+                "address": {"uri": "fsm_uri", "token": 0}
+              },
+              "has_more_effects_to_execute": true
+            },
+            "recoverable_error": {
+              "name": "SM_Error",
+              "message": "warning_received_unexpected_effect_result",
+              "extended_info": {
+                "effect_result": {
+                  "effect_result": {},
+                  "effect_request": {
+                    "command": "command_execute",
+                    "driver": {"family": "array_storage", "name": "size_5"},
+                    "params": "element 1",
+                    "address": {"uri": "fsm_uri2", "token": 2000}
+                  },
+                  "__type": ["effect_response"]
+                }
+              }
+            },
+            "event": {"code": "EVENT1", "payload": {"event_data": "value"}, "__type": ["intent"]},
+            "noop": true
+          }, {
+            "automatic_event": undefined,
+            "recoverable_error": undefined,
+            "inner_fsm": {
+              "model": {
+                "key1": "value",
+                "trace": [{"event_data": "value"}, {"event_data": "value"}, ["element 1", undefined, undefined, undefined, undefined]]
+              },
+              "model_update": {"trace": [{"event_data": "value"}, {"event_data": "value"}, ["element 1", undefined, undefined, undefined, undefined]]}
+            },
+            "internal_state": {"expecting": "expecting_action_result", "from": "A", "to": "-B-"},
+            "effect_execution_state": {
+              "action_seq_handler": "action_sequence_handler_from_effectful_action_array",
+              "index": 1,
+              "effect_request": {"command": "command_ignore", "driver": {}},
+              "has_more_effects_to_execute": false
+            },
+            "event": {"code": "EVENT1", "payload": {"event_data": "value"}, "__type": ["intent"]},
+            "noop": false
+          }, {
+            "automatic_event": undefined,
+            "recoverable_error": undefined,
+            "effect_execution_state": undefined,
+            "inner_fsm": {
+              "model": {
+                "key1": "value",
+                "trace": [{"event_data": "value"}, {"event_data": "value"}, ["element 1", undefined, undefined, undefined, undefined]]
+              },
+              "model_update": undefined
+            },
+            "internal_state": {"expecting": "intent", "from": "A", "to": "B"},
+            "event": {"code": "EVENT1", "payload": {"event_data": "value"}, "__type": ["intent"]},
+            "noop": false
+          }
+        ];
+        assert.deepEqual(arr_fsm_traces, expected_trace, 'If an effect result is received by the state machine while it is expecting an effect result, and the generating effect request does not correspond to the expected one, a recoverable error is generated. The model is not updated, and the state machine remains in the same state.');
+        done();
       };
+    }
+  });
 
-      var arr_fsm_traces = [];
+  QUnit.skip("Basic transition mechanism - Effectful actions - effect result while expecting intent", function test_effectful_actions(assert) {
+    var test_sequence_handlers = get_test_sequence_handlers(assert);
+    var effect_array_storage_1 = test_sequence_handlers.effect_array_storage_1;
+    var effect_array_storage_2 = test_sequence_handlers.effect_array_storage_2;
+    var effect_hash_storage_1 = test_sequence_handlers.effect_hash_storage_1;
+    var effect_hash_storage_2 = test_sequence_handlers.effect_hash_storage_2;
 
-      var ehfsm = start_ehfsm_test('fsm_uri', state_chart, test_on_error, test_on_complete, arr_fsm_traces);
+    var transitions = [
+      {from: states.NOK, to: states.A, event: events[EV_CODE_INIT]},
+      {from: states.A, to: states.B, event: events.EVENT1, action: [effect_array_storage_1, effect_array_storage_2]},
+      {
+        from: states.B,
+        to: states.A,
+        event: events.EVENT2,
+        action: [effect_hash_storage_1, effect_hash_storage_2, effect_array_storage_1]
+      },
+      {from: states.B, to: states.B, event: events.EVENT3, action: [effect_hash_storage_1, effect_hash_storage_2]},
+    ];
 
-      // Sequence of testing events
-      send_sequence_and_stop(ehfsm, [
-        [10, make_intent(events.EVENT1, event_data1)],
-        [20, make_intent(events.EVENT3, {})],
-        [30, make_intent(events.EVENT2, event_data1)]
-      ]);
+    var state_chart = {
+      model: model0,
+      state_hierarchy: states,
+      events: events,
+      effect_registry: effect_registry,
+      transitions: transitions
+    };
 
-      // T4. Receiving unexpected effect result
-      // TODO : with the new send event send an effect result with fancy uri or token
+    var done = assert.async(1); // Cf. https://api.qunitjs.com/async/
 
-      // T5. Effect error - error handler (effect throws)
+    // T4. Receiving unexpected effect result
+    // TODO : with the new send event send an effect result with fancy uri or token
+    /** @type Effect_Response*/
+    var fake_effect_response_token = {
+      effect_result: {},
+      effect_request: {
+        command: EXECUTE,
+        driver: {
+          family: 'array_storage',
+          name: 'size_5'
+        },
+        params: 'element 1',
+        address: {
+          uri: 'fsm_uri2', // same fsm id, so the request must be rejected based on the token
+          token: 2000 // non-emitted token
+        }
+      }
+    };
+    var fake_effect_response_uri = {
+      effect_result: {},
+      effect_request: {
+        command: EXECUTE,
+        driver: {
+          family: 'array_storage',
+          name: 'size_5'
+        },
+        params: 'element 1',
+        address: {
+          uri: 'fsm', // wrong fsm uri, so the request must be rejected based on uri
+          token: 0 // emitted token
+        }
+      }
+    };
 
-      // T6. Effect error - no error handler (effect throws)
+    var ehfsm = start_ehfsm_test('fsm_uri2', state_chart, test_on_error, test_on_complete2);
 
-      // TODO
-      // 1. Effectful actions/action sequences                              //
-      // 1.a. Action with one effect                                        //
-      // 1.a.1 model is updated twice correctly                             //
-      // 1.a.2 inner and outer state are changed accordingly                //
-      // 1.a.3 effect is executed                                           //
-      // 1.a.3.1 action is executed with the right arguments                //
-      // 1.a.3.2 the right effect is executed                               //
-      // 1.b. Action with two effects
-      // 1.c. Receiving an effect result which is not expected
-      // 1.d. Effect error
-      // 1.d.1 Effect error - no error handler
-      // 1.d.2 Effect error - error handler
-      // TODO : check statechart format
-      // TODO : regression testing - remove skip from other tests - remove traces altogether??
-      // TODO : write an adapter for model_update -> ractive, because ractive.set expect a path - TEST traversal library
-      // TODO : test the update (model merge) functionality with arrays and objects (array-array are merged, but object-array is assigned)
+    send_timed_sequence_and_stop(ehfsm, [
+      [10, make_intent(events.EVENT1, event_data1)],
+      [9, make_effect_response(fake_effect_response_token)],
+      [10, make_effect_response(fake_effect_response_uri)],
+      [11, make_effect_response(fake_effect_response_token)],
+    ]);
+
+    function test_on_complete2(arr_fsm_traces) {
+      console.log('arr_fsm_traces', JSON.stringify(arr_fsm_traces));
 
       done();
     }
+
+    // T5. Effect error - error handler (effect throws)
+    // T6. Effect error - no error handler (effect throws)
+
+    // TODO
+    // 1. Effectful actions/action sequences                              //
+    // 1.a. Action with one effect                                        //
+    // 1.a.1 model is updated twice correctly                             //
+    // 1.a.2 inner and outer state are changed accordingly                //
+    // 1.a.3 effect is executed                                           //
+    // 1.a.3.1 action is executed with the right arguments                //
+    // 1.a.3.2 the right effect is executed                               //
+    // 1.b. Action with two effects
+    // 1.c. Receiving an effect result which is not expected
+    // 1.d. Effect error
+    // 1.d.1 Effect error - no error handler
+    // 1.d.2 Effect error - error handler
+    // TODO : check statechart format
+    // TODO : regression testing - remove skip from other tests - remove traces altogether??
+    // TODO : write an adapter for model_update -> ractive, because ractive.set expect a path - TEST traversal library
+    // TODO : test the update (model merge) functionality with arrays and objects (array-array are merged, but object-array is assigned)
 
   });
   // SUBGROUP : ...

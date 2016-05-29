@@ -81,6 +81,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
   var INTENT = constants.INTENT;
   var TRACE_INTENT = constants.TRACE_INTENT;
   var LAST_EFFECT_REQUEST = constants.LAST_EFFECT_REQUEST;
+  var EXPECTING_INTENT = constants.EXPECTING_INTENT;
 
   function make_intent(code, payload) {
     return {code: code, payload: payload}
@@ -627,6 +628,10 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       }
     }
 
+    function filter_out_fsm_state_to_skip(fsm_state) {
+      return !fsm_state.noop;
+    }
+
     function filter_out_empty_effect_request(fsm_state) {
       return fsm_state.effect_execution_state
         && fsm_state.effect_execution_state.effect_request;
@@ -646,7 +651,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       };
     }
 
-    function filter_in_new_model(fsm_state) {
+    function filter_out_empty_model_update(fsm_state) {
       return !utils.is_empty(fsm_state.inner_fsm.model_update);
     }
 
@@ -693,10 +698,13 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
         console.warn(e.stack);
         return Rx.Observable.throw(e);
       })
-      .share();
+      .shareReplay(1);
+
+    var fsm_state_actions$ = fsm_state$
+      .filter(filter_out_fsm_state_to_skip);
 
     // The stream of effect requests
-    var effect_requests$ = fsm_state$
+    var effect_requests$ = fsm_state_actions$
       .finally(function () {
         console.log('fsm_state$ terminated!!!!')
       })
@@ -709,8 +717,8 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
 
     // The stream of model updates
     // Can be anything that the function `update_model` understands
-    var model_update$ = fsm_state$
-      .filter(filter_in_new_model)
+    var model_update$ = fsm_state_actions$
+      .filter(filter_out_empty_model_update)
       .pluck('inner_fsm', 'model_update')
       .startWith(fsm_initial_state.inner_fsm.model)
       .do(utils.rxlog('new model update emitted'));
@@ -719,14 +727,14 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     // It should also only be passed if it has been updated (i.e. model_update is undefined)
     // Possible downstream write-effects are disarmed by deep cloning.
     // This ensures that the model is modified only here.
-    var model$ = fsm_state$
-      .filter(filter_in_new_model)
+    var model$ = fsm_state_actions$
+      .filter(filter_out_empty_model_update)
       .pluck('inner_fsm', 'model')
       .map(utils.clone_deep)
       .do(utils.rxlog('new model emitted'));
 
     // Intents generated internally (automatic actions)
-    var program_generated_intent_req$ = fsm_state$
+    var program_generated_intent_req$ = fsm_state_actions$
       .filter(utils.get_prop('automatic_event'))
       .pluck('automatic_event')
       .startWith({
@@ -736,12 +744,17 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       .do(utils.rxlog('program_generated_intent_req$'))
       .publish();
 
+    var fsm_state_steps$ = fsm_state_actions$
+      .filter(function is_expecting_intent(fsm_state) {return fsm_state.internal_state.expecting === EXPECTING_INTENT});
+
     return {
+      // NOTE : we use replay(1) or shareReplay(1) as there could be several consumers of the APIs subscribing on different ticks
       fsm_state$: fsm_state$, // NOTE : already shared
-      model_update$: model_update$.share(), // object representing the updates to do on the current model
-      model$: model$.share(), // the updated model
+      model_update$: model_update$.shareReplay(1), // object representing the updates to do on the current model
+      model$: model$.shareReplay(1), // the updated model
       effect_requests$: effect_requests$,
       program_generated_intent_req$: program_generated_intent_req$,
+      fsm_state_steps$: fsm_state_steps$.shareReplay(1),
       trace$: traceS,
       dispose_listeners: dispose_listeners
     }
@@ -776,6 +789,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     var dispose_listeners = fsm_sinks.dispose_listeners;
 
     function start() {
+      // TODO : investigate whether I need the connect part. Ideal would be to remove it for generality
       // Connecting requests streams to responses
       effect_requests_disposable = make_effect_driver(effect_registry)(fsm_sinks.effect_requests$)
         .subscribe(effect_responseS);
@@ -788,30 +802,24 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     function stop() {
       // NOTE : once stopped the state machine cannot be restarted... maybe destroy or dispose is a better name?
       dispose_listeners();
-      dispose(debug_intentS);
-      dispose(program_generated_intentS);
-      dispose(effect_responseS);
-      dispose(trace_intentS);
-      // No need to dispose the subscriptions, they are disposed automatically when their source observable completes
-      //      dispose(effect_requests_disposable);
-      //      dispose(program_generated_intent_req_disposable);
+      trace_intentS.onCompleted();
+      program_generated_intentS.onCompleted();
+      debug_intentS.onCompleted();
+      effect_responseS.onCompleted();
+      effect_responseS.onCompleted();
     }
 
-    function dispose(disposable) {
+    function dispose(disposable, name) {
       if (!Rx.Disposable.isDisposable(disposable)) {
         throw 'dispose : disposable parameter does not have a dispose function?!'
       }
       // Case : disposable is a subject, hence an observer : signal completion to allow downstream streams to finalize cleanly
       disposable.onCompleted && disposable.onCompleted();
-      // setTimeout necessary as it allows to avoid `Uncaught ObjectDisposedError: Object has been disposed`
-      // Why is that ? This happens when obs$.subscribe(subS) and subS has been disposed, subscription has not been
-      // disposed, and obs$ emits values
-      setTimeout(function () {
-        // This allows to cover both subjects and subscriptions disposal
-        if (!disposable.isDisposed) {
-          disposable.dispose();
-        }
-      }, 0);
+      // This allows to cover both subjects and subscriptions disposal
+      if (!disposable.isDisposed) {
+        console.log('disposing ' + name);
+        disposable.dispose();
+      }
     }
 
     // Trace mechanism
@@ -885,6 +893,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       model$: fsm_sinks.model$.share(), // defensively share the model in case it is subscribed several times over
       model_update$: fsm_sinks.model_update$.share(),
       fsm_state$: fsm_sinks.fsm_state$,
+      fsm_state_steps$: fsm_sinks.fsm_state_steps$,
       trace$: final_traceS, // by subscribing to trace$, only one value will be output, the array of traces recorded
       start_trace: start_trace,
       stop_trace: stop_trace,
@@ -1337,6 +1346,11 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
 /**
  * @typedef {Object<Driver_Family_Name, (Effect_Handler|Driver_Registry)>} Effect_Registry
  * @dict
+ */
+/**
+ * @typedef {Object} Effect_Response
+ * @property {Effect_Result} effect_result
+ * @property {Effect_Request} effect_request
  */
 /**
  * @typedef {Object} Effect_Request

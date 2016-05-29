@@ -1,5 +1,6 @@
 TODO : implement cyclepong with statecharts - https://github.com/eschwartz/cycle-pong
 TODO : implement flux challenge with statecharts - https://github.com/staltz/flux-challenge
+TODO : implement dashboard app - https://github.com/eschwartz/cycle-pong
 
 # Statecharts
 

@@ -111,7 +111,7 @@ function require_outer_fsm_def(Err, utils, constants) {
         to: EXPECTING_EFFECT_RESULT
       },
       {
-        // CASE : effect was executed correctly, and there is some more to execute before changing state
+        // CASE : last effect was executed correctly, and the fsm should update the model and transition to the next state
         predicate: utils.and(is_effect_expected, utils.not(is_effect_error), utils.not(has_more_effects_to_execute)),
         action: update_model_and_transition_to_next_state,
         to: EXPECTING_INTENT
@@ -175,7 +175,6 @@ function require_outer_fsm_def(Err, utils, constants) {
     }
 
     function is_effect_expected(fsm_state, internal_event) {
-      // TODO : check format of internal event
       var effect_response = internal_event;
       var response_effect_request = effect_response.effect_request;
 
@@ -248,6 +247,7 @@ function require_outer_fsm_def(Err, utils, constants) {
       var action_seq_handler_result = action_seq_handler(model, event_data, undefined, 0);
       var effect_struct = action_seq_handler_result.effect_request;
       if (utils.is_null(effect_struct) || utils.is_undefined(effect_struct)) {
+        fsm_state_update.noop = false;
         // case pure action handler as expected
         var model_update = action_seq_handler_result.model_update;
 
@@ -275,6 +275,7 @@ function require_outer_fsm_def(Err, utils, constants) {
         return fsm_state_update;
       }
       else {
+        fsm_state_update.noop = true; // don't pass model or effect requests
         // pathological case, we supposedly have a pure action handler, and yet that handler returns an effect request
         throw 'update_model_with_pure_action_result : action handler should not return an effect request!'
       }
@@ -315,9 +316,9 @@ function require_outer_fsm_def(Err, utils, constants) {
       var effect_request = action_seq_handler_result.effect_request;
       utils.assert_type(effect_request, 'object', 'update_model_and_send_effect_request : effect request is not an object as expected!');
 
+      fsm_state_update.noop = false;
       fsm_state_update.recoverable_error = undefined;
       fsm_state_update.automatic_event = undefined;
-      //      fsm_state_update.event = internal_event;
       fsm_state_update.event = internal_event;
 
       fsm_state_update.inner_fsm.model_update = model_update;
@@ -358,6 +359,7 @@ function require_outer_fsm_def(Err, utils, constants) {
       // Set effect execution state in function of expected number of requests, number of requests received
       if (effect_request) {
         // Case : More effects to execute
+        fsm_state_update.noop = false;
         effect_request.command = EXECUTE;
         fsm_state_update.effect_execution_state = {
           action_seq_handler: fsm_state.effect_execution_state.action_seq_handler,
@@ -371,6 +373,7 @@ function require_outer_fsm_def(Err, utils, constants) {
         var effect_number = action_seq_handler.effect_number;
         if (effect_number !== index) {
           // Case : unexpected end of effect requests (i.e. is before or after the expected)
+          fsm_state_update.noop = true; // don't pass model or effect requests
           throw Err.Effect_Error({
               message: 'Unexpected end of effect requests, expected ' + effect_number + ', encountered end of effects at index ' + index,
               extended_info: {effect_number: effect_number, index: index}
@@ -379,6 +382,7 @@ function require_outer_fsm_def(Err, utils, constants) {
         }
         else {
           // We pass a dummy effect request to signal completion (eq. to stream's `onCompleted` event)
+          fsm_state_update.noop = false;
           effect_request = {
             command: IGNORE,
             driver: {}
@@ -417,7 +421,7 @@ function require_outer_fsm_def(Err, utils, constants) {
       }
     }
 
-    function update_model_and_send_first_effect_request (fsm_state, internal_event) {
+    function update_model_and_send_first_effect_request(fsm_state, internal_event) {
       // CASE : There is a transition associated to that event :
       // - some effects have to be executed
       // - before effect request take place, a pure update of the inner FSM model has to be performed
@@ -435,23 +439,30 @@ function require_outer_fsm_def(Err, utils, constants) {
 
       var fsm_state_update;
 
-        if (fsm_state.effect_execution_state.has_more_effects_to_execute) {
-          // 2. Remaining effects are to be requested
-          fsm_state_update = get_fsm_state_update_when_subsequent_effects(fsm_state, internal_event);
-        }
-        else {
-          // (case 3. (end of effects) dealt separately with)
-          // dead branch
-          throw 'that code branch should be dead!!!'
-        }
+      if (fsm_state.effect_execution_state.has_more_effects_to_execute) {
+        // 2. Remaining effects are to be requested
+        fsm_state_update = get_fsm_state_update_when_subsequent_effects(fsm_state, internal_event);
+      }
+      else {
+        // (case 3. (end of effects) dealt separately with)
+        // dead branch
+        throw 'that code branch should be dead!!!'
+      }
 
       return fsm_state_update;
     }
 
     function warning_received_unexpected_effect_result(fsm_state, internal_event) {
       console.warn('received unexpected effect result!', internal_event);
+      // TODO : put something in the error, and put noop everywhere else to false, and also in the derived streams filter it out
       // no updates, return undefined to avoid resending the request downstream
-      return undefined;
+      var fsm_state_update = fsm_state;
+      fsm_state_update.recoverable_error = Err.SM_Error({
+        message: 'warning_received_unexpected_effect_result',
+        extended_info: {effect_result: internal_event}
+      });
+      fsm_state_update.noop = true;
+      return fsm_state_update;
     }
 
     function update_model_and_transition_to_next_state(fsm_state, internal_event) {
@@ -468,6 +479,7 @@ function require_outer_fsm_def(Err, utils, constants) {
       fsm_state_update.inner_fsm.model_update = undefined;
       fsm_state_update.effect_execution_state = undefined;
 
+      fsm_state_update.noop = false;
       fsm_state_update.internal_state.expecting = EXPECTING_INTENT;
       var from = fsm_state.internal_state.from;
       var to = fsm_state_update.internal_state.to = utils.unwrap(fsm_state.internal_state.to);
@@ -510,10 +522,16 @@ function require_outer_fsm_def(Err, utils, constants) {
 
     function emit_only_warning(fsm_state, internal_event) {
       // TODO : think about options for the warning (error?exception?)
-      console.warn('received effect result while waiting for intent');
-      return {
-        // no updates
-      };
+      var message  = 'received effect result while waiting for intent';
+      console.warn(message);
+      // no updates, return undefined to avoid resending the request downstream
+      var fsm_state_update = fsm_state;
+      fsm_state_update.recoverable_error = Err.SM_Error({
+        message: message,
+        extended_info: {effect_result: internal_event}
+      });
+      fsm_state_update.noop = true;
+      return fsm_state_update;
     }
 
     function emit_no_transition_recoverable_error(fsm_state, internal_event) {
