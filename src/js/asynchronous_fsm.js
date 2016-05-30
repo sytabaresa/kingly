@@ -196,12 +196,12 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     };
   }
 
-  function compute_fsm_initial_state(state_chart) {
+  function compute_fsm_initial_state(statechart) {
     // Create the nested hierarchical
-    var states = state_chart.state_hierarchy;
-    var events = state_chart.events;
+    var states = statechart.state_hierarchy;
+    var events = statechart.events;
     var special_actions = {identity: ACTION_HANDLER_IDENTITY};
-    var transitions = state_chart.transitions;
+    var transitions = statechart.transitions;
     var hash_states_struct = build_nested_state_structure(states);
     // {Object<state_name,boolean>}, allows to know whether a state is a group of state or not
     var is_group_state = hash_states_struct.is_group_state;
@@ -216,9 +216,10 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
 
     set_event_handlers(transitions, /*-OUT-*/hash_states, special_actions);
 
-    var model_0 = state_chart.model || {};
+    var model_0 = statechart.model || {};
 
     return {
+      noop : false,
       inner_fsm: {
         model: utils.clone_deep(model_0), // clone the initial value of the model
         hash_states: hash_states,
@@ -233,6 +234,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       },
       effect_execution_state: undefined,
       recoverable_error: undefined,
+      // TODO : add fatal_error : undefined // NOTE : that means updating all the tests...
       automatic_event: undefined,
       event: undefined,
       dispose_listeners: dispose_listeners
@@ -610,15 +612,17 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
    *   - action : function (model, event_data) : model_prime
    *   - from : state from which the described transition operates
    *   - to : target state for the described transition
-   * @param state_chart
+   * @param statechart
    * @param fsm_uri
    * @param user_generated_intent$
    * @param effect_response$
    * @param program_generated_intent$
    * @param trace_intentS
-   * @returns {{fsm_state${Rx.Observable}, effect_requests${Rx.Observable}}
- */
-  function transduce_fsm_streams(state_chart, fsm_uri,
+   * @param debug_intentS
+   * @returns {{fsm_state$: Observable, model_update$: Observable, model$: Observable, effect_requests$: Observable, program_generated_intent_req$: Observable, fsm_state_steps$: Observable, trace$: *, dispose_listeners: dispose_listeners}}
+   */
+
+  function transduce_fsm_streams(statechart, fsm_uri,
                                  user_generated_intent$, effect_response$, program_generated_intent$, debug_intentS, trace_intentS) {
     //// Helpers
     //
@@ -665,7 +669,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     // Will be updated whenever the array of traces is updated
     var traceS = new Rx.BehaviorSubject([]);
 
-    var fsm_initial_state = compute_fsm_initial_state(state_chart);
+    var fsm_initial_state = compute_fsm_initial_state(statechart);
     var dispose_listeners = fsm_initial_state.dispose_listeners;
     fsm_initial_state.dispose_listeners = undefined; // We don't delete properties as it supposedly prevent compiler optimizations
 
@@ -745,7 +749,9 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       .publish();
 
     var fsm_state_steps$ = fsm_state_actions$
-      .filter(function is_expecting_intent(fsm_state) {return fsm_state.internal_state.expecting === EXPECTING_INTENT});
+      .filter(function is_expecting_intent(fsm_state) {return fsm_state.internal_state.expecting === EXPECTING_INTENT})
+        .do(utils.rxlog('fsm_state_steps$'))
+      ;
 
     return {
       // NOTE : we use replay(1) or shareReplay(1) as there could be several consumers of the APIs subscribing on different ticks
@@ -1248,7 +1254,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
 
 // Type definitions for actions handlers
 /**
- * @typedef {String} State
+ * @typedef {String} State_Name
  */
 /**
  * @typedef {*} Effect_Result
@@ -1305,8 +1311,8 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
  * @typedef  {Object} Event_Handler_Result
  * @property {Predicate} predicate
  * @property {Action_Handler} action_seq_handler
- * @property {State} from
- * @property {State} to
+ * @property {State_Name} from
+ * @property {State_Name} to
  *
  */
 /**

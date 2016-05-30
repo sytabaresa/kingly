@@ -75,9 +75,17 @@ define(function (require) {
     console.error('unexpected error found in testing stream', e);
   }
 
-  function start_ehfsm_test(fsm_uri, state_chart, error_cb, complete_cb, /*-OUT-*/arr_fsm_traces) {
+  /**
+   * Starts a state machine test by sending a sequence of events to the state machine defined by a statechart and an uri
+   * @param {String} fsm_uri
+   * @param statechart
+   * @param {function(Array) : function} error_cb Curried function which is passed the array of fsm traces and which is called in case of error in the stream
+   * @param {function (Array) : function} complete_cb Curried function which is passed the array of fsm traces and which is called in case of completion of the stream
+   * @returns {*}
+   */
+  function start_ehfsm_test(fsm_uri, statechart, error_cb, complete_cb) {
     var arr_fsm_traces = [];
-    var ehfsm = fsm.make_fsm('fsm_uri', state_chart, undefined); // intent$ is undefined here as we will simulate events
+    var ehfsm = fsm.make_fsm('fsm_uri', statechart, undefined); // intent$ is undefined here as we will simulate events
 
     ehfsm.fsm_state$
       .finally(function () {
@@ -100,17 +108,30 @@ define(function (require) {
     return ehfsm;
   }
 
+  /**
+   * IMPORTANT : All effects (or complete steps in the state machine) must take less than 100ms to be executed
+   * @param fsm
+   * @param {Array} event_sequence
+   */
   function send_timed_sequence_and_stop(fsm, event_sequence) {
     if (!utils.is_array(event_sequence)) throw 'send_sequence_and_stop : event sequence must be an array!'
     if (event_sequence.length === 0) throw 'send_sequence_and_stop : event sequence must at least have one event!'
 
     function stop_fsm() {
-      fsm.fsm_state_steps$.debounce(100).take(1).subscribe(utils.noop, utils.noop, stop_fsm);
+      // NOTE !! This leaves Xms for each step to complete
+      // This means that if by any chance an effect takes more than Xms to complete,
+      // we incorrectly stop the state machine in an intermediary state (i.e. state expecting effect result)
+      // So in all tests we must make sure that all effect handlers are taking less than Xms...
+      fsm.fsm_state_steps$.debounce(100).take(1).subscribe(console.log.bind(console), utils.noop, stop_fsm);
       function stop_fsm() {
         console.log('send_synchronized_sequence_and_stop: completed');
         fsm.stop();
       }
     }
+
+    // First subscribe to fsm_state_step$ to initiate the data flow prior to sending events
+    // Otherwise, we have a bug in the edge case of sending only ONE event
+    fsm.fsm_state_steps$.subscribe(utils.noop);
 
     var max_tick = -1;
     event_sequence.forEach(function (event_definition) {
@@ -120,6 +141,7 @@ define(function (require) {
       exec_on_tick(fsm.send_event, tick)(event);
     });
 
+    // This ensures that the state machine stops always AFTER all events are sent
     exec_on_tick(stop_fsm, max_tick + 100)();
   }
 
@@ -194,6 +216,7 @@ define(function (require) {
   // Miscellaneous params
   var hash_storage = {};
   var model0 = {key1: 'value'};
+  Object.freeze(model0);
   var event_data1 = {event_data: 'value'};
   var params_1 = {key: 'element 1', value: 'value1'};
   var params_2 = {key: 'element 2', value: 'value2'};
@@ -219,7 +242,7 @@ define(function (require) {
 
     function effect_array_storage_2(model, event_data, effect_res) {
       // reminder : returns {model_update : , effect_request:}
-      var updated_model0 = model0;
+      var updated_model0 = utils.clone_deep(model0); // !! clone it, as it is reused later on in successive tests
       updated_model0.trace = event_data1;
       var first_effect_result = new Array(5);
       first_effect_result[0] = 'element 1';
@@ -909,7 +932,7 @@ define(function (require) {
     }
   });
 
-  QUnit.skip("Basic transition mechanism - Effectful actions - 1 or several effects", function test_effectful_actions(assert) {
+  QUnit.test("Basic transition mechanism - Effectful actions - 1 or several effects", function test_effectful_actions(assert) {
     var test_sequence_handlers = get_test_sequence_handlers(assert);
     var effect_array_storage_1 = test_sequence_handlers.effect_array_storage_1;
     var effect_array_storage_2 = test_sequence_handlers.effect_array_storage_2;
@@ -1270,7 +1293,6 @@ define(function (require) {
     var done = assert.async(1); // Cf. https://api.qunitjs.com/async/
 
     // T4. Receiving unexpected effect result
-    // TODO : with the new send event send an effect result with fancy uri or token
     /** @type Effect_Response*/
     var fake_effect_response_token = {
       effect_result: {},
@@ -1456,7 +1478,7 @@ define(function (require) {
     }
   });
 
-  QUnit.skip("Basic transition mechanism - Effectful actions - effect result while expecting intent", function test_effectful_actions(assert) {
+  QUnit.test("Basic transition mechanism - Effectful actions - effect result while expecting intent", function test_effectful_actions(assert) {
     var test_sequence_handlers = get_test_sequence_handlers(assert);
     var effect_array_storage_1 = test_sequence_handlers.effect_array_storage_1;
     var effect_array_storage_2 = test_sequence_handlers.effect_array_storage_2;
@@ -1485,8 +1507,7 @@ define(function (require) {
 
     var done = assert.async(1); // Cf. https://api.qunitjs.com/async/
 
-    // T4. Receiving unexpected effect result
-    // TODO : with the new send event send an effect result with fancy uri or token
+    // T5. Receiving effect result while expecting intent
     /** @type Effect_Response*/
     var fake_effect_response_token = {
       effect_result: {},
@@ -1519,43 +1540,78 @@ define(function (require) {
       }
     };
 
-    var ehfsm = start_ehfsm_test('fsm_uri2', state_chart, test_on_error, test_on_complete2);
+    var ehfsm = start_ehfsm_test('fsm_uri2', state_chart, test_on_error, test_on_complete);
 
     send_timed_sequence_and_stop(ehfsm, [
-      [10, make_intent(events.EVENT1, event_data1)],
       [9, make_effect_response(fake_effect_response_token)],
-      [10, make_effect_response(fake_effect_response_uri)],
-      [11, make_effect_response(fake_effect_response_token)],
     ]);
 
-    function test_on_complete2(arr_fsm_traces) {
-      console.log('arr_fsm_traces', JSON.stringify(arr_fsm_traces));
-
-      done();
+    function test_on_complete(arr_fsm_traces) {
+      return function test_on_complete() {
+        clean(arr_fsm_traces);
+        var expected_trace = [
+          {
+            "automatic_event": undefined,
+            "effect_execution_state": undefined,
+            "recoverable_error": undefined,
+            "noop": false,
+            "inner_fsm": {"model": {"key1": "value"}, "model_update": {}},
+            "internal_state": {"expecting": "intent", "from": "nok", "to": "A"},
+            "event": {"code": "init", "payload": {"key1": "value"}, "__type": ["intent"]}
+          }, {
+            "automatic_event": undefined,
+            "effect_execution_state": undefined,
+            "noop": true,
+            "inner_fsm": {"model": {"key1": "value"}, "model_update": {}},
+            "internal_state": {"expecting": "intent", "from": "nok", "to": "A"},
+            "recoverable_error": {
+              "name": "SM_Error",
+              "message": "received effect result while waiting for intent",
+              "extended_info": {
+                "effect_result": {
+                  "effect_result": {},
+                  "effect_request": {
+                    "command": "command_execute",
+                    "driver": {"family": "array_storage", "name": "size_5"},
+                    "params": "element 1",
+                    "address": {"uri": "fsm_uri2", "token": 2000}
+                  },
+                  "__type": ["effect_response"]
+                }
+              }
+            },
+            "event": {"code": "init", "payload": {"key1": "value"}, "__type": ["intent"]}
+          }
+        ];
+        assert.deepEqual(arr_fsm_traces, expected_trace, 'If the state machine receives an effect result while it was expecting an intent, a recoverable error is generated, and the machine remains in the same state, with no update on the model.');
+        done();
+      };
     }
 
-    // T5. Effect error - error handler (effect throws)
-    // T6. Effect error - no error handler (effect throws)
-
-    // TODO
-    // 1. Effectful actions/action sequences                              //
-    // 1.a. Action with one effect                                        //
-    // 1.a.1 model is updated twice correctly                             //
-    // 1.a.2 inner and outer state are changed accordingly                //
-    // 1.a.3 effect is executed                                           //
-    // 1.a.3.1 action is executed with the right arguments                //
-    // 1.a.3.2 the right effect is executed                               //
-    // 1.b. Action with two effects
-    // 1.c. Receiving an effect result which is not expected
-    // 1.d. Effect error
-    // 1.d.1 Effect error - no error handler
-    // 1.d.2 Effect error - error handler
-    // TODO : check statechart format
-    // TODO : regression testing - remove skip from other tests - remove traces altogether??
-    // TODO : write an adapter for model_update -> ractive, because ractive.set expect a path - TEST traversal library
-    // TODO : test the update (model merge) functionality with arrays and objects (array-array are merged, but object-array is assigned)
-
   });
+
+  // T5. Effect error - error handler (effect throws)
+  // T6. Effect error - no error handler (effect throws)
+
+  // TODO
+  // 1. Effectful actions/action sequences                              //
+  // 1.a. Action with one effect                                        //
+  // 1.a.1 model is updated twice correctly                             //
+  // 1.a.2 inner and outer state are changed accordingly                //
+  // 1.a.3 effect is executed                                           //
+  // 1.a.3.1 action is executed with the right arguments                //
+  // 1.a.3.2 the right effect is executed                               //
+  // 1.b. Action with two effects
+  // 1.c. Receiving an effect result which is not expected
+  // 1.d. Effect error
+  // 1.d.1 Effect error - no error handler
+  // 1.d.2 Effect error - error handler
+  // TODO : check statechart format
+  // TODO : regression testing - remove skip from other tests - remove traces altogether??
+  // TODO : write an adapter for model_update -> ractive, because ractive.set expect a path - TEST traversal library
+  // TODO : test the update (model merge) functionality with arrays and objects (array-array are merged, but object-array is assigned)
+
+
   // SUBGROUP : ...
   // T1. ...
   // GIVEN ...
