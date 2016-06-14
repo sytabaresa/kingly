@@ -5,7 +5,6 @@ define(function (require) {
   var fsm = require('asynchronous_fsm');
   var fsm_helpers = require('fsm_helpers');
   var constants = require('constants');
-  var assert = undefined;
 
   const EV_CODE_INIT = constants.EV_CODE_INIT;
   const EXECUTE = constants.commands.EXECUTE;
@@ -14,6 +13,7 @@ define(function (require) {
   const EV_EFFECT_RES = constants.EV_EFFECT_RES;
   const INTENT = constants.INTENT;
   const EFFECT_RESPONSE = constants.EFFECT_RESPONSE;
+  const EV_CODE_EFFECT_ERROR = constants.EV_CODE_EFFECT_ERROR;
 
   // Common set-up
   var states_definition = {A: '', B: '', C: '', D: '', E: ''};
@@ -42,33 +42,51 @@ define(function (require) {
     return obj;
   }
 
-  function clean(arr_fsm_traces) {
+  function clean_effect_error_data(event_payload) {
+    var action_seq_handler = event_payload.action_seq_handler;
+    action_seq_handler && (event_payload.action_seq_handler = action_seq_handler.name);
+  }
+
+  function clean(/*-OUT-*/arr_fsm_traces) {
     arr_fsm_traces.forEach(function clean_array_traces(fsm_trace) {
-      delete fsm_trace.inner_fsm.hash_states;
-      delete fsm_trace.inner_fsm.is_auto_state;
-      delete fsm_trace.inner_fsm.is_group_state;
-      delete fsm_trace.inner_fsm.is_init_state;
-      delete fsm_trace.dispose_listeners;
-      fsm_trace.recoverable_error && delete fsm_trace.recoverable_error.timestamp;
-
-      var action_seq_handler = fsm_trace.effect_execution_state && fsm_trace.effect_execution_state.action_seq_handler;
-      action_seq_handler && (fsm_trace.effect_execution_state.action_seq_handler = action_seq_handler.name);
-
+      clean_inner_fsm(fsm_trace);
+      clean_recoverable_error(fsm_trace);
+      clean_action_seq_handler(fsm_trace);
       clean_error_field(fsm_trace, 'fatal_error');
       clean_error_field(fsm_trace, 'recoverable_error');
+      clean_error_field(fsm_trace.recoverable_error, 'error');
+      fsm_trace.fatal_error && clean_error_field(fsm_trace.fatal_error.extended_info, 'error');
+      fsm_trace && fsm_trace.automatic_event && fsm_trace.automatic_event.payload && clean_effect_error_data(fsm_trace.automatic_event.payload);
+      delete fsm_trace.dispose_listeners;
     });
     return arr_fsm_traces;
 
+    function clean_inner_fsm(fsm_state) {
+      delete fsm_state.inner_fsm.hash_states;
+      delete fsm_state.inner_fsm.is_auto_state;
+      delete fsm_state.inner_fsm.is_group_state;
+      delete fsm_state.inner_fsm.is_init_state;
+    }
+
+    function clean_recoverable_error(obj) {
+      obj.recoverable_error && delete obj.recoverable_error.timestamp;
+    }
+
+    function clean_action_seq_handler(fsm_trace) {
+      var action_seq_handler = fsm_trace.effect_execution_state && fsm_trace.effect_execution_state.action_seq_handler;
+      action_seq_handler && (fsm_trace.effect_execution_state.action_seq_handler = action_seq_handler.name);
+    }
+
     function clean_error_field(fsm_trace, field) {
-      if (fsm_trace[field]) {
+      if (fsm_trace && fsm_trace[field]) {
         delete fsm_trace[field].detail;
         delete fsm_trace[field].error_code;
         delete fsm_trace[field].is_app_error;
         delete fsm_trace[field].toString;
+        delete fsm_trace[field].stack;
         fsm_trace[field] = JSON.parse(JSON.stringify(fsm_trace[field]));
       }
     }
-
   }
 
   function test_on_error(e) {
@@ -301,8 +319,10 @@ define(function (require) {
         var index = 0;
         return function array_storage_driver(effect_requests$) {
           return effect_requests$
-            .do(function store_value(x) {storage[index++] = x.params;})
+            .do(function store_value(x) {
+              storage[index++] = x.params;})
             .delay(2)
+            .do(function (){utils.rxlog('array_storage_factory ')(storage.slice())})
             .map(function () {return storage;})
         }
       },
@@ -318,6 +338,9 @@ define(function (require) {
     hash_storage: function hash_storage_handler(req_params) {
       hash_storage [req_params.key] = req_params.value;
       return Rx.Observable.return(hash_storage).delay(1);
+    },
+    effect_throws: function effect_throws_handler(req_params) {
+      throw  'some random test error message';
     }
   };
 
@@ -932,7 +955,7 @@ define(function (require) {
     }
   });
 
-  QUnit.test("Basic transition mechanism - Effectful actions - 1 or several effects", function test_effectful_actions(assert) {
+  QUnit.skip("Basic transition mechanism - Effectful actions - 1 or several effects", function test_effectful_actions(assert) {
     var test_sequence_handlers = get_test_sequence_handlers(assert);
     var effect_array_storage_1 = test_sequence_handlers.effect_array_storage_1;
     var effect_array_storage_2 = test_sequence_handlers.effect_array_storage_2;
@@ -1263,7 +1286,7 @@ define(function (require) {
     ]);
   });
 
-  QUnit.test("Basic transition mechanism - Effectful actions - unexpected effect result", function test_effectful_actions(assert) {
+  QUnit.skip("Basic transition mechanism - Effectful actions - unexpected effect result", function test_effectful_actions(assert) {
     var test_sequence_handlers = get_test_sequence_handlers(assert);
     var effect_array_storage_1 = test_sequence_handlers.effect_array_storage_1;
     var effect_array_storage_2 = test_sequence_handlers.effect_array_storage_2;
@@ -1478,7 +1501,7 @@ define(function (require) {
     }
   });
 
-  QUnit.test("Basic transition mechanism - Effectful actions - effect result while expecting intent", function test_effectful_actions(assert) {
+  QUnit.skip("Basic transition mechanism - Effectful actions - effect result while expecting intent", function test_effectful_actions(assert) {
     var test_sequence_handlers = get_test_sequence_handlers(assert);
     var effect_array_storage_1 = test_sequence_handlers.effect_array_storage_1;
     var effect_array_storage_2 = test_sequence_handlers.effect_array_storage_2;
@@ -1524,26 +1547,11 @@ define(function (require) {
         }
       }
     };
-    var fake_effect_response_uri = {
-      effect_result: {},
-      effect_request: {
-        command: EXECUTE,
-        driver: {
-          family: 'array_storage',
-          name: 'size_5'
-        },
-        params: 'element 1',
-        address: {
-          uri: 'fsm', // wrong fsm uri, so the request must be rejected based on uri
-          token: 0 // emitted token
-        }
-      }
-    };
 
     var ehfsm = start_ehfsm_test('fsm_uri2', state_chart, test_on_error, test_on_complete);
 
     send_timed_sequence_and_stop(ehfsm, [
-      [9, make_effect_response(fake_effect_response_token)],
+      [9, make_effect_response(fake_effect_response_token)]
     ]);
 
     function test_on_complete(arr_fsm_traces) {
@@ -1590,8 +1598,465 @@ define(function (require) {
 
   });
 
-  // T5. Effect error - error handler (effect throws)
+  // T5. Effect error - error handler (effect throws or effect returns Error result)
+  // A. Pure action
+  // GIVEN a fsm spec with a transition A -> B triggering one effect request
+  //       AND an effect handler which throws or returns an error
+  //       AND an error handler attached to state A associated to a pure action which goes to B successfully
+  // WHEN triggering the transition
+  // THEN
+  // - the state machine should end up in state B
+  // - intermediary states of the state machine should reflect :
+  //   + intermediate expecting effect result step
+  //   + intermediate recoverable error step
+  //   + triggering of the error intent
+  // B. Error handler - TODO
+  // GIVEN a fsm spec with a transition A -> B triggering one effect request
+  //       AND an effect handler which throws or returns an error
+  //       AND an error handler attached to state A associated to an effectful action sequence which goes to B successfully
+  // WHEN triggering the transition
+  // THEN
+  // - the state machine should end up in state B
+  // - intermediary states of the state machine should reflect :
+  //   + intermediate expecting effect result step
+  //   + intermediate recoverable error step
+  //   + triggering of the error intent
+  QUnit.skip("Basic transition mechanism - Effectful actions - Effect error - error handler", function test_effectful_actions(assert) {
+    var test_sequence_handlers = get_test_sequence_handlers(assert);
+
+    function effect_handler_throws_1(model, event_data, effect_res) {
+      return {
+        model_update: {},
+        effect_request: {
+          driver: {family: 'effect_throws'},
+          params: {key: 'element 1'}
+        }
+      }
+    }
+
+    function effect_handler_throws_2(model, event_data, effect_res) {
+      return {
+        model_update: {done: true},
+        effect_request: undefined
+      }
+    }
+
+    function pure_action(model, event_payload) {
+      clean_effect_error_data(event_payload);
+      var expected_event_payload = {
+        "__type": ["effect_error_data"],
+        "action_seq_handler": "action_sequence_handler_from_effectful_action_array",
+        "effect_request": {
+          "address": {"token": 0, "uri": "fsm_uri"},
+          "command": "command_execute",
+          "driver": {"family": "effect_throws"},
+          "params": {"key": "element 1"}
+        },
+        "has_more_effects_to_execute": true,
+        "index": 0
+      };
+      assert.deepEqual(event_payload, expected_event_payload, [
+        'The error handler is called with a dump of the effect execution state.',
+        'In particular, the following fields are present : ',
+        '- `effect_execution_state.index` : index of the failed effect request in the effect sequence',
+        '- `effect_request` : the effect request which returned an error',
+        '- `error` : the error object returned by the effect handler'
+      ].join('\n'));
+      var model_update = {
+        key_pure_action: 'value'
+      };
+      return model_update;
+    }
+
+    var transitions = [
+      {from: states.NOK, to: states.A, event: events[EV_CODE_INIT]},
+      {from: states.A, to: states.B, event: events.EVENT1, action: [effect_handler_throws_1, effect_handler_throws_2]},
+      {from: states.A, to: states.B, event: events[EV_CODE_EFFECT_ERROR], action: pure_action}
+    ];
+
+    var state_chart = {
+      model: model0,
+      state_hierarchy: states,
+      events: events,
+      effect_registry: effect_registry,
+      transitions: transitions
+    };
+
+    var done = assert.async(1); // Cf. https://api.qunitjs.com/async/
+
+    var ehfsm = start_ehfsm_test('fsm_uri', state_chart, test_on_error, test_on_complete);
+
+    send_timed_sequence_and_stop(ehfsm, [
+      [10, make_intent(events.EVENT1, event_data1)]
+    ]);
+
+    function test_on_complete(arr_fsm_traces) {
+      return function test_on_complete() {
+        clean(arr_fsm_traces);
+        var expected_trace = [
+          {
+            "automatic_event": undefined,
+            "effect_execution_state": undefined,
+            "recoverable_error": undefined,
+            "noop": false,
+            "inner_fsm": {"model": {"key1": "value"}, "model_update": {}},
+            "internal_state": {"expecting": "intent", "from": "nok", "to": "A"},
+            "event": {"code": "init", "payload": {"key1": "value"}, "__type": ["intent"]}
+          }, {
+            "automatic_event": undefined,
+            "recoverable_error": undefined,
+            "noop": false,
+            "inner_fsm": {"model": {"key1": "value"}, "model_update": {}},
+            "internal_state": {"expecting": "expecting_action_result", "from": "A", "to": "-B-"},
+            "effect_execution_state": {
+              "action_seq_handler": "action_sequence_handler_from_effectful_action_array",
+              "index": 0,
+              "effect_request": {
+                "driver": {"family": "effect_throws"},
+                "params": {"key": "element 1"},
+                "command": "command_execute"
+              },
+              "has_more_effects_to_execute": true
+            },
+            "event": {"code": "EVENT1", "payload": {"event_data": "value"}, "__type": ["intent"]}
+          }, {
+            "effect_execution_state": undefined,
+            "noop": false,
+            "inner_fsm": {"model": {"key1": "value"}, "model_update": {}},
+            "internal_state": {"expecting": "intent", "from": "A", "to": "A"},
+            "recoverable_error": {
+              "error": {
+                "name": "Effect_Error",
+                "message": "some random test error message",
+                "extended_info": ""
+              },
+              "effect_request": {
+                "driver": {"family": "effect_throws"},
+                "params": {"key": "element 1"},
+                "command": "command_execute",
+                "address": {"uri": "fsm_uri", "token": 0}
+              },
+              "effect_execution_state": {
+                "index": 0,
+                "effect_request": {
+                  "driver": {"family": "effect_throws"},
+                  "params": {"key": "element 1"},
+                  "command": "command_execute",
+                  "address": {"uri": "fsm_uri", "token": 0}
+                },
+                "has_more_effects_to_execute": true
+              },
+              "resulting_state": "A"
+            },
+            "automatic_event": {
+              "code": "effect_error",
+              "payload": {
+                "action_seq_handler": "action_sequence_handler_from_effectful_action_array",
+                "index": 0,
+                "effect_request": {
+                  "driver": {"family": "effect_throws"},
+                  "params": {"key": "element 1"},
+                  "command": "command_execute",
+                  "address": {"uri": "fsm_uri", "token": 0}
+                },
+                "has_more_effects_to_execute": true,
+                "__type": ["effect_error_data"]
+              },
+              "__type": ["intent"]
+            },
+            "event": {"code": "EVENT1", "payload": {"event_data": "value"}, "__type": ["intent"]}
+          }, {
+            "automatic_event": undefined,
+            "effect_execution_state": undefined,
+            "recoverable_error": undefined,
+            "noop": false,
+            "inner_fsm": {
+              "model": {"key1": "value", "key_pure_action": "value"},
+              "model_update": {"key_pure_action": "value"}
+            },
+            "internal_state": {"expecting": "intent", "from": "A", "to": "B"},
+            "event": {
+              "code": "effect_error",
+              "payload": {
+                "action_seq_handler": "action_sequence_handler_from_effectful_action_array",
+                "index": 0,
+                "effect_request": {
+                  "driver": {"family": "effect_throws"},
+                  "params": {"key": "element 1"},
+                  "command": "command_execute",
+                  "address": {"uri": "fsm_uri", "token": 0}
+                },
+                "has_more_effects_to_execute": true,
+                "__type": ["effect_error_data"]
+              },
+              "__type": ["intent"]
+            }
+          }
+        ];
+        assert.deepEqual(arr_fsm_traces, expected_trace, 'A special error event is predefined in order to manage errors occuring while executing effects. When an effect returns an error, the state machine sends the error event, and executes the error handler for the current state if it exists.');
+        done();
+      };
+    }
+
+  });
+
   // T6. Effect error - no error handler (effect throws)
+  QUnit.skip("Basic transition mechanism - Effectful actions - Effect error - no error handler", function test_effectful_actions(assert) {
+    var test_sequence_handlers = get_test_sequence_handlers(assert);
+
+    function effect_handler_throws_1(model, event_data, effect_res) {
+      return {
+        model_update: {},
+        effect_request: {
+          driver: {family: 'effect_throws'},
+          params: {key: 'element 1'}
+        }
+      }
+    }
+
+    function effect_handler_throws_2(model, event_data, effect_res) {
+      return {
+        model_update: {done: true},
+        effect_request: undefined
+      }
+    }
+
+    var transitions = [
+      {from: states.NOK, to: states.A, event: events[EV_CODE_INIT]},
+      {from: states.A, to: states.B, event: events.EVENT1, action: [effect_handler_throws_1, effect_handler_throws_2]}
+    ];
+
+    var state_chart = {
+      model: model0,
+      state_hierarchy: states,
+      events: events,
+      effect_registry: effect_registry,
+      transitions: transitions
+    };
+
+    var done = assert.async(1); // Cf. https://api.qunitjs.com/async/
+
+    var ehfsm = start_ehfsm_test('fsm_uri', state_chart, test_on_error, test_on_complete);
+
+    send_timed_sequence_and_stop(ehfsm, [
+      [10, make_intent(events.EVENT1, event_data1)]
+    ]);
+
+    function test_on_complete(arr_fsm_traces) {
+      return function test_on_complete() {
+        clean(arr_fsm_traces);
+        var expected_trace = [
+          {
+            "automatic_event": undefined,
+            "effect_execution_state": undefined,
+            "recoverable_error": undefined,
+            "noop": false,
+            "inner_fsm": {"model": {"key1": "value"}, "model_update": {}},
+            "internal_state": {"expecting": "intent", "from": "nok", "to": "A"},
+            "event": {"code": "init", "payload": {"key1": "value"}, "__type": ["intent"]}
+          }, {
+            "automatic_event": undefined,
+            "recoverable_error": undefined,
+            "noop": false,
+            "inner_fsm": {"model": {"key1": "value"}, "model_update": {}},
+            "internal_state": {"expecting": "expecting_action_result", "from": "A", "to": "-B-"},
+            "effect_execution_state": {
+              "action_seq_handler": "action_sequence_handler_from_effectful_action_array",
+              "index": 0,
+              "effect_request": {
+                "driver": {"family": "effect_throws"},
+                "params": {"key": "element 1"},
+                "command": "command_execute"
+              },
+              "has_more_effects_to_execute": true
+            },
+            "event": {"code": "EVENT1", "payload": {"event_data": "value"}, "__type": ["intent"]}
+          }, {
+            "effect_execution_state": undefined,
+            "noop": false,
+            "inner_fsm": {"model": {"key1": "value"}, "model_update": {}},
+            "internal_state": {"expecting": "intent", "from": "A", "to": "A"},
+            "recoverable_error": {
+              "error": {
+                "name": "Effect_Error",
+                "message": "some random test error message",
+                "extended_info": ""
+              },
+              "effect_request": {
+                "driver": {"family": "effect_throws"},
+                "params": {"key": "element 1"},
+                "command": "command_execute",
+                "address": {"uri": "fsm_uri", "token": 0}
+              },
+              "effect_execution_state": {
+                "index": 0,
+                "effect_request": {
+                  "driver": {"family": "effect_throws"},
+                  "params": {"key": "element 1"},
+                  "command": "command_execute",
+                  "address": {"uri": "fsm_uri", "token": 0}
+                },
+                "has_more_effects_to_execute": true
+              },
+              "resulting_state": "A"
+            },
+            "automatic_event": {
+              "code": "effect_error",
+              "payload": {
+                "action_seq_handler": "action_sequence_handler_from_effectful_action_array",
+                "index": 0,
+                "effect_request": {
+                  "driver": {"family": "effect_throws"},
+                  "params": {"key": "element 1"},
+                  "command": "command_execute",
+                  "address": {"uri": "fsm_uri", "token": 0}
+                },
+                "has_more_effects_to_execute": true,
+                "__type": ["effect_error_data"]
+              },
+              "__type": ["intent"]
+            },
+            "event": {"code": "EVENT1", "payload": {"event_data": "value"}, "__type": ["intent"]}
+          }, {
+            "effect_execution_state": undefined,
+            "noop": false,
+            "inner_fsm": {"model": {"key1": "value"}, "model_update": {}},
+            "internal_state": {"expecting": "intent", "from": "A", "to": "A"},
+            "recoverable_error": {
+              "error": {
+                "name": "Effect_Error",
+                "message": "some random test error message",
+                "extended_info": ""
+              },
+              "effect_request": {
+                "driver": {"family": "effect_throws"},
+                "params": {"key": "element 1"},
+                "command": "command_execute",
+                "address": {"uri": "fsm_uri", "token": 0}
+              },
+              "effect_execution_state": {
+                "index": 0,
+                "effect_request": {
+                  "driver": {"family": "effect_throws"},
+                  "params": {"key": "element 1"},
+                  "command": "command_execute",
+                  "address": {"uri": "fsm_uri", "token": 0}
+                },
+                "has_more_effects_to_execute": true
+              },
+              "resulting_state": "A"
+            },
+            "automatic_event": {
+              "code": "effect_error",
+              "payload": {
+                "action_seq_handler": "action_sequence_handler_from_effectful_action_array",
+                "index": 0,
+                "effect_request": {
+                  "driver": {"family": "effect_throws"},
+                  "params": {"key": "element 1"},
+                  "command": "command_execute",
+                  "address": {"uri": "fsm_uri", "token": 0}
+                },
+                "has_more_effects_to_execute": true,
+                "__type": ["effect_error_data"]
+              },
+              "__type": ["intent"]
+            },
+            "event": {"code": "EVENT1", "payload": {"event_data": "value"}, "__type": ["intent"]},
+            "fatal_error": {
+              "name": "Effect_Error",
+              "message": "Fatal error encountered while processing effect request. A handler to process the error was not found!",
+              "extended_info": {
+                "effect_execution_state": {
+                  "index": 0,
+                  "effect_request": {
+                    "driver": {"family": "effect_throws"},
+                    "params": {"key": "element 1"},
+                    "command": "command_execute",
+                    "address": {"uri": "fsm_uri", "token": 0}
+                  },
+                  "has_more_effects_to_execute": true,
+                  "__type": ["effect_error_data"]
+                },
+                "error": {"name": "Effect_Error", "message": "some random test error message", "extended_info": ""},
+                "executed_action": "throw_fatal_error"
+              }
+            }
+          }
+        ];
+        assert.deepEqual(arr_fsm_traces, expected_trace, 'A special error event is predefined in order to manage errors occuring while executing effects. When an effect returns an error, the state machine emits the error event. If there is no error handler to process the event, an error is thrown.');
+        done();
+      };
+    }
+
+  });
+
+  // T7. Preemptive transition
+  QUnit.test("Basic transition mechanism - Effectful actions - preemptive transition", function test_effectful_actions(assert) {
+    var test_sequence_handlers = get_test_sequence_handlers(assert);
+    var effect_array_storage_1 = test_sequence_handlers.effect_array_storage_1;
+    var effect_array_storage_2 = test_sequence_handlers.effect_array_storage_2;
+    var effect_hash_storage_1 = test_sequence_handlers.effect_hash_storage_1;
+    var effect_hash_storage_2 = test_sequence_handlers.effect_hash_storage_2;
+
+    function pure_action(model, event_payload) {
+      return {
+        'cancelled': event_payload
+      }
+    }
+    function other_pure_action(model, event_payload) {
+      return {
+        'not_cancelled': event_payload
+      }
+    }
+
+    var transitions = [
+      {from: states.NOK, to: states.A, event: events[EV_CODE_INIT]},
+      {from: states.A, to: states.B, event: events.EVENT1, action: [effect_array_storage_1, effect_array_storage_2]},
+      {
+        from: states.A, event: events.EVENT2, guards: [
+        {predicate: utils.not(is_event2_true), to: states.D, action: other_pure_action, preemptive: false},
+        {predicate: is_event2_true, to: states.C, action: pure_action, preemptive: true}
+      ]
+      }
+    ];
+
+    // Test predicate
+    function is_event2_true(model, event_data) {
+      return event_data.event2;
+    }
+
+    var state_chart = {
+      model: model0,
+      state_hierarchy: states,
+      events: events,
+      effect_registry: effect_registry,
+      transitions: transitions
+    };
+
+    var done = assert.async(1); // Cf. https://api.qunitjs.com/async/
+
+    var ehfsm = start_ehfsm_test('fsm_uri', state_chart, test_on_error, test_on_complete);
+
+    send_timed_sequence_and_stop(ehfsm, [
+      [10, make_intent(events.EVENT1, event_data1)],
+      [10, make_intent(events.EVENT2, {'event2': false})],
+      [12, make_intent(events.EVENT2, {'event2': true})]
+    ]);
+
+    // TODO: I am here
+    function test_on_complete(arr_fsm_traces) {
+      return function test_on_complete() {
+        clean(arr_fsm_traces);
+        var expected_trace = [];
+        assert.deepEqual(arr_fsm_traces, expected_trace, [
+          'Preemptive transitions are transitions which immediately interrupt effect processing.',
+          'When a preemptive transition is triggered, the current effect request is cancelled, and the state machine transitions to the target state defined by the preemptive transition.'
+        ].join('\n'));
+        done();
+      };
+    }
+  });
 
   // TODO
   // 1. Effectful actions/action sequences                              //

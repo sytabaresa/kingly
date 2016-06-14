@@ -142,6 +142,11 @@ function require_utils(Rx, _, Err, constants) {
   function noop() {
   }
 
+  function join(a, b) {
+    var JOIN_STR = '-|';
+    return [a, b].join(JOIN_STR);
+  }
+
   function get_timestamp() {
     return new Date();
   }
@@ -305,6 +310,12 @@ function require_utils(Rx, _, Err, constants) {
     // nice to have : make the custom type a non enumerable property
     var keys = Object.keys(obj);
     return (keys[0] === TYPE_KEY) ? keys[1] : keys[0];
+  }
+
+  function remove_label(obj) {
+    // used to remove label from labelled objects
+    // nice to have : make the custom type a non enumerable property
+    return obj[get_label(obj)];
   }
 
   function new_typed_object(obj, type) {
@@ -700,6 +711,18 @@ function require_utils(Rx, _, Err, constants) {
     return new_reg;
   }
 
+  function Hashmap() {
+    this.hm = {};
+  }
+
+  Hashmap.prototype.set = function set(key, value) {
+    this.hm[key] = value;
+  };
+
+  Hashmap.prototype.get = function get(key) {
+    return this.hm[key];
+  };
+
   return {
     identity: identity,
     sum: sum,
@@ -710,6 +733,7 @@ function require_utils(Rx, _, Err, constants) {
     info: info,
     label: label,
     get_label: get_label,
+    remove_label : remove_label,
     to_observable: to_observable,
     to_error: to_error,
     clone: clone,
@@ -722,6 +746,7 @@ function require_utils(Rx, _, Err, constants) {
     or: or,
     not: not,
     noop: noop,
+    join: join,
     args_to_array: args_to_array,
     get_prop: get_prop,
     get_timestamp: get_timestamp,
@@ -737,12 +762,12 @@ function require_utils(Rx, _, Err, constants) {
     merge: merge,
     traverseWithPath: traverseWithPath,
     get_fn_name: get_fn_name,
-    get_label: get_label,
     new_typed_object: new_typed_object,
     assert_signature: assert_signature,
     assert_custom_type: assert_custom_type,
     assert_type: assert_type,
     has_custom_type: has_custom_type,
-    make_registry: make_registry
+    make_registry: make_registry,
+    Hashmap: Hashmap
   }
 }

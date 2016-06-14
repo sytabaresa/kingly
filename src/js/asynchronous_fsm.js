@@ -1,4 +1,7 @@
 // TODO : add the weak abortion feature? unless it can be simulated with standard statechart?//        for instance, action = http request, and cancel event in same state, no need for weak abortion
+// TODO : reopen the possibility for drivers to return several responses, all of which will be passed to the same model update : get a special type for this type of return value
+//        example of application is if one wants to execute several HTTP requests and update the model as it goes
+//        in the current model, effects are executed sequentially
 // TODO : add new feature : actions can send events - first design it
 // TODO : function de/serialize -> allow to save and recreate the state of the FSM
 // TODO : write documentation in readme.md - argue use case for HFSM, give roadmap
@@ -10,9 +13,9 @@
 // TODO : entry and exit actions?? annoying as it forces to add up more intermediate state in the internal state machine
 // discarded : add the possibility to add conditions one by one on a given transition (preprocessing the array beforehand?)
 //             Better to have them in one place to avoid logical mistakes due to order of predicates
+// nice to have : abstract the tree traversal for the build states part
 // nice to have : switch internal state machine to synchronous state machine?? I'd say yes
 // nice to have : Add termination connector (T)?
-// TODO : abstract the tree traversal for the build states part
 
 // TERMINOLOGY
 // Reminder : there are two kinds of intents : user generated intent, and program generated intent
@@ -219,7 +222,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     var model_0 = statechart.model || {};
 
     return {
-      noop : false,
+      noop: false,
       inner_fsm: {
         model: utils.clone_deep(model_0), // clone the initial value of the model
         hash_states: hash_states,
@@ -292,13 +295,14 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
         // console.log("Processing transition:", transition);
         var from = transition.from, to = transition.to;
         var action = transition.action;
+        var preemptive = transition.preemptive;
         var event = transition.event || EV_CODE_AUTO;
 
         // CONTRACT : `conditions` property used for array of conditions, otherwise `condition` property is used
         var arr_predicate = transition.guards || transition.predicate;
         // CASE : ZERO OR ONE condition set
         if ((arr_predicate && !arr_predicate.forEach) || !arr_predicate) arr_predicate = [
-          {predicate: arr_predicate, to: to, action: action}
+          {predicate: arr_predicate, to: to, action: action, preemptive: preemptive}
         ];
 
         var from_proto;
@@ -337,7 +341,9 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
                       : (has_syntax_error = true, undefined),
                     predicate: predicate, // passed only for logging/tracing purposes
                     from: from,
-                    to: to
+                    to: to,
+                    is_preemptive: !!guards.preemptive
+                    // TODO add is_preemptive_event :: boolean (default false)
                   },
                   EVENT_HANDLER_RESULT);
                 if (has_syntax_error) {
@@ -576,6 +582,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
         var fsm_state_update = evaluation_result.fsm_state_update;
         // Case : no update
         // A value of `undefined` for fsm state update means that we must do nothing (no updates and nothing passed downstream)
+        // TODO : review the logic of returning undefined (noop should replace that right?)
         if (utils.is_undefined(fsm_state_update)) return undefined;
         else {
           // Case : update to perform
@@ -749,7 +756,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       .publish();
 
     var fsm_state_steps$ = fsm_state_actions$
-      .filter(function is_expecting_intent(fsm_state) {return fsm_state.internal_state.expecting === EXPECTING_INTENT})
+        .filter(function is_expecting_intent(fsm_state) {return fsm_state.internal_state.expecting === EXPECTING_INTENT})
         .do(utils.rxlog('fsm_state_steps$'))
       ;
 
@@ -769,6 +776,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
   // TODO : check statechart format
   function check_statechart_format(statechart) {
     // TODO
+    // - (from, to, event, action) is unique
   }
 
   function make_fsm(fsm_uri, statechart, user_generated_intent$) {
@@ -779,7 +787,6 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     var trace_intentS = new Rx.ReplaySubject(1);
     var debug_intentS = new Rx.ReplaySubject(1);
 
-    // TODO : check statechart format
     check_statechart_format(statechart);
 
     var fsm_sinks = transduce_fsm_streams(statechart, fsm_uri,
@@ -989,6 +996,10 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       }
     }
 
+    function filter_out_cancelled_requests(effect_request) {
+      return effect_request.command !== COMMAND_CANCEL;
+    }
+
     function get_is_active_driver(hashmap, driver_family, driver_name) {
       return driver_family && driver_name && hashmap[driver_family] && !!hashmap[driver_family][driver_name]
     }
@@ -1010,6 +1021,9 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     }
 
     function filter_out_cancelled_request(decorated_request_info, cancelled_requests) {
+      // Edge case : undefined cancelled requests
+      if (!cancelled_requests) return undefined;
+
       // IMPLEMENTATION NOTE : Cancel mechanism
       // If the cancel is received before the result comes : fine
       // If the cancel comes afterward, the effect response might still go through but it should be filtered then
@@ -1066,6 +1080,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
         cancelled_requests[address_uri] = cancelled_requests[address_uri] || {};
         cancelled_requests[address_uri][address_token] = {}; // any truthy value here works
       }
+      effect_driver_state.effect_response$ = undefined;
       return effect_driver_state;
     }
 
@@ -1087,6 +1102,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
       var effect_handler_or_driver_registry = effect_registry[driver_family];
       var filtered_effect_requests$ = effect_requests$
           .filter(filter_request_by_driver_family(driver_family, driver_name))
+          .filter(filter_out_cancelled_requests)
         ;
 
       utils.assert_type(driver_family, 'string', {
@@ -1217,7 +1233,9 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
     return function effect_driver(effect_requests$) {
       var effect_driver_state$ = effect_requests$
         .do(check_effect_request_format(effect_registry)) // throws an exception if wrong format
+        .do(utils.rxlog('effect request'))
         .scan(compute_effect_res(effect_requests$), effect_driver_initial_state)
+        .do(utils.rxlog('effect driver execution state'))
         .catch(function catch_fatal_errors(e) {
           // Case : recoverable errors are supposed to be caught upstream and returned as error codes
           // Fatal errors are thrown (type contracts, etc.)
@@ -1230,13 +1248,18 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
         })
         .share();
 
-      var cancelled_requests$ = effect_driver_state$.pluck('cancelled_requests');
+      var cancelled_requests$ = effect_driver_state$.pluck('cancelled_requests')
+          .filter(utils.identity) // filtering undefined `effect_response` (case : cancel command | error)
+          .do(utils.rxlog('cancelled requests'))
+        ;
 
       var effect_response$ = effect_driver_state$
           .pluck('effect_response$')
           .filter(utils.identity) // filtering undefined `effect_response` (case : cancel command | error)
           .mergeAll()
-          .zip(cancelled_requests$, filter_out_cancelled_request)
+          .do(utils.rxlog('effect response '))
+          .withLatestFrom(cancelled_requests$, filter_out_cancelled_request)
+          .do(utils.rxlog('filtered effect response'))
           .filter(utils.identity) // filtering out undefined `effect_response` (case : cancel command)
         ;
 
