@@ -138,9 +138,6 @@
  * @typedef {{circuit: Circuit|Chip, links : Array<Link>}} Plug_In_Parameters
  */
 
-  // TODO : test routines test(input sequence, output sequence, simulate connector, readout connector)
-
-
   // DOCUMENTATION :
   // !! The readout connector are passing along the values that are emitted by the output ports AS IS without cloning.
   // As they are semantically meant to reflect the value of an output at a specific moment in time, the output value should
@@ -403,6 +400,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
   /**
    * Readout connectors are receiving port-labelled values from lower-level chip/circuits.
    * If the readout's circuit has a port mapping defined, then the labelled value is relabelled accordingly.
+   * @param {Circuit} circuit
    * @param {Ports_Map} ports_map
    * @returns {function (Port_Labelled_Message) : Port_Labelled_Message}
    */
@@ -467,7 +465,10 @@ function require_circuits(Rx, _, utils, Err, constants) {
       var port = new IN_Port({chip_uri: uri, port_name: port_name});
       var port_uri = get_port_uri(port);
       var connector = get_default_IN_conn();
-      if (IN_connector_hash.get(port_uri)) throw 'There already exists a port with the same identifier!' // TODO : pass extended_info in error message
+      if (IN_connector_hash.get(port_uri)) throw Err.Circuit_Error({
+        message: 'There already exists a port with the same identifier!',
+        extended_info: {where : 'register_IN_ports', port_uri: port_uri, IN_connector_hash: IN_connector_hash}
+      });
       IN_connector_hash.set(port_uri, connector);
     });
   }
@@ -486,7 +487,10 @@ function require_circuits(Rx, _, utils, Err, constants) {
       var port = new OUT_Port({chip_uri: uri, port_name: port_name});
       var port_uri = get_port_uri(port);
       var connector = get_default_OUT_conn();
-      if (OUT_connector_hash.get(port_uri)) throw 'There already exists a port with the same identifier!' // TODO : pass extended_info in error message
+      if (OUT_connector_hash.get(port_uri)) throw Err.Circuit_Error({
+        message: 'There already exists a port with the same identifier!',
+        extended_info: {where : 'register_circuit_OUT_ports', port_uri: port_uri, OUT_connector_hash: OUT_connector_hash}
+      });
       OUT_connector_hash.set(port_uri, connector);
     });
   }
@@ -505,7 +509,10 @@ function require_circuits(Rx, _, utils, Err, constants) {
       var port = new IN_Port({chip_uri: uri, port_name: port_name});
       var port_uri = get_port_uri(port);
       var connector = get_default_IN_conn();
-      if (IN_connector_hash.get(port_uri)) throw 'There already exists a port with the same identifier!' // TODO : pass extended_info in error message
+      if (IN_connector_hash.get(port_uri)) throw Err.Circuit_Error({
+        message: 'There already exists a port with the same identifier!',
+        extended_info: {where : 'register_circuit_IN_ports', port_uri: port_uri, IN_connector_hash: IN_connector_hash}
+      });
       IN_connector_hash.set(port_uri, connector);
     });
   }
@@ -571,13 +578,13 @@ function require_circuits(Rx, _, utils, Err, constants) {
       var IN_connector = IN_connector_hash.get(get_port_uri(IN_port));
       if (!IN_connector) throw Err.Circuit_Error({
         message: 'Invalid link configured! Cannot find a registered connector register for IN port!',
-        extended_info: {where: 'connect_links', IN_port: IN_port, IN_connector_hash : IN_connector_hash}
+        extended_info: {where: 'connect_links', IN_port: IN_port, IN_connector_hash: IN_connector_hash}
       });
 
       var OUT_connector = OUT_connector_hash.get(get_port_uri(OUT_port));
       if (!OUT_connector) throw Err.Circuit_Error({
         message: 'Invalid link configured! Cannot find a registered connector register for OUT port!',
-        extended_info: {where: 'connect_links', IN_port: OUT_port, OUT_connector_hash : OUT_connector_hash}
+        extended_info: {where: 'connect_links', IN_port: OUT_port, OUT_connector_hash: OUT_connector_hash}
       });
 
       OUT_connector.subscribe(IN_connector);
@@ -638,14 +645,14 @@ function require_circuits(Rx, _, utils, Err, constants) {
         return Rx.Observable.merge(
           IN_connector_hash.get(port_uri),
           simulate_conn
-            .do(utils.rxlog('pre-filter simulated inputs sent to : '+ port_uri))
+            .do(utils.rxlog('pre-filter simulated inputs sent to : ' + port_uri))
             .filter(is_port_uri(port_uri)).map(utils.remove_label)
         ).share();
       });
 
       //  4 Call the chip's transform function to process ports' inputs into outputs
       //  Edge case : there is no IN connector : `transform` in that case is called with [], that's fine
-      if (!utils.is_function(chip_transform)) throw 'something' // TODO error message
+      if (!utils.is_function(chip_transform)) throw '`chip_transform` property is not a function!';
       merged_connectors.push(chip_settings);
       var output = chip_transform.apply(null, merged_connectors);
 
@@ -765,26 +772,13 @@ function require_circuits(Rx, _, utils, Err, constants) {
         //        but have both information in the data structure so it is independent
         order_history.add(circuits_state, order);
 
-        // TODO : Write the TDD for the three tests I have already written
-        // 0. Test creation and starting of the controller and receiving output
-        // 1. just a chip, 2 IN, 1 OUT
-        // 2. just one 1 circuit, 2 chips, 2 -> 1
-        //    Chips : [1,2]
-        //    Chip 2 : 2 IN, 1 OUT : A,
-        //    Chip 1 : 1 IN : A', 0 OUT
-        //    Links : A' -> A
-        // 3. 1 circuit (same as before), 1 one chip
-        //    a. Two create orders : 1. circuit (same as before), 2. chip connected to circuit
-        //    CHECK THE SIMULATE PORTION
-        // TODO : write TDD tests for readouts
-
         break;
       case COMMAND_UNPLUG_CIRCUIT :
         // TODO : don't forget to update the IN and OUT hash on removal so it always reflect the last version of the circuit
         // TODO : also update order history
         break;
       default :
-        throw 'kuvgkj'; // TODO : error message
+        throw 'Unknown command! : ' + order_command;
     }
 
     return circuits_state;
