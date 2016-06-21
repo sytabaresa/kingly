@@ -35,6 +35,7 @@ define(function (require) {
     EFFECT_ERROR_DATA: 'effect_error_data',
     DRIVER_REGISTRY: 'driver_registry',
     LAST_EFFECT_REQUEST: 'last_effect_request',
+    CIRCUIT_OR_CHIP_TYPE : 'circuit_or_chip_type',
     commands: {
       EXECUTE: 'command_execute',
       CANCEL: 'command_cancel',

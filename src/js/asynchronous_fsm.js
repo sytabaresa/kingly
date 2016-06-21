@@ -633,7 +633,7 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
                                  user_generated_intent$, effect_response$, program_generated_intent$, debug_intentS, trace_intentS) {
     //// Helpers
     //
-    function set_custom_type(type) {
+    function new_typed_object(type) {
       return function (x) {
         return utils.new_typed_object(x, type);
       }
@@ -684,14 +684,14 @@ function require_async_fsm(synchronous_fsm, outer_fsm_def, fsm_helpers, Rx, Err,
 
     var merged_labelled_sources$ = Rx.Observable.merge(
       Rx.Observable.merge(user_generated_intent$, program_generated_intent$)
-        .map(set_custom_type(INTENT))
+        .map(new_typed_object(INTENT))
         .map(utils.label(EV_INTENT)),
       effect_response$
-        .map(set_custom_type(EFFECT_RESPONSE))
+        .map(new_typed_object(EFFECT_RESPONSE))
         .map(utils.label(EV_EFFECT_RES)),
       debug_intentS,
       trace_intentS
-        .map(set_custom_type(TRACE_INTENT))
+        .map(new_typed_object(TRACE_INTENT))
         .map(utils.label(EV_TRACE))
     )
       .finally(function () {

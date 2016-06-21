@@ -140,5 +140,7 @@ function require_custom_errors(_) {
     Registry_Error: createAppError('Registry_Error'),
     Effect_Error: createAppError('Effect_Error'),
     Fatal_Error : createAppError('Fatal_Error'),
+    Invalid_Type_Error : createAppError('Invalid_Type_Error'),
+    Circuit_Error : createAppError('Circuit_Error ')
   }
 }

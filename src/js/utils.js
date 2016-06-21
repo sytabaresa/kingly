@@ -14,6 +14,7 @@ function require_utils(Rx, _, Err, constants) {
   var WRAP_CHAR = constants.WRAP_CHAR;
   var MAX_DEPTH = 100; // for object traversal
   var TYPE_KEY = constants.TYPE_KEY;
+  var JOIN_STR = '-|';
 
   function identity(x, y) {
     return x
@@ -21,6 +22,10 @@ function require_utils(Rx, _, Err, constants) {
 
   function sum(a, b) {
     return 0 + a + b;
+  }
+
+  function random(bottom, top) {
+    return Math.floor(Math.random() * ( 1 + top - bottom )) + bottom;
   }
 
   function wrap(str) {
@@ -143,8 +148,15 @@ function require_utils(Rx, _, Err, constants) {
   }
 
   function join(a, b) {
-    var JOIN_STR = '-|';
     return [a, b].join(JOIN_STR);
+  }
+
+  function disjoin(ab) {
+    var splitted = [];
+    if (is_string(ab)) splitted = ab.split(JOIN_STR);
+    var a = splitted[0];
+    var b = splitted[1];
+    return {chip_uri: a, port_name: b}
   }
 
   function get_timestamp() {
@@ -318,6 +330,21 @@ function require_utils(Rx, _, Err, constants) {
     return obj[get_label(obj)];
   }
 
+  function set_custom_type(obj, type) {
+    // new_typed_object is cloning the passed object which can destroy some constructor information
+    // set_custom_type, keeps the object intact, and only adds the type information
+    if (!type) throw 'new_typed_object : expected truthy type!'
+    if (!obj) throw  'new_typed_object : expected truthy object!'
+    if (is_string(obj)) obj = new String(obj);
+    var current_types = obj[TYPE_KEY] || [];
+    if (current_types.indexOf(type) === -1) {
+      // type not in the array yet
+      current_types.push(type);
+    }
+    obj[TYPE_KEY] = current_types;
+    return obj;
+  }
+
   function new_typed_object(obj, type) {
     if (!type) throw 'new_typed_object : expected truthy type!'
     if (!obj) throw  'new_typed_object : expected truthy object!'
@@ -447,10 +474,7 @@ function require_utils(Rx, _, Err, constants) {
     if (is_null(argument)) return either(is_check_null, error_msg);
     // nice to have : discriminate array and regexp (there are seen as regular objects)
     if (is_object(argument)) {
-      return either(((typeof argument === type_name)
-        || is_type_in_prototype_chain(argument, type_name)
-        || (argument && has_custom_type(argument, type_name))),
-        error_msg);
+      return either(has_type(argument, type_name), error_msg);
     }
     else {
       // primitive type (!! null and undefined are primitive types too)
@@ -458,6 +482,23 @@ function require_utils(Rx, _, Err, constants) {
       if (argument === null && typeof argument === "object") return either(false, error_msg); // obsolete now
       return either(typeof argument === type_name, error_msg);
     }
+  }
+
+  function has_type(obj, type) {
+    return ((typeof obj === type)
+    || is_type_in_prototype_chain(obj, type)
+    || (obj && has_custom_type(obj, type)))
+  }
+
+  function get_keys(obj) {
+    // obj can have a custom type so Object.keys cannot be applied blindly
+    var key_array = Object.keys(obj);
+    var has_type_field = key_array.indexOf(TYPE_KEY);
+    return has_type_field > -1 ? key_array.splice(has_type_field, 1) : key_array;
+  }
+
+  function get_values(obj) {
+    return get_keys(obj).map(function get_values(key) {return obj[key];})
   }
 
   function either(bool, error_msg) {
@@ -712,20 +753,24 @@ function require_utils(Rx, _, Err, constants) {
   }
 
   function Hashmap() {
-    this.hm = {};
   }
 
   Hashmap.prototype.set = function set(key, value) {
-    this.hm[key] = value;
+    this[key] = value;
   };
 
   Hashmap.prototype.get = function get(key) {
-    return this.hm[key];
+    return this[key];
   };
+
+  Hashmap.prototype.has = function has(key) {
+    return !!this[key];
+  }
 
   return {
     identity: identity,
     sum: sum,
+    random: random,
     wrap: wrap,
     unwrap: unwrap,
     is_wrapped_key: is_wrapped_key,
@@ -733,7 +778,7 @@ function require_utils(Rx, _, Err, constants) {
     info: info,
     label: label,
     get_label: get_label,
-    remove_label : remove_label,
+    remove_label: remove_label,
     to_observable: to_observable,
     to_error: to_error,
     clone: clone,
@@ -747,6 +792,7 @@ function require_utils(Rx, _, Err, constants) {
     not: not,
     noop: noop,
     join: join,
+    disjoin: disjoin,
     args_to_array: args_to_array,
     get_prop: get_prop,
     get_timestamp: get_timestamp,
@@ -763,10 +809,14 @@ function require_utils(Rx, _, Err, constants) {
     traverseWithPath: traverseWithPath,
     get_fn_name: get_fn_name,
     new_typed_object: new_typed_object,
+    set_custom_type: set_custom_type,
     assert_signature: assert_signature,
     assert_custom_type: assert_custom_type,
     assert_type: assert_type,
     has_custom_type: has_custom_type,
+    has_type: has_type,
+    get_keys: get_keys,
+    get_values: get_values,
     make_registry: make_registry,
     Hashmap: Hashmap
   }
