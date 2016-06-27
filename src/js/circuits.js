@@ -1,6 +1,6 @@
 /**
  * @typedef {String} Name
- * CONTRACT : Name's string must start with a letter i.e. [a-zA-Z] (and miscellaneous letters from other languages' alphabet)
+ * CONTRACT : Name's string must start with a letter i.e. [a-zA-Z] (and miscellaneous letters from other languages' alphabet, but no _ or $)
  */
 /**
  * @typedef {String} URI
@@ -135,7 +135,7 @@
  * TODO : this is for create, add also for delete
  */
 /**
- * @typedef {{circuit: Circuit|Chip, links : Array<Link>}} Plug_In_Parameters
+ * @typedef {{circuit: Circuit|Chip, links : Array<Link>, settings : Settings}} Plug_In_Parameters
  */
 
   // DOCUMENTATION :
@@ -163,6 +163,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
   var COMMAND_PLUG_IN_CIRCUIT = constants.COMMAND_PLUG_IN_CIRCUIT;
   var COMMAND_UNPLUG_CIRCUIT = constants.COMMAND_UNPLUG_CIRCUIT;
   var CIRCUIT_OR_CHIP_TYPE = constants.CIRCUIT_OR_CHIP_TYPE;
+  var SETTINGS_OVERRIDE = constants.SETTINGS_OVERRIDE;
 
   /**
    *
@@ -183,6 +184,43 @@ function require_circuits(Rx, _, utils, Err, constants) {
     this.chip_uri = port.chip_uri;
     this.port_name = port.port_name;
   }
+
+  /**
+   * Returns a customized subject which traps the `onCompleted` event.
+   * To send `onCompleted` event, it exposes a `dispose` method
+   * @param {URI} [uri]
+   * @return {Subject}
+   */
+  function get_new_IN_connector(uri) {
+    // TODO: adapt onError in function of error management decided.
+    // Note that onError now will prevent additional onNext to pass through, but observers will still be registered on the subject
+    var connector = new Rx.Subject();
+    connector.uri = uri;
+    // Trap dispose handler
+    connector.$_dispose = connector.dispose && connector.dispose.bind(connector); // strange name to avoid overwriting existing `dispose` methods
+    connector.dispose = dispose_IN_connector.bind(connector, connector);
+    // Trap onCompleted handler
+    connector.$_onCompleted = connector.onCompleted.bind(connector);
+    connector.onCompleted = warn_completed.bind(connector, connector);
+    return connector;
+  }
+
+  function warn_completed(connector) {
+    console.warn('IN_Connector : connector %s received completion notification of one of its source!', connector.uri);
+  }
+
+  function dispose_IN_connector(IN_connector) {
+    console.warn('IN_Connector : disposing %s connector', IN_connector.uri);
+    // Send completion signals for regular observables which are connected to the subject
+    IN_connector.$_onCompleted();
+    // Propagate disposal to cover also the case when a modified subject is connected to a modified subject (hence normal onCompleted is trapped)
+    for (var i = 0, os = IN_connector.observers.slice(), len = os.length; i < len; i++) {
+      var o = os[i];
+      o.onCompleted();
+      o.$_dispose && o.$_dispose();
+    }
+    IN_connector.$_dispose && IN_connector.$_dispose();
+  };
 
   /**
    *
@@ -206,7 +244,10 @@ function require_circuits(Rx, _, utils, Err, constants) {
     this.history.push(order);
   };
 
-  function get_default_IN_conn() {return new Rx.Subject();}
+  function get_default_IN_conn(uri) {
+    return get_new_IN_connector(uri);
+    // return new Rx.Subject();
+  }
 
   function get_default_OUT_conn() {return new Rx.Subject();}
 
@@ -247,10 +288,10 @@ function require_circuits(Rx, _, utils, Err, constants) {
       }
     }, CIRCUIT_OR_CHIP_TYPE);
 
-    IN_connector_hash = _controller.settings.IN_connector_hash;
+    IN_connector_hash = _controller.settings.IN_connector_hash; // TODO: put the var back when finished testing
     OUT_connector_hash = _controller.settings.OUT_connector_hash;
 
-    plug_in(_controller, _controller.settings);
+    plug_in(_controller, _controller.settings, {});
     start(controller, _controller.settings);
 
     function start(controller, settings) {
@@ -464,10 +505,10 @@ function require_circuits(Rx, _, utils, Err, constants) {
     ports.IN.forEach(function create_IN_connectors(port_name) {
       var port = new IN_Port({chip_uri: uri, port_name: port_name});
       var port_uri = get_port_uri(port);
-      var connector = get_default_IN_conn();
+      var connector = get_default_IN_conn(port_uri);
       if (IN_connector_hash.get(port_uri)) throw Err.Circuit_Error({
         message: 'There already exists a port with the same identifier!',
-        extended_info: {where : 'register_IN_ports', port_uri: port_uri, IN_connector_hash: IN_connector_hash}
+        extended_info: {where: 'register_IN_ports', port_uri: port_uri, IN_connector_hash: IN_connector_hash}
       });
       IN_connector_hash.set(port_uri, connector);
     });
@@ -489,7 +530,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
       var connector = get_default_OUT_conn();
       if (OUT_connector_hash.get(port_uri)) throw Err.Circuit_Error({
         message: 'There already exists a port with the same identifier!',
-        extended_info: {where : 'register_circuit_OUT_ports', port_uri: port_uri, OUT_connector_hash: OUT_connector_hash}
+        extended_info: {where: 'register_circuit_OUT_ports', port_uri: port_uri, OUT_connector_hash: OUT_connector_hash}
       });
       OUT_connector_hash.set(port_uri, connector);
     });
@@ -508,10 +549,10 @@ function require_circuits(Rx, _, utils, Err, constants) {
     _.forEach(ports_map.IN, function create_IN_connectors(__, port_name) {
       var port = new IN_Port({chip_uri: uri, port_name: port_name});
       var port_uri = get_port_uri(port);
-      var connector = get_default_IN_conn();
+      var connector = get_default_IN_conn(port_uri);
       if (IN_connector_hash.get(port_uri)) throw Err.Circuit_Error({
         message: 'There already exists a port with the same identifier!',
-        extended_info: {where : 'register_circuit_IN_ports', port_uri: port_uri, IN_connector_hash: IN_connector_hash}
+        extended_info: {where: 'register_circuit_IN_ports', port_uri: port_uri, IN_connector_hash: IN_connector_hash}
       });
       IN_connector_hash.set(port_uri, connector);
     });
@@ -595,149 +636,197 @@ function require_circuits(Rx, _, utils, Err, constants) {
    *
    * @param {Circuit|Chip} circuit
    * @param {{IN_connector_hash, OUT_connector_hash}} circuits_state
+   * @param parent_settings
    * Side-effects : modifies `circuits_state` hashmaps
    */
-  function plug_in(circuit, /*-OUT-*/circuits_state) {
+  function plug_in(circuit, /*-OUT-*/circuits_state, parent_settings) {
+    // NOTE : parent_settings and chip_settings should be deep cloned or frozen to prevent impact from out of scope modification
+    //        We leave it as is, the best solution to this, is to make all circuits a `constant` (ES6) or deep-frozen objects
+    //        This problem is everywhere at the API surface.
+    //        We will deep-clone only when there is an estimated high likelyhood or impact of changes
     utils.assert_type(circuit, CIRCUIT_OR_CHIP_TYPE, {
       message: 'plug_in : expected parameter of type circuit!',
       extended_info: {circuit: circuit}
     });
 
+    if (!circuit.chips) {
+      plug_in_chip(circuit, /*-OUT-*/circuits_state, parent_settings);
+    }
+    else {
+      plug_in_circuit(circuit, /*-OUT-*/circuits_state, parent_settings);
+    }
+  }
+
+  function plug_in_chip(chip, /*-OUT-*/circuits_state, parent_settings) {
+    var IN_connector_hash = circuits_state.IN_connector_hash;
+    var OUT_connector_hash = circuits_state.OUT_connector_hash;
+    var uri = chip.uri;
+    var chip_ports = chip.ports;
+    var chip_settings = chip.settings;
+    var chip_transform = chip.transform;
+    var test = chip.test = chip.test || {}; // optional
+    var simulate_conn = test.simulate;
+    var readout_conn = test.readout;
+
+    // Case chip : (`chips` is undefined)
+    // 1. Create and register IN_ports connectors
+    register_IN_ports(chip_ports, uri, circuits_state);
+
+    // 2. Register simulate connector
+    // If there is no simulate connector, we create one.
+    // We need one, so that if we have a simulate connector at a higher level (enclosing chip),
+    // that upper-level simulate connector can connect to the lower-level connector to send data
+    // This done recursively in every level ensures an ininterrupted connector chain ending at the chip level.
+    // Hence, the simulate connector at the chip level can forward data down to any other level.
+    // The default connector is an Rx.Subject.
+    // We should not need a replay functionality here as :
+    // - the simulate connector is used by construction once all lower-level circuits are plugged
+    // - there should only ever be one user/caller of a simulate connector (i.e. no concurrent simulations)
+    simulate_conn = simulate_conn ? simulate_conn : get_default_simulate_conn();
+    chip.test.simulate = simulate_conn; // need to put it in the object
+    IN_connector_hash.set(get_port_uri({chip_uri: uri, port_name: SIMULATE_PORT_NAME}), simulate_conn);
+
+    // 3. Add simulate functionality
+    // This means passing simulate connector's input to each port, after filtering out input destined to other ports
+    // NOTE : SIMULATE connectors do not send error notification if one sends messages relevant to no ports
+    // NOTE : this is shared as the transform function could subscribe several times to the IN ports
+    var merged_connectors = chip_ports.IN.map(function create_merged_connectors(port_name) {
+      var port = new IN_Port({chip_uri: uri, port_name: port_name});
+      var port_uri = get_port_uri(port);
+      return Rx.Observable.merge(
+        IN_connector_hash.get(port_uri)
+          .do(utils.rxlog('IN connector hash ' + port_uri)),
+        simulate_conn
+          .do(utils.rxlog('pre-filter simulated inputs sent to : ' + port_uri))
+          .filter(is_port_uri(port_uri)).map(utils.remove_label)
+      ).share();
+    });
+
+    //  4. Call the chip's transform function to process ports' inputs into outputs
+    //  Edge case : there is no IN connector : `transform` in that case is called with [], that's fine
+    if (!utils.is_function(chip_transform)) throw '`chip_transform` property is not a function!';
+    //  4.1 Merge settings from the parent with the chip's settings
+    //      - If SETTINGS_OVERRIDE config flag not set : parent_settings can add properties to chip's settings but not replace/modify them
+    //      - Else : parent_settings will override properties with same name in chip's settings
+
+    var merged_settings = merge_settings(parent_settings, chip_settings);
+    merged_connectors.push(merged_settings);
+    var output = chip_transform.apply(null, merged_connectors); // TODO : add error management for when transform function returns error
+
+    // Create and register readout connectors
+    readout_conn = readout_conn ? readout_conn : get_default_readout_conn();
+    chip.test.readout = readout_conn; // need to put it in the object
+    OUT_connector_hash.set(get_port_uri({chip_uri: uri, port_name: READOUT_PORT_NAME}), readout_conn);
+
+    // 5. Create and register OUT_ports
+    // If there is no readout connector, we create one.
+    // We need one, so that if we have a readout connector at a higher level (enclosing chip),
+    // that upper-level readout connector can connect to the lower-level connector to receive data
+    // This done recursively in every level ensures an ininterrupted connector chain ending at the chip level.
+    // Hence, the readout connector at the chip level can forward data up to any other level.
+    // Default readout connector is a Rx.ReplaySubject(1) as while we are pluging in circuits and connecting
+    // wires, data may be emitted before the readout connector to receive them.
+    // In principle a replay(1) is sufficient. All pluging-in and wiring should happen in the same tick.
+    chip_ports.OUT.forEach(function create_OUT_connectors(port_name) {
+      var port = new OUT_Port({chip_uri: uri, port_name: port_name});
+      var connector = output[port_name];
+
+      // Checking contracts
+      if (utils.is_undefined(connector)) throw Err.Circuit_Error({
+        message: 'Could not find definition for declared port!',
+        extended_info: {port_name: port_name, port_definitions: output}
+      });
+      if (!utils.has_type(connector, 'Observable')) throw Err.Circuit_Error({
+        message: 'Port definition must be an observable!',
+        extended_info: {port_name: port_name, port_definitions: output}
+      });
+
+      // OUT connector must be shared as it can have several IN ports subscribing to it
+      // share is AFTER the readout side-effect, not to repeat it several times
+      var OUT_port$ = connector.do(tap(readout_conn, port)).share();
+      OUT_connector_hash.set(get_port_uri(port), OUT_port$);
+    });
+  }
+
+  function plug_in_circuit(circuit, /*-OUT-*/circuits_state, parent_settings) {
     var IN_connector_hash = circuits_state.IN_connector_hash;
     var OUT_connector_hash = circuits_state.OUT_connector_hash;
     var uri = circuit.uri;
     var circuit_chips = circuit.chips;
-    var chip_ports = circuit.ports;
     var circuit_ports_map = circuit.ports_map;
     var circuit_links = circuit.links;
-    var chip_settings = circuit.settings;
-    var chip_transform = circuit.transform;
+    var circuit_settings = merge_settings(parent_settings, circuit.settings);
     var test = circuit.test = circuit.test || {}; // optional
     var simulate_conn = test.simulate;
     var readout_conn = test.readout;
 
-    if (!circuit_chips) {
-      // Case chip : (`chips` is undefined)
-      // 1. Create and register IN_ports connectors
-      register_IN_ports(chip_ports, uri, circuits_state);
+    // Case circuit :
+    // 1. Plug-in each child chip/circuit in order of definition
+    circuit_ports_map = circuit_ports_map || {}; // allowed to be undefined for circuits
 
-      // 2. Register simulate connector
-      // If there is no simulate connector, we create one.
-      // We need one, so that if we have a simulate connector at a higher level (enclosing circuit),
-      // that upper-level simulate connector can connect to the lower-level connector to send data
-      // This done recursively in every level ensures an ininterrupted connector chain ending at the chip level.
-      // Hence, the simulate connector at the chip level can forward data down to any other level.
-      // The default connector is an Rx.Subject.
-      // We should not need a replay functionality here as :
-      // - the simulate connector is used by construction once all lower-level circuits are plugged
-      // - there should only ever be one user/caller of a simulate connector (i.e. no concurrent simulations)
-      simulate_conn = simulate_conn ? simulate_conn : get_default_simulate_conn();
-      circuit.test.simulate = simulate_conn; // need to put it in the object
-      IN_connector_hash.set(get_port_uri({chip_uri: uri, port_name: SIMULATE_PORT_NAME}), simulate_conn);
+    circuit_chips.forEach(function (chip) {
+      plug_in(chip, circuits_state, circuit_settings);
+    });
 
-      // 3. Add simulate functionality
-      // This means passing simulate connector's input to each port, after filtering out input destined to other ports
-      // NOTE : SIMULATE connectors do not send error notification if one sends messages relevant to no ports
-      // NOTE : this is shared as the transform function could subscribe several times to the IN ports
-      var merged_connectors = chip_ports.IN.map(function create_merged_connectors(port_name) {
-        var port = new IN_Port({chip_uri: uri, port_name: port_name});
-        var port_uri = get_port_uri(port);
-        return Rx.Observable.merge(
-          IN_connector_hash.get(port_uri),
-          simulate_conn
-            .do(utils.rxlog('pre-filter simulated inputs sent to : ' + port_uri))
-            .filter(is_port_uri(port_uri)).map(utils.remove_label)
-        ).share();
-      });
+    // 2. Register circuit ports and link them to lower-level ports
+    // Note : this has to be done prior to connecting the circuits links, as they might use the circuit IN_ports, and OUT_ports
+    // Note : this has to be done after pluging-in the lower-level chips/circuits so their connectors are already created
+    // and can be referred to.
+    // 2a. IN_ports
+    register_circuit_IN_ports(circuit_ports_map, uri, circuits_state);
+    connect_mapped_circuit_IN_ports(circuit_ports_map, uri, circuits_state);
+    // 2b. OUT_ports
+    // NOTE : those OUT ports will be proxy subjects whose aim is to forward the content of existing inner-level OUT ports
+    register_circuit_OUT_ports(circuit_ports_map, uri, circuits_state);
+    connect_mapped_circuit_OUT_ports(circuit_ports_map, uri, circuits_state);
+    // TODO: make sure it is a do, not two subjects linked as we want to keep cold behavior
+    // TODO : I need a share which reconnects when resubscribed, or who does not refCount, so it is kept alive for later connections
 
-      //  4 Call the chip's transform function to process ports' inputs into outputs
-      //  Edge case : there is no IN connector : `transform` in that case is called with [], that's fine
-      if (!utils.is_function(chip_transform)) throw '`chip_transform` property is not a function!';
-      merged_connectors.push(chip_settings);
-      var output = chip_transform.apply(null, merged_connectors);
+    // 3. Wire links
+    connect_links(circuit_links, circuits_state);
 
-      // Create and register readout connectors
-      readout_conn = readout_conn ? readout_conn : get_default_readout_conn();
-      circuit.test.readout = readout_conn; // need to put it in the object
-      OUT_connector_hash.set(get_port_uri({chip_uri: uri, port_name: READOUT_PORT_NAME}), readout_conn);
+    // 4. Connect and register simulate connector
+    //   If !circuit.test.simulate, create one default (Rx.Subject) and set it up on the object
+    //   Connect SIMULATE connector to ALL children chips
+    //   NOTE : Circuits' simulate connector differ from chips' simulate connector:
+    //   - They propagate messages to all given circuit's members, even if there is no corresponding exposed port
+    //   - This is better for testing purposes which is the goal of the simulate connector in the first place
+    //   - For instance, if we have a circuit representing a DOM component having an intent source chip,
+    //     it will be possible to simulate the intents from the circuit's simulate connector, even as there is no exposed
+    //     port to the intent source chip.
+    //   NOTE : this works because all ports are filtering by port_uri, so no risk of pollution
+    var circuit_simulate_conn = circuit.test.simulate = simulate_conn ? simulate_conn : get_default_simulate_conn();
+    // NOTE : It is not really necessary to register also the simulate connectors,
+    // unless we want to access them from out-of-scope parts of the programs OR we change the API and choose not
+    // to reference the chip object directly (as in chip.test.simulate), but instead its uri
+    IN_connector_hash.set(get_port_uri({chip_uri: uri, port_name: SIMULATE_PORT_NAME}), circuit_simulate_conn);
+    circuit_chips.forEach(function connect_circuit_simulate_to_chips(chip) {
+      circuit_simulate_conn
+        // NOTE : when passing a message from one port to a lower-level one, we must translate the message label
+        .map(translate_circuit_IN_port_uri(circuit, IN_connector_hash))
+        .catch(function (e) {
+          console.error(e);
+          return Rx.Observable.throw(e);
+        })
+        .subscribe(chip.test.simulate); // TODO : error management at the subject level? Think about a structure a la Erlang
+    });
 
-      // 5. Create and register OUT_ports
-      // If there is no readout connector, we create one.
-      // We need one, so that if we have a readout connector at a higher level (enclosing circuit),
-      // that upper-level readout connector can connect to the lower-level connector to receive data
-      // This done recursively in every level ensures an ininterrupted connector chain ending at the chip level.
-      // Hence, the readout connector at the chip level can forward data up to any other level.
-      // Default readout connector is a Rx.ReplaySubject(1) as while we are pluging in circuits and connecting
-      // wires, data may be emitted before the readout connector to receive them.
-      // In principle a replay(1) is sufficient. All pluging-in and wiring should happen in the same tick.
-      chip_ports.OUT.forEach(function create_OUT_connectors(port_name) {
-        var port = new OUT_Port({chip_uri: uri, port_name: port_name});
-        var connector = output[port_name];
-        // OUT connector must be shared as it can have several IN ports subscribing to it
-        // share is AFTER the readout side-effect, not to repeat it several times
-        var OUT_port$ = connector.do(tap(readout_conn, port)).share();
-        OUT_connector_hash.set(get_port_uri(port), OUT_port$);
-      });
-    }
-    else {
-      // Case circuit :
-      // 1. Plug-in each child chip/circuit in order of definition
-      circuit_ports_map = circuit_ports_map || {}; // allowed to be undefined for circuits
+    // 5. Connect and register readout connector
+    //   If !circuit.test.readout, create one default (Rx.ReplaySubject(1)) and set it up on the object
+    //   Connect ALL children chips connectors to READOUT connector
+    var circuit_readout_conn = circuit.test.readout = readout_conn ? readout_conn : get_default_readout_conn();
+    OUT_connector_hash.set(get_port_uri({chip_uri: uri, port_name: READOUT_PORT_NAME}), circuit_readout_conn);
+    circuit_chips.forEach(function connect_circuit_readout_to_chips(chip) {
+      chip.test.readout
+        .map(translate_circuit_OUT_port_uri(circuit, circuit_ports_map))
+        .subscribe(circuit_readout_conn);
+    });
+  }
 
-      circuit_chips.forEach(function (chip) {
-        plug_in(chip, circuits_state);
-      });
-
-      // 2. Register circuit ports and link them to lower-level ports
-      // Note : this has to be done prior to connecting the circuits links, as they might use the circuit IN_ports, and OUT_ports
-      // Note : this has to be done after pluging-in the lower-level chips/circuits so their connectors are already created
-      // and can be referred to.
-      // 2a. IN_ports
-      register_circuit_IN_ports(circuit_ports_map, uri, circuits_state);
-      connect_mapped_circuit_IN_ports(circuit_ports_map, uri, circuits_state);
-      // 2b. OUT_ports
-      // NOTE : those OUT ports will be proxy subjects whose aim is to forward the content of existing inner-level OUT ports
-      register_circuit_OUT_ports(circuit_ports_map, uri, circuits_state);
-      connect_mapped_circuit_OUT_ports(circuit_ports_map, uri, circuits_state);
-
-      // 3. Wire links
-      connect_links(circuit_links, circuits_state);
-
-      // 4. Connect and register simulate connector
-      //   If !circuit.test.simulate, create one default (Rx.Subject) and set it up on the object
-      //   Connect SIMULATE connector to ALL children chips
-      //   NOTE : Circuits' simulate connector differ from chips' simulate connector:
-      //   - They propagate messages to all given circuit's members, even if there is no corresponding exposed port
-      //   - This is better for testing purposes which is the goal of the simulate connector in the first place
-      //   - For instance, if we have a circuit representing a DOM component having an intent source chip,
-      //     it will be possible to simulate the intents from the circuit's simulate connector, even as there is no exposed
-      //     port to the intent source chip.
-      //   NOTE : this works because all ports are filtering by port_uri, so no risk of pollution
-      var circuit_simulate_conn = circuit.test.simulate = simulate_conn ? simulate_conn : get_default_simulate_conn();
-      // NOTE : It is not really necessary to register also the simulate connectors,
-      // unless we want to access them from out-of-scope parts of the programs OR we change the API and choose not
-      // to reference the chip object directly (as in chip.test.simulate), but instead its uri
-      IN_connector_hash.set(get_port_uri({chip_uri: uri, port_name: SIMULATE_PORT_NAME}), circuit_simulate_conn);
-      circuit_chips.forEach(function connect_circuit_simulate_to_chips(chip) {
-        circuit_simulate_conn
-          // NOTE : when passing a message from one port to a lower-level one, we must translate the message label
-          .map(translate_circuit_IN_port_uri(circuit, IN_connector_hash))
-          .subscribe(chip.test.simulate);
-      });
-
-      // 5. Connect and register readout connector
-      //   If !circuit.test.readout, create one default (Rx.ReplaySubject(1)) and set it up on the object
-      //   Connect ALL children chips connectors to READOUT connector
-      var circuit_readout_conn = circuit.test.readout = readout_conn ? readout_conn : get_default_readout_conn();
-      OUT_connector_hash.set(get_port_uri({chip_uri: uri, port_name: READOUT_PORT_NAME}), circuit_readout_conn);
-      circuit_chips.forEach(function connect_circuit_readout_to_chips(chip) {
-        chip.test.readout
-          .map(translate_circuit_OUT_port_uri(circuit, circuit_ports_map))
-          .subscribe(circuit_readout_conn);
-      });
-
-    }
-    // CONTRACT : SIMULATE_PORT_NAME and READOUT_PORT_NAME are reserved names (but they start with $) so let's say no names start with $
+  function merge_settings(parent_settings, child_settings) {
+    return SETTINGS_OVERRIDE
+      ? _.merge({}, parent_settings, child_settings)
+      : _.merge({}, child_settings, parent_settings);
   }
 
   /**
@@ -756,13 +845,14 @@ function require_circuits(Rx, _, utils, Err, constants) {
         // Case : we have a circuit that we want to plug-in and START (essentially equivalent terms in this context)
         var circuit = order_parameters.circuit; // Note : could also be a chip
         var links = order_parameters.links;
+        var order_settings = order_parameters.settings;
         var order_history = circuits_state.order_history;
         // The circuit already has ample information as how to connect inward.
         // The `links` property allows to :
         // - connect to the controller, using the controller connector's uri which 'manages' the chip
         // - connect outwards, for instance to plug-in the circuit to prior existing circuits
 
-        plug_in(circuit, /*-OUT-*/circuits_state);
+        plug_in(circuit, /*-OUT-*/circuits_state, order_settings);
         // 2. Connect links
         connect_links(links, circuits_state);
         // There is no simulate and readout here, they are at the circuit level

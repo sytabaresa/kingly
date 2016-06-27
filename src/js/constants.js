@@ -40,7 +40,9 @@ define(function (require) {
       EXECUTE: 'command_execute',
       CANCEL: 'command_cancel',
       IGNORE: 'command_ignore'
-    }
+    },
+    // Configuration
+    SETTINGS_OVERRIDE: false,
     // TODO : add a second level to constants
     // for instance, types : {EFFECT_HANDLER...}, commands : {EXECUTE}
     // remove prefixing

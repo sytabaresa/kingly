@@ -4,6 +4,9 @@ define(function (require) {
   var constants = require('constants');
   var circuits = require('circuits');
   var circuit_utils = require('circuits_utils');
+  var Ractive = require('ractive');
+  var Axios = require('axios');
+  var climate_viewer = require('../../../test/qunit_specs/assets/climate.ractive');
   var rx_test_with_random_delay = circuit_utils.rx_test_with_random_delay;
   var get_chip_port = circuits.get_chip_port;
   var make_link = circuits.make_link;
@@ -28,7 +31,38 @@ define(function (require) {
   };
   var dummy_settings = {settings_key: 'settings_value'};
 
-  function make_test_chip(index, IN, OUT, chip_transform_fn) {
+  function ractive_test_driver(transformed_actual_output_seq, transform_fn, assert) {
+    if (!utils.is_function(transform_fn)) transform_fn = utils.identity;
+
+    return function ractive_driver(data$, settings) {
+      var expected_transformed_settings = {
+        append: true
+      };
+      var transform_settings_fn = function (settings) {return {append: settings.append}};
+      console.log('settings', settings);
+      // check that settings are correctly merged
+      assert.deepEqual(transform_settings_fn(settings), expected_transformed_settings, 'By default, circuits pass their settings down to their lower-level circuits/chips. The order of the merge is configurable with `SETTINGS_OVERRIDE` constant.');
+      var ractive_view = undefined;
+      if (settings.el && settings.template) {
+        ractive_view = new Ractive(settings);
+        data$.subscribe(function (data) {
+          transformed_actual_output_seq.push(transform_fn(data));
+          if (ractive_view) {
+            ractive_view.set(data);
+          }
+          else {
+            console.warn('received data : %O while view is not displayed yet!', data);
+          }
+        });
+      }
+      else {
+        throw 'ractive_driver : Insufficient data to display view! DOM element where to anchor the view and the view template are both necessary!'
+      }
+      return undefined;
+    }
+  }
+
+  function make_test_chip(index, IN, OUT, chip_transform_fn, settings) {
     var chip_serie = 'test_chip_serie';
     var ports = {};
     ports.IN = IN;
@@ -37,7 +71,7 @@ define(function (require) {
       serie: chip_serie, uri: [chip_serie, '_', index + 1].join(''),
       ports: ports,
       transform: chip_transform_fn,
-      settings: dummy_settings
+      settings: settings || dummy_settings
     };
 
     return utils.set_custom_type(chip, CIRCUIT_OR_CHIP_TYPE);
@@ -56,7 +90,7 @@ define(function (require) {
     console.error('catch_error_test_results', e);
   }
 
-  QUnit.skip("Controller - Plug-in command", function test_controller(assert) {
+  QUnit.test("Controller - Plug-in command", function test_controller(assert) {
     var done = assert.async(1);
 
     var controller = circuits.create_controller(controller_setup);
@@ -160,7 +194,7 @@ define(function (require) {
 
   });
 
-  QUnit.skip("Chip - transform", function test_chip_transform(assert) {
+  QUnit.test("Chip - transform", function test_chip_transform(assert) {
     var done = assert.async(2);
     var get_port_uri = circuits.get_port_uri;
 
@@ -273,7 +307,7 @@ define(function (require) {
 
   });
 
-  QUnit.skip("Circuit - links (incl. ordering) - no ports, no port mappings", function test_circuit_links(assert) {
+  QUnit.test("Circuit - links (incl. ordering) - no ports, no port mappings", function test_circuit_links(assert) {
     var done = assert.async(1);
     var order_chip_plugin_check = [];
     var order_subscription_check = false;
@@ -380,7 +414,7 @@ define(function (require) {
     // Pluging-in the circuit should start the data flow
   });
 
-  QUnit.skip("Circuit - links - ports and port mappings - one circuit connector IN and OUT", function test_circuit_links(assert) {
+  QUnit.test("Circuit - links - ports and port mappings - one circuit connector IN and OUT", function test_circuit_links(assert) {
     var done = assert.async(1);
 
     // Chip definition
@@ -508,7 +542,7 @@ define(function (require) {
     // Pluging-in the circuit should start the data flow
   });
 
-  QUnit.skip("Circuit - links - ports and port mappings - one circuit connector IN and 2 OUT", function test_circuit_links(assert) {
+  QUnit.test("Circuit - links - ports and port mappings - one circuit connector IN and 2 OUT", function test_circuit_links(assert) {
     var done = assert.async(1);
 
     // Chip definition
@@ -778,4 +812,175 @@ define(function (require) {
     // Pluging-in the circuit should start the data flow
   });
 
+  QUnit.test("Circuit - example of component", function test_component(assert) {
+    var done = assert.async(1);
+    var transformed_output_seq = [];
+    var transform_fn = function (data) {
+      return {
+        "selectedIndex": data.selectedIndex,
+        "degreeType": data.degreeType
+      }
+    };
+
+    // Chip definition
+    var chip_init = make_test_chip(-1, [], ['initial_data'], function initialize_view(settings) {
+      console.log('chip_init settings', settings);
+      return {
+        'initial_data': Rx.Observable.return({
+          cities: climate_viewer.temperatures_json,
+        })
+      }
+    });
+    var chip_ractive = make_test_chip(0, ['data'], [], ractive_test_driver(transformed_output_seq, transform_fn, assert), climate_viewer);
+    var chip_model = make_test_chip(1,
+      ['new_city_selected', 'new_temperature_unit'],
+      ['data'],
+      function chip_transform(new_city_selected$, new_temperature_unit$, settings) {
+        console.log('chip_model settings', settings);
+        return {
+          'data': Rx.Observable.merge(
+            new_city_selected$.map(utils.label('selectedIndex'))
+              .do(utils.rxlog('new_city_selected model')),
+            new_temperature_unit$.map(utils.label('degreeType'))
+          )
+        }
+      }
+    );
+    var chip_intent = make_test_chip(2, [], ['new_city_selected', 'new_temperature_unit'], function chip_transform(settings) {
+      console.log('chip_intent settings', settings);
+      return {
+        'new_city_selected': Rx.Observable.defer(function () {
+          return Rx.Observable.fromEvent(document.querySelector(".temperatures select"), 'change')
+            .map(function (event) {
+              return event.target.selectedIndex;
+            })
+            .do(utils.rxlog('new_city_selected event'))
+            ;
+        }),
+        'new_temperature_unit': Rx.Observable.defer(function () {
+          return Rx.Observable.merge(
+            Rx.Observable.fromEvent(document.querySelector("input[name=celsius]"), 'click')
+              .map(function (event) {return 'celsius';}),
+            Rx.Observable.fromEvent(document.querySelector("input[name=fahrenheit]"), 'click')
+              .map(function (event) {return 'fahrenheit';})
+          )
+            .do(utils.rxlog('new_temperature_unit event'))
+            ;
+        })
+      };
+    });
+
+    // Circuit definition
+    // Dataflow will depend on order of links (switching link order will fail the test)
+    var circuit_simulate_conn = get_default_simulate_conn();
+    var circuit_readout_conn = get_default_readout_conn();
+
+    var links = [
+      make_link(chip_init, chip_ractive, 'initial_data', 'data'),
+      make_link(chip_model, chip_ractive, 'data', 'data'),
+      make_link(chip_intent, chip_model, 'new_city_selected', 'new_city_selected'),
+      make_link(chip_intent, chip_model, 'new_temperature_unit', 'new_temperature_unit')
+    ];
+    var circuit = utils.set_custom_type({
+      uri: 'test_circuit_1',
+      chips: [chip_intent, chip_model, chip_ractive, chip_init],
+      links: links,
+      ports_map: {
+        IN: {
+          'Circuit-IN-City$': {chip_uri: chip_model.uri, port_name: 'new_city_selected'},
+          'Circuit-IN-Temp$': {chip_uri: chip_model.uri, port_name: 'new_temperature_unit'}
+        },
+        OUT: {
+          'Circuit1-OUT-Data$': {
+            chip_uri: chip_model.uri, port_name: 'data'
+          }
+        }
+      },
+      test: {
+        simulate: circuit_simulate_conn,
+        readout: circuit_readout_conn
+      },
+      settings: {el: document.body, append: true} // TODO : I could have a driver which creates the div if does not exists
+    }, CIRCUIT_OR_CHIP_TYPE);
+
+    // Test scenario
+    // 1. Plugged-in circuit processes its inputs according to defined chip architecture (chips and links)
+    //    - no cycle
+    //    - circuit with port mappings, and input port and output port
+    // WHEN
+    // ----A )-> B )-> C ----
+    //       )->    -> C --
+    // AND received two inputs on circuit input port,
+    // THEN it produces the expected output
+    // AND circuit output ports reads all readout messages from lower level chip/circuits
+    // Test Message
+    var test_success_message = [
+      'View components can be encapsulated in circuits, which describe the chips (view, model, intent, init, etc.) and the component dataflow.',
+      'The view chip can hold the template and other helper functions, while the `settings` property of the city allows to specify additional parameters at runtime.',
+      'For instance, the DOM element where the view will be anchored can be defined at the circuit level, allowing to reuse the view chip in other contexts.',
+      'In this test case, we use Ractive.js and do not create the view if the template and the anchor DOM element are not specified.'
+    ].join('\n');
+
+    // Test inputs
+    var input_seq = [
+      {'test_circuit_1-|Circuit-IN-City$': 1},
+      {'test_circuit_1-|Circuit-IN-Temp$': 'fahrenheit'}
+    ];
+
+    // Expected port output values
+    var expected_output_seq = [
+      {"degreeType": undefined, "selectedIndex": undefined},
+      {"degreeType": undefined, "selectedIndex": 1},
+      {"degreeType": "fahrenheit", "selectedIndex": undefined}
+    ];
+    var output_transform_fn = function remove_time_stamp_from_readouts(labelled_readout) {
+      return _.mapValues(labelled_readout, function (readout_struct) {
+        return readout_struct.readout;
+      });
+    };
+    var test_result$ = rx_test_with_random_delay({
+      inputS: circuit_simulate_conn,
+      max_delay: max_delay,
+      wait_for_finish_delay: 20,
+      input_seq: input_seq
+    }, {
+      output$: undefined, // output accumulated in array
+      expected_output_seq: expected_output_seq,
+      output_transform_fn: output_transform_fn
+    });
+
+    test_result$.subscribe(function () {
+      var transform_settings_fn = function (settings) {return {append: settings.append}};
+      assert.deepEqual(transformed_output_seq, expected_output_seq, test_success_message);
+      assert.deepEqual(transform_settings_fn(climate_viewer), {"append": undefined},
+        'Circuit/Chip\'s settings are not modified by the settings\' merge');
+      done();
+    });
+
+    // Controller definition
+    var controller = circuits.create_controller(controller_setup);
+    var controller_port_uri = get_port_uri({chip_uri: controller.uri, port_name: IN_port_name});
+    var simulate_conn = controller.test.simulate;
+
+    // Plug-in circuit
+    // NOTE: this is synchronous, so the circuit will be plugged in already at exiting the function call
+    var plug_in_order = {};
+    plug_in_order[controller_port_uri] = {
+      command: COMMAND_PLUG_IN_CIRCUIT,
+      parameters: {circuit: circuit} // no links
+    };
+    simulate_conn.onNext(plug_in_order);
+
+    // Pluging-in the circuit should start the data flow
+  });
+
+  // TODO : add a test that IN simulate connector can only connect to immediately lower-level chip IN ports
+  // TODO : test merger of settings better (both values of SETTINGS_OVERRIDE constant)
+  // TODO : test settings merger in case of three-level circuit hierarchy Circuit -> Circuit -> Chip
+  // TODO : test new IN_connector : one chip (already have the case)
+  // TODO : test new IN_connector : circuit IN -> chip IN -> some transform
+  // TODO : test new IN_connector : circuit IN -> circuit IN -> chip IN -> some transform
+
+  // Dev
+  // TODO : have an clean function at the end of all test which dispose the circuit, so have a dispose method on circuit and chip
 });

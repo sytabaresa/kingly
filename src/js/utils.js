@@ -16,6 +16,23 @@ function require_utils(Rx, _, Err, constants) {
   var TYPE_KEY = constants.TYPE_KEY;
   var JOIN_STR = '-|';
 
+  function get_JSONP(url, success) {
+    //Cf. http://stackoverflow.com/questions/2499567/how-to-make-a-json-call-to-a-url/2499647#2499647
+    var ud = '_' + +new Date,
+      script = document.createElement('script'),
+      head = document.getElementsByTagName('head')[0]
+        || document.documentElement;
+
+    window[ud] = function (data) {
+      head.removeChild(script);
+      success && success(data);
+    };
+
+    script.src = url.replace('callback=?', 'callback=' + ud);
+    head.appendChild(script);
+
+  }
+
   function identity(x, y) {
     return x
   }
@@ -768,6 +785,7 @@ function require_utils(Rx, _, Err, constants) {
   }
 
   return {
+    get_JSONP: get_JSONP,
     identity: identity,
     sum: sum,
     random: random,

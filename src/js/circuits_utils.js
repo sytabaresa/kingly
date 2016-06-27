@@ -11,6 +11,9 @@ define(function (require) {
 function require_circuits_utils(Rx, _, utils, Err, constants) {
   /**
    * This only tests a serie of outputs vs. a serie of inputs linked in a 1-to-1 relationship, i.e. 1 input -> 1 output
+   * Two signatures :
+   * - output$ is an observable : will capture the stream of outputs
+   * - is undefined : nothing. Outputs will be accumulated outside the test utility function, return an observable which just wait for some time to allow that process to finish
    * @param {{input_seq, inputS, max_delay, wait_for_finish_delay}} input_parameters
    * @param {{expected_output_seq, output$, output_transform_fn}} output_parameters
    * @returns {Rx.Observable}
@@ -48,6 +51,7 @@ function require_circuits_utils(Rx, _, utils, Err, constants) {
      * @type Rx.Observable <Boolean>
      */
     return output$
+      ? output$
       .scan(function (test_state, output_value) {
         var test_in_progress = test_state.test_in_progress;
         var index = test_state.index;
@@ -73,6 +77,7 @@ function require_circuits_utils(Rx, _, utils, Err, constants) {
       .do(utils.rxlog('transformed_actual_outputs'))
       .pluck('transformed_actual_outputs')
       .take(1)
+      : Rx.Observable.return({}).delay(max_delay * input_seq.length * 4)
       ;
 
   }
@@ -83,10 +88,6 @@ function require_circuits_utils(Rx, _, utils, Err, constants) {
     return function simulate_input(input_value) {
       inputS.onNext(input_value);
     }
-  }
-
-  function log_transformed_actual_outputs(test_state) {
-    console.info('Transformed actual outputs: ', test_state.transformed_actual_outputs);
   }
 
   function log_test_input(input_value) {
