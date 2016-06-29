@@ -170,16 +170,6 @@ function require_circuits(Rx, _, utils, Err, constants) {
    * @param {Port} port
    * @constructor
    */
-  function IN_Port(port) {
-    this.chip_uri = port.chip_uri;
-    this.port_name = port.port_name;
-  }
-
-  /**
-   *
-   * @param {Port} port
-   * @constructor
-   */
   function OUT_Port(port) {
     this.chip_uri = port.chip_uri;
     this.port_name = port.port_name;
@@ -300,14 +290,14 @@ function require_circuits(Rx, _, utils, Err, constants) {
       var IN_connector_hash = settings.IN_connector_hash;
       var OUT_connector_hash = settings.OUT_connector_hash;
 
-      var OUT_port = get_OUT_port(controller, controller.ports.OUT[0], settings);
+      var OUT_port = get_OUT_port_conn(controller, controller.ports.OUT[0], settings);
       OUT_port.subscribe(controller_subscribe_fn);
     }
 
     return _controller;
   }
 
-  function get_OUT_port(chip, port_name, circuits_state) {
+  function get_OUT_port_conn(chip, port_name, circuits_state) {
     var OUT_connector_hash = circuits_state.OUT_connector_hash;
     return OUT_connector_hash.get(get_port_uri({
       port_name: port_name,
@@ -315,7 +305,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
     }));
   }
 
-  function get_IN_port(chip, port_name, circuits_state) {
+  function get_IN_port_conn(chip, port_name, circuits_state) {
     var IN_connector_hash = circuits_state.IN_connector_hash;
     return IN_connector_hash.get(get_port_uri({
       port_name: port_name,
@@ -336,11 +326,11 @@ function require_circuits(Rx, _, utils, Err, constants) {
   }
 
   function get_readout_port(chip, circuits_state) {
-    return get_OUT_port(chip, READOUT_PORT_NAME, circuits_state);
+    return get_OUT_port_conn(chip, READOUT_PORT_NAME, circuits_state);
   }
 
   function get_simulate_port(chip, circuits_state) {
-    return get_IN_port(chip, SIMULATE_PORT_NAME, circuits_state);
+    return get_IN_port_conn(chip, SIMULATE_PORT_NAME, circuits_state);
   }
 
   function is_port_uri(port_uri) {
@@ -353,6 +343,68 @@ function require_circuits(Rx, _, utils, Err, constants) {
     // NOTE ; the encoding decided is to prefix the actual object passed by a property which is the uri sending the message
     //         So there should only be one such key in this object
     return utils.get_label(message);
+  }
+
+  /**
+   *
+   * @param ports
+   * @param chip
+   * @param circuits_state
+   * Side-effects : modify `circuits_state`
+   */
+  function register_IN_ports(ports, chip, /*-OUT-*/circuits_state) {
+    var IN_connector_hash = circuits_state.IN_connector_hash;
+    ports.IN.forEach(function create_IN_connectors(port_name) {
+      var port_uri = get_port_uri({chip_uri: chip.uri, port_name: port_name});
+      var connector = get_default_IN_conn(port_uri);
+      if (get_IN_port_conn(chip, port_name, circuits_state)) throw Err.Circuit_Error({
+        message: 'There already exists a port with the same identifier!',
+        extended_info: {where: 'register_IN_ports', port_uri: port_uri, IN_connector_hash: IN_connector_hash}
+      });
+      register_IN_conn(chip, port_name, connector, circuits_state);
+    });
+  }
+
+  // TODO : register_OUT_ports
+
+  function register_IN_conn(chip, port_name, connector, /*-OUT-*/circuits_state) {
+    var IN_connector_hash = circuits_state.IN_connector_hash;
+    IN_connector_hash.set(get_port_uri({chip_uri: chip.uri, port_name: port_name}), connector);
+  }
+
+  function register_OUT_conn(chip, port_name, connector, /*-OUT-*/circuits_state) {
+    var OUT_connector_hash = circuits_state.OUT_connector_hash;
+    OUT_connector_hash.set(get_port_uri({chip_uri: chip.uri, port_name: port_name}), connector);
+  }
+
+  function register_readout_conn(chip, connector, /*-OUT-*/circuits_state) {
+    register_OUT_conn(chip, READOUT_PORT_NAME, connector, circuits_state);
+  }
+
+  function register_simulate_conn(chip, connector, /*-OUT-*/circuits_state) {
+    register_IN_conn(chip, SIMULATE_PORT_NAME, connector, circuits_state);
+  }
+
+  /**
+   *
+   * @param {Ports_Map} ports_map
+   * @param circuit
+   * @param circuits_state
+   * Side-effects : modifies `circuits_state`
+   * @throws : if uri is not unique (exists already)
+   */
+  function register_circuit_IN_ports(ports_map, circuit, /*-OUT-*/circuits_state) {
+    var IN_connector_hash = circuits_state.IN_connector_hash;
+    var uri = circuit.uri;
+    _.forEach(ports_map.IN, function create_IN_connectors(__, port_name) {
+      var port_uri = get_port_uri({chip_uri: uri, port_name: port_name});
+      var connector = get_default_IN_conn(port_uri);
+      if (IN_connector_hash.has(port_uri)) throw Err.Circuit_Error({
+        message: 'There already exists a port with the same identifier!',
+        extended_info: {where: 'register_circuit_IN_ports', port_uri: port_uri, IN_connector_hash: IN_connector_hash}
+      });
+      register_IN_conn(circuit, port_name, connector, circuits_state);
+    });
   }
 
   /**
@@ -519,49 +571,6 @@ function require_circuits(Rx, _, utils, Err, constants) {
 
   /**
    *
-   * @param ports
-   * @param circuits_state
-   * @param uri
-   * Side-effects : modify `circuits_state`
-   */
-  function register_IN_ports(ports, uri, /*-OUT-*/circuits_state) {
-    var IN_connector_hash = circuits_state.IN_connector_hash;
-    ports.IN.forEach(function create_IN_connectors(port_name) {
-      var port = new IN_Port({chip_uri: uri, port_name: port_name});
-      var port_uri = get_port_uri(port);
-      var connector = get_default_IN_conn(port_uri);
-      if (IN_connector_hash.get(port_uri)) throw Err.Circuit_Error({
-        message: 'There already exists a port with the same identifier!',
-        extended_info: {where: 'register_IN_ports', port_uri: port_uri, IN_connector_hash: IN_connector_hash}
-      });
-      IN_connector_hash.set(port_uri, connector);
-    });
-  }
-
-  /**
-   *
-   * @param {Ports_Map} ports_map
-   * @param {URI} uri
-   * @param circuits_state
-   * Side-effects : modifies `circuits_state`
-   * @throws : if uri is not unique (exists already)
-   */
-  function register_circuit_IN_ports(ports_map, uri, /*-OUT-*/circuits_state) {
-    var IN_connector_hash = circuits_state.IN_connector_hash;
-    _.forEach(ports_map.IN, function create_IN_connectors(__, port_name) {
-      var port = new IN_Port({chip_uri: uri, port_name: port_name});
-      var port_uri = get_port_uri(port);
-      var connector = get_default_IN_conn(port_uri);
-      if (IN_connector_hash.get(port_uri)) throw Err.Circuit_Error({
-        message: 'There already exists a port with the same identifier!',
-        extended_info: {where: 'register_circuit_IN_ports', port_uri: port_uri, IN_connector_hash: IN_connector_hash}
-      });
-      IN_connector_hash.set(port_uri, connector);
-    });
-  }
-
-  /**
-   *
    * @param {Ports_Map} circuit_ports_map
    * @param circuits_state
    * @param circuit_uri
@@ -571,7 +580,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
     circuit_ports_map = circuit_ports_map || {};
     var IN_connector_hash = circuits_state.IN_connector_hash;
     _.forEach(circuit_ports_map.IN || {}, function connect_mapped_circuit_IN_ports(target_IN_port, circuit_IN_port_name) {
-      var circuit_IN_connector = get_IN_port(circuit, circuit_IN_port_name, circuits_state);
+      var circuit_IN_connector = get_IN_port_conn(circuit, circuit_IN_port_name, circuits_state);
       var mapped_IN_connector = IN_connector_hash.get(get_port_uri(target_IN_port));
       circuit_IN_connector.subscribe(mapped_IN_connector);
     });
@@ -670,8 +679,6 @@ function require_circuits(Rx, _, utils, Err, constants) {
   }
 
   function plug_in_chip(chip, /*-OUT-*/circuits_state, parent_settings) {
-    var IN_connector_hash = circuits_state.IN_connector_hash;
-    var OUT_connector_hash = circuits_state.OUT_connector_hash;
     var uri = chip.uri;
     var chip_ports = chip.ports;
     var chip_settings = chip.settings;
@@ -682,7 +689,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
 
     // Case chip : (`chips` is undefined)
     // 1. Create and register IN_ports connectors
-    register_IN_ports(chip_ports, uri, circuits_state);
+    register_IN_ports(chip_ports, chip, circuits_state);
 
     // 2. Register simulate connector
     // If there is no simulate connector, we create one.
@@ -695,18 +702,16 @@ function require_circuits(Rx, _, utils, Err, constants) {
     // - the simulate connector is used by construction once all lower-level circuits are plugged
     // - there should only ever be one user/caller of a simulate connector (i.e. no concurrent simulations)
     simulate_conn = simulate_conn ? simulate_conn : get_default_simulate_conn();
-    //    chip.test.simulate = simulate_conn; // need to put it in the object // TODO : remove all the modification on chip and circuit
-    IN_connector_hash.set(get_port_uri({chip_uri: uri, port_name: SIMULATE_PORT_NAME}), simulate_conn);
+    register_simulate_conn(chip, simulate_conn, circuits_state);
 
     // 3. Add simulate functionality
     // This means passing simulate connector's input to each port, after filtering out input destined to other ports
     // NOTE : SIMULATE connectors do not send error notification if one sends messages relevant to no ports
     // NOTE : this is shared as the transform function could subscribe several times to the IN ports
     var merged_connectors = chip_ports.IN.map(function create_merged_connectors(port_name) {
-      var port = new IN_Port({chip_uri: uri, port_name: port_name});
-      var port_uri = get_port_uri(port);
+      var port_uri = get_port_uri({chip_uri: uri, port_name: port_name});
       return Rx.Observable.merge(
-        IN_connector_hash.get(port_uri)
+        get_IN_port_conn(chip, port_name, circuits_state)
           .do(utils.rxlog('IN connector hash ' + port_uri)),
         simulate_conn
           .do(utils.rxlog('pre-filter simulated inputs sent to : ' + port_uri))
@@ -723,12 +728,12 @@ function require_circuits(Rx, _, utils, Err, constants) {
 
     var merged_settings = merge_settings(parent_settings, chip_settings);
     merged_connectors.push(merged_settings);
-    var output = chip_transform.apply(null, merged_connectors); // TODO : add error management for when transform function returns error
+    // TODO : add error management for when transform function returns error
+    var output = chip_transform.apply(null, merged_connectors);
 
     // Create and register readout connectors
     readout_conn = readout_conn ? readout_conn : get_default_readout_conn();
-    //    chip.test.readout = readout_conn; // need to put it in the object
-    OUT_connector_hash.set(get_port_uri({chip_uri: uri, port_name: READOUT_PORT_NAME}), readout_conn);
+    register_readout_conn(chip, readout_conn, circuits_state);
 
     // 5. Create and register OUT_ports
     // If there is no readout connector, we create one.
@@ -756,7 +761,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
       // OUT connector must be shared as it can have several IN ports subscribing to it
       // share is AFTER the readout side-effect, not to repeat it several times
       var OUT_port$ = connector.do(tap(readout_conn, port)).share();
-      OUT_connector_hash.set(get_port_uri(port), OUT_port$);
+      register_OUT_conn(chip, port_name, OUT_port$, circuits_state);
     });
   }
 
@@ -785,7 +790,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
     // Note : this has to be done after pluging-in the lower-level chips/circuits so their connectors are already created
     // and can be referred to.
     // 2a. IN_ports
-    register_circuit_IN_ports(circuit_ports_map, uri, circuits_state);
+    register_circuit_IN_ports(circuit_ports_map, circuit, circuits_state);
     connect_mapped_circuit_IN_ports(circuit_ports_map, circuit, circuits_state);
 
     // 5. Connect and register readout connector
