@@ -16,10 +16,11 @@ function require_circuits_utils(Rx, _, utils, Err, constants) {
    * - is undefined : nothing. Outputs will be accumulated outside the test utility function, return an observable which just wait for some time to allow that process to finish
    * @param {{input_seq, inputS, max_delay, wait_for_finish_delay}} input_parameters
    * @param {{expected_output_seq, output$, output_transform_fn}} output_parameters
+   * @param {String} [test_identifier]
    * @returns {Rx.Observable}
    */
   // TODO : adjust API to gather input params in one object, and output params in another one
-  function rx_test_with_random_delay(input_parameters, output_parameters) {
+  function rx_test_with_random_delay(input_parameters, output_parameters, test_identifier) {
     var input_seq = input_parameters.input_seq;
     var max_delay = input_parameters.max_delay;
     var wait_for_finish_delay = input_parameters.wait_for_finish_delay || 50;
@@ -39,8 +40,9 @@ function require_circuits_utils(Rx, _, utils, Err, constants) {
     };
 
     // Send the input sequence on the input connector with random time spacing (behaviour should be independent)
+    // Hence no input value will be emitted in this tick, which allows the rest of the code on the same tick to wire other observables.
     var input$ = Rx.Observable.from(input_seq)
-      .delay(utils.random(0, max_delay))
+      .delay(utils.random(1, max_delay))
       .do(simulate_input(inputS))
       .share();
     input$.subscribe(log_test_input);
@@ -55,12 +57,14 @@ function require_circuits_utils(Rx, _, utils, Err, constants) {
       .scan(function (test_state, output_value) {
         var test_in_progress = test_state.test_in_progress;
         var index = test_state.index;
+        var test_id = test_identifier;
 
         var transformed_actual_outputs = test_state.transformed_actual_outputs;
         var transformed_actual_output = output_transform_fn(output_value);
         transformed_actual_outputs.push(transformed_actual_output);
 
         // test_in_progress = test_in_progress && test_success; // Only if we would want to stop immediately when failed
+        // TODO : remove the test in progress, it is not used anymore
         index++;
         if (index >= stop_index) {
           test_in_progress = false;
