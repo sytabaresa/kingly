@@ -556,7 +556,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
    *
    * @param {Ports_Map} circuit_ports_map
    * @param circuits_state
-   * @param circuit_uri
+   * @param circuit
    * Side-effects : subscribes exposed circuit IN connectors to mapped inner chip/circuits IN connector
    */
   function connect_mapped_circuit_IN_ports(circuit_ports_map, circuit, circuits_state) {
