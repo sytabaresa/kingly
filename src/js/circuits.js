@@ -462,21 +462,6 @@ function require_circuits(Rx, _, utils, Err, constants) {
         }
       });
 
-      /*
-       // 4. ... mapping which corresponds to a circuit's existing IN port (any circuit at any level)
-       var translated_IN_port_uri = get_port_uri(translated_IN_port);
-       if (!IN_connector_hash.has(translated_IN_port_uri)) throw Err.Circuit_Error({
-       message: 'Circuit port mapping for port-labelled message does not correspond to a registered port!',
-       extended_info: {
-       where: 'translate_circuit_IN_port_uri',
-       port_labelled_message: port_labelled_message,
-       IN_port_uri: IN_port_uri,
-       translated_IN_port_uri : translated_IN_port_uri,
-       IN_connector_hash: IN_connector_hash
-       }
-       });
-       */
-
       // 4. ... mapping which corresponds to a circuit's lower-level chip/circuit's existing IN port
       function get_port_uris(chip_or_circuit) {
         return function get_port_uris(IN_port_name) {
@@ -486,16 +471,14 @@ function require_circuits(Rx, _, utils, Err, constants) {
 
       var translated_IN_port_uri = get_port_uri(translated_IN_port);
       var chips_port_uris = circuit.chips.map(function to_port_names(chip_or_circuit) {
-        if (chip_or_circuit.chips) {
+        return chip_or_circuit.chips
           // Case Circuit
-          return utils.get_keys(chip_or_circuit.ports_map.IN).map(get_port_uris(chip_or_circuit));
-        }
-        else {
+          ? utils.get_keys(chip_or_circuit.ports_map.IN).map(get_port_uris(chip_or_circuit))
           // Case Chip
-          return utils.get_values(chip_or_circuit.ports.IN).map(get_port_uris(chip_or_circuit));
-        }
+          : utils.get_values(chip_or_circuit.ports.IN).map(get_port_uris(chip_or_circuit));
       });
       var flattened_chips_port_names = [].concat.apply([], chips_port_uris);
+
       if (flattened_chips_port_names.indexOf(translated_IN_port_uri) === -1) throw Err.Circuit_Error({
         message: 'Circuit port mapping for port-labelled message does not correspond to a registered port in lower-level circuit/chips!',
         extended_info: {
