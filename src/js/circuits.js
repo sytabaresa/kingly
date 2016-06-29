@@ -572,11 +572,12 @@ function require_circuits(Rx, _, utils, Err, constants) {
   /**
    *
    * @param {Ports_Map} ports_map
-   * @param circuit_uri
+   * @param circuit
    * @param circuits_state
    */
-  function connect_mapped_circuit_OUT_ports(ports_map, circuit_uri, /*-OUT-*/circuits_state) {
+  function connect_mapped_circuit_OUT_ports(ports_map, circuit, /*-OUT-*/circuits_state) {
     var OUT_connector_hash = circuits_state.OUT_connector_hash;
+    var circuit_uri = circuit.uri;
     var circuit_readout_conn = OUT_connector_hash.get(get_port_uri({
       chip_uri: circuit_uri,
       port_name: READOUT_PORT_NAME
@@ -795,7 +796,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
     // only at actual subscription time (i.e. when linking).
     // Not doing so could lead to loose the homogeneous behaviour between chip and circuits and
     // give rise to some difficult to debug situations.
-    connect_mapped_circuit_OUT_ports(circuit_ports_map, uri, /*-OUT-*/circuits_state);
+    connect_mapped_circuit_OUT_ports(circuit_ports_map, circuit, /*-OUT-*/circuits_state);
 
     // TODO : I need a share which reconnects when resubscribed, or who does not refCount, so it is kept alive for later connections
 
