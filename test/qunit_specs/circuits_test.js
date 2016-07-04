@@ -883,20 +883,14 @@ define(function (require) {
     var expected_output_seq = [
       {"test_chip_serie_1-|Intent-OUT$": "-A- -> Intent-OUT"},
       {"test_chip_serie_2-|PGI-OUT$": "-A- -> Intent-OUT -> PGI-OUT"},
-      {"test_circuit_1-|Circuit1-OUT$": "-A- -> Intent-OUT -> PGI-OUT -> State-OUT -> View-OUT"},
       {"test_chip_serie_2-|State-OUT$": "-A- -> Intent-OUT -> PGI-OUT -> State-OUT"},
-      {"test_circuit_1-|Circuit1-OUT$": "-A- -> Intent-OUT -> Effect-Req-OUT -> State-OUT -> View-OUT"},
       {"test_chip_serie_2-|Effect-Req-OUT$": "-A- -> Intent-OUT -> Effect-Req-OUT"},
-      {"test_circuit_1-|Circuit1-OUT$": "-A- -> Intent-OUT -> State-OUT -> View-OUT"},
       {"test_chip_serie_2-|State-OUT$": "-A- -> Intent-OUT -> Effect-Req-OUT -> State-OUT"},
       {"test_chip_serie_2-|State-OUT$": "-A- -> Intent-OUT -> State-OUT"},
       {"test_chip_serie_1-|Intent-OUT$": "-B- -> Intent-OUT"},
       {"test_chip_serie_2-|PGI-OUT$": "-B- -> Intent-OUT -> PGI-OUT"},
-      {"test_circuit_1-|Circuit1-OUT$": "-B- -> Intent-OUT -> PGI-OUT -> State-OUT -> View-OUT"},
       {"test_chip_serie_2-|State-OUT$": "-B- -> Intent-OUT -> PGI-OUT -> State-OUT"},
-      {"test_circuit_1-|Circuit1-OUT$": "-B- -> Intent-OUT -> Effect-Req-OUT -> State-OUT -> View-OUT"},
       {"test_chip_serie_2-|Effect-Req-OUT$": "-B- -> Intent-OUT -> Effect-Req-OUT"},
-      {"test_circuit_1-|Circuit1-OUT$": "-B- -> Intent-OUT -> State-OUT -> View-OUT"},
       {"test_chip_serie_2-|State-OUT$": "-B- -> Intent-OUT -> Effect-Req-OUT -> State-OUT"},
       {"test_chip_serie_2-|State-OUT$": "-B- -> Intent-OUT -> State-OUT"}
     ];
@@ -1114,7 +1108,10 @@ define(function (require) {
   // Next
   // TODO : write the delete chip
   // TODO : write the delete circuit
+  // TODO : add the plug-in circuit within a circuit context (to raccord the simulate and readout connectors)
   // TODO : write the TODO List example with : - one array of todos    - todo as a component, and todo list as circuit (higher order function possible?)
   // TODO : write the documentation
   // TODO : think about communication strategy for cyclejs - send to Nathan first for review, then to Jeremy -> finish for Thursday...
 });
+
+

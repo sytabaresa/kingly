@@ -2,6 +2,8 @@ define(function (require) {
   return {
     TYPE_KEY: '__type',
     WRAP_CHAR: '-',
+    JOIN_STR : '-|',
+    ARROW_JOIN_STR : '->',
     EXPECTING_INTENT: 'intent',
     EXPECTING_ACTION_RESULT: 'expecting_action_result',
     EV_INTENT: '<intent>',

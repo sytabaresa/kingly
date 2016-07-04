@@ -14,7 +14,7 @@ function require_utils(Rx, _, Err, constants) {
   var WRAP_CHAR = constants.WRAP_CHAR;
   var MAX_DEPTH = 100; // for object traversal
   var TYPE_KEY = constants.TYPE_KEY;
-  var JOIN_STR = '-|';
+  var DEFAULT_JOIN_STR = constants.JOIN_STR;
 
   function get_JSONP(url, success) {
     //Cf. http://stackoverflow.com/questions/2499567/how-to-make-a-json-call-to-a-url/2499647#2499647
@@ -164,13 +164,13 @@ function require_utils(Rx, _, Err, constants) {
   function noop() {
   }
 
-  function join(a, b) {
-    return [a, b].join(JOIN_STR);
+  function join(a, b, str) {
+    return [a, b].join(str || DEFAULT_JOIN_STR);
   }
 
   function disjoin(ab) {
     var splitted = [];
-    if (is_string(ab)) splitted = ab.split(JOIN_STR);
+    if (is_string(ab)) splitted = ab.split(DEFAULT_JOIN_STR);
     var a = splitted[0];
     var b = splitted[1];
     return {chip_uri: a, port_name: b}
