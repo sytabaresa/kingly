@@ -260,10 +260,31 @@ function require_circuits(Rx, _, utils, Err, constants) {
 
   function set_simulate_conn(/*-OUT-*/simulate_conn, uri) {
     simulate_conn.uri = uri;
-    return simulate_conn
+    return simulate_conn;
   }
 
-  function get_default_readout_conn() {return new Rx.ReplaySubject(1);}
+  function set_readout_conn(/*-OUT-*/readout_conn, uri) {
+    readout_conn.uri = uri;
+    return readout_conn;
+  }
+
+  function get_default_readout_conn(uri) {
+    var s = new Rx.ReplaySubject(1);
+    s.uri = uri;
+    return s;
+  }
+
+  function get_active_simulate_conn(simulate_conn, uri) {
+    return is_simulate_connector_active(simulate_conn)
+      ? set_simulate_conn(simulate_conn, uri)
+      : get_default_simulate_conn(uri);
+  }
+
+  function get_active_readout_conn(readout_conn, uri) {
+    return is_readout_connector_active(readout_conn)
+      ? set_readout_conn(readout_conn, uri)
+      : get_default_readout_conn(uri);
+  }
 
   function controller_transform(order$, settings) {
     var circuits_initial_state = settings;
@@ -307,7 +328,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
     IN_connector_hash = _controller.settings.IN_connector_hash;
     OUT_connector_hash = _controller.settings.OUT_connector_hash;
     disposable_hash = _controller.settings.disposable_hash;
-    is_plugged = controller.settings.is_plugged;
+    is_plugged = _controller.settings.is_plugged;
 
     plug_in(_controller, _controller.settings, {});
     start(controller, _controller.settings);
@@ -397,16 +418,39 @@ function require_circuits(Rx, _, utils, Err, constants) {
     return get_chip_or_circuit_OUT_port_uris(chip_or_circuit).indexOf(get_port_uri(OUT_port)) > -1
   }
 
+  function is_registered_IN_port (IN_connector_hash, IN_port){
+    return IN_connector_hash.has(get_port_uri(IN_port));
+  }
+  function is_registered_OUT_port (OUT_connector_hash, OUT_port){
+    return OUT_connector_hash.has(get_port_uri(OUT_port));
+  }
+
   function is_chip(circuit_or_chip) {
     return !circuit_or_chip.chips;
   }
 
   function is_simulate_connector_active(simulate_connector) {
-    return !(simulate_connector.isStopped || simulate_connector.isDisposed);
+    return simulate_connector && !(simulate_connector.isStopped || simulate_connector.isDisposed);
   }
 
-  function assert_links_contract(circuit, links) {
+  function is_readout_connector_active(readout_connector) {
+    return readout_connector && !(readout_connector.isStopped || readout_connector.isDisposed);
+  }
+
+  function assert_links_contract(circuits_state, circuit, links) {
+    // 0. links can be empty or undefined
+    // 1. links is an array of Link
+    // 2. NO : link MUST be existing in the connector register -> Some links could be created after the execution of this function
+    // 3. At least one end of link MUST correspond to an end of the circuit
+    //    i.e. the link must connect to, or from the circuit
+
+    // 0.
     if (utils.is_undefined(links)) return;
+    // 1.a.
+    if (!utils.is_array(links)) throw 'assert_links_contract : links must be an array!'
+    // 3.
+    // var IN_connector_hash = circuits_state.IN_connector_hash;
+    // var OUT_connector_hash = circuits_state.OUT_connector_hash;
     var fulfilled = links.every(function (link) {
       var IN_port = link.IN_port;
       var OUT_port = link.OUT_port;
@@ -441,12 +485,11 @@ function require_circuits(Rx, _, utils, Err, constants) {
     });
 
     var links = order_parameters.links;
-    assert_links_contract(circuit, links);
+    assert_links_contract(circuits_state, circuit, links);
 
     var is_plugged = circuits_state.is_plugged;
     // Specific contracts for plug command
     // 0. check that the circuit to plug is not active
-    // 1. Check that simulate connector is active
     if (order_command === COMMAND_PLUG_IN_CIRCUIT) {
       // 0.
       if (is_plugged.get(circuit.uri)) throw Err.Circuit_Error({
@@ -457,18 +500,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
           circuit: circuit
         }
       })
-      // 1.
-      var simulate_connector = circuit.test.simulate;
-      if (!is_simulate_connector_active(simulate_connector)) throw Err.Circuit_Error({
-        message: 'Plug-in order refers to a circuit with a simulate connector which is not active (stopped or disposed)!',
-        extended_info: {
-          where: 'connect_mapped_circuit_OUT_ports',
-          circuit: circuit,
-          simulate_connector: simulate_connector
-        }
-      })
     }
-
     // Specific contract for unplug command
     // 0. Check that the circuit to unplug is plugged
     if (order_command === COMMAND_UNPLUG_CIRCUIT) {
@@ -963,13 +995,13 @@ function require_circuits(Rx, _, utils, Err, constants) {
     // that upper-level simulate connector can connect to the lower-level connector to send data
     // This done recursively in every level ensures an ininterrupted connector chain ending at the chip level.
     // Hence, the simulate connector at the chip level can forward data down to any other level.
-    // The default connector is an Rx.Subject.
+    // The default connector is an Rx.Subject extended with a uri field for traceability purposes.
     // We should not need a replay functionality here as :
     // - the simulate connector is used by construction once all lower-level circuits are plugged
     // - there should only ever be one user/caller of a simulate connector (i.e. no concurrent simulations)
-    simulate_conn = simulate_conn ? set_simulate_conn(simulate_conn, chip.uri) : get_default_simulate_conn(chip.uri);
+    // Note : if the `simulate` property is not defined, or the connector passed is inactive, we create a new one
+    simulate_conn = get_active_simulate_conn(simulate_conn, chip.uri);
     register_simulate_conn(chip, simulate_conn, circuits_state);
-
 
     // 3. Add simulate functionality
     // This means passing simulate connector's input to each port, after filtering out input destined to other ports
@@ -1003,7 +1035,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
     var output = chip_transform.apply(null, merged_connectors);
 
     // Create and register readout connectors
-    readout_conn = readout_conn ? readout_conn : get_default_readout_conn();
+    readout_conn = get_active_readout_conn(readout_conn, uri);
     register_readout_conn(chip, readout_conn, circuits_state);
 
     // 5. Create and register OUT_ports
@@ -1070,7 +1102,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
     // 5. Connect and register readout connector
     //   If !circuit.test.readout, create one default (Rx.ReplaySubject(1)) and set it up on the object
     //   Connect ALL children chips readout connectors to circuit's READOUT connector
-    var circuit_readout_conn = readout_conn ? readout_conn : get_default_readout_conn();
+    var circuit_readout_conn = get_active_readout_conn(readout_conn, circuit.uri);
     var circuit_readout_port_uri = get_port_uri({chip_uri: uri, port_name: READOUT_PORT_NAME});
 
     OUT_connector_hash.set(circuit_readout_port_uri, circuit_readout_conn);
@@ -1108,10 +1140,9 @@ function require_circuits(Rx, _, utils, Err, constants) {
     //     it will be possible to simulate the intents from the circuit's simulate connector, even as there is no exposed
     //     port to the intent source chip.
     //   NOTE : this works because all ports are filtering by port_uri, so no risk of pollution
-    var circuit_simulate_conn = simulate_conn
-      ? set_simulate_conn(simulate_conn, circuit.uri)
-      : get_default_simulate_conn(circuit.uri);
+    var circuit_simulate_conn = get_active_simulate_conn(simulate_conn, circuit.uri);
     var circuit_simulate_port_uri = get_port_uri({chip_uri: uri, port_name: SIMULATE_PORT_NAME});
+
     // NOTE : It is not really necessary to register also the simulate connectors,
     // unless we want to access them from out-of-scope parts of the programs OR we change the API and choose not
     // to reference the chip object directly (as in chip.test.simulate), but instead its uri

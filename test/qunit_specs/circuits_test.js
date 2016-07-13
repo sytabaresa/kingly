@@ -115,7 +115,7 @@ define(function (require) {
     console.error('catch_error_test_results', e);
   }
 
-  QUnit.skip("Controller - Plug-in command", function test_controller(assert) {
+  QUnit.test("Controller - Plug-in command", function test_controller(assert) {
     var done = assert.async(1);
 
     var controller = circuits.create_controller(controller_setup);
@@ -219,7 +219,7 @@ define(function (require) {
 
   });
 
-  QUnit.skip("Chip - transform", function test_chip_transform(assert) {
+  QUnit.test("Chip - transform", function test_chip_transform(assert) {
     var done = assert.async(2);
     var get_port_uri = circuits.get_port_uri;
 
@@ -332,7 +332,7 @@ define(function (require) {
 
   });
 
-  QUnit.skip("Circuit - links (incl. ordering) - no ports, no port mappings", function test_circuit_links(assert) {
+  QUnit.test("Circuit - links (incl. ordering) - no ports, no port mappings", function test_circuit_links(assert) {
     var done = assert.async(1);
     var order_chip_plugin_check = [];
     var order_subscription_check = false;
@@ -439,7 +439,7 @@ define(function (require) {
     // Pluging-in the circuit should start the data flow
   });
 
-  QUnit.skip("Circuit - links - ports and port mappings - one circuit connector IN and OUT", function test_circuit_links(assert) {
+  QUnit.test("Circuit - links - ports and port mappings - one circuit connector IN and OUT", function test_circuit_links(assert) {
     var done = assert.async(2);
 
     // Chip definition
@@ -623,7 +623,7 @@ define(function (require) {
     }
   });
 
-  QUnit.skip("Circuit - links - ports and port mappings - one circuit connector IN and 2 OUT", function test_circuit_links(assert) {
+  QUnit.test("Circuit - links - ports and port mappings - one circuit connector IN and 2 OUT", function test_circuit_links(assert) {
     var done = assert.async(2);
 
     // Chip definition
@@ -812,7 +812,7 @@ define(function (require) {
     }
   });
 
-  QUnit.skip("Circuit - links - including cycles", function test_circuit_links(assert) {
+  QUnit.test("Circuit - links - including cycles", function test_circuit_links(assert) {
     var done = assert.async(1);
 
     // Chip definition
@@ -951,7 +951,7 @@ define(function (require) {
     // Pluging-in the circuit should start the data flow
   });
 
-  QUnit.skip("Circuit - example of component", function test_component(assert) {
+  QUnit.test("Circuit - example of component", function test_component(assert) {
     var done = assert.async(1);
     var transformed_output_seq = [];
     var transform_fn = function (data) {
@@ -1131,7 +1131,7 @@ define(function (require) {
   // TODO : write the documentation
   // TODO : think about communication strategy for cyclejs - send to Nathan first for review, then to Jeremy -> finish for Thursday...
 
-  QUnit.skip("Controller - Unplug command", function test_controller(assert) {
+  QUnit.test("Controller - Unplug command", function test_controller(assert) {
     var done = assert.async(1);
 
     var controller = circuits.create_controller(controller_setup);
@@ -1257,7 +1257,7 @@ define(function (require) {
 
   });
 
-  QUnit.skip("Unplug circuit - links - ports and port mappings - one circuit connector IN and OUT", function test_circuit_links(assert) {
+  QUnit.test("Unplug circuit - links - ports and port mappings - one circuit connector IN and OUT", function test_circuit_links(assert) {
     var done = assert.async(2);
 
     // Chip definition
@@ -1413,8 +1413,8 @@ define(function (require) {
     // 7. Send one input to circuit IN port -> Test output
     // Parameters :
     // - Chip S
-    // - Circuit : S---A---A1---B---D1-*---
-    //                   |-A2---C---D2-x
+    // - Circuit : --S---A---A1---B---D1-*---R--
+    //                     |-A2---C---D2-x
     // - Controoler orders
     //   + S
     //   + {C, S -> C}
@@ -1425,7 +1425,7 @@ define(function (require) {
     // - Transform : add -> `Chip letter`
     //   + (*) : merge of D1 and D2
     //   + (x) : OUT port not subscribed to
-    var done = assert.async(2);
+    var done = assert.async(1);
 
     // Chip definition
     // Chip S simulate connector to feed in test sequences
@@ -1436,6 +1436,12 @@ define(function (require) {
         'S1-OUT$': s_in$.do(rxlog('S1-OUT$:')).map(function (x) {return [x, '->', 'S1-OUT'].join(' ');}),
       }
     }, {}, chip_S_simulate_conn);
+    var chip_R = make_test_chip(4, ['R-IN$'], ['R-OUT$'], function chip_transform(r_in$, settings) {
+      console.log('settings', settings);
+      return {
+        'R-OUT$': r_in$.do(rxlog('R-OUT$:')).map(function (x) {return [x, '->', 'R-OUT'].join(' ');}),
+      }
+    });
     var chip_A = make_test_chip(0, ['A-IN$'], ['A1-OUT$', 'A2-OUT$'], function chip_transform(a_in$, settings) {
       console.log('settings', settings);
       return {
@@ -1501,7 +1507,14 @@ define(function (require) {
     // AND circuit output ports reads all readout messages from lower level chip/circuits
     // Test Message
     var test_success_message = [
-      'TODO',
+      'Only circuits/chips which have been plugged can be unplugged.',
+      'Only circuits/chips which have been never plugged or have been unplugged can be plugged.',
+      'This means that if a circuit is plugged, inner chip/circuits cannot be unplugged. The circuit hence operates as a encapsulating unit shielding away its internal details.',
+      'When a circuit is unplugged, its IN port connectors are completed and disposed.',
+      'As a result, the OUT port connectors should also be completed but that will depend on a good implementation of the chip/circuit\'s `transform`.',
+      'However, that possible completion will not result in completion of downstream chips/circuits.',
+      'Hence the circuit can be replugged to the same connectors at any point of time.',
+      'The `dispose` function of the chip/circuit is called on disposal.'
     ].join('\n');
 
     // Test inputs
@@ -1510,7 +1523,12 @@ define(function (require) {
       {'test_chip_serie_0-|S-IN$': 1},
       {'test_chip_serie_0-|S-IN$': 2}
     ];
-    var expected_output_seq = [];
+    var expected_output_seq = [
+      "0 -> S1-OUT -> A1-OUT -> B-OUT -> D1-OUT -> R-OUT",
+      "0 -> S1-OUT -> A2-OUT -> C-OUT -> D1-OUT -> R-OUT",
+      "2 -> S1-OUT -> A1-OUT -> B-OUT -> D1-OUT -> R-OUT",
+      "2 -> S1-OUT -> A2-OUT -> C-OUT -> D1-OUT -> R-OUT"
+    ];
 
     // Controller definition
     var controller = circuits.create_controller(make_controller_setup(test_results_OUT_port));
@@ -1530,20 +1548,35 @@ define(function (require) {
         }]
       }
     };
+    var plug_in_chip_R_order = {};
+    plug_in_chip_R_order[controller_port_uri] = {
+      command: COMMAND_PLUG_IN_CIRCUIT,
+      parameters: {circuit: chip_R}
+    };
     var plug_in_order_circuit = {};
     plug_in_order_circuit[controller_port_uri] = {
       command: COMMAND_PLUG_IN_CIRCUIT,
-      parameters: {circuit: circuit}
+      parameters: {
+        circuit: circuit, links: [{
+          IN_port: {chip_uri: chip_R.uri, port_name: 'R-IN$'},
+          OUT_port: {chip_uri: circuit.uri, port_name: 'Circuit-OUT$'},
+        }]
+      }
     };
-    var plug_in_order_circuit_with_links= {};
+    var plug_in_order_circuit_with_links = {};
     plug_in_order_circuit_with_links[controller_port_uri] = {
       command: COMMAND_PLUG_IN_CIRCUIT,
-      parameters: {circuit: circuit, links: [{
-        IN_port: {chip_uri: circuit.uri, port_name: 'Circuit-IN$'},
-        OUT_port: {chip_uri: chip_S.uri, port_name: 'S1-OUT$'}
-      }]}
+      parameters: {
+        circuit: circuit, links: [{
+          IN_port: {chip_uri: circuit.uri, port_name: 'Circuit-IN$'},
+          OUT_port: {chip_uri: chip_S.uri, port_name: 'S1-OUT$'}
+        }, {
+          IN_port: {chip_uri: chip_R.uri, port_name: 'R-IN$'},
+          OUT_port: {chip_uri: circuit.uri, port_name: 'Circuit-OUT$'}
+        }
+        ]
+      }
     };
-    // TODO : refactor so that simulate and readout are not part of chip -> actually if simulate is not there or inactive, create another one
     var plug_in_order_chip_B = {};
     plug_in_order_chip_B[controller_port_uri] = {
       command: COMMAND_PLUG_IN_CIRCUIT,
@@ -1555,7 +1588,7 @@ define(function (require) {
       parameters: {circuit: circuit} // no links
     };
 
-    controller_simulate_conn.onNext(plug_in_order_circuit);
+    controller_simulate_conn.onNext(plug_in_chip_R_order);
 
     function analyze_test_results(actual_output_seq) {
       assert.deepEqual(actual_output_seq, expected_output_seq, test_success_message);
@@ -1567,13 +1600,13 @@ define(function (require) {
       if (been_there) return;
       been_there = true;
       var input_seq = [
+        {to: 'controller', input: plug_in_order_circuit},
         {to: 'controller', input: plug_in_chip_S_order},
-        //        {to: 'controller', input: plug_in_order_circuit},
         {to: 'chip_S', input: circuit_input_seq[0]},
         {to: 'controller', input: unplug_order_circuit},
         {to: 'chip_S', input: circuit_input_seq[1]},
         {to: 'controller', input: plug_in_order_circuit_with_links},
-        //        {to: 'chip_S', input: circuit_input_seq[2]},
+        {to: 'chip_S', input: circuit_input_seq[2]},
       ];
 
       // Expected port output values
@@ -1590,7 +1623,7 @@ define(function (require) {
         wait_for_finish_delay: 20,
         input_seq: input_seq
       }, {
-        output$: OUT_connector_hash.get(get_port_uri({chip_uri: circuit.uri, port_name: 'Circuit-OUT$'})),
+        output$: OUT_connector_hash.get(get_port_uri({chip_uri: chip_R.uri, port_name: 'R-OUT$'})),
         output_transform_fn: utils.identity
       });
       test_results$.subscribe(analyze_test_results, catch_error_test_results, rxlog('Test scenario completed'));
@@ -1602,7 +1635,6 @@ define(function (require) {
 
     }
   });
-
 
 });
 
