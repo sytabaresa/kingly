@@ -131,11 +131,10 @@
 /**
  * @typedef {Object} Controller_Order
  * @property {String} command
- * @property {Plug_In_Parameters} parameters
- * TODO : this is for create, add also for delete
+ * @property {Order_Parameters} parameters
  */
 /**
- * @typedef {{circuit: Circuit|Chip, links : Array<Link>, settings : Settings}} Plug_In_Parameters
+ * @typedef {{circuit: Circuit|Chip, links : Array<Link>, settings : Settings}} Order_Parameters
  */
 
   // DOCUMENTATION :
@@ -147,6 +146,8 @@
   // The consequence for the user of the library is that whatever value are :
   // - immediate and single usage of the output value (same tick, so before any other modification could happen)
   // - in specific cases, deep cloning manually when really necessary instead of at the library level
+
+  // TODO : use mermaid to draw graph from controller
 
 define(function (require) {
   var Rx = require('rx');
@@ -193,7 +194,17 @@ function require_circuits(Rx, _, utils, Err, constants) {
     // Trap onCompleted handler
     connector.$_onCompleted = connector.onCompleted.bind(connector);
     connector.onCompleted = warn_completed.bind(connector, connector);
+    connector.$_onNext = connector.onNext.bind(connector);
+    connector.onNext = onNext_or_warn_if_disposed.bind(connector);
     return connector;
+  }
+
+  function onNext_or_warn_if_disposed(input) {
+    if (this.isDisposed) {
+      console.warn('Received input %O for disposed chip/circuit\'s IN connector - Ignoring!', input);
+      return;
+    }
+    return this.$_onNext(input);
   }
 
   function warn_completed(connector) {
@@ -207,7 +218,8 @@ function require_circuits(Rx, _, utils, Err, constants) {
     // Propagate disposal to cover also the case when a modified subject is connected to a modified subject (hence normal onCompleted is trapped)
     for (var i = 0, os = IN_connector.observers.slice(), len = os.length; i < len; i++) {
       var o = os[i];
-      o.onCompleted();
+      // o.onCompleted(); // should not have to, already done by $_onCompleted() but costs nothing
+      // if observers are also IN_connector (for instance connections IN to IN in case of circuits), dispose them too
       o.$_dispose && o.$_dispose();
     }
     IN_connector.$_dispose && IN_connector.$_dispose();
@@ -240,7 +252,16 @@ function require_circuits(Rx, _, utils, Err, constants) {
     // return new Rx.Subject();
   }
 
-  function get_default_simulate_conn() {return new Rx.Subject();}
+  function get_default_simulate_conn(uri) {
+    var s = new Rx.Subject();
+    s.uri = uri;
+    return s;
+  }
+
+  function set_simulate_conn(/*-OUT-*/simulate_conn, uri) {
+    simulate_conn.uri = uri;
+    return simulate_conn
+  }
 
   function get_default_readout_conn() {return new Rx.ReplaySubject(1);}
 
@@ -260,6 +281,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
       IN_connector_hash: new utils.Hashmap(),
       OUT_connector_hash: new utils.Hashmap(),
       disposable_hash: new utils.Hashmap(),
+      is_plugged: new utils.Hashmap(),
       order_history: new Order_History()
     };
     var controller_subscribe_fn = controller && controller.settings && controller.settings.controller_subscribe_fn
@@ -282,8 +304,10 @@ function require_circuits(Rx, _, utils, Err, constants) {
 
     // TODO : do a better clone deep here, with test and ports, think about settings (clone it? merge not enough?)
 
-    IN_connector_hash = _controller.settings.IN_connector_hash; // TODO: put the var back when finished testing
+    IN_connector_hash = _controller.settings.IN_connector_hash;
     OUT_connector_hash = _controller.settings.OUT_connector_hash;
+    disposable_hash = _controller.settings.disposable_hash;
+    is_plugged = controller.settings.is_plugged;
 
     plug_in(_controller, _controller.settings, {});
     start(controller, _controller.settings);
@@ -335,16 +359,130 @@ function require_circuits(Rx, _, utils, Err, constants) {
     return get_IN_port_conn(chip, SIMULATE_PORT_NAME, circuits_state);
   }
 
-  function is_port_uri(port_uri) {
-    return function is_port_uri(message) {
-      return port_uri === get_uri_from_message(message);
+  function get_port_uri_from_port_name(chip_or_circuit) {
+    return function get_port_uri_from_port_name(IN_port_name) {
+      return get_port_uri({chip_uri: chip_or_circuit.uri, port_name: IN_port_name});
     }
   }
 
-  function get_uri_from_message(message) {
-    // NOTE ; the encoding decided is to prefix the actual object passed by a property which is the uri sending the message
-    //         So there should only be one such key in this object
-    return utils.get_label(message);
+  function get_chip_or_circuit_IN_port_uris(chip_or_circuit) {
+    return chip_or_circuit.chips
+      // Case Circuit
+      ? utils.get_keys(chip_or_circuit.ports_map.IN).map(get_port_uri_from_port_name(chip_or_circuit))
+      // Case Chip
+      : utils.get_values(chip_or_circuit.ports.IN).map(get_port_uri_from_port_name(chip_or_circuit));
+  }
+
+  function get_chip_or_circuit_OUT_port_uris(chip_or_circuit) {
+    return chip_or_circuit.chips
+      // Case Circuit
+      ? utils.get_keys(chip_or_circuit.ports_map.OUT).map(get_port_uri_from_port_name(chip_or_circuit))
+      // Case Chip
+      : utils.get_values(chip_or_circuit.ports.OUT).map(get_port_uri_from_port_name(chip_or_circuit));
+  }
+
+  function is_in_circuit_IN_ports(chip_or_circuit) {
+    return function is_in_circuit_ports(port_labelled_message) {
+      var IN_port_uri = utils.get_label(port_labelled_message);
+      var chips_port_uris = get_chip_or_circuit_IN_port_uris(chip_or_circuit);
+      return chips_port_uris.indexOf(IN_port_uri) > -1
+    }
+  }
+
+  function is_IN_port_in_circuit_IN_port(chip_or_circuit, IN_port) {
+    return get_chip_or_circuit_IN_port_uris(chip_or_circuit).indexOf(get_port_uri(IN_port)) > -1
+  }
+
+  function is_OUT_port_in_circuit_OUT_port(chip_or_circuit, OUT_port) {
+    return get_chip_or_circuit_OUT_port_uris(chip_or_circuit).indexOf(get_port_uri(OUT_port)) > -1
+  }
+
+  function is_chip(circuit_or_chip) {
+    return !circuit_or_chip.chips;
+  }
+
+  function is_simulate_connector_active(simulate_connector) {
+    return !(simulate_connector.isStopped || simulate_connector.isDisposed);
+  }
+
+  function assert_links_contract(circuit, links) {
+    if (utils.is_undefined(links)) return;
+    var fulfilled = links.every(function (link) {
+      var IN_port = link.IN_port;
+      var OUT_port = link.OUT_port;
+      return is_IN_port_in_circuit_IN_port(circuit, IN_port) || is_OUT_port_in_circuit_OUT_port(circuit, OUT_port);
+    });
+
+    if (!fulfilled) throw Err.Circuit_Error({
+      message: 'assert_links_contract : links must be connecting to a circuit\'s port',
+      extended_info: {circuit: circuit, links: links}
+    });
+
+    return fulfilled;
+  }
+
+  function assert_order_contracts(circuits_state, order) {
+    // Order must be an object...
+    if (!order) throw 'assert_order_contracts : order must be a well-formed object!'
+
+    // ... with a mandatory command property which is among the known commands...
+    var order_command = get_order_command(order);
+    if ([COMMAND_PLUG_IN_CIRCUIT, COMMAND_UNPLUG_CIRCUIT].indexOf(order_command) === -1)
+      throw 'assert_order_contracts : unknown order_command !';
+
+    var order_parameters = order.parameters;
+    if (!order_parameters) throw 'assert_order_contracts : order_parameters must be an object!'
+
+    var circuit = order_parameters.circuit; // Note : could also be a chip
+    if (!circuit) throw 'assert_order_contracts : order_parameters.circuit must be an object!'
+    utils.assert_type(circuit, CIRCUIT_OR_CHIP_TYPE, {
+      message: 'assert_order_contracts : expected parameter of type circuit!',
+      extended_info: {circuit: circuit}
+    });
+
+    var links = order_parameters.links;
+    assert_links_contract(circuit, links);
+
+    var is_plugged = circuits_state.is_plugged;
+    // Specific contracts for plug command
+    // 0. check that the circuit to plug is not active
+    // 1. Check that simulate connector is active
+    if (order_command === COMMAND_PLUG_IN_CIRCUIT) {
+      // 0.
+      if (is_plugged.get(circuit.uri)) throw Err.Circuit_Error({
+        message: 'Plug-in order can be only refer to previously unplugged and/or not currently plugged in chips/circuits!',
+        extended_info: {
+          where: 'connect_mapped_circuit_OUT_ports',
+          is_plugged: is_plugged,
+          circuit: circuit
+        }
+      })
+      // 1.
+      var simulate_connector = circuit.test.simulate;
+      if (!is_simulate_connector_active(simulate_connector)) throw Err.Circuit_Error({
+        message: 'Plug-in order refers to a circuit with a simulate connector which is not active (stopped or disposed)!',
+        extended_info: {
+          where: 'connect_mapped_circuit_OUT_ports',
+          circuit: circuit,
+          simulate_connector: simulate_connector
+        }
+      })
+    }
+
+    // Specific contract for unplug command
+    // 0. Check that the circuit to unplug is plugged
+    if (order_command === COMMAND_UNPLUG_CIRCUIT) {
+      if (!is_plugged.get(circuit.uri)) throw Err.Circuit_Error({
+        message: 'Unplug order can be only refer to previously and currently plugged-in chips/circuits!',
+        extended_info: {
+          where: 'connect_mapped_circuit_OUT_ports',
+          is_plugged: is_plugged,
+          circuit: circuit
+        }
+      });
+    }
+
+    // NOTE : no contracts for now on `settings`
   }
 
   /**
@@ -425,7 +563,6 @@ function require_circuits(Rx, _, utils, Err, constants) {
       });
 
       // 2. ... with a well-formed port_uri...
-      // In fact we only check that the label correspond to a registered circuit/chip port
       /**@type {IN_Port}*/
       var circuit_IN_port = get_port_from_port_uri(IN_port_uri);
       if (utils.is_undefined(circuit_IN_port)) throw Err.Invalid_Type_Error({
@@ -434,6 +571,17 @@ function require_circuits(Rx, _, utils, Err, constants) {
           where: 'translate_circuit_IN_port_uri',
           port_labelled_message: port_labelled_message,
           IN_port_uri: IN_port_uri
+        }
+      });
+
+      var circuit_uri = circuit_IN_port.chip_uri;
+      if (circuit_uri !== circuit.uri) throw Err.Invalid_Type_Error({
+        message: 'Message is not addressed to this circuit!!',
+        extended_info: {
+          where: 'translate_circuit_IN_port_uri',
+          port_labelled_message: port_labelled_message,
+          circuit_uri: circuit.uri,
+          uri: circuit_uri
         }
       });
 
@@ -463,36 +611,26 @@ function require_circuits(Rx, _, utils, Err, constants) {
       });
 
       // 4. ... mapping which corresponds to a circuit's lower-level chip/circuit's existing IN port
-      function get_port_uris(chip_or_circuit) {
-        return function get_port_uris(IN_port_name) {
-          return get_port_uri({chip_uri: chip_or_circuit.uri, port_name: IN_port_name});
-        }
-      }
-
       var translated_IN_port_uri = get_port_uri(translated_IN_port);
-      var chips_port_uris = circuit.chips.map(function to_port_names(chip_or_circuit) {
-        return chip_or_circuit.chips
-          // Case Circuit
-          ? utils.get_keys(chip_or_circuit.ports_map.IN).map(get_port_uris(chip_or_circuit))
-          // Case Chip
-          : utils.get_values(chip_or_circuit.ports.IN).map(get_port_uris(chip_or_circuit));
-      });
-      var flattened_chips_port_names = [].concat.apply([], chips_port_uris);
+      // Translate message
+      var translated_message = {};
+      translated_message[translated_IN_port_uri] = utils.remove_label(port_labelled_message);
 
-      if (flattened_chips_port_names.indexOf(translated_IN_port_uri) === -1) throw Err.Circuit_Error({
+      var is_in_circuits_ports_uri = circuit.chips.some(function to_port_names(chip_or_circuit) {
+        return is_in_circuit_IN_ports(chip_or_circuit)(translated_message);
+      });
+
+      if (!is_in_circuits_ports_uri) throw Err.Circuit_Error({
         message: 'Circuit port mapping for port-labelled message does not correspond to a registered port in lower-level circuit/chips!',
         extended_info: {
           where: 'translate_circuit_IN_port_uri',
           port_labelled_message: port_labelled_message,
           IN_port_uri: IN_port_uri,
           translated_IN_port_uri: translated_IN_port_uri,
-          lower_level_port_names: flattened_chips_port_names
+          children: circuit.chips
         }
       });
 
-      // Translate message
-      var translated_message = {};
-      translated_message[translated_IN_port_uri] = utils.remove_label(port_labelled_message);
       return translated_message;
     }
   }
@@ -566,7 +704,10 @@ function require_circuits(Rx, _, utils, Err, constants) {
     _.forEach(circuit_ports_map.IN || {}, function connect_mapped_circuit_IN_ports(target_IN_port, circuit_IN_port_name) {
       var circuit_IN_connector = get_IN_port_conn(circuit, circuit_IN_port_name, circuits_state);
       var mapped_IN_connector = IN_connector_hash.get(get_port_uri(target_IN_port));
-      disposable_hash.set(utils.join(get_port_uri(circuit_IN_connector), get_port_uri(mapped_IN_connector), ARROW_JOIN_STR),
+      disposable_hash.set(utils.join(get_port_uri({
+          chip_uri: circuit.uri,
+          port_name: circuit_IN_port_name
+        }), get_port_uri(target_IN_port), ARROW_JOIN_STR),
         circuit_IN_connector.subscribe(mapped_IN_connector));
     });
   }
@@ -620,11 +761,12 @@ function require_circuits(Rx, _, utils, Err, constants) {
     // - get IN subject connector and OUT observable connector associated to link (from IN_Connector_Dict and OUT_Connector_Dict )
     //   + connector <- hashmap.get(IN_port)
     // - subscribe connector IN to connector OUT
+    var IN_connector_hash = circuits_state.IN_connector_hash;
+    var OUT_connector_hash = circuits_state.OUT_connector_hash;
+    var disposable_hash = circuits_state.disposable_hash;
+
     links = links || []; // links is allowed to be undefined or empty
     links.forEach(function connect_link(link) {
-      var IN_connector_hash = circuits_state.IN_connector_hash;
-      var OUT_connector_hash = circuits_state.OUT_connector_hash;
-      var disposable_hash = circuits_state.disposable_hash;
       var IN_port = link.IN_port;
       var OUT_port = link.OUT_port;
       var IN_port_uri = get_port_uri(IN_port);
@@ -650,55 +792,47 @@ function require_circuits(Rx, _, utils, Err, constants) {
   }
 
   function disconnect_links(links, circuits_state) {
+    if (!links) return;
     // disconnect the links in reverse connection order, and without modifying the input `links` parameter
-    links.splice().reverse().forEach(function disconnect_link(link) {
+    links.slice().reverse().forEach(function disconnect_link(link) {
       var disposable_hash = circuits_state.disposable_hash;
       var IN_port = link.IN_port;
       var OUT_port = link.OUT_port;
       var IN_port_uri = get_port_uri(IN_port);
       var OUT_port_uri = get_port_uri(OUT_port);
-
-      disposable_hash.get(utils.join(OUT_port_uri, IN_port_uri, ARROW_JOIN_STR)).dispose();
+      var disposable_uri = utils.join(OUT_port_uri, IN_port_uri, ARROW_JOIN_STR);
+      disposable_hash.get(disposable_uri).dispose();
+      disposable_hash.remove(disposable_uri);
     });
   }
 
   /**
    *
    * @param {Circuit|Chip} circuit
-   * @param {{IN_connector_hash, OUT_connector_hash}} circuits_state
+   * @param {{IN_connector_hash, OUT_connector_hash, disposable_hash, is_plugged}} circuits_state
    * @param parent_settings
    * Side-effects : modifies `circuits_state` hashmaps
    */
   function plug_in(circuit, /*-OUT-*/circuits_state, parent_settings) {
-    // NOTE : parent_settings and chip_settings should be deep cloned or frozen to prevent impact from out of scope modification
+    // TODO : parent_settings and chip_settings should be deep cloned or frozen to prevent impact from out of scope modification
     //        We leave it as is, the best solution to this, is to make all circuits a `constant` (ES6) or deep-frozen objects
     //        This problem is everywhere at the API surface.
     //        We will deep-clone only when there is an estimated high likelyhood or impact of changes
-    utils.assert_type(circuit, CIRCUIT_OR_CHIP_TYPE, {
-      message: 'plug_in : expected parameter of type circuit!',
-      extended_info: {circuit: circuit}
-    });
-
-    if (!circuit.chips) {
-      plug_in_chip(circuit, /*-OUT-*/circuits_state, parent_settings);
-    }
-    else {
-      plug_in_circuit(circuit, /*-OUT-*/circuits_state, parent_settings);
-    }
+    var is_plugged = circuits_state.is_plugged;
+    is_chip(circuit)
+      ? plug_in_chip(circuit, /*-OUT-*/circuits_state, parent_settings)
+      : plug_in_circuit(circuit, /*-OUT-*/circuits_state, parent_settings)
+    ;
+    is_plugged.set(circuit.uri, true);
   }
 
   function unplug(circuit, /*-OUT-*/circuits_state, parent_settings) {
-    utils.assert_type(circuit, CIRCUIT_OR_CHIP_TYPE, {
-      message: 'unplug : expected parameter of type circuit!',
-      extended_info: {circuit: circuit}
-    });
-
-    if (!circuit.chips) {
-      unplug_chip(circuit, /*-OUT-*/circuits_state, parent_settings);
-    }
-    else {
-      unplug_circuit(circuit, /*-OUT-*/circuits_state, parent_settings);
-    }
+    var is_plugged = circuits_state.is_plugged;
+    is_chip(circuit)
+      ? unplug_chip(circuit, /*-OUT-*/circuits_state, parent_settings)
+      : unplug_circuit(circuit, /*-OUT-*/circuits_state, parent_settings)
+    ;
+    is_plugged.set(circuit.uri, false);
   }
 
   function unplug_circuit(circuit, /*-OUT-*/circuits_state, parent_settings) {
@@ -715,10 +849,14 @@ function require_circuits(Rx, _, utils, Err, constants) {
     // 1. Dispose all subscription to the circuit's simulate connector...
     var circuit_simulate_port_uri = get_port_uri({chip_uri: circuit_uri, port_name: SIMULATE_PORT_NAME});
     circuit_chips.slice().reverse().forEach(function disconnect_circuit_simulate_to_chips(chip) {
-      disposable_hash.get(utils.join(circuit_simulate_port_uri, chip.uri, ARROW_JOIN_STR)).dispose();
+      var simulate_disposable_uri = utils.join(circuit_simulate_port_uri, chip.uri, ARROW_JOIN_STR);
+      disposable_hash.get(simulate_disposable_uri).dispose();
+      disposable_hash.remove(simulate_disposable_uri);
     });
     // ... and also dispose the connector itself and remove it from the hashmap
-    IN_connector_hash.get(circuit_simulate_port_uri).dispose();
+    var circuit_simulate_conn = IN_connector_hash.get(circuit_simulate_port_uri);
+    circuit_simulate_conn.onCompleted();
+    circuit_simulate_conn.dispose();
     IN_connector_hash.remove(circuit_simulate_port_uri);
 
     // 2. Unwire links
@@ -734,24 +872,24 @@ function require_circuits(Rx, _, utils, Err, constants) {
     var circuit_readout_port_uri = get_port_uri({chip_uri: circuit_uri, port_name: READOUT_PORT_NAME});
     OUT_connector_hash.get(circuit_readout_port_uri).onCompleted();
     circuit_chips.slice().reverse().forEach(function disconnect_circuit_readout_to_chips(chip) {
-      var chip_test_readout = get_readout_port(chip, circuits_state);
-      disposable_hash.get(utils.join(get_port_uri(chip_test_readout), circuit_readout_port_uri, ARROW_JOIN_STR))
+      var readout_port_uri = get_port_uri({chip_uri: chip.uri, port_name: READOUT_PORT_NAME});
+      disposable_hash.get(utils.join(readout_port_uri, circuit_readout_port_uri, ARROW_JOIN_STR))
         .dispose();
     });
     OUT_connector_hash.remove(circuit_readout_port_uri);
 
     // 5. Disconnect chip's IN ports from circuit's IN ports from
     _.forEachRight(circuit_ports_map.IN || {}, function disconnect_mapped_circuit_IN_ports(target_IN_port, circuit_IN_port_name) {
-      var circuit_IN_connector = get_IN_port_conn(circuit, circuit_IN_port_name, circuits_state);
-      var mapped_IN_connector = IN_connector_hash.get(get_port_uri(target_IN_port));
+      var circuit_IN_port_uri = get_port_uri({chip_uri: circuit.uri, port_name: circuit_IN_port_name});
+      var mapped_IN_port_uri = get_port_uri(target_IN_port);
       disposable_hash
-        .get(utils.join(get_port_uri(circuit_IN_connector), get_port_uri(mapped_IN_connector), ARROW_JOIN_STR))
+        .get(utils.join(circuit_IN_port_uri, mapped_IN_port_uri, ARROW_JOIN_STR))
         .dispose();
     });
 
     // 6. Unregister circuit's IN PORT
     _.forEachRight(circuit_ports_map.IN, function remove_IN_connectors(__, port_name) {
-      IN_connector_hash.remove(get_port_uri({chip_uri: chip.uri, port_name: port_name}));
+      IN_connector_hash.remove(get_port_uri({chip_uri: circuit_uri, port_name: port_name}));
     });
 
     // 7. Disconnect children chips/circuits
@@ -767,6 +905,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
     var uri = chip.uri;
     var chip_ports = chip.ports;
     var chip_settings = chip.settings;
+    var merged_settings = merge_settings(parent_settings, chip_settings);
     var dispose_fn = chip.dispose;
 
     // 1. unregister OUT_ports (THOSE OBSERVEABLES SHOULD BE COMPLETED BY COMPLETING THEIR SOURCE!)
@@ -783,13 +922,13 @@ function require_circuits(Rx, _, utils, Err, constants) {
 
     //  3. Call the chip's dispose function to undo side-effects or else
     //  3.1 Merge settings from the parent with the chip's settings
-    var merged_settings = merge_settings(parent_settings, chip_settings);
     dispose_fn && dispose_fn(merged_settings);
     // TODO : should catch error in dispose function
     // TODO : what to do if an error happens in the middle of unplugging???
 
     // 4. Unregister simulate connector and complete outputs by completing inputs
-    IN_connector_hash.get(get_port_uri({chip_uri: chip.uri, port_name: SIMULATE_PORT_NAME})).onCompleted();
+    var simulate_port_uri = get_port_uri({chip_uri: chip.uri, port_name: SIMULATE_PORT_NAME});
+    IN_connector_hash.get(simulate_port_uri).onCompleted();
     chip_ports.IN.forEach(function remove_merged_connectors(port_name) {
       var port_uri = get_port_uri({chip_uri: uri, port_name: port_name});
       IN_connector_hash.get(port_uri).onCompleted();
@@ -801,6 +940,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
       IN_connector_hash.get(port_uri).dispose();
       IN_connector_hash.remove(port_uri);
     });
+    IN_connector_hash.remove(simulate_port_uri);
 
   }
 
@@ -827,8 +967,9 @@ function require_circuits(Rx, _, utils, Err, constants) {
     // We should not need a replay functionality here as :
     // - the simulate connector is used by construction once all lower-level circuits are plugged
     // - there should only ever be one user/caller of a simulate connector (i.e. no concurrent simulations)
-    simulate_conn = simulate_conn ? simulate_conn : get_default_simulate_conn();
+    simulate_conn = simulate_conn ? set_simulate_conn(simulate_conn, chip.uri) : get_default_simulate_conn(chip.uri);
     register_simulate_conn(chip, simulate_conn, circuits_state);
+
 
     // 3. Add simulate functionality
     // This means passing simulate connector's input to each port, after filtering out input destined to other ports
@@ -841,8 +982,12 @@ function require_circuits(Rx, _, utils, Err, constants) {
           .do(utils.rxlog('IN connector hash ' + port_uri)),
         simulate_conn
           .do(utils.rxlog('pre-filter simulated inputs sent to : ' + port_uri))
-          .filter(is_port_uri(port_uri)).map(utils.remove_label)
-      ).singleInstance();
+          .ensure(is_in_circuit_IN_ports(chip))
+          .map(utils.remove_label)
+          .doOnCompleted(utils.rxlog('simulate_conn (' + simulate_conn.uri + ') completed'))
+      )
+        .singleInstance()
+        .doOnCompleted(utils.rxlog('merged connectors completed'));
     });
 
     //  4. Call the chip's transform function to process ports' inputs into outputs
@@ -894,7 +1039,6 @@ function require_circuits(Rx, _, utils, Err, constants) {
   }
 
   function plug_in_circuit(circuit, /*-OUT-*/circuits_state, parent_settings) {
-    // TODO : also remove the disposable hash
     var IN_connector_hash = circuits_state.IN_connector_hash;
     var OUT_connector_hash = circuits_state.OUT_connector_hash;
     var disposable_hash = circuits_state.disposable_hash;
@@ -934,7 +1078,10 @@ function require_circuits(Rx, _, utils, Err, constants) {
     circuit_chips.forEach(function connect_circuit_readout_to_chips(chip) {
       var chip_test_readout = get_readout_port(chip, circuits_state);
       disposable_hash.set(
-        utils.join(get_port_uri(chip_test_readout), circuit_readout_port_uri, ARROW_JOIN_STR),
+        utils.join(get_port_uri({
+          chip_uri: chip.uri,
+          port_name: READOUT_PORT_NAME
+        }), circuit_readout_port_uri, ARROW_JOIN_STR),
         chip_test_readout
           .map(translate_circuit_OUT_port_uri(circuit, circuit_ports_map))
           .subscribe(circuit_readout_conn));
@@ -947,8 +1094,6 @@ function require_circuits(Rx, _, utils, Err, constants) {
     // Not doing so could lead to loose the homogeneous behaviour between chip and circuits and
     // give rise to some difficult to debug situations.
     connect_mapped_circuit_OUT_ports(circuit_ports_map, circuit, /*-OUT-*/circuits_state);
-
-    // TODO : I need a share which reconnects when resubscribed, or who does not refCount, so it is kept alive for later connections
 
     // 3. Wire links
     connect_links(circuit_links, circuits_state);
@@ -963,7 +1108,9 @@ function require_circuits(Rx, _, utils, Err, constants) {
     //     it will be possible to simulate the intents from the circuit's simulate connector, even as there is no exposed
     //     port to the intent source chip.
     //   NOTE : this works because all ports are filtering by port_uri, so no risk of pollution
-    var circuit_simulate_conn = simulate_conn ? simulate_conn : get_default_simulate_conn();
+    var circuit_simulate_conn = simulate_conn
+      ? set_simulate_conn(simulate_conn, circuit.uri)
+      : get_default_simulate_conn(circuit.uri);
     var circuit_simulate_port_uri = get_port_uri({chip_uri: uri, port_name: SIMULATE_PORT_NAME});
     // NOTE : It is not really necessary to register also the simulate connectors,
     // unless we want to access them from out-of-scope parts of the programs OR we change the API and choose not
@@ -978,12 +1125,16 @@ function require_circuits(Rx, _, utils, Err, constants) {
         circuit_simulate_conn
           // NOTE : when passing a message from one port to a lower-level one, we must translate the message label
           .map(translate_circuit_IN_port_uri(circuit, IN_connector_hash))
+          // We already made sure that the message was destined to one child chip/circuit
+          // Now we make sure that only the messages destined that child is reaching it
+          .filter(is_in_circuit_IN_ports(chip))
           .catch(function (e) {
+            // TODO : error management at the subject level? Think about a structure a la Erlang
             console.error(e);
             return Rx.Observable.throw(e);
           })
           .subscribe(chip_test_simulate)
-      ); // TODO : error management at the subject level? Think about a structure a la Erlang
+      );
     });
   }
 
@@ -993,13 +1144,6 @@ function require_circuits(Rx, _, utils, Err, constants) {
       : _.merge({}, child_settings, parent_settings);
   }
 
-  function check_order_parameters(order_command, error_object) {
-    // TODO check that the plug-in command has the right parameters type
-    // plug-in : circuit {Circuit/Chip}, links : Array, settings : undefined, null or POJO
-    // TODO : same for unplug command, throw if error
-    // unplug : circuit (Circuit/Chip), links, settings and nothing else -? same order as plug-in but with unplug
-  }
-
   /**
    *
    * @param circuits_state
@@ -1007,18 +1151,17 @@ function require_circuits(Rx, _, utils, Err, constants) {
    * @returns {*}
    */
   function process_order(/*-OUT-*/circuits_state, order) {
+    // TODO : update history mechanism to specify
+    assert_order_contracts(circuits_state, order);
+
     var order_command = get_order_command(order);
     /**@type {{circuit: Circuit|Chip, links : Array<Link>}}*/
-    var order_parameters = get_order_parameters(order_command, order);
-    check_order_parameters(order_parameters, {
-      message: 'Received malformed order parameters!',
-      extended_info: {order_parameters: order_parameters}
-    });
-
+    var order_parameters = order.parameters;
     var circuit = order_parameters.circuit; // Note : could also be a chip
     var links = order_parameters.links;
     var order_settings = order_parameters.settings;
     var order_history = circuits_state.order_history;
+    var is_plugged = circuits_state.is_plugged;
 
     switch (order_command) {
       case COMMAND_PLUG_IN_CIRCUIT :
@@ -1031,6 +1174,8 @@ function require_circuits(Rx, _, utils, Err, constants) {
         plug_in(circuit, /*-OUT-*/circuits_state, order_settings);
         // 2. Connect links
         connect_links(links, circuits_state);
+        // 3. Record the chip/circuit as being plugged
+        is_plugged.set(circuit.uri, true);
         // There is no simulate and readout here, they are at the circuit level
         // 3. update order history
         // This is so that one can reconstruct the current global circuit graph from the accumulated orders
@@ -1040,23 +1185,19 @@ function require_circuits(Rx, _, utils, Err, constants) {
 
         break;
       case COMMAND_UNPLUG_CIRCUIT :
-        // TODO : don't forget to update the IN and OUT hash on removal so it always reflect the last version of the circuit
-        // Delete circuit
-        // delete children chips/circuits in reverse order of creation (why? don't know, just intuition. Oh yeah because of transform side effects
-        // it is probably better to undo (dispose) them in reverse order as effects are possibly sensitive to order)
-        // So the `dispose` of a circuit is implicit, it is the dispose of chips in reverse order of instantiation
-        // TODO : would it make sense to have an extra dispose at circuit level? After all we do not have a transform at circuit level. Hopefully no need
-        // 1. Delete children in reverse order
-        // 2. Remove links in reverse order
-        //    Link removal sending onCompleted to IN port
-        //
+        // Unplug circuit
+        // Unplug has mirroring operations to plug-in
+        // Mirroring operations are performed in reverse order
+        // The mirror operation to `transform` is `dispose` and enable to undo/reverse any side-effects necessary
+        // For instance, if a database connection was opened on transform, then it can be closed on dispose
+        // Chips have a `transform`/`dispose` function. For circuits, it is implicit from their children components
+
         // 1. Disconnect links
         disconnect_links(links, circuits_state);
         // 2. Unplug the circuits
         unplug(circuit, /*-OUT-*/circuits_state, order_settings);
 
         // Update order history
-        // TODO : also update order history
         order_history.add(circuits_state, order);
         break;
       default :
@@ -1070,25 +1211,6 @@ function require_circuits(Rx, _, utils, Err, constants) {
     return order.command;
   }
 
-  function get_order_parameters(order_command, order) {
-    var parameters = order && order.parameters;
-    switch (order_command) {
-      case COMMAND_PLUG_IN_CIRCUIT :
-        if (parameters && parameters.circuit) return order.parameters; // .links property is allowed to be undefined
-        throw Err.Invalid_Type_Error({
-          message: 'get_order_parameters : plug-in order must come along with property `parameters` having a `circuit` property!',
-          extended_info: {parameters: parameters}
-        })
-      case COMMAND_UNPLUG_CIRCUIT:
-        throw 'NOT DONE YET!'
-        break;
-      default :
-        throw Err.Invalid_Type_Error({
-          message: 'get_order_parameters : unknown command!',
-          extended_info: {command: order_command}
-        })
-    }
-  }
 
   function get_chip_port(chip, port_name) {
     return {

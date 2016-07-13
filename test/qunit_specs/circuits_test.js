@@ -8,6 +8,7 @@ define(function (require) {
   var Axios = require('axios');
   var climate_viewer = require('../../../test/qunit_specs/assets/climate.ractive');
   var rx_test_with_random_delay = circuit_utils.rx_test_with_random_delay;
+  var rx_test_seq_with_random_delay = circuit_utils.rx_test_seq_with_random_delay;
   var get_chip_port = circuits.get_chip_port;
   var make_link = circuits.make_link;
   var get_port_uri = circuits.get_port_uri;
@@ -17,6 +18,7 @@ define(function (require) {
 
   // Constants
   var COMMAND_PLUG_IN_CIRCUIT = constants.COMMAND_PLUG_IN_CIRCUIT;
+  var COMMAND_UNPLUG_CIRCUIT = constants.COMMAND_UNPLUG_CIRCUIT;
   var CIRCUIT_OR_CHIP_TYPE = constants.CIRCUIT_OR_CHIP_TYPE;
   var max_delay = 10;
 
@@ -32,6 +34,7 @@ define(function (require) {
   var make_controller_setup = function make_controller_setup(controller_subscribe_fn) {
     var extended_controller_set_up = utils.clone_deep(controller_setup);
     extended_controller_set_up.settings = extended_controller_set_up.settings || {};
+    // set up the function to subscribe to the controller's OUT port (only one OUT port)
     extended_controller_set_up.settings.controller_subscribe_fn = controller_subscribe_fn;
     return extended_controller_set_up;
   };
@@ -69,7 +72,7 @@ define(function (require) {
     }
   }
 
-  function make_test_chip(index, IN, OUT, chip_transform_fn, settings) {
+  function make_test_chip(index, IN, OUT, chip_transform_fn, settings, simulate, readout) {
     var chip_serie = 'test_chip_serie';
     var ports = {};
     ports.IN = IN;
@@ -81,7 +84,22 @@ define(function (require) {
       settings: settings || dummy_settings
     };
 
+    if (simulate) {
+      chip.test = chip.test || {};
+      chip.test.simulate = simulate;
+    }
+    if (readout) {
+      chip.test = chip.test || {};
+      chip.test.readout = readout;
+    }
+
     return utils.set_custom_type(chip, CIRCUIT_OR_CHIP_TYPE);
+  }
+
+  function remove_time_stamp_from_readouts(labelled_readout) {
+    return _.mapValues(labelled_readout, function (readout_struct) {
+      return readout_struct.readout;
+    });
   }
 
   function make_spyed_on_test_transform_fn(assert, transform_fn, post_transform_args_fn, expected_transformed_args, message) {
@@ -97,7 +115,7 @@ define(function (require) {
     console.error('catch_error_test_results', e);
   }
 
-  QUnit.test("Controller - Plug-in command", function test_controller(assert) {
+  QUnit.skip("Controller - Plug-in command", function test_controller(assert) {
     var done = assert.async(1);
 
     var controller = circuits.create_controller(controller_setup);
@@ -201,7 +219,7 @@ define(function (require) {
 
   });
 
-  QUnit.test("Chip - transform", function test_chip_transform(assert) {
+  QUnit.skip("Chip - transform", function test_chip_transform(assert) {
     var done = assert.async(2);
     var get_port_uri = circuits.get_port_uri;
 
@@ -314,7 +332,7 @@ define(function (require) {
 
   });
 
-  QUnit.test("Circuit - links (incl. ordering) - no ports, no port mappings", function test_circuit_links(assert) {
+  QUnit.skip("Circuit - links (incl. ordering) - no ports, no port mappings", function test_circuit_links(assert) {
     var done = assert.async(1);
     var order_chip_plugin_check = [];
     var order_subscription_check = false;
@@ -421,7 +439,7 @@ define(function (require) {
     // Pluging-in the circuit should start the data flow
   });
 
-  QUnit.test("Circuit - links - ports and port mappings - one circuit connector IN and OUT", function test_circuit_links(assert) {
+  QUnit.skip("Circuit - links - ports and port mappings - one circuit connector IN and OUT", function test_circuit_links(assert) {
     var done = assert.async(2);
 
     // Chip definition
@@ -605,7 +623,7 @@ define(function (require) {
     }
   });
 
-  QUnit.test("Circuit - links - ports and port mappings - one circuit connector IN and 2 OUT", function test_circuit_links(assert) {
+  QUnit.skip("Circuit - links - ports and port mappings - one circuit connector IN and 2 OUT", function test_circuit_links(assert) {
     var done = assert.async(2);
 
     // Chip definition
@@ -794,7 +812,7 @@ define(function (require) {
     }
   });
 
-  QUnit.test("Circuit - links - including cycles", function test_circuit_links(assert) {
+  QUnit.skip("Circuit - links - including cycles", function test_circuit_links(assert) {
     var done = assert.async(1);
 
     // Chip definition
@@ -933,7 +951,7 @@ define(function (require) {
     // Pluging-in the circuit should start the data flow
   });
 
-  QUnit.test("Circuit - example of component", function test_component(assert) {
+  QUnit.skip("Circuit - example of component", function test_component(assert) {
     var done = assert.async(1);
     var transformed_output_seq = [];
     var transform_fn = function (data) {
@@ -1101,17 +1119,514 @@ define(function (require) {
   // TODO : test new IN_connector : one chip (already have the case) : DONE
   // TODO : test new IN_connector function : circuit IN -> chip IN -> some transform
   // TODO : test new IN_connector : circuit IN -> circuit IN -> chip IN -> some transform
+  // TODO : test UNPLUG for circuits too, and circuit within circuits
+  // TODO : test UNPLUG and PLUG of the same circuit
+  // TODO put settings in parents and dispose in chip
 
   // Dev
   // TODO : have an clean function at the end of all test which dispose the circuit, so have a dispose method on circuit and chip
 
   // Next
-  // TODO : write the delete chip
-  // TODO : write the delete circuit
-  // TODO : add the plug-in circuit within a circuit context (to raccord the simulate and readout connectors)
   // TODO : write the TODO List example with : - one array of todos    - todo as a component, and todo list as circuit (higher order function possible?)
   // TODO : write the documentation
   // TODO : think about communication strategy for cyclejs - send to Nathan first for review, then to Jeremy -> finish for Thursday...
+
+  QUnit.skip("Controller - Unplug command", function test_controller(assert) {
+    var done = assert.async(1);
+
+    var controller = circuits.create_controller(controller_setup);
+
+    var simulate_conn = controller.test.simulate;
+    var readout_conn = controller.test.readout;
+    var controller_uri = controller.uri;
+    var controller_port_uri = circuits.get_port_uri({chip_uri: controller_uri, port_name: IN_port_name});
+
+    // Test scenario
+    // 1. Controller processes chip's plug-in order
+    // Test Message
+    var test_success_message = [
+      'The controller receives orders on its input port, processes those orders, and returns hashmaps for the input and output connectors of the updated (i.e. post-order) circuit.',    // TODO : some string here
+      'Chips which has been plugged through a plug order, can be unplugged via a unplug order.'
+    ].join('\n');
+
+    // Test Inputs
+    var chip_transform_fn = function chip_transform_fn(test_in_port$) {
+      return {
+        test_out_port$: test_in_port$.map(function (x) {return {test_outed: x}})
+      }
+    };
+    var chip_post_transformed_fn = function test_in_port$(source1$, settings) {
+      return {
+        args_number: 2,
+        is_first_arg_observable: utils.has_type(source1$, 'Observable'),
+        settings: settings
+      }
+    };
+    var expected_chip_transformed_args = {
+      "args_number": 2,
+      "is_first_arg_observable": true,
+      "settings": {
+        "settings_key": "settings_value"
+      }
+    };
+    var spyed_on_message = [
+      'The `transform` property of the chip is called with a list of observables corresponding to its defined input ports, and as last parameter the chip\'s `settings` property.',
+      'When a chip is plugged in, its output ports are computed immediately with the `transform` function. In the case of side-effectful transform functions (for instance chips who do not have output ports), those side-effects are hence performed immediately.',
+    ].join('\n');
+    var chip = utils.set_custom_type({
+      serie: 'test_chip',
+      uri: 'test_chip1',
+      ports: {
+        IN: ['test_in_port$'],
+        OUT: ['test_out_port$']
+      },
+      transform: make_spyed_on_test_transform_fn(assert, chip_transform_fn, chip_post_transformed_fn,
+        expected_chip_transformed_args, spyed_on_message),
+      settings: dummy_settings
+    }, CIRCUIT_OR_CHIP_TYPE);
+
+    var labelled_input_plug = {};
+    labelled_input_plug[controller_port_uri] = {
+      command: COMMAND_PLUG_IN_CIRCUIT,
+      parameters: {circuit: chip, links: undefined}
+    };
+
+    var labelled_input_unplug = {};
+    labelled_input_unplug[controller_port_uri] = {
+      command: COMMAND_UNPLUG_CIRCUIT,
+      parameters: {circuit: chip, links: undefined}
+    };
+
+    var expected_output_seq = [
+      {
+        "IN_connector_hash_keys": ["controller_1-|order$", "controller_1-|$simulate$", "test_chip1-|test_in_port$", "test_chip1-|$simulate$"],
+        "OUT_connector_hash_keys": ["controller_1-|$readout$", "controller_1-|circuits_state$", "test_chip1-|$readout$", "test_chip1-|test_out_port$"],
+        "has_only_one_key": true,
+        "port_uri": "controller_1-|circuits_state$"
+      },
+      {
+        "IN_connector_hash_keys": ["controller_1-|order$", "controller_1-|$simulate$"],
+        "OUT_connector_hash_keys": ["controller_1-|$readout$", "controller_1-|circuits_state$"],
+        "has_only_one_key": true,
+        "port_uri": "controller_1-|circuits_state$"
+      },
+      {
+        "IN_connector_hash_keys": ["controller_1-|order$", "controller_1-|$simulate$", "test_chip1-|test_in_port$", "test_chip1-|$simulate$"],
+        "OUT_connector_hash_keys": ["controller_1-|$readout$", "controller_1-|circuits_state$", "test_chip1-|$readout$", "test_chip1-|test_out_port$"],
+        "has_only_one_key": true,
+        "port_uri": "controller_1-|circuits_state$"
+      }
+    ];
+    var output$ = readout_conn;
+    var controller_output_transform_fn = function (output_value) {
+      var readout = output_value['controller_1-|circuits_state$'].readout;
+      var IN_connector_hash = readout.IN_connector_hash;
+      var OUT_connector_hash = readout.OUT_connector_hash;
+
+      return {
+        has_only_one_key: output_value && Object.keys(output_value).length === 1,
+        port_uri: output_value && Object.keys(output_value)[0],
+        IN_connector_hash_keys: Object.keys(IN_connector_hash),
+        OUT_connector_hash_keys: Object.keys(OUT_connector_hash),
+        // Could test that all of the values associated to those keys are in fact connectors (subject) but won't
+      };
+    };
+
+    var input_parameters = {
+      input_seq: [labelled_input_plug, labelled_input_unplug, labelled_input_plug],
+      max_delay: max_delay * 2, inputS: simulate_conn
+    };
+    var output_parameters = {
+      expected_output_seq: expected_output_seq,
+      output$: output$,
+      output_transform_fn: controller_output_transform_fn
+    };
+
+    var test_results$ = rx_test_with_random_delay(input_parameters, output_parameters);
+    test_results$.subscribe(analyze_test_results, catch_error_test_results, utils.noop);
+
+    function analyze_test_results(actual_output_seq) {
+      assert.deepEqual(actual_output_seq, expected_output_seq, test_success_message);
+      done();
+    }
+
+    function catch_error_test_results(e) {
+      console.error('catch_error_test_results', e);
+      done();
+    }
+
+  });
+
+  QUnit.skip("Unplug circuit - links - ports and port mappings - one circuit connector IN and OUT", function test_circuit_links(assert) {
+    var done = assert.async(2);
+
+    // Chip definition
+    var chip_A = make_test_chip(0, ['A-IN$'], ['A1-OUT$', 'A2-OUT$'], function chip_transform(a_in$, settings) {
+      console.log('settings', settings);
+      return {
+        'A1-OUT$': a_in$.do(rxlog('A1-OUT$:')).map(function (x) {return [x, '->', 'A1-OUT'].join(' ');}),
+        'A2-OUT$': a_in$.do(rxlog('A2-OUT$:')).map(function (x) {return [x, '->', 'A2-OUT'].join(' ');})
+      }
+    });
+    var chip_B = make_test_chip(1, ['B-IN$'], ['B-OUT$'], function chip_transform(b_in$, settings) {
+      console.log('settings', settings);
+      return {
+        'B-OUT$': b_in$.do(rxlog('B-OUT$:')).map(function (x) {return [x, '->', 'B-OUT'].join(' ');})
+      }
+    });
+    var chip_C = make_test_chip(2, ['C1-IN$', 'C2-IN$'], ['C1-OUT$', 'C2-OUT$'], function chip_transform(c1_in$, c2_in$, settings) {
+      console.log('settings', settings);
+      return {
+        'C1-OUT$': c1_in$.do(rxlog('C1-OUT$:')).map(function (x) {return [x, '->', 'C1-OUT'].join(' ');}),
+        'C2-OUT$': c2_in$.do(rxlog('C2-OUT$:')).map(function (x) {return [x, '->', 'C2-OUT'].join(' ');})
+      }
+    });
+
+    // Circuit definition
+    // Dataflow will depend on order of links (switching link order will fail the test)
+    var circuit_simulate_conn = get_default_simulate_conn();
+    var circuit_readout_conn = get_default_readout_conn();
+
+    var links = [
+      make_link(chip_A, chip_B, 'A1-OUT$', 'B-IN$'),
+      make_link(chip_A, chip_C, 'A2-OUT$', 'C2-IN$'),
+      make_link(chip_B, chip_C, 'B-OUT$', 'C1-IN$')
+    ];
+    var circuit = utils.set_custom_type({
+      uri: 'test_circuit_1',
+      chips: [chip_A, chip_B, chip_C],
+      links: links,
+      ports_map: {
+        IN: {'Circuit-IN$': {chip_uri: chip_A.uri, port_name: 'A-IN$'}},
+        OUT: {'Circuit-OUT$': {chip_uri: chip_C.uri, port_name: 'C1-OUT$'}}
+      },
+      test: {
+        simulate: circuit_simulate_conn,
+        readout: circuit_readout_conn
+      }
+    }, CIRCUIT_OR_CHIP_TYPE);
+
+    // Test scenario
+    // 1. Plugged-in circuit processes its inputs according to defined chip architecture (chips and links)
+    //    - no cycle
+    //    - circuit with port mappings, and input port and output port
+    // WHEN
+    // ----A )-> B )-> C ----
+    //       )->    -> C --
+    // AND received two inputs on circuit input port,
+    // THEN it produces the expected output
+    // AND circuit output ports reads all readout messages from lower level chip/circuits
+    // Test Message
+    var test_success_message = [
+      'Subscribing to circuit OUT port activates the dataflow. Not subscribing to it does not.',
+      'Circuit\'s OUT ports are mapped to lower-level circuit OUT port, such that subscription to a circuit\'s OUT port triggers the subscription to the mapped OUT port.',
+    ].join('\n');
+
+    // Test inputs
+    var input_seq = [
+      {'test_circuit_1-|Circuit-IN$': 0},
+      {'test_circuit_1-|Circuit-IN$': 1}
+    ];
+    var expected_output_seq = [
+      "0 -> A1-OUT -> B-OUT -> C1-OUT",
+      "1 -> A1-OUT -> B-OUT -> C1-OUT"
+    ];
+
+    // Controller definition
+    var controller = circuits.create_controller(make_controller_setup(test_results_OUT_port));
+    var controller_port_uri = get_port_uri({chip_uri: controller.uri, port_name: IN_port_name});
+    var simulate_conn = controller.test.simulate;
+
+    // Plug-in circuit
+    // NOTE: this is synchronous, so the circuit will be plugged in already at exiting the function call
+    var been_there = false;
+    var plug_in_order = {};
+    plug_in_order[controller_port_uri] = {
+      command: COMMAND_PLUG_IN_CIRCUIT,
+      parameters: {circuit: circuit} // no links
+    };
+    simulate_conn.onNext(plug_in_order);
+
+    function analyze_test_results(actual_output_seq) {
+      assert.deepEqual(actual_output_seq, expected_output_seq, test_success_message);
+      done();
+    }
+
+    // handling output from controller
+    function test_results_OUT_port(circuits_state) {
+      ///*
+      // Expected port output values
+      // Note that there is no value about C2 as there is no corresponding flow (no subscribers!)
+      // Note also that readout connectors are connected to each other, so all intermediary readout are also passed up
+      if (been_there) return;
+      var OUT_connector_hash = circuits_state.OUT_connector_hash;
+      var test_results$ = rx_test_with_random_delay({
+        inputS: circuit_simulate_conn,
+        max_delay: max_delay,
+        wait_for_finish_delay: 20,
+        input_seq: input_seq
+      }, {
+        output$: OUT_connector_hash.get(get_port_uri({chip_uri: circuit.uri, port_name: 'Circuit-OUT$'})),
+        output_transform_fn: utils.identity
+      });
+      test_results$.subscribe(analyze_test_results, catch_error_test_results, rxlog('Test scenario completed'));
+
+      console.log('OUT_connector_hash', get_port_uri({
+        chip_uri: circuit.uri,
+        port_name: 'Circuit-OUT$'
+      }), OUT_connector_hash);
+
+      setTimeout(function () {
+        been_there = true;
+        // Unplug circuit
+        var unplug_order = {};
+        unplug_order [controller_port_uri] = {
+          command: COMMAND_UNPLUG_CIRCUIT,
+          parameters: {circuit: circuit} // no links
+        };
+        simulate_conn.onNext(unplug_order);
+
+        // Send inputs again, to test that the input are not processed
+        var test_success_message = [
+          'Circuits can be unplugged by sending an unplug order to their controller.',
+          'Unplugging a circuit means that their connectors cannot be reused furthermore.',
+          'When circuits are unplugged, sending messages through their input ports will result in an error.',
+        ].join('\n');
+        assert.throws(function () { circuit_simulate_conn.onNext(input_seq[0]); },
+          /ObjectDisposedError/,
+          test_success_message
+        );
+        done();
+      }, 10);
+
+    }
+  });
+
+  QUnit.test("Unplug chip - links - ports and port mappings - one circuit connector IN and OUT", function test_circuit_links(assert) {
+    // Test steps:
+    // 1. Create controller
+    // 2. Send create circuit order to controller
+    // 3. Send one input to circuit IN port -> Test output
+    // 4. Send unplug B chip order to controller
+    // 5. Send one input to circuit IN port -> Test output
+    // 6. Send (re)plug order to controller
+    // 7. Send one input to circuit IN port -> Test output
+    // Parameters :
+    // - Chip S
+    // - Circuit : S---A---A1---B---D1-*---
+    //                   |-A2---C---D2-x
+    // - Controoler orders
+    //   + S
+    //   + {C, S -> C}
+    //   - {C, S -> C}
+    //   + {C, S -> C}
+    // - Inputs :
+    //   + 1, 2, 3 after each order
+    // - Transform : add -> `Chip letter`
+    //   + (*) : merge of D1 and D2
+    //   + (x) : OUT port not subscribed to
+    var done = assert.async(2);
+
+    // Chip definition
+    // Chip S simulate connector to feed in test sequences
+    var chip_S_simulate_conn = get_default_simulate_conn('test_chip_S_simulate');
+    var chip_S = make_test_chip(-1, ['S-IN$'], ['S1-OUT$'], function chip_transform(s_in$, settings) {
+      console.log('settings', settings);
+      return {
+        'S1-OUT$': s_in$.do(rxlog('S1-OUT$:')).map(function (x) {return [x, '->', 'S1-OUT'].join(' ');}),
+      }
+    }, {}, chip_S_simulate_conn);
+    var chip_A = make_test_chip(0, ['A-IN$'], ['A1-OUT$', 'A2-OUT$'], function chip_transform(a_in$, settings) {
+      console.log('settings', settings);
+      return {
+        'A1-OUT$': a_in$.do(rxlog('A1-OUT$:')).map(function (x) {return [x, '->', 'A1-OUT'].join(' ');}),
+        'A2-OUT$': a_in$.do(rxlog('A2-OUT$:')).map(function (x) {return [x, '->', 'A2-OUT'].join(' ');})
+      }
+    });
+    var chip_B = make_test_chip(1, ['B-IN$'], ['B-OUT$'], function chip_transform(b_in$, settings) {
+      console.log('settings', settings);
+      return {
+        'B-OUT$': b_in$.do(rxlog('B-OUT$:')).map(function (x) {return [x, '->', 'B-OUT'].join(' ');})
+      }
+    });
+    var chip_C = make_test_chip(2, ['C-IN$'], ['C-OUT$'], function chip_transform(c_in$, settings) {
+      console.log('settings', settings);
+      return {
+        'C-OUT$': c_in$.do(rxlog('C-OUT$:')).map(function (x) {return [x, '->', 'C-OUT'].join(' ');})
+      }
+    });
+    var chip_D = make_test_chip(3, ['D1-IN$', 'D2-IN$'], ['D1-OUT$', 'D2-OUT$'], function chip_transform(d1_in$, d2_in$, settings) {
+      console.log('settings', settings);
+      return {
+        'D1-OUT$': Rx.Observable.merge(d1_in$, d2_in$).do(rxlog('D1-OUT$:')).map(function (x) {return [x, '->', 'D1-OUT'].join(' ');}),
+        'D2-OUT$': d2_in$.do(rxlog('D2-OUT$:')).map(function (x) {return [x, '->', 'D2-OUT'].join(' ');})
+      }
+    });
+
+
+    // Circuit definition
+    // Dataflow will depend on order of links (switching link order will fail the test)
+    var circuit_simulate_conn = get_default_simulate_conn('test_circuit_simulate');
+    var circuit_readout_conn = get_default_readout_conn();
+
+    var links = [
+      make_link(chip_A, chip_B, 'A1-OUT$', 'B-IN$'),
+      make_link(chip_A, chip_C, 'A2-OUT$', 'C-IN$'),
+      make_link(chip_B, chip_D, 'B-OUT$', 'D1-IN$'),
+      make_link(chip_C, chip_D, 'C-OUT$', 'D2-IN$'),
+    ];
+    var circuit = utils.set_custom_type({
+      uri: 'test_circuit_1',
+      chips: [chip_A, chip_B, chip_C, chip_D],
+      links: links,
+      ports_map: {
+        IN: {'Circuit-IN$': {chip_uri: chip_A.uri, port_name: 'A-IN$'}},
+        OUT: {'Circuit-OUT$': {chip_uri: chip_D.uri, port_name: 'D1-OUT$'}}
+      },
+      test: {
+        simulate: circuit_simulate_conn,
+        readout: circuit_readout_conn
+      }
+    }, CIRCUIT_OR_CHIP_TYPE);
+
+    // Test scenario
+    // 1. Plugged-in circuit processes its inputs according to defined chip architecture (chips and links)
+    //    - no cycle
+    //    - circuit with port mappings, and input port and output port
+    // WHEN
+    // ----A )-> B )-> C ----
+    //       )->    -> C --
+    // AND received two inputs on circuit input port,
+    // THEN it produces the expected output
+    // AND circuit output ports reads all readout messages from lower level chip/circuits
+    // Test Message
+    var test_success_message = [
+      'TODO',
+    ].join('\n');
+
+    // Test inputs
+    var circuit_input_seq = [
+      {'test_chip_serie_0-|S-IN$': 0},
+      {'test_chip_serie_0-|S-IN$': 1},
+      {'test_chip_serie_0-|S-IN$': 2}
+    ];
+    var expected_output_seq = [];
+
+    // Controller definition
+    var controller = circuits.create_controller(make_controller_setup(test_results_OUT_port));
+    var controller_port_uri = get_port_uri({chip_uri: controller.uri, port_name: IN_port_name});
+    var controller_simulate_conn = controller.test.simulate;
+
+    // Plug-in circuit
+    // NOTE: this is synchronous, so the circuit will be plugged in already at exiting the function call
+    var been_there = false;
+    var plug_in_chip_S_order = {};
+    plug_in_chip_S_order[controller_port_uri] = {
+      command: COMMAND_PLUG_IN_CIRCUIT,
+      parameters: {
+        circuit: chip_S, links: [{
+          IN_port: {chip_uri: circuit.uri, port_name: 'Circuit-IN$'},
+          OUT_port: {chip_uri: chip_S.uri, port_name: 'S1-OUT$'}
+        }]
+      }
+    };
+    var plug_in_order_circuit = {};
+    plug_in_order_circuit[controller_port_uri] = {
+      command: COMMAND_PLUG_IN_CIRCUIT,
+      parameters: {circuit: circuit}
+    };
+    var plug_in_order_circuit_with_links= {};
+    plug_in_order_circuit_with_links[controller_port_uri] = {
+      command: COMMAND_PLUG_IN_CIRCUIT,
+      parameters: {circuit: circuit, links: [{
+        IN_port: {chip_uri: circuit.uri, port_name: 'Circuit-IN$'},
+        OUT_port: {chip_uri: chip_S.uri, port_name: 'S1-OUT$'}
+      }]}
+    };
+    // TODO : refactor so that simulate and readout are not part of chip -> actually if simulate is not there or inactive, create another one
+    var plug_in_order_chip_B = {};
+    plug_in_order_chip_B[controller_port_uri] = {
+      command: COMMAND_PLUG_IN_CIRCUIT,
+      parameters: {circuit: chip_B} // no links
+    };
+    var unplug_order_circuit = {};
+    unplug_order_circuit[controller_port_uri] = {
+      command: COMMAND_UNPLUG_CIRCUIT,
+      parameters: {circuit: circuit} // no links
+    };
+
+    controller_simulate_conn.onNext(plug_in_order_circuit);
+
+    function analyze_test_results(actual_output_seq) {
+      assert.deepEqual(actual_output_seq, expected_output_seq, test_success_message);
+      done();
+    }
+
+    // handling output from controller
+    function test_results_OUT_port(circuits_state) {
+      if (been_there) return;
+      been_there = true;
+      var input_seq = [
+        {to: 'controller', input: plug_in_chip_S_order},
+        //        {to: 'controller', input: plug_in_order_circuit},
+        {to: 'chip_S', input: circuit_input_seq[0]},
+        {to: 'controller', input: unplug_order_circuit},
+        {to: 'chip_S', input: circuit_input_seq[1]},
+        {to: 'controller', input: plug_in_order_circuit_with_links},
+        //        {to: 'chip_S', input: circuit_input_seq[2]},
+      ];
+
+      // Expected port output values
+      // Note that there is no value about C2 as there is no corresponding flow (no subscribers!)
+      // Note also that readout connectors are connected to each other, so all intermediary readout are also passed up
+      var OUT_connector_hash = circuits_state.OUT_connector_hash;
+      var test_results$ = rx_test_seq_with_random_delay({
+        input_conn_hash: {
+          'circuit': circuit_simulate_conn,
+          'controller': controller_simulate_conn,
+          'chip_S': chip_S_simulate_conn
+        },
+        max_delay: max_delay,
+        wait_for_finish_delay: 20,
+        input_seq: input_seq
+      }, {
+        output$: OUT_connector_hash.get(get_port_uri({chip_uri: circuit.uri, port_name: 'Circuit-OUT$'})),
+        output_transform_fn: utils.identity
+      });
+      test_results$.subscribe(analyze_test_results, catch_error_test_results, rxlog('Test scenario completed'));
+
+      console.log('OUT_connector_hash', get_port_uri({
+        chip_uri: circuit.uri,
+        port_name: 'Circuit-OUT$'
+      }), OUT_connector_hash);
+
+    }
+  });
+
+
 });
 
-
+// component graph TODO list
+// http://knsv.github.io/mermaid/live_editor/
+//graph TB
+//subgraph controller
+//order
+//end
+//subgraph TODO_List
+//event_plus-->intent
+//intent-->|new item| action
+//intent-->|remove item| action
+//intent-->|update counter| model
+//action-->order
+//model-->DOM
+//end
+//subgraph TODO_Item
+//TI_event_enter-->TI_intent
+//TI_event_delete-->TI_intent
+//TI_intent-->|new item| TI_action
+//TI_intent-->|new item| TI_model
+//TI_intent-->|delete item| intent
+//TI_action-->Storage
+//TI_model-->TI_DOM
+//end
+//

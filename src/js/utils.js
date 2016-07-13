@@ -9,6 +9,30 @@ define(function (require) {
 function require_utils(Rx, _, Err, constants) {
   // Set Rx error option to visualize extra stack trace information
   Rx && (Rx.config) && (Rx.config.longStackSupport = true);
+  // TODO : move to another place ? If I separate circuits.js I will to be careful to include it too
+  /**
+   * NOTE : only for Rxjs v4 and previous versions
+   * @param {function} predicate which implements a contract that must be satisfied by streamed input value
+   * @returns {*}
+   * @throws if input passed does not satisfy predicate
+   */
+  function ensure(predicate) {
+    var source = this;
+    if (typeof(predicate) !== 'function') throw 'ensure : passed a predicate which is not a function!'
+
+    return this.map(function contract_check(input) {
+      var predicate_value = predicate(input);
+      if (typeof predicate_value !== 'boolean') throw 'ensure : predicate function must return boolean value type!'
+
+      if (predicate(input)) return input;
+      console.error('ensure : passed input MUST satisfy predicate function!');
+      console.warn('input:', input);
+      console.warn('predicate:', predicate);
+      throw 'ensure : passed input MUST satisfy predicate function!'
+    })
+  }
+
+  Rx.Observable.prototype.ensure = ensure;
 
   var CHECK_TYPE = constants.CHECK_TYPE;
   var WRAP_CHAR = constants.WRAP_CHAR;
@@ -168,9 +192,9 @@ function require_utils(Rx, _, Err, constants) {
     return [a, b].join(str || DEFAULT_JOIN_STR);
   }
 
-  function disjoin(ab) {
+  function disjoin(ab, str) {
     var splitted = [];
-    if (is_string(ab)) splitted = ab.split(DEFAULT_JOIN_STR);
+    if (is_string(ab)) splitted = ab.split(str || DEFAULT_JOIN_STR);
     var a = splitted[0];
     var b = splitted[1];
     return {chip_uri: a, port_name: b}
@@ -782,7 +806,12 @@ function require_utils(Rx, _, Err, constants) {
 
   Hashmap.prototype.has = function has(key) {
     return !!this[key];
-  }
+  };
+
+  Hashmap.prototype.remove = function remove(key) {
+    delete this[key];
+    // this[key] = undefined;
+  };
 
   return {
     get_JSONP: get_JSONP,
