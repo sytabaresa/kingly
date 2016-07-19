@@ -1,0 +1,19 @@
+<!-- <script id="item" type="text/ractive">-->
+			<!-- This is the {{>item}} partial. It is rendered for each task in the array (`this` corresponds to the current task). But we only want to actually show those tasks that pass the current filter. -->
+			{{# filter(this) }}
+				<li class="{{ completed ? 'completed' : '' }} {{ editing ? 'editing' : '' }}" id={{ item_id }}>
+					<div class="view">
+						<input class="toggle" type="checkbox" checked="{{completed}}">
+						<label>{{description ? description : 'enter sth' }}</label>
+						<button class="destroy"></button>
+					</div>
+
+					<!-- This section only exists in the DOM when editing is taking place -->
+					{{#.editing}}
+						<!-- Here, we use custom events (`enter`) alongside standard DOM events (`blur`) to handle user interaction -->
+			<!-- 			<input id="edit" class="edit" on-blur-enter="submit" on-escape="cancel" autofocus>   -->
+						<input id="edit" class="edit" autofocus>
+					{{/.editing}}
+				</li>
+			{{/ end of filter }}
+<!-- </script>-->

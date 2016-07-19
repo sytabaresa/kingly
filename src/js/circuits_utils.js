@@ -3,12 +3,15 @@ define(function (require) {
   var utils = require('utils');
   var Err = require('custom_errors');
   var constants = require('constants');
+  var circuits = require('circuits');
   var Rx = require('rx');
 
-  return require_circuits_utils(Rx, _, utils, Err, constants);
+  return require_circuits_utils(Rx, _, circuits, utils, Err, constants);
 });
 
-function require_circuits_utils(Rx, _, utils, Err, constants) {
+function require_circuits_utils(Rx, _, circuits, utils, Err, constants) {
+  var TEST_CASE_PORT_NAME = constants.TEST_CASE_PORT_NAME;
+
   /**
    * This only tests a serie of outputs vs. a serie of inputs linked in a 1-to-1 relationship, i.e. 1 input -> 1 output
    * Two signatures :
@@ -120,9 +123,120 @@ function require_circuits_utils(Rx, _, utils, Err, constants) {
     console.info('test value emitted : ', input_value);
   }
 
+  var counter = 0;
+
+  function make_test_chip() {
+    var uri = 'generic_test_chip_' + ++counter;
+    var simulate_conn = circuits.get_default_simulate_conn(uri);
+    return {
+      test_chip: circuits.make_chip({
+        serie: 'generic_test_chip',
+        uri: uri,
+        ports: {
+          IN: ['circuits_state', TEST_CASE_PORT_NAME],
+          OUT: []
+        },
+        transform: generic_test_transform,
+        settings: {
+          max_delay: 20,
+          wait_for_finish_delay: 50
+        },
+        test: {
+          simulate: simulate_conn
+        }
+      }),
+      simulate_conn: simulate_conn
+    }
+  }
+
+  function generic_test_transform(circuits_state$, test_case$, settings) {
+    var max_delay = settings.max_delay;
+    var wait_for_finish_delay = settings.wait_for_finish_delay || 50;
+
+    test_case$.withLatestFrom(circuits_state$, function make_exec_test_observable(test_case, circuit_state) {
+      var input_seq = test_case.input_seq;
+      // TODO : create helper function to help in making an input with prefixes (port uri, etc.)
+      // we will use input_seq : {to : {chip_uri, port_name}, input : *}
+      var expected_output_seq = test_case.expected_output_seq;
+      var test_success_message = test_case.test_message;
+      var output_transform_fn = test_case.output_transform_fn || utils.identity;
+      // Read all the readouts in the circuits state and filter them according to readout filter (format to precise : port name? port_uri? function?)
+      var readout_filter = test_case.readout_filter || utils.identity;
+      var analyze_test_results_fn = test_case.analyze_test_results_fn;
+
+      // Return an observable that executes the test case
+      var input$ = Rx.Observable.from(input_seq)
+        // Send the input sequence on the input connector with random time spacing (behaviour should be independent)
+        // Hence no input value will be emitted in this tick, which allows the rest of the code on the same tick to wire other observables.
+        .concatMap(function (input_obj) {
+          return Rx.Observable.return(input_obj).delay(utils.random(1, max_delay))
+        })
+        .do(simulate_input(circuit_state))
+        .do(utils.rxlog('simulating input:'))
+        .share(); // share because we reuse it in test_result$
+      input$.subscribe(utils.noop);
+      // TODO : right now, I cannot do several tests in a row, they might mix together...
+
+      var test_result$ = undefined;
+      // Register to all readout and filter the one I am interested in
+      // I also need to unsubscribe all of them when finished (pay attention that they are not completed accidentally while doing so)
+      var filtered_readouts = get_filtered_readout_connectors(readout_filter, circuit_state);
+      if (filtered_readouts.length === 0) {
+        // Case : nothing to read out from (example of circuit doing silent side-effects) but we want to wait some reasonable time
+        // before proceeding with the testing
+        // That case naturally means that the function analyze_results must incorporate a way to perform its function, for examples
+        // accessibles mutable variables through closure
+        test_result$ = Rx.Observable.return({}).delay(max_delay * input_seq.length * 4)
+      }
+      else {
+        test_result$ = Rx.Observable.merge(filtered_readouts)
+          .scan(function (transformed_actual_outputs, output_value) {
+            var transformed_actual_output = output_transform_fn(output_value);
+            transformed_actual_outputs.push(transformed_actual_output);
+
+            return transformed_actual_outputs;
+          }, [])
+          .sample(input$.last().delay(wait_for_finish_delay))// give it some time to process the inputs, after the inputs have been emitted
+          .do(utils.rxlog('transformed_actual_outputs:'))
+          .take(1)
+      }
+
+      return test_result$.do(analyze_test_results_curried(analyze_test_results_fn, expected_output_seq, test_success_message));
+    })
+      // Execute the next test only when the previous one has finished
+      // TODO : review if that will works,should I use a defer?? the inputs are sent immediately before the concat kicks in
+      .concatAll()
+      .subscribe(utils.rxlog('test case finished!'));
+
+    ///////////
+    // Helper functions
+    function analyze_test_results_curried(analyze_test_results_fn, expected_output_seq, test_success_message) {
+      return function analyze_test_results(transformed_actual_output_seq) {
+        return analyze_test_results_fn(transformed_actual_output_seq, expected_output_seq, test_success_message);
+      }
+    }
+
+    function simulate_input(circuits_state) {
+      return function simulate_input(input_obj) {
+        var IN_connector_hash = circuits_state.IN_connector_hash;
+        IN_connector_hash.get(input_obj.to).onNext(input_obj.input);
+      }
+    }
+
+    function get_filtered_readout_connectors(readout_filter, circuit_state) {
+      var OUT_connector_hash = circuit_state.OUT_connector_hash;
+      return _.filter(OUT_connector_hash, function filter_readout_connector(connector, port_uri) {
+        var port = utils.disjoin(port_uri);
+        return port.port_name === constants.READOUT_PORT_NAME && readout_filter(port.chip_uri);
+      });
+    }
+
+  }
+
   return {
     rx_test_with_random_delay: rx_test_with_random_delay,
-    rx_test_seq_with_random_delay: rx_test_seq_with_random_delay
+    rx_test_seq_with_random_delay: rx_test_seq_with_random_delay,
+    make_test_chip: make_test_chip
   }
 }
 

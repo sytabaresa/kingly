@@ -25,7 +25,7 @@ function require_utils(Rx, _, Err, constants) {
       if (typeof predicate_value !== 'boolean') throw 'ensure : predicate function must return boolean value type!'
 
       if (predicate(input)) return input;
-      console.error('ensure : passed input MUST satisfy predicate function!');
+      console.error('ensure : Emitted input MUST satisfy predicate function %s!', predicate.name);
       console.warn('input:', input);
       console.warn('predicate:', predicate);
       throw 'ensure : passed input MUST satisfy predicate function!'
@@ -192,6 +192,11 @@ function require_utils(Rx, _, Err, constants) {
     return [a, b].join(str || DEFAULT_JOIN_STR);
   }
 
+  function contains_string (str){
+    return function (string) {
+      return string.indexOf(str) > -1;
+    }
+  }
   function disjoin(ab, str) {
     var splitted = [];
     if (is_string(ab)) splitted = ab.split(str || DEFAULT_JOIN_STR);
@@ -363,6 +368,14 @@ function require_utils(Rx, _, Err, constants) {
     // nice to have : make the custom type a non enumerable property
     var keys = Object.keys(obj);
     return (keys[0] === TYPE_KEY) ? keys[1] : keys[0];
+  }
+
+  function is_label(str){
+    if (!(""+str)) throw 'is_label : label string cannot be empty';
+
+    return function is_label(obj){
+      return get_label(obj) === str;
+    }
   }
 
   function remove_label(obj) {
@@ -823,8 +836,10 @@ function require_utils(Rx, _, Err, constants) {
     is_wrapped_key: is_wrapped_key,
     log: log,
     info: info,
+    contains_string : contains_string,
     label: label,
     get_label: get_label,
+    is_label : is_label,
     remove_label: remove_label,
     to_observable: to_observable,
     to_error: to_error,
@@ -850,6 +865,7 @@ function require_utils(Rx, _, Err, constants) {
     is_observable: is_observable,
     is_array: is_array,
     is_empty: is_empty,
+    is_string : is_string,
     is_null: is_null,
     is_undefined: is_undefined,
     merge: merge,

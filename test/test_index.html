@@ -27,6 +27,7 @@
 -->
 <div id="qunit"></div>
 <div id="qunit-fixture"></div>
+<div id="app"></div>
 <script>
     QUnit.config.autostart = false;
     sinon.config = {
@@ -54,7 +55,8 @@
 //        "qunit_specs/asynchronous_fsm_test.js",
 //        "qunit_specs/utils_test.js",
 // TODO: I LEFT HERE        "qunit_specs/asynchronous_fsm_action_test.js",
-            "qunit_specs/circuits_test.js"
+//            "qunit_specs/circuits_test.js" // Test for circuits.js
+            "qunit_specs/circuits_todo_app_test.js", // Tests for simple apps made for circuits.js
     ], function () {
         console.info("Starting QUnit tests");
         QUnit.dump.maxDepth = 10;

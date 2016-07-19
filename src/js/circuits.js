@@ -1,3 +1,5 @@
+// TODO : when separating circuits.js, remember that text.js is necessary to load text dependencies with require.js (it must be in baseurl directory)
+
 /**
  * @typedef {String} Name
  * CONTRACT : Name's string must start with a letter i.e. [a-zA-Z] (and miscellaneous letters from other languages' alphabet, but no _ or $)
@@ -177,28 +179,6 @@ function require_circuits(Rx, _, utils, Err, constants) {
     this.port_name = port.port_name;
   }
 
-  /**
-   * Returns a customized subject which traps the `onCompleted` event.
-   * To send `onCompleted` event, it exposes a `dispose` method
-   * @param {URI} [uri]
-   * @return {Subject}
-   */
-  function get_new_IN_connector(uri) {
-    // TODO: adapt onError in function of error management decided.
-    // Note that onError now will prevent additional onNext to pass through, but observers will still be registered on the subject
-    var connector = new Rx.Subject();
-    connector.uri = uri;
-    // Trap dispose handler
-    connector.$_dispose = connector.dispose && connector.dispose.bind(connector); // strange name to avoid overwriting existing `dispose` methods
-    connector.dispose = dispose_IN_connector.bind(connector, connector);
-    // Trap onCompleted handler
-    connector.$_onCompleted = connector.onCompleted.bind(connector);
-    connector.onCompleted = warn_completed.bind(connector, connector);
-    connector.$_onNext = connector.onNext.bind(connector);
-    connector.onNext = onNext_or_warn_if_disposed.bind(connector);
-    return connector;
-  }
-
   function onNext_or_warn_if_disposed(input) {
     if (this.isDisposed) {
       console.warn('Received input %O for disposed chip/circuit\'s IN connector - Ignoring!', input);
@@ -247,16 +227,6 @@ function require_circuits(Rx, _, utils, Err, constants) {
     this.history.push(order);
   };
 
-  function get_default_IN_conn(uri) {
-    return get_new_IN_connector(uri);
-    // return new Rx.Subject();
-  }
-
-  function get_default_simulate_conn(uri) {
-    var s = new Rx.Subject();
-    s.uri = uri;
-    return s;
-  }
 
   function set_simulate_conn(/*-OUT-*/simulate_conn, uri) {
     simulate_conn.uri = uri;
@@ -266,24 +236,6 @@ function require_circuits(Rx, _, utils, Err, constants) {
   function set_readout_conn(/*-OUT-*/readout_conn, uri) {
     readout_conn.uri = uri;
     return readout_conn;
-  }
-
-  function get_default_readout_conn(uri) {
-    var s = new Rx.ReplaySubject(1);
-    s.uri = uri;
-    return s;
-  }
-
-  function get_active_simulate_conn(simulate_conn, uri) {
-    return is_simulate_connector_active(simulate_conn)
-      ? set_simulate_conn(simulate_conn, uri)
-      : get_default_simulate_conn(uri);
-  }
-
-  function get_active_readout_conn(readout_conn, uri) {
-    return is_readout_connector_active(readout_conn)
-      ? set_readout_conn(readout_conn, uri)
-      : get_default_readout_conn(uri);
   }
 
   function controller_transform(order$, settings) {
@@ -334,14 +286,49 @@ function require_circuits(Rx, _, utils, Err, constants) {
     start(controller, _controller.settings);
 
     function start(controller, settings) {
-      var IN_connector_hash = settings.IN_connector_hash;
-      var OUT_connector_hash = settings.OUT_connector_hash;
-
       var OUT_port = get_OUT_port_conn(controller, controller.ports.OUT[0], settings);
       OUT_port.subscribe(controller_subscribe_fn);
     }
 
     return _controller;
+  }
+
+  function merge_settings(parent_settings, child_settings) {
+    return SETTINGS_OVERRIDE
+      ? _.merge({}, parent_settings, child_settings)
+      : _.merge({}, child_settings, parent_settings);
+  }
+
+  // Get functions
+  /**
+   * Returns a customized subject which traps the `onCompleted` event.
+   * To send `onCompleted` event, it exposes a `dispose` method
+   * @param {URI} [uri]
+   * @return {Subject}
+   */
+  function get_new_IN_connector(uri) {
+    // TODO: adapt onError in function of error management decided.
+    // Note that onError now will prevent additional onNext to pass through, but observers will still be registered on the subject
+    var connector = new Rx.Subject();
+    connector.uri = uri;
+    // Trap dispose handler
+    connector.$_dispose = connector.dispose && connector.dispose.bind(connector); // strange name to avoid overwriting existing `dispose` methods
+    connector.dispose = dispose_IN_connector.bind(connector, connector);
+    // Trap onCompleted handler
+    connector.$_onCompleted = connector.onCompleted.bind(connector);
+    connector.onCompleted = warn_completed.bind(connector, connector);
+    connector.$_onNext = connector.onNext.bind(connector);
+    connector.onNext = onNext_or_warn_if_disposed.bind(connector);
+    return connector;
+  }
+
+  function get_default_IN_conn(uri) {
+    return get_new_IN_connector(uri);
+    // return new Rx.Subject();
+  }
+
+  function get_default_simulate_conn() {
+    return new Rx.Subject();
   }
 
   function get_OUT_port_conn(chip, port_name, circuits_state) {
@@ -358,6 +345,38 @@ function require_circuits(Rx, _, utils, Err, constants) {
       port_name: port_name,
       chip_uri: chip.uri
     }));
+  }
+
+  function get_default_readout_conn(uri) {
+    var s =new Rx.ReplaySubject(1);
+    s.uri = uri
+    return s;
+  }
+
+  function get_active_simulate_conn(simulate_conn, uri) {
+    return is_simulate_connector_active(simulate_conn)
+      ? set_simulate_conn(simulate_conn, uri)
+      : get_default_simulate_conn(uri);
+  }
+
+  function get_active_readout_conn(readout_conn, uri) {
+    return trap(
+      is_readout_connector_active(readout_conn)
+        ? readout_conn
+        : get_default_readout_conn(uri),
+      'READOUT', uri);
+  }
+
+  function trap(subject, type, uri) {
+    // TODO : I could have the trap subject without resorting to modifying the subject - more clean
+    var s = {};
+    s.onNext = subject.onNext;
+
+    subject.onNext = function onNext_trapped(x) {
+      console.log('%s subject %s emitting', type, uri, x);
+      s.onNext.call(subject, x);
+    };
+    return subject;
   }
 
   /**
@@ -402,6 +421,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
       : utils.get_values(chip_or_circuit.ports.OUT).map(get_port_uri_from_port_name(chip_or_circuit));
   }
 
+  // Predicates
   function is_in_circuit_IN_ports(chip_or_circuit) {
     return function is_in_circuit_ports(port_labelled_message) {
       var IN_port_uri = utils.get_label(port_labelled_message);
@@ -418,10 +438,11 @@ function require_circuits(Rx, _, utils, Err, constants) {
     return get_chip_or_circuit_OUT_port_uris(chip_or_circuit).indexOf(get_port_uri(OUT_port)) > -1
   }
 
-  function is_registered_IN_port (IN_connector_hash, IN_port){
+  function is_registered_IN_port(IN_connector_hash, IN_port) {
     return IN_connector_hash.has(get_port_uri(IN_port));
   }
-  function is_registered_OUT_port (OUT_connector_hash, OUT_port){
+
+  function is_registered_OUT_port(OUT_connector_hash, OUT_port) {
     return OUT_connector_hash.has(get_port_uri(OUT_port));
   }
 
@@ -437,6 +458,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
     return readout_connector && !(readout_connector.isStopped || readout_connector.isDisposed);
   }
 
+  // Contract checking
   function assert_links_contract(circuits_state, circuit, links) {
     // 0. links can be empty or undefined
     // 1. links is an array of Link
@@ -517,6 +539,175 @@ function require_circuits(Rx, _, utils, Err, constants) {
     // NOTE : no contracts for now on `settings`
   }
 
+  function assert_circuit_contracts(circuit, circuits_state) {
+    // Circuit must be defined
+    if (!circuit) throw Err.Circuit_Error({
+      message: 'Attempted to plug-in ill-defined or undefined circuit!',
+      extended_info: {
+        where: 'assert_circuit_contracts',
+        circuit: circuit,
+        circuits_state: circuits_state
+      }
+    });
+
+    // Circuit must be a circuit, i.e. have children chips/circuits...
+    var circuit_chips = circuit.chips;
+    if (!circuit_chips) throw Err.Circuit_Error({
+      message: 'Attempted to plug-in ill-defined or undefined circuit : no `chips` property found!',
+      extended_info: {
+        where: 'assert_circuit_contracts',
+        circuit: circuit,
+        chips: circuit_chips,
+        circuits_state: circuits_state
+      }
+    });
+    // ... which are gathered in an array
+    if (!utils.is_array(circuit_chips)) throw Err.Circuit_Error({
+      message: 'Attempted to plug-in ill-defined or undefined circuit : `chips` property must be an array!',
+      extended_info: {
+        where: 'assert_circuit_contracts',
+        circuit: circuit,
+        chips: circuit_chips
+      }
+    });
+
+    // port mapping is optional : circuits need not have ports
+    var circuit_ports_map = circuit.ports_map || {}; // allowed to be undefined for circuits
+
+    // port mapping must be to a string which is the name of the port
+    var circuit_ports_map_IN = circuit_ports_map.IN;
+    _.forEach(circuit_ports_map_IN, function assert_mapped_port_contracts(port, port_name) {
+      assert_port_contracts(port, circuits_state);
+    });
+
+    var circuit_ports_map_OUT = circuit_ports_map.OUT;
+    _.forEach(circuit_ports_map_OUT, function assert_contracts(__, port_name) {
+      if (!utils.is_string(port_name)) throw Err.Circuit_Error({
+        message: 'Attempted to plug-in ill-defined or undefined circuit : ports mapping must be a string!',
+        extended_info: {
+          where: 'assert_circuit_contracts',
+          circuit: circuit,
+          circuit_ports_map_OUT: circuit_ports_map_OUT,
+          circuits_state: circuits_state
+        }
+      });
+    });
+
+    var circuit_links = circuit.links || [];
+    circuit_links.forEach(function connect_link(link) {
+      assert_link_contracts(link, circuits_state);
+    });
+
+  }
+
+  function assert_chip_contracts (chip){
+    // Chip must be defined
+    if (!chip) throw Err.Circuit_Error({
+      message: 'Attempted to define or use ill-defined or undefined chip!',
+      extended_info: {
+        where: 'assert_chip_contracts',
+        chip: chip
+      }
+    });
+
+    // ports must exist
+    var ports = chip.ports;
+    if (!ports) throw Err.Circuit_Error({
+      message: 'Attempted to define or use ill-defined or undefined chip! `ports` property must be defined!',
+      extended_info: {
+        where: 'assert_chip_contracts',
+        chip: chip
+      }
+    });
+
+    // ports.IN must be an array
+    var IN_ports = ports.IN;
+    if (!utils.is_array(IN_ports)) throw Err.Circuit_Error({
+      message: 'Attempted to plug-in ill-defined or undefined circuit : `ports.IN` property must be an array!',
+      extended_info: {
+        where: 'assert_circuit_contracts',
+        chip: chip,
+        IN_ports: chip.ports.IN
+      }
+    });
+
+    // ports.OUT must be an array
+    var OUT_ports = ports.OUT;
+    if (!utils.is_array(OUT_ports)) throw Err.Circuit_Error({
+      message: 'Attempted to plug-in ill-defined or undefined circuit : `ports.OUT` property must be an array!',
+      extended_info: {
+        where: 'assert_circuit_contracts',
+        chip: chip,
+        OUT_ports: chip.ports.OUT
+      }
+    });
+
+    // transform must exist and be a function
+    var transform = chip.transform;
+    if (!transform || !utils.is_function(transform)) throw Err.Circuit_Error({
+      message: 'Attempted to define or use ill-defined or undefined chip! `transform` property must be defined and be a function!',
+      extended_info: {
+        where: 'assert_chip_contracts',
+        transform: transform
+      }
+    });
+
+  }
+
+  function assert_link_contracts(link, circuits_state) {
+    var IN_port = link.IN_port;
+    var OUT_port = link.OUT_port;
+    assert_port_contracts(IN_port, circuits_state);
+    assert_port_contracts(OUT_port, circuits_state);
+  }
+
+  function assert_port_contracts(port, circuits_state) {
+    if (!port) throw Err.Circuit_Error({
+      message: 'Encountered undefined port!',
+      extended_info: {where: 'assert_port_contracts', port: port, circuits_state: circuits_state}
+    });
+
+    var uri = port.chip_uri;
+    var name = port.port_name;
+    if (!(utils.is_string(uri) && utils.is_string(name))) throw Err.Circuit_Error({
+      message: 'Encountered ill-formed port! uri and name must be strings!',
+      extended_info: {where: 'assert_port_contracts', port: port, circuits_state: circuits_state}
+    });
+  }
+
+  function assert_transform_contracts(transform_fn, output, chip) {
+    var out_port_names = chip.ports.OUT;
+    var in_port_names = chip.ports.IN;
+    var output_port_names = output ? Object.keys(output) : [];
+    var transform_args_num = transform_fn.length;
+
+    // The transform function must have been defined with all the configured out ports in parameter
+    if (transform_args_num - 1 !== in_port_names.length) throw Err.Circuit_Error({
+      message: 'transform function must be called with ALL the OUT port names plus `settings`! Mismatch in number of arguments',
+      extended_info: {
+        configured_in_ports: in_port_names,
+        transform_args_num_minus_settings: transform_args_num - 1,
+        fn_name: transform_fn.name
+      }
+    });
+
+    // Output must only have keys configured in the chip as out ports
+    var is_output_only_with_configured_ports = output_port_names.every(function (output_port_name) {
+      return out_port_names.indexOf(output_port_name) > -1;
+    });
+    if (!is_output_only_with_configured_ports) throw Err.Circuit_Error({
+      message: 'transform function returned OUT port which is not configured in chip definition!',
+      extended_info: {transform_out_ports: output_port_names, configured_out_ports: out_port_names}
+    });
+    // All configured out ports must be in the transform's output
+    var is_all_configured_ports_in_output = out_port_names.every(function (out_port_name) {return output_port_names.indexOf(out_port_name) > -1;});
+    if (!is_all_configured_ports_in_output) throw Err.Circuit_Error({
+      message: 'transform function returned OUT port which is not configured in chip definition!',
+      extended_info: {transform_out_ports: output_port_names, configured_out_ports: out_port_names}
+    });
+  }
+
+  // Registry updating functions
   /**
    *
    * @param ports
@@ -718,6 +909,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
         timestamp: timestamp,
         readout: readout
       };
+      console.info('sending labelled message', port_uri, labelled_message);
       connector.onNext(labelled_message);
     }
   }
@@ -813,7 +1005,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
       var OUT_connector = OUT_connector_hash.get(OUT_port_uri);
       if (!OUT_connector) throw Err.Circuit_Error({
         message: 'Invalid link configured! Cannot find a registered connector register for OUT port!',
-        extended_info: {where: 'connect_links', IN_port: OUT_port, OUT_connector_hash: OUT_connector_hash}
+        extended_info: {where: 'connect_links', OUT_port: OUT_port, OUT_connector_hash: OUT_connector_hash}
       });
 
       disposable_hash.set(
@@ -1013,8 +1205,9 @@ function require_circuits(Rx, _, utils, Err, constants) {
         get_IN_port_conn(chip, port_name, circuits_state)
           .do(utils.rxlog('IN connector hash ' + port_uri)),
         simulate_conn
-          .do(utils.rxlog('pre-filter simulated inputs sent to : ' + port_uri))
           .ensure(is_in_circuit_IN_ports(chip))
+          .filter(utils.is_label(port_uri))
+          .do(utils.rxlog('pre-filter simulated inputs sent to : ' + port_uri))
           .map(utils.remove_label)
           .doOnCompleted(utils.rxlog('simulate_conn (' + simulate_conn.uri + ') completed'))
       )
@@ -1033,6 +1226,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
     merged_connectors.push(merged_settings);
     // TODO : add error management for when transform function returns error
     var output = chip_transform.apply(null, merged_connectors);
+    assert_transform_contracts(chip_transform, output, chip);
 
     // Create and register readout connectors
     readout_conn = get_active_readout_conn(readout_conn, uri);
@@ -1083,6 +1277,8 @@ function require_circuits(Rx, _, utils, Err, constants) {
     var simulate_conn = test.simulate;
     var readout_conn = test.readout;
 
+    assert_circuit_contracts(circuit, circuits_state);
+
     // Case circuit :
     // 1. Plug-in each child chip/circuit in order of definition
     circuit_ports_map = circuit_ports_map || {}; // allowed to be undefined for circuits
@@ -1108,15 +1304,14 @@ function require_circuits(Rx, _, utils, Err, constants) {
     OUT_connector_hash.set(circuit_readout_port_uri, circuit_readout_conn);
 
     circuit_chips.forEach(function connect_circuit_readout_to_chips(chip) {
-      var chip_test_readout = get_readout_port(chip, circuits_state);
+      var chip_test_readout_port_uri = get_port_uri({chip_uri: chip.uri, port_name: READOUT_PORT_NAME});
+      var chip_test_readout = OUT_connector_hash.get(chip_test_readout_port_uri);
       disposable_hash.set(
-        utils.join(get_port_uri({
-          chip_uri: chip.uri,
-          port_name: READOUT_PORT_NAME
-        }), circuit_readout_port_uri, ARROW_JOIN_STR),
+        utils.join(chip_test_readout_port_uri, circuit_readout_port_uri, ARROW_JOIN_STR),
         chip_test_readout
-          .map(translate_circuit_OUT_port_uri(circuit, circuit_ports_map))
+//          .map(translate_circuit_OUT_port_uri(circuit, circuit_ports_map))
           .subscribe(circuit_readout_conn));
+      //          .do(utils.rxlog('readout ' + circuit.uri +':'))
     });
 
     // 2b. OUT_ports
@@ -1167,12 +1362,6 @@ function require_circuits(Rx, _, utils, Err, constants) {
           .subscribe(chip_test_simulate)
       );
     });
-  }
-
-  function merge_settings(parent_settings, child_settings) {
-    return SETTINGS_OVERRIDE
-      ? _.merge({}, parent_settings, child_settings)
-      : _.merge({}, child_settings, parent_settings);
   }
 
   /**
@@ -1242,7 +1431,6 @@ function require_circuits(Rx, _, utils, Err, constants) {
     return order.command;
   }
 
-
   function get_chip_port(chip, port_name) {
     return {
       chip_uri: chip.uri,
@@ -1258,11 +1446,17 @@ function require_circuits(Rx, _, utils, Err, constants) {
     }
   }
 
+  function make_chip (chip){
+      assert_chip_contracts(chip);
+      return utils.new_typed_object(chip, CIRCUIT_OR_CHIP_TYPE);
+  }
+
   return {
     create_controller: create_controller,
     get_chip_port: get_chip_port,
     get_port_uri: get_port_uri,
     make_link: make_link,
+    make_chip : make_chip,
     get_default_simulate_conn: get_default_simulate_conn,
     get_default_readout_conn: get_default_readout_conn
   }

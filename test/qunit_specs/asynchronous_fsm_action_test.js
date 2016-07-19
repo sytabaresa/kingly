@@ -320,9 +320,10 @@ define(function (require) {
         return function array_storage_driver(effect_requests$) {
           return effect_requests$
             .do(function store_value(x) {
-              storage[index++] = x.params;})
+              storage[index++] = x.params;
+            })
             .delay(2)
-            .do(function (){utils.rxlog('array_storage_factory ')(storage.slice())})
+            .do(function () {utils.rxlog('array_storage_factory ')(storage.slice())})
             .map(function () {return storage;})
         }
       },
@@ -2004,6 +2005,7 @@ define(function (require) {
         'cancelled': event_payload
       }
     }
+
     function other_pure_action(model, event_payload) {
       return {
         'not_cancelled': event_payload
@@ -2124,3 +2126,4 @@ define(function (require) {
 //   i.e. 2. model -> {test_field : 42, dummy : true}
 //           model_update -> {test_field : 42}
 //           misc. internal state and other fields
+

@@ -71,6 +71,7 @@ function require_custom_errors(_) {
     this.detail = ( settings.detail || "" );
     this.extended_info = ( settings.extended_info || "" );
     this.error_code = ( settings.error_code || "" );
+    if (settings.where) this.where = settings.where;
 
     // This is just a flag that will indicate if the error is a custom AppError. If this
     // is not an AppError, this property will be undefined, which is a Falsey.
