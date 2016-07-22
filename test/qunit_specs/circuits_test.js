@@ -20,12 +20,13 @@ define(function (require) {
   var COMMAND_PLUG_IN_CIRCUIT = constants.COMMAND_PLUG_IN_CIRCUIT;
   var COMMAND_UNPLUG_CIRCUIT = constants.COMMAND_UNPLUG_CIRCUIT;
   var CIRCUIT_OR_CHIP_TYPE = constants.CIRCUIT_OR_CHIP_TYPE;
+  var CONTROLLER_CHIP_URI = constants.CONTROLLER_CHIP_URI;
   var max_delay = 10;
 
   var IN_port_name = 'order$';
   var OUT_port_name = 'circuits_state$';
   var controller_setup = {
-    uri: 'controller_1',
+    uri: CONTROLLER_CHIP_URI,
     ports: {
       IN: [IN_port_name],
       OUT: [OUT_port_name]

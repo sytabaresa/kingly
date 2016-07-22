@@ -11,6 +11,7 @@ define(function (require) {
 
 function require_circuits_utils(Rx, _, circuits, utils, Err, constants) {
   var TEST_CASE_PORT_NAME = constants.TEST_CASE_PORT_NAME;
+  var CONTROLLER_CHIP_URI = constants.CONTROLLER_CHIP_URI;
 
   /**
    * This only tests a serie of outputs vs. a serie of inputs linked in a 1-to-1 relationship, i.e. 1 input -> 1 output
@@ -22,7 +23,6 @@ function require_circuits_utils(Rx, _, circuits, utils, Err, constants) {
    * @param {String} [test_identifier]
    * @returns {Rx.Observable}
    */
-  // TODO : adjust API to gather input params in one object, and output params in another one
   function rx_test_with_random_delay(input_parameters, output_parameters, test_identifier) {
     var input_seq = input_parameters.input_seq;
     var max_delay = input_parameters.max_delay;
@@ -63,6 +63,7 @@ function require_circuits_utils(Rx, _, circuits, utils, Err, constants) {
   }
 
   // TODO : document, possibly fuse the previous into one with the new one
+  // TODO : put a little bit of order because I have a third one now...
   function rx_test_seq_with_random_delay(input_parameters, output_parameters, test_identifier) {
     var input_seq = input_parameters.input_seq;
     var max_delay = input_parameters.max_delay;
@@ -180,7 +181,8 @@ function require_circuits_utils(Rx, _, circuits, utils, Err, constants) {
       var test_result$ = undefined;
       // Register to all readout and filter the one I am interested in
       // I also need to unsubscribe all of them when finished (pay attention that they are not completed accidentally while doing so)
-      var filtered_readouts = get_filtered_readout_connectors(readout_filter, circuit_state);
+      var filtered_readouts = get_filtered_readout_connectors(readout_filter, circuit_state)
+        .map(function(readout_connector){return readout_connector.map(utils.label(readout_connector.uri))});
       if (filtered_readouts.length === 0) {
         // Case : nothing to read out from (example of circuit doing silent side-effects) but we want to wait some reasonable time
         // before proceeding with the testing
@@ -227,7 +229,9 @@ function require_circuits_utils(Rx, _, circuits, utils, Err, constants) {
       var OUT_connector_hash = circuit_state.OUT_connector_hash;
       return _.filter(OUT_connector_hash, function filter_readout_connector(connector, port_uri) {
         var port = utils.disjoin(port_uri);
-        return port.port_name === constants.READOUT_PORT_NAME && readout_filter(port.chip_uri);
+        return port.port_name === constants.READOUT_PORT_NAME
+          && readout_filter(port.chip_uri)
+          && port.chip_uri !== CONTROLLER_CHIP_URI;
       });
     }
 

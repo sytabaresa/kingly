@@ -1,4 +1,5 @@
 // TODO : when separating circuits.js, remember that text.js is necessary to load text dependencies with require.js (it must be in baseurl directory)
+// TODO : DOCUMENT : settings must be there in `transform` even if not used as the number of arguments of the function is checked!!
 
 /**
  * @typedef {String} Name
@@ -168,6 +169,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
   var CIRCUIT_OR_CHIP_TYPE = constants.CIRCUIT_OR_CHIP_TYPE;
   var SETTINGS_OVERRIDE = constants.SETTINGS_OVERRIDE;
   var ARROW_JOIN_STR = constants.ARROW_JOIN_STR;
+  var CONTROLLER_CHIP_URI = constants.CONTROLLER_CHIP_URI;
 
   /**
    *
@@ -262,7 +264,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
 
     var _controller = utils.set_custom_type({
       serie: controller.serie || 'controller',
-      uri: controller.uri || 'controller_1',
+      uri: controller.uri || CONTROLLER_CHIP_URI,
       ports: controller.ports || {
         IN: ['order$'],
         OUT: ['circuits_state$']

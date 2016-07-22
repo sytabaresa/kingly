@@ -25,6 +25,7 @@ define(function (require) {
     SIMULATE_PORT_NAME: '$simulate$',
     READOUT_PORT_NAME : '$readout$',
     TEST_CASE_PORT_NAME : 'test_case',
+    CONTROLLER_CHIP_URI: 'controller_1',
     COMMAND_PLUG_IN_CIRCUIT : 'command_plug_in_circuit',
     COMMAND_UNPLUG_CIRCUIT : 'command_unplug_circuit',
     // Types

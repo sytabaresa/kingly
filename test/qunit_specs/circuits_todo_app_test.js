@@ -8,7 +8,7 @@ define(function (require) {
   var circuits = require('circuits');
   var circuit_utils = require('circuits_utils');
   var Ractive = require('ractive');
-  var todo_item_template = require('text!../../../test/qunit_specs/assets/todo_app/todo_item_template.html'); // TODO : check require for text
+  var todo_item_template = require('text!../../../test/qunit_specs/assets/todo_app/todo_item_template.html');
   var make_link = circuits.make_link;
   var get_port_uri = circuits.get_port_uri;
   var get_default_simulate_conn = circuits.get_default_simulate_conn;
@@ -19,6 +19,7 @@ define(function (require) {
   var COMMAND_UNPLUG_CIRCUIT = constants.COMMAND_UNPLUG_CIRCUIT;
   var CIRCUIT_OR_CHIP_TYPE = constants.CIRCUIT_OR_CHIP_TYPE;
   var TEST_CASE_PORT_NAME = constants.TEST_CASE_PORT_NAME;
+  var CONTROLLER_CHIP_URI = constants.CONTROLLER_CHIP_URI;
 
   // Template variables
   // The keycode for the 'enter' and 'escape' keys
@@ -32,7 +33,7 @@ define(function (require) {
 
   var controller_IN_port_name = 'order$';
   var controller_OUT_port_name = 'circuits_state$';
-  var controller_uri = 'controller_1';
+  var controller_uri = CONTROLLER_CHIP_URI;
   var controller_setup = {
     uri: controller_uri,
     ports: {
@@ -165,7 +166,6 @@ define(function (require) {
       }
     });
 
-    // TODO : DOCUMENT : settings must be there even if not used as the number of arguments of the function is checked!!
     function update_todo_model(update_todo_text$, edit$, cancel$, toggle_visibility$, delete_todo$, external_intent$, settings) {
       return {
         update_model: Rx.Observable.merge(
@@ -285,13 +285,8 @@ define(function (require) {
         append: true,
         data: {item_id: 'i1'}
       },
-      test: {
-        simulate: todo_item_simulate_conn,
-        //        readout: todo_item_circuit_test_readout
-      }
+      test: {        simulate: todo_item_simulate_conn      }
     }, CIRCUIT_OR_CHIP_TYPE);
-    // TODO : add a test parameter to the order which will hold the readout connector
-    // TODO : or pass variables and fill them from inside as a pis-aller (workaround)
 
     // Testing todo item component
     // 0. Controller
@@ -323,37 +318,66 @@ define(function (require) {
 
     var test_case = {
       input_seq: [
-        {to : "todo_item_update_1-|update_todo_text", input :  {description: 'description test value'}},
+        // Simulating intent <- [event keypress]* + event enter
+        {to: "todo_item_update_1-|update_todo_text", input: {description: 'description test value'}},
+        // Simulating intent <- event double-click
+        {to: "todo_item_update_1-|edit", input: {editing: true}},
+        // Simulating intent <- event keydown escape
+        {to: "todo_item_update_1-|cancel", input: {editing: false}},
+        // Simulating intent <- event button click delete
+        {to: "todo_item_update_1-|delete_todo", input: {anything: 'does not matter'}},
       ],
-      expected_output_seq: [],
+      expected_output_seq: [
+        // NOTE : there is no `notify` message as the notify OUT port is not subscribed to
+        {
+          "port_uri": "todo_item_circuit_1",
+          "readout": {"description": "description test value"},
+          "relayed_from": "todo_item_update_1-|update_model"
+        },
+        {
+          "port_uri": "todo_item_circuit_1",
+          "readout": {"editing": true},
+          "relayed_from": "todo_item_update_1-|update_model"
+        },
+        {
+          "port_uri": "todo_item_circuit_1",
+          "readout": {"editing": false},
+          "relayed_from": "todo_item_update_1-|update_model"
+        },
+        {
+          "port_uri": "todo_item_circuit_1",
+          "readout": {"anything": "does not matter"},
+          "relayed_from": "todo_item_update_1-|destroy"
+        }],
       test_success_message: [
         'TODO',
       ].join('\n'),
-      output_transform_fn: test_case_output_transform_fn, // TODO: update if necessary
-      readout_filter: utils.always(true),
+      output_transform_fn: test_case_output_transform_fn,
+      readout_filter: utils.contains_string('circuit'),
       analyze_test_results_fn: analyze_test_results
     };
-  // utils.contains_string('update')
     // Send test case inputs, the test should then execute
     var test_case_labelled_message = {};
-    test_case_labelled_message[get_port_uri({chip_uri : test_chip.uri, port_name: TEST_CASE_PORT_NAME})] = test_case;
+    test_case_labelled_message[get_port_uri({chip_uri: test_chip.uri, port_name: TEST_CASE_PORT_NAME})] = test_case;
     test_chip_simulate_conn.onNext(test_case_labelled_message);
-
 
     function test_case_output_transform_fn(output_value) {
       var port_uri = utils.get_label(output_value);
-      var readout = utils.remove_label(output_value).readout;
+      var from = utils.get_label(utils.remove_label(output_value));
+      var readout = utils.remove_label(utils.remove_label(output_value)).readout;
 
       return {
         port_uri: port_uri,
-        readout: readout,
+        relayed_from: from,
+        readout: readout
       };
-    };
+    }
 
     function analyze_test_results(actual_output_seq, expected_output_seq, test_success_message) {
       assert.deepEqual(actual_output_seq, expected_output_seq, test_success_message);
       done();
     }
+
     // TODO : Edge case : error while processing test inputs
     // TODO : test all chips one by one with the simulate and test the circuit too with the same
 
