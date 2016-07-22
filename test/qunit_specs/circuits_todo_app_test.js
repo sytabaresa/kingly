@@ -71,7 +71,7 @@ define(function (require) {
       },
       transform: ractive_driver,
       settings: {
-        template: todo_item_template, // TODO : remove the first and last lines, so first look at format
+        template: todo_item_template,
         twoway: false,
         data: {// TODO : put the css for that
           filter: function filter_item(item) {
@@ -117,7 +117,6 @@ define(function (require) {
         'to anchor the view and the view template are both necessary!'
       }
 
-      // TODO : check that settings are correctly merged
       console.log('settings', settings);
       // 1. Create/Display the view if the necessary data is present
       ractive_view = new Ractive(settings);
@@ -135,7 +134,7 @@ define(function (require) {
       // 3. Destroy the view on reception of destroy message
       delete$.subscribe(function dispose_ractive_view() {
         if (ractive_view) {
-          ractive_view.teardown(); // TODO : check ractive API
+          ractive_view.teardown();
         }
         else {
           console.warn('received teardown message with a view which is not displayes yet!');
