@@ -30,7 +30,7 @@ define(function (require) {
   var rxlog = utils.rxlog;
   var clone_circuit = circuit_utils.clone_circuit;
 
-//  // mermaid
+//  mermaid
 //  var element = document.querySelector("#mermaid");
 //
 //  var insertSvg = function (svgCode, bindFunctions) {
