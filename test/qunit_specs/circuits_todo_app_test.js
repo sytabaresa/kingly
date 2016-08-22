@@ -12,6 +12,7 @@
 // TODO : TODO with other view driver (SnabDOM?) for version 2.1
 // TODO : better TODO (with firebase storage) for version 2.2
 
+
 define(function (require) {
   var utils = require('utils');
   var Err = require('custom_errors');
@@ -19,6 +20,7 @@ define(function (require) {
   var circuits = require('circuits');
   var circuit_utils = require('circuits_utils');
   var Ractive = require('ractive');
+  var mermaid = require('mermaid');
   var todo_item_template = require('text!../../../test/qunit_specs/assets/todo_app/todo_item_template.html');
   var todo_manager_template = require('text!../../../test/qunit_specs/assets/todo_app/todo_manager_template.html');
   var make_link = circuits.make_link;
@@ -27,6 +29,17 @@ define(function (require) {
   var get_simulate_port_uri = circuits.get_simulate_port_uri;
   var rxlog = utils.rxlog;
   var clone_circuit = circuit_utils.clone_circuit;
+
+//  // mermaid
+//  var element = document.querySelector("#mermaid");
+//
+//  var insertSvg = function (svgCode, bindFunctions) {
+//    element.innerHTML = svgCode;
+//  };
+//
+//  var graphDefinition = 'graph TB\na-->b';
+//  var graph = mermaid.render('mermaid', graphDefinition, insertSvg);
+
 
   // Constants
   var COMMAND_PLUG_IN_CIRCUIT = constants.COMMAND_PLUG_IN_CIRCUIT;

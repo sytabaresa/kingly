@@ -6,6 +6,8 @@
     <!-- Qunit testing stylesheets -->
     <!-- <link rel="stylesheet" href="../src/css/qunit-1.20.0.css">-->
     <link rel="stylesheet" href="../src/css/qunit-1.20.0.css">
+    <!-- mermaid css https://cdnjs.com/libraries/mermaid-->
+    <link rel="stylesheet" href="../src/css/mermaid.css" />
     <!-- Qunit libraries-->
     <script src="../src/js/vendor/qunit-1.20.0.js"></script>
     <script type="text/javascript" src="../src/js/vendor/sinon-1.17.2.js"></script>
@@ -27,6 +29,7 @@
 -->
 <div id="qunit"></div>
 <div id="qunit-fixture"></div>
+<div id="mermaid"></div>
 <div id="app"></div>
 <script>
     QUnit.config.autostart = false;
@@ -41,6 +44,7 @@
             rx: 'vendor/rx.all',
             cycle: 'vendor/cycle',
             ractive: 'vendor/ractive',
+            mermaid: 'vendor/mermaidAPI',
             'ra-adpt-rxjs': 'vendor/ractive-adaptors-rxjs',
             'ra-adpt-promise-alt': 'vendor/ractive-promise-alt',
             'ra-decorator-bootstrap': 'vendor/ractive-bootstrap',
