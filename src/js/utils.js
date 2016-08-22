@@ -133,10 +133,10 @@ function require_utils(Rx, _, Err, constants) {
     console.info.apply(console, args.map(clone_deep));
   }
 
-  function label(action_source) {
+  function label(label) {
     return function prefix_(x) {
       var labelled_obj = {};
-      labelled_obj[action_source] = x;
+      labelled_obj[label] = x;
       return labelled_obj
     }
   }
@@ -192,11 +192,12 @@ function require_utils(Rx, _, Err, constants) {
     return [a, b].join(str || DEFAULT_JOIN_STR);
   }
 
-  function contains_string (str){
+  function contains_string(str) {
     return function (string) {
       return string.indexOf(str) > -1;
     }
   }
+
   function disjoin(ab, str) {
     var splitted = [];
     if (is_string(ab)) splitted = ab.split(str || DEFAULT_JOIN_STR);
@@ -370,10 +371,10 @@ function require_utils(Rx, _, Err, constants) {
     return (keys[0] === TYPE_KEY) ? keys[1] : keys[0];
   }
 
-  function is_label(str){
-    if (!(""+str)) throw 'is_label : label string cannot be empty';
+  function is_label(str) {
+    if (!("" + str)) throw 'is_label : label string cannot be empty';
 
-    return function is_label(obj){
+    return function is_label(obj) {
       return get_label(obj) === str;
     }
   }
@@ -422,6 +423,10 @@ function require_utils(Rx, _, Err, constants) {
     if (parsed_string.is_check_undefined && is_undefined(obj)) return true;
 
     return obj && obj[TYPE_KEY] && obj[TYPE_KEY].indexOf(parsed_string.type_name) > -1;
+  }
+
+  function assert_truthy(x, msg) {
+    if (!x) throw msg;
   }
 
   /**
@@ -826,6 +831,29 @@ function require_utils(Rx, _, Err, constants) {
     // this[key] = undefined;
   };
 
+  /**
+   * Returns an observable which streams DOM events defined by the passed parameters
+   * @param {Element} anchor_element DOM element. Selector will refer to a location under that element
+   * @param {String} selector DOM selector
+   * @param {String} event Event among the list of defined DOM events
+   * @returns {Observable}
+   */
+  function from_event(anchor_element, selector, event) {
+    var selected_element = null;
+
+    return Rx.Observable.fromEvent(anchor_element, event)
+      .filter(function filter_target_element(ev) {
+        if (ev.target != selected_element) return false;
+
+        if (!selected_element){
+          selected_element = anchor_element.querySelector(selector);
+          assert_truthy(selected_element, ['from_event: query selector ', selector, ' under ', anchor_element, ' is falsy!'].join(''));
+        }
+        return true;
+      });
+  }
+
+
   return {
     get_JSONP: get_JSONP,
     identity: identity,
@@ -836,10 +864,10 @@ function require_utils(Rx, _, Err, constants) {
     is_wrapped_key: is_wrapped_key,
     log: log,
     info: info,
-    contains_string : contains_string,
+    contains_string: contains_string,
     label: label,
     get_label: get_label,
-    is_label : is_label,
+    is_label: is_label,
     remove_label: remove_label,
     to_observable: to_observable,
     to_error: to_error,
@@ -865,7 +893,7 @@ function require_utils(Rx, _, Err, constants) {
     is_observable: is_observable,
     is_array: is_array,
     is_empty: is_empty,
-    is_string : is_string,
+    is_string: is_string,
     is_null: is_null,
     is_undefined: is_undefined,
     merge: merge,
@@ -873,6 +901,7 @@ function require_utils(Rx, _, Err, constants) {
     get_fn_name: get_fn_name,
     new_typed_object: new_typed_object,
     set_custom_type: set_custom_type,
+    assert_truthy: assert_truthy,
     assert_signature: assert_signature,
     assert_custom_type: assert_custom_type,
     assert_type: assert_type,
@@ -881,6 +910,7 @@ function require_utils(Rx, _, Err, constants) {
     get_keys: get_keys,
     get_values: get_values,
     make_registry: make_registry,
-    Hashmap: Hashmap
+    Hashmap: Hashmap,
+    from_event: from_event
   }
 }

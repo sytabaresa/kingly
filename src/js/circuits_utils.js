@@ -124,6 +124,12 @@ function require_circuits_utils(Rx, _, circuits, utils, Err, constants) {
     console.info('test value emitted : ', input_value);
   }
 
+  function clone_circuit(circuit, id){
+    var cloned_circuit = utils.clone_deep(circuit);
+    cloned_circuit.uri = cloned_circuit.uri + id;
+    return cloned_circuit;
+  }
+
   var counter = 0;
 
   function make_test_chip() {
@@ -156,7 +162,6 @@ function require_circuits_utils(Rx, _, circuits, utils, Err, constants) {
 
     test_case$.withLatestFrom(circuits_state$, function make_exec_test_observable(test_case, circuit_state) {
       var input_seq = test_case.input_seq;
-      // TODO : create helper function to help in making an input with prefixes (port uri, etc.)
       // we will use input_seq : {to : {chip_uri, port_name}, input : *}
       var expected_output_seq = test_case.expected_output_seq;
       var test_success_message = test_case.test_message;
@@ -240,7 +245,8 @@ function require_circuits_utils(Rx, _, circuits, utils, Err, constants) {
   return {
     rx_test_with_random_delay: rx_test_with_random_delay,
     rx_test_seq_with_random_delay: rx_test_seq_with_random_delay,
-    make_test_chip: make_test_chip
+    make_test_chip: make_test_chip,
+    clone_circuit : clone_circuit
   }
 }
 

@@ -1,0 +1,47 @@
+<!-- Templates -->
+<!-- <script id="main" type="text/ractive">-->
+			<header id="header">
+				<h1>todos</h1>
+
+				<!-- In app.js, we define a custom `enter` event, which fires when the user hits the enter key, submitting a new todo. -->
+				<input id="new-todo" placeholder="What needs to be done?" value = {{ todo_mgr_text }} autofocus>
+			</header>
+
+			<!--
+			We only render the main section and the footer if we have one or more todos - in other words, `items.length` is not falsy.
+			-->
+            <section id="main" style="display:{{(active_tasks + completed_tasks > 0)?'block':'none'}}">
+				<!-- Here, we compare the total number of tasks (`items.length`) with the number of completed tasks (`completedTasks().length`). This calculation happens reactively, so we never need to manually trigger an update. When the `change` event fires on the input, the `toggleAll` event fires on the Ractive instance. -->
+				<input id="toggle-all" type="checkbox" on-change="toggleAll"  checked='{{toggle_all_checked}}'>
+				<label for="toggle-all">Mark all as complete</label>
+				<ul id="todo-list">
+				</ul>
+			</section>
+
+				<footer id="footer" style="display:{{(active_tasks + completed_tasks > 0)?'block':'none'}}">
+					<span id="todo-count">
+						<!-- The number of active tasks updates reactively -->
+						<strong>{{ active_tasks }}</strong> {{ active_tasks === 1 ? 'item' : 'items' }} left
+					</span>
+
+					<ul id="filters">
+						<li>
+							<a class="{{ current_filter === 'all' ? 'selected' : '' }}" href="#/">All</a>
+						</li>
+						<li>
+							<a class="{{ current_filter === 'active' ? 'selected' : '' }}" href="#/active">Active</a>
+						</li>
+						<li>
+							<a class="{{ current_filter === 'completed' ? 'selected' : '' }}" href="#/completed">Completed</a>
+						</li>
+					</ul>
+
+					<!-- This section is only rendered if there are one or more completed tasks -->
+						<!-- When the user clicks this button, the `clearCompleted` event fires -->
+					{{# clear_completed}}
+					<button id="clear-completed" on-click="clearCompleted">
+							Clear completed
+					</button>
+					{{/}}
+				</footer>
+<!-- 		</script> -->

@@ -1,5 +1,27 @@
 // TODO : when separating circuits.js, remember that text.js is necessary to load text dependencies with require.js (it must be in baseurl directory)
 // TODO : DOCUMENT : settings must be there in `transform` even if not used as the number of arguments of the function is checked!!
+// TODO : use mermaid to draw graph from controller
+
+// DOCUMENTATION :
+// !! The readout connector are passing along the values that are emitted by the output ports AS IS without cloning.
+// As they are semantically meant to reflect the value of an output at a specific moment in time, the output value should
+// be cloned so it remains constant (inprevious to further modification of the output value downstream).
+// However this has performance implications (deep cloning at every level of the circuit possibly big objects). So a choice
+// is made to not deep-clone or clone any output value.
+// The consequence for the user of the library is that whatever value are :
+// - immediate and single usage of the output value (same tick, so before any other modification could happen)
+// - in specific cases, deep cloning manually when really necessary instead of at the library level
+// TODO : documentation : having intents out of the view means that we have to make sure that the selectors exist to compute the intent...
+// This renders impossible after-the-fact intents, like conditional views which start invisible, their intent will never be computed (only computed once)
+// So either the intents is linked to the view, in view -> intent -> (vm, actions)
+// or the intents are IN the view... (view, events) -> intents -> (vm, actions)
+// The todo list is an example of that
+// {{#(active_tasks + completed_tasks > 0)}}
+// <!-- Here, we compare the total number of tasks (`items.length`) with the number of completed tasks (`completedTasks().length`). This calculation happens reactively, so we never need to manually trigger an update. When the `change` event fires on the input, the `toggleAll` event fires on the Ractive instance. -->
+// <input id="toggle-all" type="checkbox" on-change="toggleAll"  checked='{{toggle_all_checked}}'>
+//   <label for="toggle-all">Mark all as complete</label>
+// {{/}}
+// #toggle-all does not exist in the beginning, so the intent errors
 
 /**
  * @typedef {String} Name
@@ -140,18 +162,6 @@
  * @typedef {{circuit: Circuit|Chip, links : Array<Link>, settings : Settings}} Order_Parameters
  */
 
-  // DOCUMENTATION :
-  // !! The readout connector are passing along the values that are emitted by the output ports AS IS without cloning.
-  // As they are semantically meant to reflect the value of an output at a specific moment in time, the output value should
-  // be cloned so it remains constant (inprevious to further modification of the output value downstream).
-  // However this has performance implications (deep cloning at every level of the circuit possibly big objects). So a choice
-  // is made to not deep-clone or clone any output value.
-  // The consequence for the user of the library is that whatever value are :
-  // - immediate and single usage of the output value (same tick, so before any other modification could happen)
-  // - in specific cases, deep cloning manually when really necessary instead of at the library level
-
-  // TODO : use mermaid to draw graph from controller
-
 define(function (require) {
   var Rx = require('rx');
   var _ = require('lodash');
@@ -170,6 +180,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
   var SETTINGS_OVERRIDE = constants.SETTINGS_OVERRIDE;
   var ARROW_JOIN_STR = constants.ARROW_JOIN_STR;
   var CONTROLLER_CHIP_URI = constants.CONTROLLER_CHIP_URI;
+  var TO_CONTROLLER_PORT_NAME = constants.TO_CONTROLLER_PORT_NAME;
 
   /**
    *
@@ -246,6 +257,11 @@ function require_circuits(Rx, _, utils, Err, constants) {
       circuits_state$: order$
         .do(utils.rxlog('order'))
         .scan(process_order, circuits_initial_state)
+        .catch(function (e) {
+          // TODO : error management at the subject level? Think about a structure a la Erlang
+          console.error(e);
+          return Rx.Observable.throw(e);
+        })
     }
   }
 
@@ -266,7 +282,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
       serie: controller.serie || 'controller',
       uri: controller.uri || CONTROLLER_CHIP_URI,
       ports: controller.ports || {
-        IN: ['order$'],
+        IN: [TO_CONTROLLER_PORT_NAME],
         OUT: ['circuits_state$']
       },
       transform: controller.transform || controller_transform,
@@ -350,7 +366,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
   }
 
   function get_default_readout_conn(uri) {
-    var s =new Rx.ReplaySubject(1);
+    var s = new Rx.ReplaySubject(1);
     s.uri = uri
     return s;
   }
@@ -387,6 +403,10 @@ function require_circuits(Rx, _, utils, Err, constants) {
    */
   function get_port_uri(port) {
     return port ? utils.join(port.chip_uri, port.port_name) : undefined;
+  }
+
+  function get_simulate_port_uri(chip_uri) {
+    return get_port_uri({chip_uri: chip_uri, port_name: SIMULATE_PORT_NAME});
   }
 
   function get_port_from_port_uri(port_uri) {
@@ -602,7 +622,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
 
   }
 
-  function assert_chip_contracts (chip){
+  function assert_chip_contracts(chip) {
     // Chip must be defined
     if (!chip) throw Err.Circuit_Error({
       message: 'Attempted to define or use ill-defined or undefined chip!',
@@ -699,7 +719,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
     });
     if (!is_output_only_with_configured_ports) throw Err.Circuit_Error({
       message: 'transform function returned OUT port which is not configured in chip definition!',
-      extended_info: {transform_out_ports: output_port_names, configured_out_ports: out_port_names}
+      extended_info: {transform_out_ports: output_port_names, configured_out_ports: out_port_names, fn_name: transform_fn.name }
     });
     // All configured out ports must be in the transform's output
     var is_all_configured_ports_in_output = out_port_names.every(function (out_port_name) {return output_port_names.indexOf(out_port_name) > -1;});
@@ -1311,7 +1331,7 @@ function require_circuits(Rx, _, utils, Err, constants) {
       disposable_hash.set(
         utils.join(chip_test_readout_port_uri, circuit_readout_port_uri, ARROW_JOIN_STR),
         chip_test_readout
-//          .map(translate_circuit_OUT_port_uri(circuit, circuit_ports_map))
+          //          .map(translate_circuit_OUT_port_uri(circuit, circuit_ports_map))
           .subscribe(circuit_readout_conn));
       //          .do(utils.rxlog('readout ' + circuit.uri +':'))
     });
@@ -1362,6 +1382,8 @@ function require_circuits(Rx, _, utils, Err, constants) {
             return Rx.Observable.throw(e);
           })
           .subscribe(chip_test_simulate)
+        // TODO : DOCUMENTATION : simulate ports can only send messages to IN port of the circuit to which the simulate is associated
+        // so if circuit has IN : x1,x2, then on simulate the message is {label : message} with label : circuit|x1
       );
     });
   }
@@ -1441,6 +1463,8 @@ function require_circuits(Rx, _, utils, Err, constants) {
   }
 
   function make_link(chip_origin, chip_target, port_name_OUT, port_name_IN) {
+    // TODO : complete signature and type checking
+    if (!chip_origin || !chip_target) throw 'make_link : chip_origin or chip_target is falsy! Expected a chip!'
     // NOTE : port_name is an OUT port for chip_origin, and IN port for chip_target
     return {
       IN_port: get_chip_port(chip_target, port_name_IN),
@@ -1448,17 +1472,18 @@ function require_circuits(Rx, _, utils, Err, constants) {
     }
   }
 
-  function make_chip (chip){
-      assert_chip_contracts(chip);
-      return utils.new_typed_object(chip, CIRCUIT_OR_CHIP_TYPE);
+  function make_chip(chip) {
+    assert_chip_contracts(chip);
+    return utils.new_typed_object(chip, CIRCUIT_OR_CHIP_TYPE);
   }
 
   return {
     create_controller: create_controller,
     get_chip_port: get_chip_port,
     get_port_uri: get_port_uri,
+    get_simulate_port_uri: get_simulate_port_uri,
     make_link: make_link,
-    make_chip : make_chip,
+    make_chip: make_chip,
     get_default_simulate_conn: get_default_simulate_conn,
     get_default_readout_conn: get_default_readout_conn
   }
