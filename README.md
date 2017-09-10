@@ -1,10 +1,6 @@
-TODO : implement cyclepong with statecharts - https://github.com/eschwartz/cycle-pong
-TODO : implement flux challenge with statecharts - https://github.com/staltz/flux-challenge
-TODO : implement dashboard app - https://github.com/eschwartz/cycle-pong
-
 # Finite state machine
 A finite state machine (FSM) is a machine specified by a finite set of conditions of existence
-(called states) and a likewise finite set of transitions among states triggered by events”
+(called states) and a likewise finite set of transitions among states triggered by eventsï¿½
 [Douglass 2003, chap.1]
 
 As usual, a  state characterizes a condition that may persist for a significant period of time.
@@ -22,7 +18,7 @@ Interpretations may differ on  :
 - when entering a state,
 - when performing actions (effects) associated with a transition,
 - when performing actions associated with a state,
-- …
+- ï¿½
 
 We will give a precise answer to all these questions.
 
