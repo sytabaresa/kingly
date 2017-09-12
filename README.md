@@ -4,7 +4,12 @@ Refactor the repository into :
 - [ ] synchronous hierarchical extended finite state machine library (HEFSM)
   - [ ] integrate `synchronous_streams.specs` in the current tests
     - those tests only test the non-hierarchical features
+  - [ ] write the corresponding documentation for the new synchronous API
   - latest version is in partial-synchronous-stream library
+- [ ] burminate the asynchronous state machine part?
+  - makes the assumption that output is an effect request, which is wrong in general
+  - complects tracing concern into the library -> NO, should be implemented as aspect 
+  - API is just ridiculous, returns way too many things
 - [ ] demo site for Harel's CD player example, that must be broken by now
 - [ ] circuitry/stripboard library
   - `circuits.js`, `circuits_utils.js`
