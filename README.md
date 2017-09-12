@@ -1,3 +1,14 @@
+# TODO
+Refactor the repository into :
+
+- [ ] synchronous hierarchical extended finite state machine library (HEFSM)
+  - [ ] integrate `synchronous_streams.specs` in the current tests
+    - those tests only test the non-hierarchical features
+  - latest version is in partial-synchronous-stream library
+- [ ] demo site for Harel's CD player example, that must be broken by now
+- [ ] circuitry/stripboard library
+  - `circuits.js`, `circuits_utils.js`
+
 # Finite state machine
 A finite state machine (FSM) is a machine specified by a finite set of conditions of existence
 (called states) and a likewise finite set of transitions among states triggered by events�
