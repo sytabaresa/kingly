@@ -1,380 +1,450 @@
-# TODO
-Refactor the repository into :
+# Motivation
+Time and again we have to implement computations which, while they cannot be modelized by pure 
+functions, however have the following interesting properties :
 
-- [ ] synchronous hierarchical extended finite state machine library (HEFSM)
-  - [ ] integrate `synchronous_streams.specs` in the current tests
-    - those tests only test the non-hierarchical features
-  - [ ] write the corresponding documentation for the new synchronous API
-  - latest version is in partial-synchronous-stream library
-- [ ] burminate the asynchronous state machine part?
-  - makes the assumption that output is an effect request, which is wrong in general
-  - complects tracing concern into the library -> NO, should be implemented as aspect 
-  - API is just ridiculous, returns way too many things
-- [ ] demo site for Harel's CD player example, that must be broken by now
-- [ ] circuitry/stripboard library
-  - `circuits.js`, `circuits_utils.js`
+- they transform an input into an output, depending only on the present and past inputs
+- they do not perform any effects
+- the algorithm for the computation involves a finite, parameterizable set of rules, coalescing  
+around a finite, fixed set of control states
 
-# Finite state machine
-A finite state machine (FSM) is a machine specified by a finite set of conditions of existence
-(called states) and a likewise finite set of transitions among states triggered by events�
-[Douglass 2003, chap.1]
+These computations can often be modelized advantageously[^1] by a class of state machines called 
+hierarchical extended state transducer. This library offers a way to define, and use such class of
+ state machines. We will come back on the meaning of the fancy name, but in short a [state 
+ transducer](https://en.wikipedia.org/wiki/Finite-state_transducer) is a state machine which may 
+ produce outputs. Most of the time, we will call them just state machine anyways, but keep 
+ in mind that every word in <em>hierarchical extended state transducer</em> has a reason to be.
 
-As usual, a  state characterizes a condition that may persist for a significant period of time.
-When in a state, the system is reactive to a set of signals and can reach (take a transition to)
-other states based on the signals it accepts.
+Now, the whole thing can sound very abstract but the major motivation for this library has been the 
+specification and implementation of user interfaces. As a matter of fact, to [every user 
+interface can be associated a computation](https://brucou.github.io/posts/user-interfaces-as-reactive-systems/#reactive-systems-as-automata) 
+relating a user input to an action to be performed on the interfaced systems. That computation 
+often has a logic [organized around a limited set of control states](#base-example). Exactly what
+ we just wrote about. [Jump to the examples](https://github.com/brucou/state-transducer#general-concepts).
 
-Finite State Machines (FSMs) are widely used in many domains, with possible different
-interpretations. A FSM is made of states and transitions. When used in control applications, a
-FSM represents the expected behavior of the system.
+The use of state machines is not unusual for safety-critical software for embedded systems.  
+Nearly all safety-critical code on the Airbus A380 is implemented with a [suite of tools](https://www.ansys.com/products/embedded-software/ansys-scade-suite/scade-suite-capabilities#cap1) which 
+uses state machines both as [specification](https://www.youtube.com/watch?list=PL0lZXwHtV6Ok5s-iSkBjHirM1fu53_Phv&v=EHP_spl5xU0) and [implementation](https://www.youtube.com/watch?v=523bJ1vZZmw&index=5&list=PL0lZXwHtV6Ok5s-iSkBjHirM1fu53_Phv) target. 
 
-Interpretations may differ on  :
+State machines have also been used extensively in [games of reasonable complexity](http://howtomakeanrpg.com/a/state-machines.html), and [tutorials](https://www.gamedev.net/articles/programming/general-and-gameplay-programming/state-machines-in-games-r2982/) abound on the subject.
 
-- how to trigger a transition,
-- when leaving a state,
-- when entering a state,
-- when performing actions (effects) associated with a transition,
-- when performing actions associated with a state,
-- �
+More prosaically, did you know that ES6 generators compile down to ES5 state machines where no 
+native option is available? Facebook's [`regenerator`](https://github.com/facebook/regenerator) 
+is a good example of such.
 
-We will give a precise answer to all these questions.
+So state machines are nothing like a new tool, but with a fairly extended and proven track in both 
+industrial and consumer applications. However, it has to be said that, when it comes to 
+graphical user interfaces, it is a tool fairly unknown to developers. There are obviously 
+cultural and historical reasons for that, which it is not useful to describe here. However, 
+could it be that we have here another tool in our toolbox which can help us write better (at 
+least in the sense of correctness) user interfaces?
 
-<TODO> Update statecharts presentation
+This library was born from :
 
-# Statecharts
+- the desire to investigate the extent of the applicability of such tool both for specification and 
+implementation of user interfaces
+  - the experience with gaming shows that, passed a given level of AI complexity, other 
+  techniques are better suited. Does this apply to user interfaces? What would be a sweet spot?
+- the absence of existing javascript libraries which satisfy our [design criteria](https://github.com/brucou/state-transducer#api-design)
+  - mostly, we want the state machine library API design to be as close as possible from the 
+  mathematical object denoting it. This should allow us to reason about it, compose and reuse 
+  it easily. 
+  - most libraries we found either do not feature hierarchy in their state machines, or use a 
+  rather imperative API, or complect concurrency with control flow
 
-**NOTE** : the current documentation is not up to date with the current code factoring.
+It is obviously a [work in progress](#roadmap), the current version is taken from code written 
+two/three years ago and rejuvenated. It works nicely though and have already been used succesfully :
 
-The main challenge in programming reactive systems is to identify the appropriate actions to execute in reaction to 
-a given event. The actions are determined by two factors: by the nature of the event and by the current context 
-(i.e., by the sequence of past events in which the system was involved). I thereafter investigate how the statecharts formalism
-can help making explicit that current context and lead to more robust code.
+- in [multi-steps workflows](https://github.com/brucou/component-combinators/tree/master/examples/volunteerApplication), a constant feature of enterprise software today
+- for ['smart' synchronous streams](https://github.com/brucou/partial-synchronous-streams), which
+ tracks computation state to avoid useless re-computations
+- to implement cross-domain communication protocols
 
+In such cases, we were able to modelize our computation with an Extended Hierarchical State Transducer 
+in a way that :
 
-## Definition
-A statechart is a form of extended hierarchical finite state machine. Cutting to the chase, in the frame of this library, 
-a statechart is composed of :
+- is economical (complexity of the transducer proportional to complexity of the computation)
+- is reasonably easy to reason about and communicate up to an intermediate scale (the transducer can
+ be visually represented, supporting both internal and external communication, and design 
+ specification and documentation)
+- supports step-wise refinement and iterative development (control states can be refined into a 
+hierarchy of nested states)
 
-* A hashmap `S` describing a hierarchy of nested states
-* A set `I` of intents. Alternatively we will use sometimes the term `event` but both will be represented 
-  in this implementation by the same type, hence they carry the exact operational semantics. 
-* A model `M` which is hashmap with a set of properties
-* A set of predicates `C` operating on the model
-* A set of actions/effects `A` gathering actions which are computations which take a model and gives an updated model, and may perform side-effects
-* A set of transitions `T` which connects a given state, intent/event, predicate to a action/effect and a resulting state
+[^1]: In fact, [computability theory]((https://en.wikipedia.org/wiki/Computability_theory)) links
+ the feasability of a computation to the existence of a machine whose run produces the 
+ desired results. Some formalizations of the matching computing machine however can be useless 
+  in practice, which is why we use the term advantageously to indicate those computations where 
+  a formalization of the computing machine brings desired benefits.
 
-As an intent/event occurs, the state machine will move to another state, depending on the specified predicate/guards or
-remain in the same state if it cannot find a valid transition. As such, a statechart is reactive by design.
+# So what is an Extended Hierarchical State Transducer ? 
+Let's build the concept progressively.
 
-## What are they used for?
-Finite state machines are useful when you have an entity :
+An [automaton](https://en.wikipedia.org/wiki/Automata_theory) is a construct made of states 
+designed to determine if a sequence of inputs should be accepted or rejected. It looks a lot like a 
+basic board game where each space on the board represents a state. Each state has information about what to do when an input is received by the machine (again, rather like what to do when you land on the Jail spot in a popular board game). As the machine receives a new input, it looks at the state and picks a new spot based on the information on what to do when it receives that input at that state. When there are no more inputs, the automaton stops and the space it is on when it completes determines whether the automaton accepts or rejects that particular set of inputs.
 
-* Whose behavior changes based on some internal state
-* That state can be rigidly divided into one of a relatively small number of distinct options
-* The entity responds to a series of inputs or events over time.
+State machines and automata are essentially interchangeable terms. Automata is the favored term 
+when connoting automata theory, while state machines is more often used in the context of the 
+actual or practical usage of automata.
 
-However, while the traditional FSMs are an excellent tool for tackling smaller problems, it is also generally known that 
-they tend to become unmanageable even for moderately involved systems. Due to the phenomenon known as "state explosion", 
-the complexity of a traditional FSM tends to grow much faster than the complexity of the reactive system it describes.
+An extended state machine is a state machine endowed with a set of variables, predicates (guards)
+and instructions governing the update of the mentioned set of variables. To any extended state 
+machines it corresponds a standard state machine ()albeit often one with a far greater number of 
+states) with the same semantics.
 
-The formalism of statecharts, invented by David Harel in the 1980s, addresses exactly this shortcoming of the 
-conventional FSMs. Statecharts provide a very efficient way of sharing behavior, so that the complexity of a statechart 
-no longer explodes but tends to faithfully represent the complexity of the reactive system it describes.
+A hierarchical state machine is a state machine whose states can be themselves state machines. 
+Thus instead of having a set of states as in standard state machines, we have a hierarchy (tree) of 
+states describing the system under study.
 
-In (average-complexity) games, they are most known for being used for AI, but they are also common in implementations of 
-user input handling, navigating menu screens, parsing text, network protocols, and other asynchronous behavior in 
-connection with embedded systems.
+A [state transducer](https://en.wikipedia.org/wiki/Finite-state_transducer) is a state 
+machine, which in addition to accepting inputs, and modifying its state accordingly, may also 
+generate outputs.
 
-As far as user interface is concerned, a common reference is *Constructing the user interface with statecharts*
-  by Ian Horrocks. A valuable ressource from the inventor of the graphical language of the statecharts is 
-  *Modeling Reactive Systems with Statecharts: The STATEMATE Approach* 
-by Professor David Harel.
+We propose here a library dealing with extended hierarchical state transducers, i.e. a state machine
+whose states can be other state machines (hierarchical part), which (may) associate an output to an 
+input (transducer part), and whose input/output relation follows a logic guided by 
+predefined control states (state machine part), and an encapsulated memory which can be 
+modified through actions guarded by predicates (extended part).
 
-## Proposed implementation
-The current implementation of the statechart formalism incorporates the following characteristics :
+Note that if we add concurrency and messaging to extended hierarchical state transducers, we get
+ a statechart. We made the design decision to remain at the present level, and not to incorporate 
+ any concurrency mechanism.[^2]
 
-* hierarchy of nested states
-* state machine data model
-* event, states, predicates, actions
-* history mechanism
-* automatic transitions
-* transient states
-* ordered predicates
-* RTC semantics (run-to-completion semantics, i.e. performing local computations has priority over consuming events)
-
-and do not (yet) incorporate the following characteristics:
-
-* orthogonal/concurrent states
-* history star mechanism
-* entry/exit actions
-
-The proposed implementation makes use of the `Rxjs` to handle asynchrony via the stream abstraction and `cyclejs` 
-light-weight framework to wire output streams back to input streams.
- The current implementation implements the statechart as an operator on streams, i.e. a function which takes a stream 
- and returns a stream. That operator takes an input stream of intents/events, and returns a stream of updated models. 
- This design allows to decouple the statechart from the environment where it will be used. Here the updated models are 
- directly plugged to the rendering engine but they could be used for other purposes (persistent storage, etc.) 
- without loss of generality. 
+[^2]: Our rationale is as follows :  
+ - if there are no parallel regions, a statechart can be turned into a hierarchical state 
+ transducer. That is often enough!
+ - statecharts include activities and actions which may produce effects, and concurrency. We are 
+ seeking an purely computational approach (i.e effect-less) to facilitate composition, reuse and 
+  testing.  Any [concurrent or communication model](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.92.6145&rep=rep1&type=pdf) can be added on top as necessary.
+ - we estimate the concurrency semantics of statecharts to be somewhat complicated vs. alternative
+  concurrency models[^3]. That makes it difficult for programmers to elaborate a mental model of 
+  the statecharts (in the presence of concurrency) and that makes it difficult for other users to
+   reason based solely on the visualization of concurrent statecharts. Those issues however are 
+   not unmanageable for concurrent statecharts with little concurrency and messaging.
+ - some [statecharts practitioners](http://sismic.readthedocs.io/en/master/communication.html#) 
+ favor having separate state charts communicating in an ad-hoc way rather than an integrated 
+ statechart model where concurrent state charts are gathered in nested states of a single 
+ statechart. We agree.
  
- In that  sense, it could be thought of as a side-effectful componentized `scan` operator. 'Side-effectful' because the
-  side-effects are specified in the statechart specification. 'Componentized' because the only way to modify the model held
-  by the statechart is through intents.
-
-In line with `cyclejs` guideline, the encapsulated side-effects are gathered into an effect driver whose exclusive 
-responsibility is to execute the actions/effects to perform as a result of the intent/events. For the sake of generality 
-and simplicity, for now, all action/effects are executed in the effect driver, even if they do not perform any side-effect. 
-This architecture hence bears some ressemblance with the Elm architecture, while also separating an abstract 
-representation of a computation (similar to a DSL) from its interpretation. However, in a departure from `cyclejs` 
-standard architecture, we are allowing ourselves to have drivers defined out of the 'main' loop. There are advantages 
-and disadvantages to the approach of encapsulating drivers that I am still in the process of weighing ones against the others.
-
-IN PROGRESS
-Having drivers in one place leads to choose between :
-
-- one driver per action class. For instance, one HTTP driver for all HTTP requests
-- one driver per action. For instance, one HTTP driver per HTTP requests
-- one driver parametrizable by action. For instance, one HTTP driver(request_type)
-
-The problem of having the first option is that we have a global driver, hence all subscribers to that global can access information
-which is not relevant to them. This also forces to have a mechanism to recognize what HTTP response is relevant to a particular
-HTTP request client (for example using the 'port' abstraction or a simple filtering).
-
-In general (arguable), while the dataflow is made explicit and clear, the logic flow is less so. One understands pretty well 
-how individual inputs are transformed into effect requests, but the logic flow (which includes the series of effects 
-being performed to execute a behaviour) and higher-purpose goal is not as easily apparent (moving the system from one 
-state to another state), specially so in the case of application with complex logic flows.
-
-
-What is state?
-
-- A function `f` is a relation in which an input is related to exactly one output. 
-- The set of inputs for a function is called its domain. The corresponding set of outputs is called its codomain.
-- A pure function `f` is a function so that `output = f(input)` and `f` will always return the same output for the same input.
-- In the frame of this documentation, we call **state** the extra variable (when it exists) which allows to write an 
-impure function `f` so that  `output= f(input)` as a pure function `g` so that `output = g(input, state)`.
-Translating this to a sequence, we have `(On+1,Sn+1) = g(In+1, Sn)`. Translating this RxJs terminology, we derive the `scan` operator.
-In Redux terminology, we derive a reducer. In Haskell terminology we derive the state monad.
-
-This state variable does not always exist. Let's consider a read function from a database :
-
-- `users = f(criteria)` where `f = select user from USER_TABLE where user_type = 'criteria'`.
-
-  `f` is impure and can be associated a pure function `g`, with `users = g(criteria, user_table)`. where `user_table` 
-  is an array and `USER_TABLE` is a table in the database, and every time the `USER_TABLE` changes, the `user_table` array 
-  reflects those changes timely and faithfully.
-  (Note that considering `users = g(criteria, database_driver)` does not make `g` a pure function. The database driver 
-  is a necessary dependency to actually read the content of the database but a change in the database means that the `g` 
-  function will return a different value hence `g` remains impure).
-
-  Note also that in the case of a remote database, the 'timely and faithfully' requirement cannot be fulfilled.
-
-  In short, we actually cannot express that read function as a pure function in the case of remote database, so the state 
-  variable in this case does not exist. However, we can express a closely related pure function which reads from a local 
-  COPY of that table in the remote database.
-
-
-- TODO : introduce live queries, versioning, append-only database
-
-- TODO : cycle + architecture
-cycle is sources -> component -> sinks which many components but one set of drivers
-                 |            |
-                 ====drivers==
-
-I propose sources -> component -> sinks -> component -> sinks
-                  |            |        |            |
-                  ====drivers==         ====drivers==
-
-with one set of drivers PER component. OR that is to say that the drivers are included or come with the component so we have
-sources -> components -> sinks -> component -> sinks
-
-We loose purity (components are side-effectful), we gain isolation (effects of drivers can only be read by the enclosing 
-components). Note that this does not change the fact that side-effect of one component can impact another component. But 
-then that was already the case with the standard architecture. This can be resolved by making the dependency explicit in 
-both component definitions, or creating a third component to isolate that dependency => examples needed.
-
-IN PROGRESS END
-
-In summary we seek to further the MVI functional breakdown `view(model(intent))` by decomposing the model into a 
-statechart  `view(statechart(initial_model, states, actions, predicates, transitions)(intent))`. We hope by surfacing the
-extra parameters to get additional benefits:
-
-* safety : transitions can only happen as specified in the charts, i.e. no action will be executed in the wrong state 
-  of the model. This should allow to eliminate an hopefully large class of bugs.
-* the program should be easier to reason about as its control flows are made explicit
-* better testability as one can test the control flow separately from the actions/effects
-* better maintainability : the design is entirely communicated by the statechart whose visual form can be automatically
-computed. That visual aid can serve as a documentation of the design and constitutes a simpler/faster entry into the 
-program semantics.
-* better traceability : the flow being one state and another being explicit, it should be easier to trace the program
-along its execution path (for instance, for debugging or performance analysis purposes)
-
-
-## Proposed example
-The proposed example is taken from Ian Horrocks' book and implements the statechart describing the behaviour of a 
-CD-player. Two implementations are proposed, one which handle asynchrony with plain javascript, the second which uses
- `rxjs`/`cyclejs`. This aims at showing that the statechart formalism works adequately relatively independently 
- of the implementation technique chosen for handling asynchronous events.
+[^3]: As a matter of fact, more than 20 different semantics have been proposed to define 
+precisely the concurrency model for statecharts, e.g Rhapsody, Statemate, VisualMate, StateFlow, 
+UML, etc. do not share a single concurrency model.
  
- The starting statechart for the CD player is reproduced below.
- 
-![cd player state chart](http://i.imgur.com/ygsOVi9.jpg)
- 
- NOTE : `ractivejs` is used as a view templating library. The ractive driver is experimental and is not production-grade.
-  As a matter of fact, this example uses an `Rxjs` ractive adaptor which is currently slightly buggy. However, the example 
-  could naturally be easily implemented with other libraries (virtual DOM, etc.).
-
-[![Extended state machine](https://en.wikipedia.org/wiki/Extended_finite-state_machine)]
-
-## Roadmap
-There is still a large amount of work to fully achieve the promised benefits of the statechart formalism. The current roadmap
-addressing future work is the following :
-
-* Implementation:
-  * testing and code coverage
-  * documentation
-  * more and better examples
-
-* Features:
-  * improve API (add orthogonal state, and entry/exit action)
-  * improve tooling (automatic visualization of the transition graph, automatic code generation, automatic testing/validation)
-  * add a DSL (cf. Akka actors) for easy definition of statecharts
+# Install
+`npm install state-transducer`
 
 # API
+## API design
+The key objectives for the API was :
 
-## Statechart
+- generality and reusability (there is no provision made to accommodate specific use cases or 
+frameworks)
+  - it must be possible to add a [concurrency and/or communication mechanism](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.92.6145&rep=rep1&type=pdf) on top of the current design
+  - it must be possible to integrate smoothly into React, Angular and your popular framework
+  - support for both interactive and reactive programming
+- parallel and sequential composability of transducers
 
-A statechart object is composed of :
+As a result of this, the following choices were made :
 
-* an initial value for its model. Can be any kind of objects or primitive types. It is a good practice to detail the 
-properties of the model, even if that results in many undefined values being assigned to properties. This is also 
-a good place to document the structure of the model, and the meaning of its properties.
+- complete encapsulation of the state of the transducer
+- single public method : the transducer is used through a sole `yield` function (though a 
+`start` syntactic sugar is provided for `yield`ing the mandatory INIT event). As such, the 
+transducer is a black-box, and only its computed outputs can be observed
+- no effects performed by the machine
+- no exit and entry actions, or activities as in other state machine formalisms
+  - there is no loss of generality as both entry and exit actions can be implemented with our 
+  state transducer, there is simply no API or syntactic support for it
+- every computation performed is synchronous (asynchrony is an effect)
+- action factories return the **updates** to the extended state (JSON patch format) to avoid any 
+unwanted direct modification of the extended state
+- no restriction is made on output of transducers, but inputs must follow some conventions (if a
+ machine's output match those conventions, two such machines can be sequentially composed by 
+ passing the output of a yield from the first machine as an input to the second machine)
+- reactive programming is enabled by exposing a pure function of an input stream, which runs the 
+transducer for each incoming input, thus generating a sequence of outputs
 
-* an object (POJO) describing the hierarchical states for the statecharts. Each property of the object represents a 
-state identifier. Each property nested under another property represents a state nested under another state. 
+Concretely, our state transducer will be created by the factory function `create_state_machine`, 
+which returns a state transducer which :
 
-For example, `{global_state: {left_state:{nested_state1: ''}, right_state:{nested_state2: ''}}` produce the following state
-hierarchy : 
+- must be started manually (with `.start()`), and configured with an initial event and transition 
+- will compute an output for any input that is sent to it (with `.yield(input)`)
 
-```
-global_state --> left_state   --> nested_state1
-             |-> right_state  --> nested_state2
-```
+The state transducer is not, in general, a pure function of its inputs. However, a given output of
+ the transducer depends exclusively on the sequence of inputs it has received so far ([causality 
+ property](https://en.wikipedia.org/wiki/Causal_system)). This means that it is possible to  
+ associate to a state transducer another function which takes a sequence of inputs into a 
+ sequence of outputs, in a way that that function is pure. 
 
-For the moment, there is no extra information to be passed (hence the `''`). In the future, this is where the entry and exit
- actions will be stored.
+We provide a way to construct such a function with the `makeStreamingStateMachine` factory to 
+create a stream transducer, which translates an input stream into an output stream.
 
-CONTRACT : 
+## General concepts
+Our state transducer is an object which encapsulates state, and exposes a single function by which 
+input is received. That function, based on the transducer's encapsulated state and configuration, and the 
+received input produces two things : 
 
-1. Even if they are not in the same hierarchy, no two states can have the same identifier.
-2. State with identifier NOK is reserved.
+- a list of updates to apply internally to the extended state
+- an external output for the consumer of the state transducer
 
-* an enumeration (hashmap) of the events handled by the state machine. Events' identifiers are the properties of the 
-hashmap.
+To help illustrate further the concepts, and the terminology, we will use two examples, featuring 
+basic and advanced features on the hierarchical state transducer model : 
 
-CONTRACT : Events AUTO and INIT are reserved and carry specific semantics. As such, they cannot be used.
+- a real use case of non-hierarchical extended state machine applied to a web application user 
+interface
+- the specification of the behaviour for a cd player as a hierarchical extended state machine
 
-* an action hashmap, mapping an action code with an action function. There are helpers which help make the hashmap from 
-an action list.
+We will subsequently precise here the vocabulary which will be used throughout the documentation.
+  We then describe how the behaviour of a transducer relates to its configuration. In particular
+  we detail the concepts and semantics associated to hierarchical states. Finally we present our
+   API whose documentation relies on all previously introduced concepts.
 
-CONTRACT : all action functions must have names (anonymous function is not possible). This is in particular helpful for 
-debugging purposes.
+### Base example
+This example is taken from an actual project in which this library was used. It will be used in 
+this paragraph to illustrate the core terminology defined in subsequent sections, and illustrate 
+somewhat abstract notions. It does not feature hierarchical states, and as such can be seen as a 
+regular extended state machine.
 
-* A transition array where each entry describes a valid transition for the state machine.
+This example deals with a typical multi-step application process, whose user interface is made of a 
+sequence of screens. In each screen, the user is required to introduce or review some 
+information, and navigate through the application process up to completion.
 
-A transition has the following possible formats : 
-
-1. `{from: <state_enum>, to: <state_enum>, event: <event_enum>, condition : <predicate>, action: <action_enum>}`
-2. `{from: <state_enum>, event: <event_enum>, conditions : [condition_clause]}`
-
-where:
-
-  * A state enumeration can be created via the helper function `create_state_enum`
-  * An event enum can be created via the helper function `create_event_enum`
-  * A condition clause is a POJO with the following form : `{condition: <predicate>, to: <state_enum>, action: <action_enum>}`
-  where : 
-  * `predicate` is a predicate, i.e. `predicate :: model -> payload -> boolean`
-  * `action_enum` can be created via the helper function `make_action_DSL` and represents an action to be executed as 
-  part of the transition.
-
- * The transition format 1 encodes the following semantics : 
-       WHEN in state from, IF event AND predicate THEN action THEN transition to state
- * The transition format 2 encodes the following semantics : 
-       WHEN in state from, IF event THEN DO EVALUATE condition_clause in conditions (in order of definition) UNTIL true
- * The condition clause encloses the following semantics : IF predicate THEN action THEN transition to state
-   As mentioned, the evaluation order of predicates follows that of the index of the predicates in the array of condition 
-   clauses.
-
-### make_fsm
-
-`make_fsm :: statechart -> intent$ -> effect_res$ -> display_engine -> {fsm_state$, effect_request$})`
-
-Takes a statechart `{initial_model, state_hierarchy, event_enum, action_hash, transitions}` and creates the corresponding
- state machine with the following semantics:
-  
- * emission of `initial_model` on fsm_state$ where `fsm_state$ :: Rx.Observable<model>` 
- * `intent$` will issue the events to which the state machine will listen to, in order to possibly transition to another 
- state. `intent$ :: Rx.Observable<{code, payload}>` where `code` is the event enum code, `payload` is any object that will 
- be passed as parameter to the predicate and action functions.
- * on evaluating a valid transition with a corresponding action, the state machine emits the action enum code on `effect_request$`
-  where `effect_request$ :: Rx.Observble<action_enum_code>`
- * after emission of such code, the state machine listens on `effect_res$` for the return value of the action execution
-  where `effect_res$ :: Rx.Observable<effect_res>`
- * on receiving such result of executed effect, the state machine :
-   * EITHER transitions to its next state and updates the model with `effect_res`: case where action was executed successfully
-   * OR remains in the same state and updates the model with error metadata : case where action was not executed successfully 
- * warnings are issued in the console when :
-   * an intent/event is received while waiting for an effect result
-   * an effect result is received while waiting for an intent/event
+That application process concretely consists of 5 screens whose flow is defined by the UX team as
+ follows :
  
-NOTE : When looking from a state machine point of view, we use `action` to denote the function to execute while changing 
-state. From a `cyclejs` driver point of view, we use the word `effect`. Both words however carry identical semantics 
-in the frame of this documentation. Not to be confused with how the word is used in Elm to denote function performing
-side-effects. Here effects **MAY** perform side-effects but not necessarily so. For the sake of simplicity and generality, 
-it is a design decision to gather both side-effecting and non-side-effecting actions in the effect driver.
+![User flow](https://github.com/brucou/component-combinators/raw/master/examples/volunteerApplication/assets/volunteerApplication/application%20process.png) 
 
-NOTE : In the same way, intent and events in the frame of this documentation are mostly interchangeable.
+This in turn was turned into a non-trivial state machine (7 states, ~20 transitions) orchestrating 
+the screens to display in function of the user inputs. The machine **does not display the screen 
+itself** (it performs no effects), **it computes which screen to display** according to the 
+sequence of inputs performed by the user and its encapsulated state (user-entered data, data 
+validation, etc.). The action `display screen` in the graph below must be understood as a regular 
+piece of data whose meaning is to be interpreted down the road by the portion of the program in 
+charge of realizing effects. The state machine can be visualized as follows :
+ 
+![illustration of basic terminology](assets/sparks%20application%20process%20with%20comeback%20proper%20syntax%20-%20flat%20fsm.png)
 
+In our example, the encapsulated state has the following shape :
 
-## Helper functions
+```javascript
+{
+  user,
+  opportunity,
+  project,
+  userApplication,
+  teams,
+  errorMessage: null,
+  validationMessages: {}
+}
+```
 
-### create_state_enum
+### CD drawer example
+This example is taken from Ian Horrock's seminal book on statecharts and is the specification of
+ a CD player. The behaviour of the CD player is pretty straight forward and understandable 
+ immediately from the visualization. From a didactical point of view, the example serve to feature 
+ advanced characteristics of hierarchical state machines,  including history states, composite states, 
+ transient states, automatic transitions, and entry points.
+ 
+![cd player state chart](http://i.imgur.com/ygsOVi9.jpg)
 
-`create_state_enum :: state_hierarchy -> state_enum`
+### Terminology
+In this section, we seek to define quickly the meaning of the key terms which will be commonly 
+used when referring to state machines.
 
-Takes a state object (POJO) and returns a hashmap whose properties are the identifiers of the states as extracted from
-the POJO.
-For instance, 
+<dl>
+  <dt>control state</dt>
+  <dd>Control states, in the context of an extended state machine is a piece of the internal state
+   of the state machine, which serves to determine the transitions to trigger in response to 
+   events. Transitions only occur between control states. Cf. base example illustration. </dd>
+  <dt>extended state</dt>
+  <dd>We refer by extended state the piece of internal state of the state machine which can be 
+  modified on transitioning to another state. That piece of internal state **must** be 
+  initialized upon creating the state machine. In this context, the extended state will simply 
+  take the form of a regular object. The shape of the extended state is largely 
+  application-specific. In the context of our multi-steps workflow, extended state could for 
+  instance be the current application data, which varies in function of the state of the 
+  application.</dd>
+  <dt>input</dt>
+  <dd>In the context of our library, we will use interchangeable input for events. An automata 
+  receives inputs and generated outputs. However, as a key intended use case for this
+   library is user interface implementation, inputs will often correspond to events generated by a 
+   user. We thus conflate both terms in the context of this documentation.
+  </dd>
+  <dt>external event</dt>
+  <dd>External events are events which are external and uncoupled to the state machine at hand. 
+  Such events could be, in the context of an user interface, a user click on a button.
+  </dd>
+  <dt>internal event</dt>
+  <dd>Internal events are events coupled to a specific state machine. Depending on the semantics 
+  of a particular state machine, internal events may be generated to realize those semantics. In 
+  the context of our library, we only generate automatic events to trigger automatic transitions 
+  ; INIT events to jump start a state machine
+  </dd>
+  <dt>initial event</dt>
+  <dd>In the context of our library, the initial event (<b>INIT</b> in the base example 
+  illustration) is fired automatically and only upon starting a state machine. The initial event 
+  can be used to configure the initial machine transition, out from the initial control state.
+  </dd>
+  <dt>automatic event</dt>
+  <dd>This is an internally triggered event which serves to triggers transitions from control 
+  states for which no triggering events are configured. Such transitions are called automatic 
+  transitions. Not firing an automatic event would mean that the state machine would be forever  
+  stuck in the current control state.
+  </dd>
+  <dt>transition</dt>
+  <dd>Transitions are changes in tne control state of the state machine under study. Transitions 
+  can be configured to be taken only when predefined conditions are fulfilled (guards). 
+  Transitions can be triggered by an event, or be automatic when no triggering event is specified.
+  </dd>
+  <dt>automatic transition</dt>
+  <dd>Transitions between control states can be automatically evaluated if there are no 
+  triggering events configured. The term is a bit confusing however, as it is possible in theory 
+  that no transition is actually executed, if none of the configured guard is fulfilled. We 
+  forbid this case by contract, as failing to satisfy any such guard would mean that 
+   the machine never progress to another state! In our CD player example, an automatic transition
+    is defined for control state 3 (`Closing CD drawer`). According to the extended state of our 
+    machine, the transition can have as target either the `CD Drawer Closed` or `CD Loaded` 
+    control states.
+  </dd>
+  <dt>self transition</dt>
+  <dd>Transitions can also occur with origin and destination the same conrol state. When 
+  that happens, the transition is called a self transition. In our base example, the `Team Detail
+   Screen` control state features 2 self-transitions.
+  </dd>
+  <dt>transition evaluation</dt>
+  <dd>Given a machine in a given control state, and an external event occuring, the transitions 
+  configured for that event are evaluated. This evaluation ends up in identifying a valid 
+  transition, which is executed (e.g. taken) leading to a change in the current control state ; 
+  or with no satisfying transition in which case the machine remains in the same control state, 
+  with the same extended state.
+  </dd>
+  <dt>guards</dt>
+  <dd>Guards associated to a transition are predicates which must be fulfilled for that 
+  transition to be executed. Guards play an important role in connecting extended state to the  
+  control flow for the computation under specification. As a matter of fact, in our context, guards 
+  are pure functions of both the occurring event and extended state.
+  </dd>
+  <dt>action factory</dt>
+  <dd>This is a notion linked to our implementation. An action factory is a function which 
+  produces information about two actions to be performed upon executing a transition : update the
+   encapsulated extended state for the state transducer, and possibly generate an output to its 
+   caller. 
+  </dd>
+  <dt>output</dt>
+  <dd>An output of the transducer is simply the value returned by the transducer upon receiving 
+  an input (e.g. event). We will sometimes use the term *action* for output, as in the context of
+   user interface specification, the output generated by our transducers will be actions on the 
+   interfaced systems. Actions is quite the overloaded and polysemic terms though, so we will try
+    as much as possible to use output when necessary to avoid confusion.
+  </dd>
+  <dt>composite state</dt>
+  <dd>As previously presented, an hierarchical state machine may feature control states which may 
+  themselves be hierarchical state machines. When that occurs, such control state will be called 
+  a composite state. In our CD player example, the control state `CD loaded` is a composite state.
+  </dd>
+  <dt>compound state</dt>
+  <dd>exact synonim of *composite state*
+  </dd>
+  <dt>nested state</dt>
+  <dd>A control state which is part of a composite state
+  </dd>
+  <dt>atomic state</dt>
+  <dd>An atomic state is a control state which is not itself a state machine. In other words, it 
+  is a control state like in any standard state machine. In our base example, all states are 
+  atomic states. In our CD player example, the control state 5 is an atomic state. The `CD 
+  loaded` control state is not.
+  </dd>
+  <dt>transient state</dt>
+  <dd>transient states are control states which are ephemeral. They are meant to be immediately 
+  transitioned from. Transient state thus feature no external triggering event (but necessitates 
+  of internal automatic event), and may have associated guards. By contract, one of these guards,
+   if any, must be fulfilled to prevent the machine for eternally remain in the same control 
+   state.   In our CD player example, the control state 3 is a transient state. Upon entering 
+   that state, the machine will immediately transition to either control state 1, or composite 
+   state `CD loaded`.
+  </dd>
+  <dt>terminal state</dt>
+  <dd>the terminal state is a control state from which the machine is not meant to transition 
+  from. This corresponds to a designed or anticipated end of run of the state machine.
+  <dt>history state</dt>
+  <dd>Semantics for the history state may vary according to the intended application of 
+  hierarchical automata. In our restrictive context, the history state allows to transition back 
+  to the previous control state that was previously transitioned away from. This makes sense 
+  mostly in the context of composite states, which are themselves state machines and hence can be
+   in one of several control states. In our CD player example, there are a few examples of 
+   history states in the `CD loaded` composite state. For instance, if while being paused 
+   (atomic control state 6), the user request the previous CD track, then the machine will 
+   transition to... the same control state 6. The same is true if prior to the user request the 
+   machine was in control state 4, 5, or 7. History state avoids having to write individual 
+   transitions to each of those states from their parent composite state.
+  </dd>
+  <dt>entry point</dt>
+  <dd>Entry points are the target of transitions which are taken when entering a given composite 
+  state. This naturally only applies to transitions with origin a control state not included in the 
+  composite state and destination a control state part of the composite state. An history state  
+  can also be used as an entry point. In our CD player example, control state 1 is an entry point
+   for the composite state `No CD loaded`. The same stands for `H` (history state) in `CD Loaded`
+    composite state. Similarly a transition from `No CD loaded` to `CD loaded` will result in the
+     machine ending in control state 4 (`CD stopped`) by virtue of a chain of entry points 
+     leading to that control state.
+  </dd>
+</dl>
 
-INPUT : `{global_state: {left_state:{nested_state1: ''}, right_state:{nested_state2: ''}}`
+### Transducer behaviour
+We give here a quick summary of the operational semantics for the state transducer :
 
-OUTPUT : `{NOK: ..., global_state: ..., left_state:..., nested_state1:..., right_state:..., nested_state2:...}`
+- the machine is configured with a set of control states, an initial extended state, transitions, 
+guards, action factories, and user settings
+- the machine is in a fixed initial control state at starting time
+- starting the machine (`.start()`) triggers the internal INIT event which advances the state 
+machine out of the initial control state towards the relevant user-configured control state.
+- **TODO** also semantics of history states
 
+### Example run
+To illustrate the previously described transducer semantics, let's run the base example.
 
-### create_event_enum
+**TODO : three steps are enough**
+ 
+### Contracts
+- The machine cannot stay blocked in the initial control state. This means that at least one 
+transition must be configured and be executed between the initial control state and another state
+.  This is turn means :
+  - at least one non-reserved control state must be configured
+  - at least one transition out of the initial control state must be configured
+  - of all guards for such transitions, if any, at least one must be fulfilled to enable a 
+  transition away from the initial control state
+- **TODO**
 
-`create_event_enum :: [event_identifiers] -> event_enum`
+## `create_state_machine :: FSM_Def -> FSM`
+- **TODO**
 
-Takes an array of event identifiers (strings) and returns a hashmap whose properties are the identifiers of the events.
-For instance, 
+# Tests
+Automated tests are so far incomplete. Most tests have been run manually. To run the 
+current automated test, type in a terminal : `npm run test`
 
-INPUT : `['eject', 'pause', 'play', 'stop']`
+# Visualization tools
+We have included two helpers for visualization of the state transducer :
 
-OUTPUT : `{INIT:..., EJECT: ..., PAUSE: ..., PLAY:..., STOP:...}`
+- conversion to plantUML : `toPlantUml :: FSM_Def -> PlantUml`.
+  - the resulting chain of characters can be pasted in [plantText](`https://www.planttext.com/`) 
+  or [planUML previewer](http://sujoyu.github.io/plantuml-previewer/) to get an automated graph 
+  representation. Both will produce the exact same visual representation.
+- conversion to [online visualizer](https://github.com/brucou/state-transducer-visualizer) format 
+(dagre layout engine) : for instructions, cf. github directory : `toDagreVisualizerFormat :: 
+FSM_Def -> JSON`
 
-### make_action_DSL
+Automated visualization works well with simple graphs, but seems to encounter trouble to generate
+ optimally satisfying complex graphs. The Dagre layout seems to be a relatively good option. The 
+ [`yed`](https://www.yworks.com/products/yed) orthogonal layout also seems to give pretty good results. 
 
-`make_action_DSL :: action_list -> {action_enum, action_hash}`
+# References
+[comonadic user interfaces](https://functorial.com/the-future-is-comonadic/main.pdf)
 
-Takes an array of `action :: model -> payload -> model`, and return a POJO with two fields:
- 1. `action_enum` : hashmap whose properties are action codes uniquely representing a given action
- 2. `action_hash` : hashmap mapping an action code to an action function
+# Possible improvements
+- any ideas? Post an issue!
 
-## Installation
-Copy the whole directory somewhere, and open `index.html` with your browser.
+# Roadmap
+- [x] add entry actions
+- [x] [online visualizer](https://github.com/brucou/state-transducer-visualizer)
+- [ ] add exit actions
+- [ ] add tracing/debugging support
+- [ ] support [model-based testing, and test input generation](https://pdfs.semanticscholar.org/f8e6/b3019c0d5422f35d2d98c242f149184992a3.pdf) 
 
-## Browser support
-
-For now, only tested on latest chrome stable version (v48).
-
-## License
-
-The code is available under the [MIT license](LICENSE.txt).
