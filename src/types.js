@@ -36,8 +36,24 @@
  * of the extended state machine. `output` represents the output of the state machine passed to the API caller.
  */
 /** @typedef {function (*=) : Boolean} Predicate */
-/** @typedef {*} FSM_Settings */
+/** @typedef {{subject_factory: function() : Subject, ...}} FSM_Settings */
+/** @typedef {{subject_factory: function() : Subject, merge: MergeObsFn, of: OfObsFn, ...}} FSM$_Settings */
 /** @typedef {*} FSM_Model */
 /** @typedef {*} MachineOutput well it is preferrable that that be an object instead of a primitive */
 /** @typedef {String} EventLabel */
 /** @typedef {String} ControlState Name of the control state */
+/**
+ * @typedef {{emit: function(value) : void, ...}} Subject An object with emulates a subject. The subject must have an
+ * `emit` method by which values can be emitted. This allows to decouple the streaming library from our library. For
+ * Rxjs v5, `emit` is the equivalent of `next`. The subject must also have an `subscribe` method corresponding to
+ * the eponym method for Rxjs v5 subjects.
+ */
+/**
+ * @typedef {function (Array<Observable>) : Observable} MergeObsFn Similar to Rxjs v4's `Rx.Observable.merge`. Takes
+ * an array of observables and return an observable which passes on all outputs emitted by the observables in the array.
+ */
+/**
+ * @typedef {function (value) : Observable} OfObsFn Similar to Rxjs v4's `Rx.Observable.of`. Takes
+ * a value and lift it into an observable which completes immediately after emitting that value.
+ */
+map filter concat share

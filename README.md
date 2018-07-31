@@ -161,6 +161,8 @@ unwanted direct modification of the extended state
  parallel composition naturally occurs by feeding two state machines the same input(s))
 - reactive programming is enabled by exposing a pure function of an input stream, which runs the 
 transducer for each incoming input, thus generating a sequence of outputs
+- library is decoupled from any concrete implementation of streams : an interface is chosen, and the
+ implementation of that interface must be passed through settings
 
 Concretely, our state transducer will be created by the factory function `create_state_machine`, 
 which returns a state transducer which :
@@ -553,15 +555,44 @@ The key types are summarized here :
  * of the extended state machine. `output` represents the output of the state machine passed to the API caller.
  */
 /** @typedef {function (*=) : Boolean} Predicate */
-/** @typedef {{subject_factory: SubjectFactory, ...}} FSM_Settings */
+/** @typedef {{subject_factory: function() : Subject, ...}} FSM_Settings */
+/** @typedef {{subject_factory: function() : Subject, merge: MergeObsFn, of: OfObsFn, ...}} FSM$_Settings */
 /** @typedef {*} FSM_Model */
 /** @typedef {*} MachineOutput well it is preferrable that that be an object instead of a primitive */
 /** @typedef {String} EventLabel */
 /** @typedef {String} ControlState Name of the control state */
+/**
+ * @typedef {{emit: function(value) : void, ...}} Subject An object with emulates a subject. The subject must have an
+ * `emit` method by which values can be emitted. This allows to decouple the streaming library from our library. For
+ * Rxjs v5, `emit` is the equivalent of `next`. The subject must also have an `subscribe` method corresponding to
+ * the eponym method for Rxjs v5 subjects.
+ */
+/**
+ * @typedef {function (Array<Observable>) : Observable} MergeObsFn Similar to Rxjs v4's `Rx.Observable.merge`. Takes
+ * an array of observables and return an observable which passes on all outputs emitted by the observables in the array.
+ */
+/**
+ * @typedef {function (value) : Observable} OfObsFn Similar to Rxjs v4's `Rx.Observable.of`. Takes
+ * a value and lift it into an observable which completes immediately after emitting that value.
+ */
 ```
 
 
-## `makeStreamingStateMachine :: FSM_Settings -> FSM_Def -> StreamingStateMachine`
+## `makeStreamingStateMachine :: FSM$_Settings -> FSM_Def -> StreamingStateMachine`
+### Description
+A `StreamingStateMachine` is a standard `cyclejs` component, i.e. a function which takes an 
+observable and returns an obsrvable. Concretely, every incoming event is passed through the 
+machine defined in `FSM_Def` and the computed output is emitted by the `StreamingStateMachine`.
+Note that it is not necessary to start the state machine manually here, as it is started 
+automatically at subscription time.
+
+### Contracts
+- events have the shape `HashMap<EventLabel, EventData>`, i.e. an object whose keys are event 
+identifiers, and values are the data carried with the event. 
+- `EventLabel` follow the same rules than identifier for javascript function
+
+### Implementation example
+Cf. [multi-step workflow demo repo](https://github.com/brucou/cycle-state-machine-demo)
 
 # Tests
 Automated tests are so far incomplete. Most tests have been run manually. To run the 
