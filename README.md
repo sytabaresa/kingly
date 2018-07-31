@@ -456,7 +456,6 @@ To illustrate the previously described transducer semantics, let's run the CD pl
 | CD Loaded          |     INIT    |                  |
 | CD Loaded subgroup |     INIT    |                  |
 | CD Stopped         |      --     |                  |
-
 | CD stopped         |             | Play             |
 | CD playing         |             | Forward down     |
 | Stepping forwards  |             | Forward up       |
@@ -506,9 +505,6 @@ the hierarchy)
   - the target control state has to be different from the origin control state (else we may loop 
   forever)
   
-
-- **TODO**
-
 ## `create_state_machine :: FSM_Def -> FSM`
 - **TODO**
 
