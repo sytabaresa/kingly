@@ -423,7 +423,7 @@ export function create_state_machine(fsmDef, settings) {
         const auto_event = is_init_state[new_current_state]
           ? INIT_EVENT
           : AUTO_EVENT;
-        return send_event({ [AUTO_EVENT]: event_data });
+        return send_event({ [AUTO_EVENT]: event_data }); // TODO : probably [auto_event]...
       } else return output;
     } else {
       // CASE : There is no transition associated to that event from that state

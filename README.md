@@ -21,7 +21,7 @@ relating a user input to an action to be performed on the interfaced systems. Th
 often has a logic [organized around a limited set of control states](#base-example). Exactly what
  we just wrote about. [Jump to the examples](https://github.com/brucou/state-transducer#general-concepts).
 
-The use of state machines is not unusual for safety-critical software for embedded systems.  
+The use of state machines is not unusual for safety-critical software for embedded systems. 
 Nearly all safety-critical code on the Airbus A380 is implemented with a [suite of tools](https://www.ansys.com/products/embedded-software/ansys-scade-suite/scade-suite-capabilities#cap1) which 
 uses state machines both as [specification](https://www.youtube.com/watch?list=PL0lZXwHtV6Ok5s-iSkBjHirM1fu53_Phv&v=EHP_spl5xU0) and [implementation](https://www.youtube.com/watch?v=523bJ1vZZmw&index=5&list=PL0lZXwHtV6Ok5s-iSkBjHirM1fu53_Phv) target. 
 
@@ -31,12 +31,11 @@ More prosaically, did you know that ES6 generators compile down to ES5 state mac
 native option is available? Facebook's [`regenerator`](https://github.com/facebook/regenerator) 
 is a good example of such.
 
-So state machines are nothing like a new tool, but with a fairly extended and proven track in both 
-industrial and consumer applications. However, it has to be said that, when it comes to 
-graphical user interfaces, it is a tool fairly unknown to developers. There are obviously 
-cultural and historical reasons for that, which it is not useful to describe here. However, 
-could it be that we have here another tool in our toolbox which can help us write better (at 
-least in the sense of correctness) user interfaces?
+So state machines are nothing like a new, experimental tool, but rather one with a fairly extended 
+and proven track in both industrial and consumer applications. However, it has to be said that, 
+when it comes to graphical user interfaces, it is a tool fairly unknown to developers. However, 
+could state machines be another useful tool in our toolbox to write more **reliable** UIs, just as 
+they help ensure reliable embedded software?
 
 This library was born from :
 
@@ -49,15 +48,16 @@ implementation of user interfaces
   mathematical object denoting it. This should allow us to reason about it, compose and reuse 
   it easily. 
   - most libraries we found either do not feature hierarchy in their state machines, or use a 
-  rather imperative API, or complect concurrency with control flow
+  rather imperative API, or impose a concurrency model on top of the state machine's control flow
 
-It is obviously a [work in progress](#roadmap), the current version is taken from code written 
-two/three years ago and rejuvenated. It works nicely though and have already been used succesfully :
+It is obviously a [work in progress](#roadmap), the current version is taken from statechart code 
+written two/three years ago and adjusted to the current API design. It works nicely though and have 
+already been used succesfully :
 
 - in [multi-steps workflows](https://github.com/brucou/component-combinators/tree/master/examples/volunteerApplication), a constant feature of enterprise software today
 - for ['smart' synchronous streams](https://github.com/brucou/partial-synchronous-streams), which
  tracks computation state to avoid useless re-computations
-- to implement cross-domain communication protocols
+- to implement cross-domain communication protocols, to coordinate iframes with a main window
 
 In such cases, we were able to modelize our computation with an Extended Hierarchical State Transducer 
 in a way that :
@@ -157,8 +157,8 @@ transducer is a black-box, and only its computed outputs can be observed
 - action factories return the **updates** to the extended state (JSON patch format) to avoid any 
 unwanted direct modification of the extended state
 - no restriction is made on output of transducers, but inputs must follow some conventions (if a
- machine's output match those conventions, two such machines can be sequentially composed by 
- passing the output of a yield from the first machine as an input to the second machine)
+ machine's output match those conventions, two such machines can be sequentially composed ; 
+ parallel composition naturally occurs by feeding two state machines the same input(s))
 - reactive programming is enabled by exposing a pure function of an input stream, which runs the 
 transducer for each incoming input, thus generating a sequence of outputs
 
@@ -389,21 +389,71 @@ used when referring to state machines.
 </dl>
 
 ### Transducer behaviour
-We give here a quick summary of the operational semantics for the state transducer :
+We give here a quick summary of the behaviour of the state transducer :
 
-- the machine is configured with a set of control states, an initial extended state, transitions, 
-guards, action factories, and user settings
+**Preconditions**
+
+- the machine is configured with a set of control states, an initial extended state, 
+transitions, guards, action factories, and user settings. 
+- the machine configuration is valid (cf. contracts)
 - the machine is in a fixed initial control state at starting time
-- starting the machine (`.start()`) triggers the internal INIT event which advances the state 
-machine out of the initial control state towards the relevant user-configured control state.
-- **TODO** also semantics of history states
+- Input events (`{{[event_label]: event_data}}`), including the initial INIT event are passed to 
+the transducer by call of the exposed `yield` method
+
+**Event processing**
+
+- Starting the machine (`.start()`) triggers the reserved INIT event which advances the state 
+machine out of the initial control state towards the relevant user-configured control state
+- **1**
+- Search for a feasible transition in the configured transitions
+- If there is no feasible transition :
+  - issue NO_OUTPUT, extended state and ocntrol state do not change. THE END
+- If there is a feasible transition, select the first transition according to what follows :
+  - if there is an INIT transition, select that
+  - if there is an eventless transition, select that
+  - otherwise select the first transition whose guard is fulfilled (as ordered per array index)
+- evaluate the selected transition
+  - if the target control state is an history state, replace it by the control state it 
+  references (i.e. the last seen nested state for that compound state)
+  - **update the extended state**
+  - update the control state to the target state
+  - update the history for the control state (applies only if control state is compound state)
+- return to **1**
+
+A few interesting points : 
+
+- a machine always transition towards an atomic state at the end of event processing
+- on that path towards an atomic target state, all intermediary extended state updates are 
+performed. Guards and action factories on that path are thus receiving a possibly evolving extended 
+state. However, the computed output will be that one computed by the last action factory for the 
+last transition evaluated.
+ 
+Those semantics are summarized here :
+
+![event processing semantics](assets/FSM%20event%20processing%20semantics.png)
+
+**History states semantics**
+
+- An history state is always an atomic state
+- An history state correspond to a compound state, and is the last atomic state nested in that 
+compound state that was visited, before exiting that compound state
+
+In short the history state allows to short-circuit the default entry behaviour for a compound 
+state, which is to follow the transition triggered by the INIT event. When transitioning to the 
+history state, one transitions towards the last seen atomic state for the entered compound state.
 
 ### Example run
-To illustrate the previously described transducer semantics, let's run the base example.
+To illustrate the previously described transducer semantics, let's run the CD player example.
+
 
 **TODO : three steps are enough**
  
 ### Contracts
+- the first event processed by the state machine must be the init event
+- the state machine starts in the initial state
+- all transitions must be valid :
+  - all states referenced in the `transitions` data structure must be defined in the `states` data 
+  structure
 - The machine cannot stay blocked in the initial control state. This means that at least one 
 transition must be configured and be executed between the initial control state and another state
 .  This is turn means :
@@ -411,6 +461,26 @@ transition must be configured and be executed between the initial control state 
   - at least one transition out of the initial control state must be configured
   - of all guards for such transitions, if any, at least one must be fulfilled to enable a 
   transition away from the initial control state
+- A transition evaluation must end in an atomic state
+  - for every compound state, there must be an INIT transition, identifying the target nested state 
+  - init transitions must have an atomic state as target state, or have a target compound state 
+  with an init transition ending in an atomic state, eventually
+  - to avoid issues, there will be no guards accepted on INIT transition for another state than 
+  the initial state (ensuring the machine always progresses state on INIT) 
+  - An init transition must have as target control state a state which is strictly nested under the 
+state origination the transition (i.e. no hierarchy crossing, and we must go down one level in 
+the hierarchy)
+  - (the following conditions ensure that there is always a way down the hierarchy for compound 
+  states, and that way is always taken when entering the compound state, and the descent 
+  process always terminate)
+- guards, acion factories are pure functions
+  - as such exceptions while running those functions are fatal, and will not be caught
+- eventless transitions must progress the state machine
+  - at least one guard must be fulfilled
+  - the target control state has to be different from the origin control state (else we may loop 
+  forever)
+  
+
 - **TODO**
 
 ## `create_state_machine :: FSM_Def -> FSM`
