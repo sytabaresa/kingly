@@ -178,7 +178,7 @@ function defaultMerge(arrayOutputs) {
 
 /**
  *
- * @param {function (Array<Machine_Output>) : Machine_Output} mergeOutputFn
+ * @param {function (Array<MachineOutput>) : MachineOutput} mergeOutputFn
  * @param {Array<ActionFactory>} arrayActionFactory
  * @returns {function(*=, *=, *=): {model_update: *[], output: *|null}}
  */

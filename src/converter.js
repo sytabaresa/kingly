@@ -51,7 +51,7 @@ export function toPlantUml(fsmDef, settings) {
 /**
  * Convert a state machine specs into a plantUML format, limiting its conversion scope to a given control state and
  * its nested hierarchy
- * @param {Control_State} controlState
+ * @param {ControlState} controlState
  * @param {Array<String>} childrenTranslation conversion of the states nested in the given control state
  * @param {Array<Transition>} transitions Full set of transitions as defined in the state machine specs
  * CONTRACT : All control states must have different names...

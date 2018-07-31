@@ -217,7 +217,7 @@ function build_state_enum(states) {
  *   - to : target state for the described transition
  * @param {FSM_Def} fsmDef
  * @param {{subject_factory: Function, merge: Function}} settings Contains the subject factory as mandatory settings,
- * and any other. The `merge` settings is mandatory only when using th streaming state machine functionality
+ * and any other. The `merge` settings is mandatory only when using the streaming state machine functionality
  * extra settings the API user wants to make available in state machine's scope
  * @returns {{yield : Function, start: Function}}
  */
@@ -564,7 +564,7 @@ export function makeNamedActionsFactory(namedActionSpecs) {
  * @param  {Object.<string, function>} entryActions Adds an action to be processed when entering a given state
  * @param  {Array<Transition>} transitions Array of transitions for a given state machine
  * @param  {{}} states hierarchy of states for a given state machine
- * @param {function (Array<Machine_Output>) : Machine_Output} mergeOutputFn monoidal merge (pure) function
+ * @param {function (Array<MachineOutput>) : MachineOutput} mergeOutputFn monoidal merge (pure) function
  * to be provided to instruct how to combine machine outputs. Beware that the second output corresponds to the entry
  * action output which must logically correspond to a processing as if it were posterior to the first output. In
  * many cases, that will mean that the second machine output has to be 'last', whatever that means for the monoid
@@ -623,7 +623,7 @@ export function decorateWithEntryActions(transitions, states, entryActions, merg
  *
  * @param {ActionFactory} action action factory which may be associated to a display name
  * @param {ActionFactory} entryAction
- * @param {function (Array<Machine_Output>) : Machine_Output} mergeOutputFn monoidal merge function. Cf.
+ * @param {function (Array<MachineOutput>) : MachineOutput} mergeOutputFn monoidal merge function. Cf.
  *   decorateWithEntryActions
  * @return ActionFactory
  */
