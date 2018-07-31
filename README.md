@@ -445,6 +445,17 @@ history state, one transitions towards the last seen atomic state for the entere
 ### Example run
 To illustrate the previously described transducer semantics, let's run the CD player example.
 
+| Control state      | Input event | User event       |
+|--------------------|:-----------:|------------------|
+| INIT               |     INIT    |                  |
+| No Cd Loaded       |     INIT    |                  |
+| CD Drawer Closed   |      --     |                  |
+| CD Drawer Closed   |             | Eject            |
+| CD Drawer Open     |             | Eject (put a CD) |
+| Closing CD Drawer  |  eventless  |                  |
+| CD Loaded          |     INIT    |                  |
+| CD Loaded subgroup |     INIT    |                  |
+| CD Stopped         |      --     |                  |
 
 **TODO : three steps are enough**
  
