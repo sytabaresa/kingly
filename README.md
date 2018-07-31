@@ -214,11 +214,12 @@ That application process concretely consists of 5 screens whose flow is defined 
 
 This in turn was turned into a non-trivial state machine (7 states, ~20 transitions) orchestrating 
 the screens to display in function of the user inputs. The machine **does not display the screen 
-itself** (it performs no effects), **it computes which screen to display** according to the 
-sequence of inputs performed by the user and its encapsulated state (user-entered data, data 
-validation, etc.). The action `display screen` in the graph below must be understood as a regular 
-piece of data whose meaning is to be interpreted down the road by the portion of the program in 
-charge of realizing effects. The state machine can be visualized as follows :
+itself** (it performs no effects), **it computes a representation of the screen to display** 
+according to the sequence of inputs performed by the user and its encapsulated state 
+(user-entered data, data validation, etc.). The action `display screen` in the graph below must 
+be understood as a regular piece of data (virtual DOM tree) whose meaning is to be interpreted 
+down the road by the portion of the program in charge of realizing effects (DOM patch library). The 
+state machine can be visualized as follows :
  
 ![illustration of basic terminology](assets/sparks%20application%20process%20with%20comeback%20proper%20syntax%20-%20flat%20fsm.png)
 
@@ -388,7 +389,7 @@ used when referring to state machines.
   </dd>
 </dl>
 
-### Transducer behaviour
+## Transducer semantics
 We give here a quick summary of the behaviour of the state transducer :
 
 **Preconditions**
@@ -402,12 +403,13 @@ the transducer by call of the exposed `yield` method
 
 **Event processing**
 
-- Starting the machine (`.start()`) triggers the reserved INIT event which advances the state 
+- Starting the machine (`.start()`) triggers the reserved `INIT` event which advances the state 
 machine out of the initial control state towards the relevant user-configured control state
 - **1**
 - Search for a feasible transition in the configured transitions
 - If there is no feasible transition :
-  - issue NO_OUTPUT, extended state and ocntrol state do not change. THE END
+  - issue memorized output (`NO_OUTPUT` if none), extended state and ocntrol state do not change.
+   **_THE END_**
 - If there is a feasible transition, select the first transition according to what follows :
   - if there is an INIT transition, select that
   - if there is an eventless transition, select that
@@ -415,7 +417,8 @@ machine out of the initial control state towards the relevant user-configured co
 - evaluate the selected transition
   - if the target control state is an history state, replace it by the control state it 
   references (i.e. the last seen nested state for that compound state)
-  - **update the extended state**
+  - **update the extended state** (with the updates produced by the action factory)
+  - memorize the output (produced by the action factory)
   - update the control state to the target state
   - update the history for the control state (applies only if control state is compound state)
 - return to **1**
@@ -445,7 +448,7 @@ history state, one transitions towards the last seen atomic state for the entere
 ### Example run
 To illustrate the previously described transducer semantics, let's run the CD player example.
 
-| Control state      | Input event | User event       |
+| Control state      | Internal event | User event       |
 |--------------------|:-----------:|------------------|
 | INIT               |     INIT    |                  |
 | No Cd Loaded       |     INIT    |                  |
@@ -517,7 +520,7 @@ We have included two helpers for visualization of the state transducer :
 
 - conversion to plantUML : `toPlantUml :: FSM_Def -> PlantUml`.
   - the resulting chain of characters can be pasted in [plantText](`https://www.planttext.com/`) 
-  or [planUML previewer](http://sujoyu.github.io/plantuml-previewer/) to get an automated graph 
+  or [plantUML previewer](http://sujoyu.github.io/plantuml-previewer/) to get an automated graph 
   representation. Both will produce the exact same visual representation.
 - conversion to [online visualizer](https://github.com/brucou/state-transducer-visualizer) format 
 (dagre layout engine) : for instructions, cf. github directory : `toDagreVisualizerFormat :: 
