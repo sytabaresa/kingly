@@ -457,7 +457,22 @@ To illustrate the previously described transducer semantics, let's run the CD pl
 | CD Loaded subgroup |     INIT    |                  |
 | CD Stopped         |      --     |                  |
 
-**TODO : three steps are enough**
+| CD stopped         |             | Play             |
+| CD playing         |             | Forward down     |
+| Stepping forwards  |             | Forward up       |
+| **CD playing**     |      --     |                  |
+
+Note :
+
+- the state entry semantics -- entering `No Cd Loaded` leads to enter `CD Drawer Closed`
+- the guard -- because we put a CD in the drawer, the machine transitions from `Closing CD Drawer` to `CD Loaded` 
+- the eventless transition -- the latter is an eventless transition : the guards are 
+automatically evaluated to select a transition to progress the state machine (by contract, there 
+must be one)
+- the hierarchy of states -- the `Forward down` event transitions the state machines to `Stepping
+ forwards`, as it applies to all atomic states nested in the `CD Loaded subgroup` control state
+- the history semantics -- releasing the forward key on the CD player returns to `CD Playing` the
+ last atomic state for compound state `CD Loaded subgroup`.
  
 ### Contracts
 - the first event processed by the state machine must be the init event
