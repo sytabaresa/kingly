@@ -511,10 +511,20 @@ the hierarchy)
   forever)
   
 ## `create_state_machine :: FSM_Def -> FSM`
+### Description
 This FSM factory function takes the parameters defining the behaviour of the state transducer, 
-and returns the created state transducer. 
+and returns the created state transducer. That transducer has a method `yield` by which an input 
+is passed to the state machine, and in return the computed output is received. The syntax for an 
+input is `{{[eventLabel] : eventData}}`, i.e. an input is an object with exactly one key, which 
+is the event identifier, and the value matching the key is the event data.
 
-The key types are summarized here :
+Note that by contract the state machine must be started by sending the `INIT` event. We provide 
+the syntatic sugar `.start()` to do so. 
+
+### Contracts
+All [previously mentioned](https://github.com/brucou/state-transducer#contracts) contracts apply. 
+
+The key types contracts are summarized here :
 
 ```javascript
 /**
