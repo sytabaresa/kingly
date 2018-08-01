@@ -56,4 +56,4 @@
  * @typedef {function (value) : Observable} OfObsFn Similar to Rxjs v4's `Rx.Observable.of`. Takes
  * a value and lift it into an observable which completes immediately after emitting that value.
  */
-map filter concat share
+// map filter concat share
