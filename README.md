@@ -88,7 +88,7 @@ actual or practical usage of automata.
 
 An extended state machine is a state machine endowed with a set of variables, predicates (guards)
 and instructions governing the update of the mentioned set of variables. To any extended state 
-machines it corresponds a standard state machine ()albeit often one with a far greater number of 
+machines it corresponds a standard state machine (albeit often one with a far greater number of 
 states) with the same semantics.
 
 A hierarchical state machine is a state machine whose states can be themselves state machines. 
@@ -503,7 +503,7 @@ the hierarchy)
   - (the following conditions ensure that there is always a way down the hierarchy for compound 
   states, and that way is always taken when entering the compound state, and the descent 
   process always terminate)
-- guards, acion factories are pure functions
+- guards, action factories are pure functions
   - as such exceptions while running those functions are fatal, and will not be caught
 - eventless transitions must progress the state machine
   - at least one guard must be fulfilled
@@ -576,7 +576,6 @@ The key types are summarized here :
  * a value and lift it into an observable which completes immediately after emitting that value.
  */
 ```
-
 
 ## `makeStreamingStateMachine :: FSM$_Settings -> FSM_Def -> StreamingStateMachine`
 ### Description
