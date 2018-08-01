@@ -21,7 +21,6 @@
 - [Tests](#tests)
 - [Visualization tools](#visualization-tools)
 - [References](#references)
-- [Possible improvements](#possible-improvements)
 - [Roadmap](#roadmap)
 
 # Motivation
@@ -665,9 +664,6 @@ Automated visualization works well with simple graphs, but seems to encounter tr
 
 # References
 [comonadic user interfaces](https://functorial.com/the-future-is-comonadic/main.pdf)
-
-# Possible improvements
-- any ideas? Post an issue!
 
 # Roadmap
 - [x] add entry actions
