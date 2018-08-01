@@ -469,9 +469,9 @@ performed. Guards and action factories on that path are thus receiving a possibl
 state. However, the computed output will be that one computed by the last action factory for the 
 last transition evaluated.
  
-Those semantics are summarized here :
+The aforedescribed behaviour is summarized here :
 
-![event processing semantics](assets/FSM%20event%20processing%20semantics.png)
+![event processing](assets/FSM%20event%20processing%20semantics.png)
 
 **History states semantics**
 
