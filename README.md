@@ -587,6 +587,9 @@ The key types contracts are summarized here :
  */
 ```
 
+### Implementation example
+There are plenty of examples of use in the test directory. 
+
 ## `makeStreamingStateMachine :: FSM$_Settings -> FSM_Def -> StreamingStateMachine`
 ### Description
 A `StreamingStateMachine` is a standard `cyclejs` component, i.e. a function which takes an 
