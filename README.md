@@ -40,14 +40,17 @@ when it comes to graphical user interfaces, it is a tool fairly unknown to devel
 could state machines be another useful tool in our toolbox to write more **reliable** UIs, just as 
 they help ensure reliable embedded software? We are not the first one to think so. Old people 
 like me will remember SproutCore, an ancient framework by any means (2010 was it?) when 
-javascript was still young and nimble, and jQuery was a baby. The [Ki library](https://frozencanuck.wordpress.com/2011/02/15/ki-just-got-better/) already offered then an interface to use hierarchical state machines (concretely statecharts).
+javascript was still young and nimble, and jQuery was a baby. The [Ki library](https://frozencanuck.wordpress.com/2011/02/15/ki-just-got-better/) already offered then an 
+interface to use hierarchical state machines (concretely statecharts). So this is like often in 
+tech, running around in cycles and repackaging the old as new.
 
 This library is born from :
 
 - the desire to investigate further the extent of the applicability of such tool both for 
 specification and implementation of user interfaces
   - the experience with gaming shows that, passed a given level of AI complexity, other 
-  techniques are better suited. Does this apply to user interfaces? What would be a sweet spot?
+  techniques are better suited. How does this translate to the graphical user interfaces problem 
+  space? What would be a sweet spot?
 - the absence of existing javascript libraries which satisfy our [design criteria](https://github.com/brucou/state-transducer#api-design)
   - mostly, we want the state machine library API design to be as close as possible from the 
   mathematical object denoting it. This should allow us to reason about it, compose and reuse 
