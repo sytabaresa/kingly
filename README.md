@@ -280,7 +280,8 @@ This example is taken from Ian Horrock's seminal book on statecharts and is the 
  a CD player. The behaviour of the CD player is pretty straight forward and understandable 
  immediately from the visualization. From a didactical point of view, the example serve to feature 
  advanced characteristics of hierarchical state machines,  including history states, composite states, 
- transient states, automatic transitions, and entry points.
+ transient states, automatic transitions, and entry points. For a deeper understanding of how the
+  transitions work in the case of a hierarchical machine, you can have a look at the [sample run](https://github.com/brucou/state-transducer#example-run) for the CD player machine.
  
 ![cd player state chart](http://i.imgur.com/ygsOVi9.jpg)
 
