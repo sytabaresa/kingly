@@ -49,9 +49,15 @@ often has a logic [organized around a limited set of control states](#base-examp
 The use of state machines is not unusual for safety-critical software for embedded systems. 
 Nearly all safety-critical code on the Airbus A380 is implemented with a [suite of tools](https://www.ansys.com/products/embedded-software/ansys-scade-suite/scade-suite-capabilities#cap1) which 
 produces state machines both as [specification](https://www.youtube.com/watch?list=PL0lZXwHtV6Ok5s-iSkBjHirM1fu53_Phv&v=EHP_spl5xU0) and [implementation](https://www.youtube.com/watch?v=523bJ1vZZmw&index=5&list=PL0lZXwHtV6Ok5s-iSkBjHirM1fu53_Phv) 
-target. The key driver for use is that state machines provide safety guarantees and can be 
-formally reasoned about, and that is essential in this domain, where regulation may impose that 
-every piece of requirement be traced back to the specific code that implements it (!).
+target. The driver here is two-fold. On the one hand is productivity : writing highly reliable code
+ by hand can be done but it is painstakingly slow, while state machines allow to **generate the code** 
+automatically. On the other hand is reliability. Quoting Gerard Berry, founder of Esterel 
+technologies, [<< low-level programming techniques will not remain acceptable for large 
+safety-critical programs, since they make behavior understanding and analysis almost 
+impracticable >>](https://ptolemy.berkeley.edu/projects/chess/design/2010/discussions/Pdf/synclang.pdf), in a harsh regulatory context 
+which may require that every single system requirement 
+be traced to the code that implements it (!). Requirements modeled by state-machines are amenable
+ to formal verification and validation. 
 
 State machines have also been used extensively in [games of reasonable complexity](http://howtomakeanrpg.com/a/state-machines.html), and [tutorials](https://www.gamedev.net/articles/programming/general-and-gameplay-programming/state-machines-in-games-r2982/) abound on the subject.
 
@@ -67,12 +73,18 @@ they help ensure reliable embedded software? We are not the first one to think s
 like me will remember SproutCore, an ancient framework by any means (2010 was it?) when 
 javascript was still young and nimble, and jQuery was a baby. The [Ki library](https://frozencanuck.wordpress.com/2011/02/15/ki-just-got-better/) already offered then an 
 interface to use hierarchical state machines (concretely statecharts). So this is like often in 
-tech, running around in cycles and repackaging the old as new.
+tech, running around in circles and repackaging the old as new.
 
 This library is born from :
 
 - the desire to investigate further the extent of the applicability of such tool both for 
 specification and implementation of user interfaces
+  - the reliability factor driving the use of state machines for safety-critical software simply do 
+  not exist in the human-machine interface space. Errors in graphical user interfaces have lower 
+  significance than in airplane systems. Moreover, because of the potential subtle 
+  interactions between UI components, it may be difficult to exercise an extensive and realistic 
+   simulation of user interaction. But does the productivity factor still hold? Given that user 
+   interface programmign is highly iterative, what of maintainability ? 
   - the experience with gaming shows that, passed a given level of AI complexity, other 
   techniques are better suited. How does this translate to the graphical user interfaces problem 
   space? What would be a sweet spot?
@@ -83,9 +95,11 @@ specification and implementation of user interfaces
   - most libraries we found either do not feature hierarchy in their state machines, or use a 
   rather imperative API, or impose a concurrency model on top of the state machine's control flow
 
-It is obviously a [work in progress](#roadmap), the current version is taken from statechart code 
-written two/three years ago and adjusted to the current API design. It works nicely though and have 
-already been used succesfully :
+Needless to say, this library is written because of a belief that there are serious benefits 
+today in using a more formalized approach to user interface design. It should also be 
+obvious that this is a [work in progress](#roadmap), the current version is taken from statechart 
+code written two/three years ago and adjusted to the current API design. It works nicely though 
+and have already been used succesfully :
 
 - in [multi-steps workflows](https://github.com/brucou/component-combinators/tree/master/examples/volunteerApplication), a constant feature of enterprise software today
 - for ['smart' synchronous streams](https://github.com/brucou/partial-synchronous-streams), which
@@ -96,11 +110,13 @@ In such cases, we were able to modelize our computation with an Extended Hierarc
 in a way that :
 
 - is economical (complexity of the transducer proportional to complexity of the computation)
-- is reasonably easy to reason about and communicate up to an intermediate scale (the transducer can
+- is reasonably easy to reason about and communicate (the transducer can
  be visually represented, supporting both internal and external communication, and design 
  specification and documentation)
 - supports step-wise refinement and iterative development (control states can be refined into a 
 hierarchy of nested states)
+
+I guess we live in interesting times.
 
 [^1]: In fact, [computability theory]((https://en.wikipedia.org/wiki/Computability_theory)) links
  the feasability of a computation to the existence of a machine whose run produces the 
