@@ -95,8 +95,8 @@ specification and implementation of user interfaces
   - most libraries we found either do not feature hierarchy in their state machines, or use a 
   rather imperative API, or impose a concurrency model on top of the state machine's control flow
 
-Needless to say, this library is written because of a belief that there are serious benefits 
-today in using a more formalized approach to user interface design. It should also be 
+Needless to say, this library is written because of a substantiated belief that there are serious 
+benefits today in using a more formalized approach to user interface design. It should also be 
 obvious that this is a [work in progress](#roadmap), the current version is taken from statechart 
 code written two/three years ago and adjusted to the current API design. It works nicely though 
 and have already been used succesfully :
