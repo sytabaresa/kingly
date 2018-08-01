@@ -1,3 +1,29 @@
+- [Motivation](#motivation)
+- [So what is an Extended Hierarchical State Transducer ?](#so-what-is-an-extended-hierarchical-state-transducer--)
+- [Install](#install)
+- [API](#api)
+  * [API design](#api-design)
+  * [General concepts](#general-concepts)
+    + [Base example](#base-example)
+    + [CD drawer example](#cd-drawer-example)
+    + [Terminology](#terminology)
+  * [Transducer semantics](#transducer-semantics)
+    + [Example run](#example-run)
+    + [Contracts](#contracts)
+  * [`create_state_machine :: FSM_Def -> FSM`](#-create-state-machine----fsm-def----fsm-)
+    + [Description](#description)
+    + [Contracts](#contracts-1)
+    + [Implementation example](#implementation-example)
+  * [`makeStreamingStateMachine :: FSM$_Settings -> FSM_Def -> StreamingStateMachine`](#-makestreamingstatemachine----fsm--settings----fsm-def----streamingstatemachine-)
+    + [Description](#description-1)
+    + [Contracts](#contracts-2)
+    + [Implementation example](#implementation-example-1)
+- [Tests](#tests)
+- [Visualization tools](#visualization-tools)
+- [References](#references)
+- [Possible improvements](#possible-improvements)
+- [Roadmap](#roadmap)
+
 # Motivation
 Time and again we have to implement computations which, while they cannot be modelized by pure 
 functions, however have the following interesting properties :
@@ -84,7 +110,10 @@ hierarchy of nested states)
   a formalization of the computing machine brings desired benefits.
 
 # So what is an Extended Hierarchical State Transducer ? 
-Let's build the concept progressively.
+Not like it matters so much but anyways. Feel free to skip that section if you have little 
+interest in computer science.
+
+Alright, let's build the concept progressively.
 
 An [automaton](https://en.wikipedia.org/wiki/Automata_theory) is a construct made of states 
 designed to determine if a sequence of inputs should be accepted or rejected. It looks a lot like a 
@@ -487,6 +516,7 @@ must be one)
  last atomic state for compound state `CD Loaded subgroup`.
  
 ### Contracts
+
 - the first event processed by the state machine must be the init event
 - the state machine starts in the initial state
 - all transitions must be valid :
