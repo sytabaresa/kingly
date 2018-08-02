@@ -66,25 +66,24 @@ native option is available? Facebook's [`regenerator`](https://github.com/facebo
 is a good example of such.
 
 So state machines are nothing like a new, experimental tool, but rather one with a fairly extended 
-and proven track in both industrial and consumer applications. However, it has to be said that, 
-when it comes to graphical user interfaces, it is a tool fairly unknown to developers. However, 
-could state machines be another useful tool in our toolbox to write more **reliable** UIs, just as 
-they help ensure reliable embedded software? We are not the first one to think so. Old people 
-like me will remember SproutCore, an ancient framework by any means (2010 was it?) when 
-javascript was still young and nimble, and jQuery was a baby. The [Ki library](https://frozencanuck.wordpress.com/2011/02/15/ki-just-got-better/) already offered then an 
-interface to use hierarchical state machines (concretely statecharts). So this is like often in 
-tech, running around in circles and repackaging the old as new.
+and proven track in both industrial and consumer applications. Actually, old people like me will 
+remember SproutCore, an ancient framework by any means (2010 was it?) when javascript was still 
+young and nimble, and jQuery was a baby. The [Ki library](https://frozencanuck.wordpress.com/2011/02/15/ki-just-got-better/) already offered then an interface to use hierarchical state machines (concretely statecharts). However, it has to be said that, 
+when it comes to graphical user interfaces, it is a tool fairly unknown to developers. 
+Our current assessment is that state machines are another useful tool in our toolbox to write 
+more **reliable, maintainable** UIs, just as they do for embedded software.
 
 This library is born from :
 
 - the desire to investigate further the extent of the applicability of such tool both for 
 specification and implementation of user interfaces
-  - the reliability factor driving the use of state machines for safety-critical software simply do 
-  not exist in the human-machine interface space. Errors in graphical user interfaces have lower 
+  - the reliability factor driving the use of state machines for safety-critical software is moot in
+   the human-machine interface space. Errors in graphical user interfaces have lower 
   significance than in airplane systems. Moreover, because of the potential subtle 
   interactions between UI components, it may be difficult to exercise an extensive and realistic 
-   simulation of user interaction. But does the productivity factor still hold? Given that user 
-   interface programmign is highly iterative, what of maintainability ? 
+   simulation of user interaction. But wouldn't the productivity factor still hold? Given 
+   that user interface programming is highly iterative, wouldn't the maintainability benefits be 
+   significant ? 
   - the experience with gaming shows that, passed a given level of AI complexity, other 
   techniques are better suited. How does this translate to the graphical user interfaces problem 
   space? What would be a sweet spot?
@@ -96,7 +95,7 @@ specification and implementation of user interfaces
   rather imperative API, or impose a concurrency model on top of the state machine's control flow
 
 Needless to say, this library is written because of a substantiated belief that there are serious 
-benefits today in using a more formalized approach to user interface design. It should also be 
+benefits **today** in using a more formalized approach to user interface design. It should also be 
 obvious that this is a [work in progress](#roadmap), the current version is taken from statechart 
 code written two/three years ago and adjusted to the current API design. It works nicely though 
 and have already been used succesfully :
@@ -498,7 +497,7 @@ compound state that was visited, before exiting that compound state
 
 In short the history state allows to short-circuit the default entry behaviour for a compound 
 state, which is to follow the transition triggered by the INIT event. When transitioning to the 
-history state, one transitions towards the last seen atomic state for the entered compound state.
+history state, transition is towards the last seen atomic state for the entered compound state.
 
 ### Example run
 To illustrate the previously described transducer semantics, let's run the CD player example.
@@ -699,6 +698,7 @@ It should be pretty easy to put in place a configuration to use this library wit
 # Roadmap
 - [x] add entry actions
 - [x] [online visualizer](https://github.com/brucou/state-transducer-visualizer)
+- [ ] remove dependency on json patch and allow customization of the state update library
 - [ ] add exit actions
 - [ ] add tracing/debugging support
 - [ ] support [model-based testing, and test input generation](https://pdfs.semanticscholar.org/f8e6/b3019c0d5422f35d2d98c242f149184992a3.pdf) 

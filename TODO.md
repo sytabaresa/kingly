@@ -1,9 +1,6 @@
 # Now
-- NO : copy the makeStreamingStateMachine to cycle hsm - rename HSM in cycle-automata, so remove 
-the makeStreamingStateMachine  from state-transducer, think about how to reallocate the API too
 - add support for tracing (spy via HOC, output configurable via interface - can be used for 
 debugging too)
-- include learning from `http://sismic.readthedocs.io/en/master/communication.html` in README
 - document
 - API: keep the start for now. In another version should be able to start by sending an INIT event, 
 but that would be the responsibility of the library user?? Yes, I should do that, so only one `yield` method is exposed
