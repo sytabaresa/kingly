@@ -679,6 +679,20 @@ Automated visualization works well with simple graphs, but seems to encounter tr
  optimally satisfying complex graphs. The Dagre layout seems to be a relatively good option. The 
  [`yed`](https://www.yworks.com/products/yed) orthogonal layout also seems to give pretty good results. 
 
+# How to port to other streaming library
+The library can be adapted for use with other streaming library than `Rxjs`.
+
+- configure `fsm_settings.subject_factory`, `fsm_settings.merge`, `fsm_settings.of` to the 
+equivalent function of your favorite streaming library
+- the streams returned by those function must have the following functions defined, i.e. for 
+instance `obs.filter(...)` must be legit :
+  - concat
+  - map
+  - filter
+  - share (!!) 
+
+It should be pretty easy to put in place a configuration to use this library with `most`. 
+
 # References
 [comonadic user interfaces](https://functorial.com/the-future-is-comonadic/main.pdf)
 
