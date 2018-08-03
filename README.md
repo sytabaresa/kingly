@@ -44,7 +44,7 @@ specification and implementation of user interfaces. As a matter of fact, to [ev
 interface can be associated a computation](https://brucou.github.io/posts/user-interfaces-as-reactive-systems/#reactive-systems-as-automata) 
 relating a user input to an action to be performed on the interfaced systems. That computation 
 often has a logic [organized around a limited set of control states](#base-example). Exactly what
- we just wrote about. [Jump to the examples](https://github.com/brucou/state-transducer#general-concepts).
+ we just wrote about. [**Jump to the examples**](https://github.com/brucou/state-transducer#general-concepts).
 
 The use of state machines is not unusual for safety-critical software for embedded systems. 
 Nearly all safety-critical code on the Airbus A380 is implemented with a [suite of tools](https://www.ansys.com/products/embedded-software/ansys-scade-suite/scade-suite-capabilities#cap1) which 
@@ -59,7 +59,18 @@ which may require that every single system requirement
 be traced to the code that implements it (!). Requirements modeled by state-machines are amenable
  to formal verification and validation. 
 
-State machines have also been used extensively in [games of reasonable complexity](http://howtomakeanrpg.com/a/state-machines.html), and [tutorials](https://www.gamedev.net/articles/programming/general-and-gameplay-programming/state-machines-in-games-r2982/) abound on the subject.
+State machines have also been used extensively in [games of reasonable complexity]
+(http://howtomakeanrpg.com/a/state-machines.html), and [tutorials](https://www.gamedev.net/articles/programming/general-and-gameplay-programming/state-machines-in-games-r2982/) abound
+ on the subject. The driving factors are again two. First, the basic problem for AI to solve 
+ here is : given the state of the world, what should I do? Because game character behavior can be
+  modeled (in most cases) as a sequence of different character "mental states", where change in 
+  state is driven by the actions of the player or other characters, or possibly some features 
+  of the game world, game programmers often find that state machines are a natural choice for 
+  defining character AI.  Second, it is a very accessible and affordable tool vs. alternatives. The 
+  "decision-action" model is [straightforward enough to appeal to the nonprogrammers](https://www.researchgate.net/publication/284383920_The_Ultimate_Guide_to_FSMs_in_Games) on the game 
+  development team (such as level designers), yet impressively powerful. FSMs also lend 
+  themselves to being quickly sketched out during design and prototyping, and even better, they 
+  can be easily and efficiently implemented. 
 
 More prosaically, did you know that ES6 generators compile down to ES5 state machines where no 
 native option is available? Facebook's [`regenerator`](https://github.com/facebook/regenerator) 
@@ -71,7 +82,8 @@ remember SproutCore, an ancient framework by any means (2010 was it?) when javas
 young and nimble, and jQuery was a baby. The [Ki library](https://frozencanuck.wordpress.com/2011/02/15/ki-just-got-better/) already offered then an interface to use hierarchical state machines (concretely statecharts). However, it has to be said that, 
 when it comes to graphical user interfaces, it is a tool fairly unknown to developers. 
 Our current assessment is that state machines are another useful tool in our toolbox to write 
-more **reliable, maintainable** UIs, just as they do for embedded software.
+more **reliable, maintainable** UIs, with a **short distance between specification and 
+implementation**, just as it is the case with embedded software.
 
 This library is born from :
 
@@ -85,8 +97,8 @@ specification and implementation of user interfaces
    that user interface programming is highly iterative, wouldn't the maintainability benefits be 
    significant ? 
   - the experience with gaming shows that, passed a given level of AI complexity, other 
-  techniques are better suited. How does this translate to the graphical user interfaces problem 
-  space? What would be a sweet spot?
+  techniques are better suited (behaviour trees, etc.). How does this translate to the graphical 
+  user interfaces problem space? What would be a sweet spot?
 - the absence of existing javascript libraries which satisfy our [design criteria](https://github.com/brucou/state-transducer#api-design)
   - mostly, we want the state machine library API design to be as close as possible from the 
   mathematical object denoting it. This should allow us to reason about it, compose and reuse 
@@ -693,7 +705,9 @@ instance `obs.filter(...)` must be legit :
 It should be pretty easy to put in place a configuration to use this library with `most`. 
 
 # References
-[comonadic user interfaces](https://functorial.com/the-future-is-comonadic/main.pdf)
+- [comonadic user interfaces](https://functorial.com/the-future-is-comonadic/main.pdf)
+- [the ultimate guide to FSM in games](https://www.researchgate.net/publication/284383920_The_Ultimate_Guide_to_FSMs_in_Games)
+- [artificial intelligence - state machines](http://aiwisdom.com/ai_fsm.html)
 
 # Roadmap
 - [x] add entry actions
@@ -702,4 +716,3 @@ It should be pretty easy to put in place a configuration to use this library wit
 - [ ] add exit actions
 - [ ] add tracing/debugging support
 - [ ] support [model-based testing, and test input generation](https://pdfs.semanticscholar.org/f8e6/b3019c0d5422f35d2d98c242f149184992a3.pdf) 
-
