@@ -504,7 +504,7 @@ The aforedescribed behaviour is summarized here :
 **History states semantics**
 
 - An history state is always an atomic state
-- An history state correspond to a compound state, and is the last atomic state nested in that 
+- An history state corresponds to a compound state, and is the last atomic state nested in that 
 compound state that was visited, before exiting that compound state
 
 In short the history state allows to short-circuit the default entry behaviour for a compound 
@@ -671,6 +671,32 @@ identifiers, and values are the data carried with the event.
 ### Implementation example
 Cf. [multi-step workflow demo repo](https://github.com/brucou/cycle-state-machine-demo)
 
+# Possible API extensions
+Because of the API design choices, it is possible to realize the possible extensions without 
+modifying the state chart library (open/closed principle):
+
+- entry and exit actions
+  - decorating action factories
+- logging/tracing/monitoring
+  - decorating guards and action factories
+  - while not directly exposed, control state can still be traced by injecting the information in
+   the decorated guard and action factories
+- contract checking (preconditions, postconditions and probably invariants - to be investigated) 
+for both states and transitions
+  - can be done by inserting in first position extra guards which are always failed and 
+  decorating exising guards
+  
+Note that these extension more often than not would perform effects, meaning that the order of 
+application becomes significant in general. This is to be investigated further at a later point. 
+
+Equipped with a history of inputs and the corresponding outputs, it is also possible to do 
+property-based testing (for instance checking that a patter in a sequence of outputs occurs only 
+when a pattern occurs in the matching sequence of inputs).
+
+These extensions are useful to check/test the **design** of the automata, i.e. checking that the 
+automata which acts as modelization of requirements indeed satisfy the requirements. When 
+sufficient confidence is acquired, those extensions can be safely removed.
+
 # Tests
 Automated tests are so far incomplete. Most tests have been run manually. To run the 
 current automated tests, type in a terminal : `npm run test`
@@ -708,6 +734,7 @@ It should be pretty easy to put in place a configuration to use this library wit
 - [comonadic user interfaces](https://functorial.com/the-future-is-comonadic/main.pdf)
 - [the ultimate guide to FSM in games](https://www.researchgate.net/publication/284383920_The_Ultimate_Guide_to_FSMs_in_Games)
 - [artificial intelligence - state machines](http://aiwisdom.com/ai_fsm.html)
+- [A method for testing and validating executable statechart models](https://link.springer.com/article/10.1007/s10270-018-0676-3)
 
 # Roadmap
 - [x] add entry actions
