@@ -173,24 +173,31 @@ Note that if we add concurrency and messaging to extended hierarchical state tra
  any concurrency mechanism.[^2]
 
 [^2]: Our rationale is as follows :  
- - if there are no parallel regions, a statechart can be turned into a hierarchical state 
- transducer. That is often enough!
  - statecharts include activities and actions which may produce effects, and concurrency. We are 
- seeking an purely computational approach (i.e effect-less) to facilitate composition, reuse and 
-  testing.  Any [concurrent or communication model](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.92.6145&rep=rep1&type=pdf) can be added on top as necessary.
- - we estimate the concurrency semantics of statecharts to be somewhat complicated vs. alternative
-  concurrency models[^3]. That makes it difficult for programmers to elaborate a mental model of 
-  the statecharts (in the presence of concurrency) and that makes it difficult for other users to
-   reason based solely on the visualization of concurrent statecharts. Those issues however are 
-   not unmanageable for concurrent statecharts with little concurrency and messaging.
+ seeking an purely computational approach (i.e effect-less) to facilitate **composition, reuse and 
+  testing**. 
+ - In the absence of concurrency (i.e. absence of parallel regions), a statechart can be turned 
+ into a hierarchical state transducer. That is often enough! 
+ - there is no difference in terms of 
+ expressive power between statecharts and hierarchical transducers[^4], just as there is no 
+ difference in expressive power between extended state machines and regular state machines. The 
+ difference lies in naturalness and convenience : a 5-state extended state machine is 
+ easier to read and maintain than the equivalent 50-state regular state machine. 
+ - we argue that convenience here is on the side of being able to freely plug in any [concurrent 
+ or communication model](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.92.6145&rep=rep1&type=pdf) fitting the problem space. In highly concurrent systems, programmers may have it hard to elaborate a mental model of the statecharts solely from the visualization of 
+ concurrent statecharts.
  - some [statecharts practitioners](http://sismic.readthedocs.io/en/master/communication.html#) 
- favor having separate state charts communicating in an ad-hoc way rather than an integrated 
+ favor having separate state charts communicating[^5] in an ad-hoc way rather than an integrated 
  statechart model where concurrent state charts are gathered in nested states of a single 
  statechart. We agree.
  
 [^3]: As a matter of fact, more than 20 different semantics have been proposed to define 
 precisely the concurrency model for statecharts, e.g Rhapsody, Statemate, VisualMate, StateFlow, 
 UML, etc. do not share a single concurrency model.
+[^4]: David Harel, Statecharts.History.CACM : Speaking in the strict mathematical sense of power 
+of expression, hierarchy and orthogonality are but helpful abbreviations and can be eliminated
+[^5]: David Harel, Statecharts.History.CACM : <<I definitely do not recommend having a single 
+statechart for an entire system. (...) concurrency occurs on a higher level.)>>
  
 # Install
 `npm install state-transducer`
