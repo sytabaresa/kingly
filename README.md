@@ -293,7 +293,7 @@ be understood as a regular piece of data (virtual DOM tree) whose meaning is to 
 down the road by the portion of the program in charge of realizing effects (DOM patch library). The 
 state machine can be visualized as follows :
  
-![illustration of basic terminology](assets/sparks%20application%20process%20with%20comeback%20proper%20syntax%20-%20flat%20fsm.png)
+![illustration of basic terminology](https://github.com/brucou/state-transducer/raw/master/assets/sparks%20application%20process%20with%20comeback%20proper%20syntax%20-%20flat%20fsm.png)
 
 In our example, the encapsulated state has the following shape :
 
