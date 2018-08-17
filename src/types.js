@@ -18,7 +18,7 @@
  *   returned by the action factory
  */
 /**
- * @typedef {{from: ControlState, guards: Array<Condition>}} ConditionalTransition Transition for the
+ * @typedef {{from: ControlState, event: EventLabel, guards: Array<Condition>}} ConditionalTransition Transition for the
  * specified state is contingent to some guards being passed. Those guards are defined as an array.
  */
 /**
@@ -57,3 +57,12 @@
  * a value and lift it into an observable which completes immediately after emitting that value.
  */
 // map filter concat share
+/**
+ * @typedef {Object.<EventLabel, EventData>} LabelledEvent extended state for a given state machine
+ */
+/**
+ * @typedef {*} EventData
+ */
+/**
+ * @typedef {*} ExtendedState extended state for a given state machine
+ */

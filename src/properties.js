@@ -18,4 +18,3 @@ export const default_action_result = {
   model_update: NO_MODEL_UPDATE,
   output: NO_OUTPUT
 };
-
