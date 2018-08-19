@@ -21,7 +21,7 @@
 import {
   AUTO_EVENT, default_action_result, INIT_EVENT, INIT_STATE, NO_OUTPUT, STATE_PROTOTYPE_NAME
 } from "./properties";
-import { applyUpdateOperations, get_fn_name, keys, wrap } from "./helpers";
+import { applyUpdateOperations, get_fn_name, keys, mapOverActions, wrap } from "./helpers";
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree";
 
 /**
@@ -571,9 +571,6 @@ export function makeNamedActionsFactory(namedActionSpecs) {
  * and application in question
  */
 export function decorateWithEntryActions(transitions, states, entryActions, mergeOutputFn) {
-  // TODO : add a root to the object!! actually should write a traverse obj to avoid this kind of problem, obj is
-  // special as it has no root...
-  // will modify transitions.actions keeping the display name intact
   const { getLabel } = objectTreeLenses;
   const traverse = {
     strategy: PRE_ORDER,
@@ -660,6 +657,31 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
   decoratedAction.displayName = action.displayName;
 
   return decoratedAction;
+}
+
+export function traceFSM(env, fsm) {
+  return mapOverActions(env, fsm, function (env, fsmData, action) {
+    return function (model, eventData, settings) {
+      const { controlState, eventLabel, targetControlState, predicate } = fsmData;
+      const actionResult = action(model, eventData, settings);
+      const { output, model_update } = actionResult;
+      return {
+        model_update,
+        output: {
+          output,
+          model_update,
+          extendedState: model,
+          controlState,
+          event: { eventLabel, eventData },
+          // DOC: beware not to modify settings, it is passed by reference and not cloned!!
+          settings: settings,
+          targetControlState,
+          predicate,
+          actionFactory: action
+        },
+      }
+    }
+  })
 }
 
 // TODO DOC: explain hierarchy, initial events, auto events, and other contracts

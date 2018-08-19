@@ -719,6 +719,8 @@ We have included two helpers for visualization of the state transducer :
 (dagre layout engine) : for instructions, cf. github directory : `toDagreVisualizerFormat :: 
 FSM_Def -> JSON`
 
+![visualization example](https://github.com/brucou/state-transducer-visualizer/raw/master/assets/cd-player-automatic-dagre-visualization.png)
+
 Automated visualization works well with simple graphs, but seems to encounter trouble to generate
  optimally satisfying complex graphs. The Dagre layout seems to be a relatively good option. The 
  [`yed`](https://www.yworks.com/products/yed) orthogonal layout also seems to give pretty good results. 

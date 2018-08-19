@@ -1,36 +1,17 @@
 # Now
 - add support for tracing (spy via HOC, output configurable via interface - can be used for 
 debugging too)
-- document
-- API: keep the start for now. In another version should be able to start by sending an INIT event, 
-but that would be the responsibility of the library user?? Yes, I should do that, so only one `yield` method is exposed
-  - The init was to make for statechart but this is no statechart anymore...
-- pass the tests again
-  - normal library
 
 # Later
-- at some point, write more serious tests
+- at some point, write more serious tests, cf. [Imgur](https://i.imgur.com/IWoe84U.png)
   - specially with hierarchical part
+  - the imgur link tests all topological transitions up to four levels!! good test!
+  - expected run here [Imgur](https://i.imgur.com/Lei0BcM.png)
+  - all info in pdf AN_Crash_Course_in_UML_State_Machines
 
 # Later later
 - at some point investigate MBT
 - rollup ?? when I get read of Rx subject for pub/sub
-
-
-#Code (old)
-// TODO : the latest version of synchronous_fsm should go back to rx-component-combinators!!
-// TODO : document code with jsdoc, in particular @modify tags for side-effectful functions
-// TODO : document the library
-
-// TODO : entry and exit actions??
-// TODO : Add termination connector (T)?
-// TODO : DSL TODO : write program which takes a transition specifications and draw a nice graph
-// out of it with yed or else
-// TODO : think about the concurrent states (AND states)
-// TODO : cd player demo
-// - TEST CASE no history (last seen state is null...)
-// - add the view (template + enabling disabling of buttons in function of state)
-// - add the tooltips
 
 # Didactic
 - implement auto-complete field with state machines

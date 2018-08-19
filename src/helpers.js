@@ -203,3 +203,57 @@ export function identity(model, eventData, settings) {
     output: NO_OUTPUT
   }
 }
+
+export function lastOf(arr){
+  return arr[arr.length - 1];
+}
+
+/**
+ *
+ * @param {*} env variables to inject for access in the `mapOverActions` function
+ * @param {FSM_Def} fsm
+ * @param {function (env, FsmTraceData, ActionFactory):function} fmap a function which takes a function and returns a
+ * decorated function
+ */
+export function mapOverActions(env, fsm, fmap){
+  const {transitions, states, events, initial_extended_state} = fsm;
+  const decoratedTransitions = transitions.map(transitionRecord => {
+    const { from, event, guards } = transitionRecord;
+
+    return {
+      from,
+      event,
+      guards: guards.map(transitionGuard => {
+        const { predicate, to, action } = transitionGuard;
+        const predicateName = predicate.name;
+        const actionName = action.name || `action${from}-${event}->${to} [${predicateName}]`;
+        const fsmData = {
+          controlState : from,
+          eventLabel : event,
+          targetControlState : to,
+          predicate,
+        };
+        const obj = {
+          // With a bit of luck the name of that function will be set to `actionName`
+          // TODO : test it!! if does not work, come back to the display name trick
+          [actionName] : fmap(env, fsmData, action)
+        }
+
+        return {
+          predicate,
+          to,
+          action: obj[actionName]
+        };
+      })
+    };
+  });
+
+  const decoratedFSM = {
+    transitions : decoratedTransitions,
+    states,
+    events,
+    initial_extended_state
+  };
+
+  return decoratedFSM
+}

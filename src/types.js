@@ -22,7 +22,7 @@
  * specified state is contingent to some guards being passed. Those guards are defined as an array.
  */
 /**
- * @typedef {{predicate: Predicate, to: ControlState, action: ActionFactory}} Condition On satisfying the
+ * @typedef {{predicate: FSM_Predicate, to: ControlState, action: ActionFactory}} Condition On satisfying the
  * specified predicate, the received event data will trigger the transition to the specified target control state
  * and invoke the action created by the specified action factory, leading to an update of the internal state of the
  * extended state machine and possibly an output to the state machine client.
@@ -35,7 +35,7 @@
  * by the state machine in response to a transition. `model_update` represents the state update for the variables
  * of the extended state machine. `output` represents the output of the state machine passed to the API caller.
  */
-/** @typedef {function (*=) : Boolean} Predicate */
+/** @typedef {function (FSM_Model, EventData) : Boolean} FSM_Predicate */
 /** @typedef {{subject_factory: function() : Subject, ...}} FSM_Settings */
 /** @typedef {{subject_factory: function() : Subject, merge: MergeObsFn, of: OfObsFn, ...}} FSM$_Settings */
 /** @typedef {*} FSM_Model */
@@ -65,4 +65,11 @@
  */
 /**
  * @typedef {*} ExtendedState extended state for a given state machine
+ */
+/**
+ * @typedef {Object} FsmTraceData
+ * @property {ControlState}  controlState
+ * @property {EventLabel}  eventLabel
+ * @property {ControlState}  targetControlState
+ * @property {FSM_Predicate}  predicate
  */
