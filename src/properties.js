@@ -14,7 +14,9 @@ export const STATE_PROTOTYPE_NAME = 'State'; // !!must be the function name for 
 export const NO_MODEL_UPDATE = [];
 // NOTE : this really cannot be anything else than a falsy value, beware
 export const NO_OUTPUT = null;
-export const default_action_result = {
-  model_update: NO_MODEL_UPDATE,
-  output: NO_OUTPUT
-};
+export const ACTION_IDENTITY = function ACTION_IDENTITY(){
+  return {
+    output : NO_OUTPUT,
+    model_update : NO_MODEL_UPDATE
+  }
+}

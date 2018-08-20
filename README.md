@@ -678,6 +678,34 @@ identifiers, and values are the data carried with the event.
 ### Implementation example
 Cf. [multi-step workflow demo repo](https://github.com/brucou/cycle-state-machine-demo)
 
+## `traceFSM :: Env -> FSM_Def -> FSM_Def)`
+### Description
+This function converts a state machine `A` into a traced state machine `T(A)`. The traced state 
+machine, on receiving an input `I` outputs the following information :
+
+- `output` : the output `A.yield(I)` 
+- `model_update` : the update of the extended state of `A` to be performed as a consequence of receiving the input `I` 
+- `extendedState` : the extended state of `A` prior to receiving the input `I`
+- `controlState` : the control state in which the machine is when receiving the input `I`
+- `event::{eventLabel, eventData}` : the event label and event data corresponding to `I` 
+- `settings` : settings passed at construction time to `A`
+- `targetControlState` : the target control state the machine has transitioned to as a consequence of receiving the input `I`
+- `predicate` : the predicate (guard) corresponding to the transition that was taken to 
+`targetControlState`, as a consequence of receiving the input `I`
+- `actionFactory` : the `actionFactory` which was executed as a consequence of receiving the input `I`
+
+Note that the trace functionality is obtained by wrapping over the action factories in `A`. As 
+such, all action factories will see their output wrapped. However, transitions which do not lead 
+to the execution of action factories are not traced.
+
+Note also that `env` is not used for now.
+
+### Contracts
+Types contracts, nothing special.
+
+### Implementation example
+Cf. tests
+
 # Possible API extensions
 Because of the API design choices, it is possible to realize the possible extensions without 
 modifying the state chart library (open/closed principle):

@@ -2,6 +2,7 @@ import * as QUnit from "qunitjs"
 import * as Rx from "rx"
 import { clone, F, merge, T } from "ramda"
 import {
+  ACTION_IDENTITY,
   create_state_machine, INIT_EVENT, INIT_STATE, NO_OUTPUT
 } from "../src"
 import {applyPatch} from "json-patch-es6"
@@ -28,7 +29,6 @@ const default_settings = {
 const FALSE_GUARD = function always_false(action, state) {return [{predicate:F, to : state, action}]};
 const TRUE_GUARD = function always_true(to, action) { return [{predicate:T, to, action}]};
 
-const NO_ACTION = null;
 const EVENT1 = 'event1';
 const EVENT1_DATA = {
   event1_data_key1: 'event1_data_value1'
@@ -110,7 +110,7 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
     states: { A: '' },
     events: [],
     transitions: [
-      { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: NO_ACTION }
+      { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY }
     ],
     initial_extended_state: model_initial
   };
@@ -126,7 +126,7 @@ QUnit.test("INIT event, no action, false guard", function exec_test(assert) {
     states: { A: '' },
     events: [],
     transitions: [
-      { from: INIT_STATE, to: 'A', event: INIT_EVENT, guards: FALSE_GUARD(NO_ACTION, 'A')}
+      { from: INIT_STATE, to: 'A', event: INIT_EVENT, guards: FALSE_GUARD(ACTION_IDENTITY, 'A')}
     ],
     initial_extended_state: model_initial
   };
@@ -142,7 +142,7 @@ QUnit.test("INIT event, no action, true guard", function exec_test(assert) {
     states: { A: '' },
     events: [],
     transitions: [
-      { from: INIT_STATE, to: 'A', event: INIT_EVENT, guards: TRUE_GUARD('A', NO_ACTION)}
+      { from: INIT_STATE, to: 'A', event: INIT_EVENT, guards: TRUE_GUARD('A', ACTION_IDENTITY)}
     ],
     initial_extended_state: model_initial
   };

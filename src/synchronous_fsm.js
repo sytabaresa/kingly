@@ -19,6 +19,7 @@
 // TODO : as a isActualOutput function to discriminate out the Maybe
 
 import {
+  ACTION_IDENTITY,
   AUTO_EVENT, default_action_result, INIT_EVENT, INIT_STATE, NO_OUTPUT, STATE_PROTOTYPE_NAME
 } from "./properties";
 import { applyUpdateOperations, get_fn_name, keys, mapOverActions, wrap } from "./helpers";
@@ -289,6 +290,9 @@ export function create_state_machine(fsmDef, settings) {
     from_proto[event] = arr_predicate.reduce(
       function (acc, guard, index) {
         let action = guard.action;
+        if (!action) {
+          action = ACTION_IDENTITY
+        }// TODO
         console.log("Guard:", guard);
         const condition_checking_fn = (function (guard, settings) {
           let condition_suffix = "";
@@ -303,7 +307,6 @@ export function create_state_machine(fsmDef, settings) {
             from = current_state || from;
             const { predicate, to } = guard;
             condition_suffix = predicate ? "_checking_condition_" + index : "";
-            let actionResult = default_action_result;
 
             if (!predicate || predicate(model_, event_data, settings)) {
               // CASE : guard for transition is fulfilled so we can execute the actions...
@@ -320,13 +323,11 @@ export function create_state_machine(fsmDef, settings) {
                   ? "guard " + predicate.name + " for transition is fulfilled"
                   : "automatic transition")
               );
-              if (action) {
                 // CASE : we do have some actions to execute
                 console.info("THEN : we execute the action " + action.name);
                 // NOTE : in a further extension, passing the fsm and the events object could help
                 // in implementing asynchronous fsm
-                actionResult = action(model_, event_data, settings);
-              }
+                const actionResult = action(model_, event_data, settings);
 
               // Leave the current state
               leave_state(from, model_, hash_states);
@@ -665,6 +666,7 @@ export function traceFSM(env, fsm) {
       const { controlState, eventLabel, targetControlState, predicate } = fsmData;
       const actionResult = action(model, eventData, settings);
       const { output, model_update } = actionResult;
+
       return {
         model_update,
         output: {
@@ -673,7 +675,6 @@ export function traceFSM(env, fsm) {
           extendedState: model,
           controlState,
           event: { eventLabel, eventData },
-          // DOC: beware not to modify settings, it is passed by reference and not cloned!!
           settings: settings,
           targetControlState,
           predicate,
@@ -684,6 +685,7 @@ export function traceFSM(env, fsm) {
   })
 }
 
+// TODO DOC: beware not to modify settings, it is passed by reference and not cloned!!
 // TODO DOC: explain hierarchy, initial events, auto events, and other contracts
 // TODO DOC: document the obs merge settings (+filter necessary on prototype)
 

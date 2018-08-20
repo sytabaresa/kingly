@@ -204,7 +204,7 @@ export function identity(model, eventData, settings) {
   }
 }
 
-export function lastOf(arr){
+export function lastOf(arr) {
   return arr[arr.length - 1];
 }
 
@@ -212,44 +212,66 @@ export function lastOf(arr){
  *
  * @param {*} env variables to inject for access in the `mapOverActions` function
  * @param {FSM_Def} fsm
- * @param {function (env, FsmTraceData, ActionFactory):function} fmap a function which takes a function and returns a
- * decorated function
+ * @param {function (env, FsmTraceData, ActionFactory):ActionFactory} fmap a function which takes a function and
+ *   returns a decorated function
  */
-export function mapOverActions(env, fsm, fmap){
-  const {transitions, states, events, initial_extended_state} = fsm;
+export function mapOverActions(env, fsm, fmap) {
+  const { transitions, states, events, initial_extended_state } = fsm;
   const decoratedTransitions = transitions.map(transitionRecord => {
-    const { from, event, guards } = transitionRecord;
+    const { from, event, to, action, guards } = transitionRecord;
+    // With a bit of luck the name of that function will be set to `actionName`
+    // TODO : test it!! if does not work, come back to the display name trick
 
-    return {
-      from,
-      event,
-      guards: guards.map(transitionGuard => {
-        const { predicate, to, action } = transitionGuard;
-        const predicateName = predicate.name;
-        const actionName = action.name || `action${from}-${event}->${to} [${predicateName}]`;
-        const fsmData = {
-          controlState : from,
-          eventLabel : event,
-          targetControlState : to,
-          predicate,
-        };
-        const obj = {
-          // With a bit of luck the name of that function will be set to `actionName`
-          // TODO : test it!! if does not work, come back to the display name trick
-          [actionName] : fmap(env, fsmData, action)
-        }
+    if (typeof guards !== 'undefined') {
+      return {
+        from,
+        event,
+        guards: guards.map(transitionGuard => {
+          const { predicate, to, action } = transitionGuard;
+          const predicateName = predicate.name;
+          const actionName = formatActionName(action, from, event, to, predicateName);
+          const fsmData = {
+            controlState: from,
+            eventLabel: event,
+            targetControlState: to,
+            predicate,
+          };
+          const obj = {
+            [actionName]: fmap(env, fsmData, action)
+          }
 
-        return {
-          predicate,
-          to,
-          action: obj[actionName]
-        };
-      })
-    };
+          return {
+            predicate,
+            to,
+            action: obj[actionName]
+          };
+        })
+      }
+    }
+    else {
+      const actionName = formatActionName(action, from, event, to, undefined);
+      const fsmData = {
+        controlState: from,
+        eventLabel: event,
+        targetControlState: to,
+        predicate: undefined,
+      };
+      const obj = {
+        [actionName]: fmap(env, fsmData, action)
+      };
+
+      return {
+        from,
+        event,
+        to,
+        guards: undefined,
+        action: obj[actionName]
+      }
+    }
   });
 
   const decoratedFSM = {
-    transitions : decoratedTransitions,
+    transitions: decoratedTransitions,
     states,
     events,
     initial_extended_state
@@ -257,3 +279,12 @@ export function mapOverActions(env, fsm, fmap){
 
   return decoratedFSM
 }
+
+function formatActionName(action, from, event, to, predicate){
+  const predicateName = predicate ? predicate.name : "";
+  const formattedPredicate = predicateName ? `[${predicateName}]` : "";
+  const actionName = action ? action.name : "identity";
+  const formattedAction = actionName ? actionName : "unnamed action";
+  return `${formattedAction}:${from}-${event}->${to} ${formattedPredicate}`;
+}
+
