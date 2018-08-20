@@ -1,14 +1,22 @@
-// import {depthFirstTraverseGraphEdges} from 'graph-adt'
+// TODO import {depthFirstTraverseGraphEdges} from 'graph-adt'
 import { depthFirstTraverseGraphEdges } from '../../graph-adt/src'
 import { INIT_STATE } from "./properties"
 import { lastOf } from "./helpers"
+import * as Rx from "rx"
+const $ = Rx.Observable;
+
+const settingsRx = {
+  subject_factory: () => {
+    const subject = new Rx.Subject();
+    // NOTE : this is intended for Rxjs v4-5!! but should work for most also
+    subject.emit = subject.next || subject.onNext;
+    return subject
+  },
+  merge: function merge(arrayObs) {return $.merge(...arrayObs)},
+  of: $.of,
+};
 
 function generateTestsFromFSM(fsm, generators, settings) {
-  const fsmSettings = {
-    subject_factory,
-    merge,
-    else?
-  }; // TODO : pass the fsmSettings in settings? or should it be with the fsmDef (refactor?)
   const tracedFSM = traceFSM(fsm);
   // associate a gen to from, event, guard index = the transition it is mapped
   // DOC : contract, all transition for a (from, event) must be gathered in one place
@@ -20,11 +28,6 @@ function generateTestsFromFSM(fsm, generators, settings) {
   const fsmGraph = convertFSMtoGraph(tracedFSM);
   // search that graph with the right parameters
   const startingEdge = makeFakeEdge(INIT_STATE);
-  // TODO : mapOverActions(env, FSM_Def, fmap). This conserves the structure and applies a function only to the
-  // actions
-  // this can be used for entry and exit actions implementation, and the fmap can be a decorating function. See if
-  // possible to reuse existing decorating utils (paste them into helpers).
-  // fmap should have access to the whole fsm_def :: FSM_Def -> Env -> Action -> Action
   const visit = {
     // TODO : initialEdgesPathState = { inputSequence: [], noMoreInputs: false } to put in client function
     initialEdgesPathState: { path: [], inputSequence: [], outputSequence: [], noMoreInput: false, tracedFSM: void 0 },
@@ -74,15 +77,6 @@ function generateTestsFromFSM(fsm, generators, settings) {
   const testCases = depthFirstTraverseGraphEdges(search, visit, startingEdge, fsmGraph);
 
   return testCases
-}
-
-/**
- * given a FSM F, instrument that FSM to output in addition to its usual actions also its control
- state, extended state, -and an array of its transitions-NO-, to keep referential equality, take
- directly the reference of guards.forEach : it should have a to, predicate, action.
- */
-function traceFSM() {
-  // TODO
 }
 
 // - GenMap of generator get :: ControlState -> Transition -> EventGenerator TODO

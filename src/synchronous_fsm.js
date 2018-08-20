@@ -18,10 +18,7 @@
 // basically simulate a Maybe Input -> Maybe Output
 // TODO : as a isActualOutput function to discriminate out the Maybe
 
-import {
-  ACTION_IDENTITY,
-  AUTO_EVENT, default_action_result, INIT_EVENT, INIT_STATE, NO_OUTPUT, STATE_PROTOTYPE_NAME
-} from "./properties";
+import { ACTION_IDENTITY, AUTO_EVENT, INIT_EVENT, INIT_STATE, NO_OUTPUT, STATE_PROTOTYPE_NAME } from "./properties";
 import { applyUpdateOperations, get_fn_name, keys, mapOverActions, wrap } from "./helpers";
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree";
 
@@ -323,11 +320,11 @@ export function create_state_machine(fsmDef, settings) {
                   ? "guard " + predicate.name + " for transition is fulfilled"
                   : "automatic transition")
               );
-                // CASE : we do have some actions to execute
-                console.info("THEN : we execute the action " + action.name);
-                // NOTE : in a further extension, passing the fsm and the events object could help
-                // in implementing asynchronous fsm
-                const actionResult = action(model_, event_data, settings);
+              // CASE : we do have some actions to execute
+              console.info("THEN : we execute the action " + action.name);
+              // NOTE : in a further extension, passing the fsm and the events object could help
+              // in implementing asynchronous fsm
+              const actionResult = action(model_, event_data, settings);
 
               // Leave the current state
               leave_state(from, model_, hash_states);
@@ -660,6 +657,27 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
   return decoratedAction;
 }
 
+/**
+ * This function converts a state machine `A` into a traced state machine `T(A)`. The traced state machine, on
+ * receiving an input `I` outputs the following information :
+ * - `output` : the output `A.yield(I)`
+ * - `model_update` : the update of the extended state of `A` to be performed as a consequence of receiving the
+ * input `I`
+ * - `extendedState` : the extended state of `A` prior to receiving the input `I`
+ * - `controlState` : the control state in which the machine is when receiving the input `I`
+ * - `event::{eventLabel, eventData}` : the event label and event data corresponding to `I`
+ * - `settings` : settings passed at construction time to `A`
+ * - `targetControlState` : the target control state the machine has transitioned to as a consequence of receiving
+ * the input `I`
+ * - `predicate` : the predicate (guard) corresponding to the transition that was taken to `targetControlState`, as
+ * a consequence of receiving the input `I`
+ * - `actionFactory` : the `actionFactory` which was executed as a consequence of receiving the input `I`
+ *  Note that the trace functionality is obtained by wrapping over the action factories in `A`. As such, all action
+ *  factories will see their output wrapped. However, transitions which do not lead to the execution of action
+ *  factories are not traced.
+ * @param {*} env unused for now
+ * @param {FSM_Def} fsm
+ */
 export function traceFSM(env, fsm) {
   return mapOverActions(env, fsm, function (env, fsmData, action) {
     return function (model, eventData, settings) {
@@ -685,6 +703,8 @@ export function traceFSM(env, fsm) {
   })
 }
 
+// TODO : in tracing try to conserve or check that action names are conserved
+// TODO : actually add display name systematically for action in core
 // TODO DOC: beware not to modify settings, it is passed by reference and not cloned!!
 // TODO DOC: explain hierarchy, initial events, auto events, and other contracts
 // TODO DOC: document the obs merge settings (+filter necessary on prototype)
