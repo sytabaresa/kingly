@@ -19,7 +19,7 @@
 // TODO : as a isActualOutput function to discriminate out the Maybe
 
 import { ACTION_IDENTITY, AUTO_EVENT, INIT_EVENT, INIT_STATE, NO_OUTPUT, STATE_PROTOTYPE_NAME } from "./properties";
-import { applyUpdateOperations, get_fn_name, keys, mapOverActions, wrap } from "./helpers";
+import { applyUpdateOperations, get_fn_name, getFsmStateList, keys, mapOverActions, wrap } from "./helpers";
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree";
 
 /**
@@ -559,29 +559,16 @@ export function makeNamedActionsFactory(namedActionSpecs) {
 }
 
 /**
+ * @param  {FSM_Def} fsm
  * @param  {Object.<string, function>} entryActions Adds an action to be processed when entering a given state
- * @param  {Array<Transition>} transitions Array of transitions for a given state machine
- * @param  {{}} states hierarchy of states for a given state machine
  * @param {function (Array<MachineOutput>) : MachineOutput} mergeOutputFn monoidal merge (pure) function
  * to be provided to instruct how to combine machine outputs. Beware that the second output corresponds to the entry
  * action output which must logically correspond to a processing as if it were posterior to the first output. In
  * many cases, that will mean that the second machine output has to be 'last', whatever that means for the monoid
  * and application in question
  */
-export function decorateWithEntryActions(transitions, states, entryActions, mergeOutputFn) {
-  const { getLabel } = objectTreeLenses;
-  const traverse = {
-    strategy: PRE_ORDER,
-    seed: {},
-    visit: (accStateList, traversalState, tree) => {
-      const treeLabel = getLabel(tree);
-      const controlState = Object.keys(treeLabel)[0];
-      accStateList[controlState] = "";
-
-      return accStateList;
-    }
-  };
-  const stateHashMap = traverseObj(traverse, states);
+export function decorateWithEntryActions(fsm, entryActions, mergeOutputFn) {
+  const stateHashMap = getFsmStateList(fsm);
   const isValidEntryActions = Object.keys(entryActions).every(controlState => {
     return stateHashMap[controlState] != null;
   });
@@ -738,3 +725,4 @@ So Model based Testing algorithm :
 
 Now I want to generate some more interesting cases than other, rather than go with exhaustive testing
 */
+

@@ -3,6 +3,7 @@ import { depthFirstTraverseGraphEdges } from '../../graph-adt/src'
 import { INIT_STATE } from "./properties"
 import { lastOf } from "./helpers"
 import * as Rx from "rx"
+import { traceFSM } from "./synchronous_fsm"
 const $ = Rx.Observable;
 
 const settingsRx = {
@@ -17,7 +18,7 @@ const settingsRx = {
 };
 
 function generateTestsFromFSM(fsm, generators, settings) {
-  const tracedFSM = traceFSM(fsm);
+  const tracedFSM = traceFSM({}, fsm);
   // associate a gen to from, event, guard index = the transition it is mapped
   // DOC : contract, all transition for a (from, event) must be gathered in one place
   const genMap = getGeneratorMapFromGeneratorMachine(generators);
@@ -80,10 +81,46 @@ function generateTestsFromFSM(fsm, generators, settings) {
 }
 
 // - GenMap of generator get :: ControlState -> Transition -> EventGenerator TODO
+/**
+ * from, event, index : CONTRACT : all transition from `from` triggered by `event` must be defined together in the
+ * same record
+ * TODO : write the contract when creating the state machine
+ * CONTRACT : cannot have the same predicate for a same (from, event) as is logical, the second is contracdictory or
+ * redundant
+ * @param {FSM_Gen_Def} generators
+ */
 function getGeneratorMapFromGeneratorMachine(generators) {
-  // TODO
+  const genMap = new Map();
+  generators.forEach(genTransition => {
+    let {from, event, to, gen, guards} = genTransition;
+    // Edge case when no guards are defined
+    if (!guards){
+      guards = [{to, gen, predicate : undefined, }]
+    }
+    guards.forEach((guard, guardIndex) => {
+      const {to, gen, predicate} = guard;
+      genMap.set({from, event, guardIndex}, gen);
+    });
+  });
+
+  return genMap
 }
 
+/**
+ * Returns the graph structure associated to the FSM
+ * @param {FSM_Def} tracedFSM
+ * @returns Graph
+ */
+function convertFSMtoGraph(tracedFSM){
+  const {initial_extended_state, events, states, transitions} = tracedFSM;
+  const vertices =
+  const settings = {
+    getEdgeTarget,
+    getEdgeOrigin,
+    constructEdge
+  };
+  return constructGraph(settings, edges, vertices)
+}
 
 // API
 // generateTestsFromFSM(fsm, generators, settings) : Array<TestCase>

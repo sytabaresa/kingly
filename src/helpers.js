@@ -4,6 +4,7 @@ import {
 } from "./properties"
 // import { applyPatch } from "./fast-json-patch/duplex"
 import { applyPatch } from "json-patch-es6"
+import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
 
 /**
  * Returns the name of the function as taken from its source definition.
@@ -288,3 +289,21 @@ function formatActionName(action, from, event, to, predicate){
   return `${formattedAction}:${from}-${event}->${to} ${formattedPredicate}`;
 }
 
+export function getFsmStateList(fsm){
+  const {states} = fsm;
+  const { getLabel } = objectTreeLenses;
+  const traverse = {
+    strategy: PRE_ORDER,
+    seed: {},
+    visit: (accStateList, traversalState, tree) => {
+      const treeLabel = getLabel(tree);
+      const controlState = Object.keys(treeLabel)[0];
+      accStateList[controlState] = "";
+
+      return accStateList;
+    }
+  };
+  const stateHashMap = traverseObj(traverse, states);
+
+  return stateHashMap
+}
