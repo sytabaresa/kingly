@@ -1,11 +1,7 @@
 import * as QUnit from "qunitjs"
 import * as Rx from "rx"
 import { clone, F, merge, T } from "ramda"
-import {
-  ACTION_IDENTITY,
-  create_state_machine, INIT_EVENT, INIT_STATE, mapOverActions, NO_OUTPUT, traceFSM
-} from "../src"
-import { applyPatch } from "json-patch-es6"
+import { ACTION_IDENTITY, create_state_machine, INIT_EVENT, INIT_STATE, traceFSM } from "../src"
 import { formatResult } from "./helpers"
 
 const $ = Rx.Observable;
@@ -19,8 +15,8 @@ const default_settings = {
   merge: function merge(arrayObs) {return $.merge(...arrayObs)},
   of: $.of,
 };
-const FALSE_GUARD = function always_false(action, state) {return [{predicate:F, to : state, action}]};
-const TRUE_GUARD = function always_true(to, action) { return [{predicate:T, to, action}]};
+const FALSE_GUARD = function always_false(action, state) {return [{ predicate: F, to: state, action }]};
+const TRUE_GUARD = function always_true(to, action) { return [{ predicate: T, to, action }]};
 
 const NO_ACTION = null;
 const EVENT1 = 'event1';
@@ -70,9 +66,11 @@ const another_dummy_action_result_with_update = {
 function dummy_action(model, event_data, settings) {
   return dummy_action_result
 }
+
 function another_dummy_action(model, event_data, settings) {
   return another_dummy_action_result
 }
+
 function dummy_action_with_update(model, event_data, settings) {
   return merge(dummy_action_result_with_update, {
     output: {
@@ -83,6 +81,7 @@ function dummy_action_with_update(model, event_data, settings) {
     }
   })
 }
+
 function another_dummy_action_with_update(model, event_data, settings) {
   return merge(another_dummy_action_result_with_update, {
       output: {
@@ -94,74 +93,6 @@ function another_dummy_action_with_update(model, event_data, settings) {
     }
   )
 }
-
-QUnit.module("Testing mapOverActions(env, fsm, fmap)", {});
-
-QUnit.test("INIT event, no action, no guard, fmap = identity", function exec_test(assert) {
-  const fsmDef = {
-    states: { A: '' },
-    events: [],
-    transitions: [
-      { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY }
-    ],
-    initial_extended_state: model_initial
-  };
-  const settings = default_settings;
-  const env = {};
-  const decoratedFsmDef = mapOverActions(env, fsmDef, (x,y,z) => z);
-  const decoratedFSM = create_state_machine(decoratedFsmDef, settings);
-  const result = decoratedFSM.start();
-  assert.deepEqual(result, NO_OUTPUT, `INIT event starts the state machine`);
-});
-
-QUnit.test("INIT event, no action, false guard, fmap = identity", function exec_test(assert) {
-  const fsmDef = {
-    states: { A: '' },
-    events: [],
-    transitions: [
-      { from: INIT_STATE, to: 'A', event: INIT_EVENT, guards: FALSE_GUARD(ACTION_IDENTITY, 'A')}
-    ],
-    initial_extended_state: model_initial
-  };
-  const settings = default_settings;
-  const env = {};
-  const decoratedFsmDef = mapOverActions(env, fsmDef, (x,y,z) => z);
-  const decoratedFSM = create_state_machine(decoratedFsmDef, settings);
-  const result = decoratedFSM.start();
-  assert.deepEqual(result, NO_OUTPUT, `INIT event starts the state machine`);
-});
-
-QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards, fmap = identity", function exec_test(assert) {
-  const fsmDef = {
-    states: { A: '', B: '' },
-    events: [EVENT1],
-    transitions: [
-      { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: dummy_action_with_update },
-      { from: 'A', to: 'B', event: EVENT1, action: another_dummy_action_with_update },
-    ],
-    initial_extended_state: model_initial
-  };
-  const settings = default_settings;
-  const env = {};
-  const decoratedFsmDef = mapOverActions(env, fsmDef, (x,y,z) => z);
-  const decoratedFSM = create_state_machine(decoratedFsmDef, settings);
-  const result1 = decoratedFSM.start();
-  const result2 = decoratedFSM.yield({ [EVENT1]: EVENT1_DATA });
-  const cloned_model_initial = clone(model_initial);
-  assert.deepEqual([result1, result2],[
-    {
-      "event_data": model_initial,
-      "model": model_initial,
-      // settings has its function and regexp removed by JSON.parse(JSON.stringify...
-      "settings": {}
-    },
-    {
-      "event_data": EVENT1_DATA,
-      "model": applyPatch(cloned_model_initial, update_model_ops_1, true, false).newDocument,
-      "settings": {}
-    }
-  ], `event triggers correct transition`);
-});
 
 QUnit.module("Testing traceFSM(env, fsm)", {});
 
@@ -226,7 +157,7 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
   const formattedResult2 = formatResult(result2);
   const cloned_model_initial = clone(model_initial);
 
-  assert.deepEqual([formattedResult1, formattedResult2],[{
+  assert.deepEqual([formattedResult1, formattedResult2], [{
     "actionFactory": "dummy_action_with_update",
     "controlState": "nok",
     "event": {

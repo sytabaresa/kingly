@@ -209,79 +209,7 @@ export function lastOf(arr) {
   return arr[arr.length - 1];
 }
 
-/**
- *
- * @param {*} env variables to inject for access in the `mapOverActions` function
- * @param {FSM_Def} fsm
- * @param {function (env, FsmTraceData, ActionFactory):ActionFactory} fmap a function which takes a function and
- *   returns a decorated function
- */
-export function mapOverActions(env, fsm, fmap) {
-  const { transitions, states, events, initial_extended_state } = fsm;
-  const decoratedTransitions = transitions.map(transitionRecord => {
-    const { from, event, to, action, guards } = transitionRecord;
-    // With a bit of luck the name of that function will be set to `actionName`
-    // TODO : test it!! if does not work, come back to the display name trick
-
-    if (typeof guards !== 'undefined') {
-      return {
-        from,
-        event,
-        guards: guards.map(transitionGuard => {
-          const { predicate, to, action } = transitionGuard;
-          const predicateName = predicate.name;
-          const actionName = formatActionName(action, from, event, to, predicateName);
-          const fsmData = {
-            controlState: from,
-            eventLabel: event,
-            targetControlState: to,
-            predicate,
-          };
-          const obj = {
-            [actionName]: fmap(env, fsmData, action)
-          }
-
-          return {
-            predicate,
-            to,
-            action: obj[actionName]
-          };
-        })
-      }
-    }
-    else {
-      const actionName = formatActionName(action, from, event, to, undefined);
-      const fsmData = {
-        controlState: from,
-        eventLabel: event,
-        targetControlState: to,
-        predicate: undefined,
-      };
-      const obj = {
-        [actionName]: fmap(env, fsmData, action)
-      };
-
-      return {
-        from,
-        event,
-        to,
-        guards: undefined,
-        action: obj[actionName]
-      }
-    }
-  });
-
-  const decoratedFSM = {
-    transitions: decoratedTransitions,
-    states,
-    events,
-    initial_extended_state
-  };
-
-  return decoratedFSM
-}
-
-function formatActionName(action, from, event, to, predicate){
+function formatActionName(action, from, event, to, predicate) {
   const predicateName = predicate ? predicate.name : "";
   const formattedPredicate = predicateName ? `[${predicateName}]` : "";
   const actionName = action ? action.name : "identity";
@@ -289,8 +217,8 @@ function formatActionName(action, from, event, to, predicate){
   return `${formattedAction}:${from}-${event}->${to} ${formattedPredicate}`;
 }
 
-export function getFsmStateList(fsm){
-  const {states} = fsm;
+export function getFsmStateList(fsm) {
+  const { states } = fsm;
   const { getLabel } = objectTreeLenses;
   const traverse = {
     strategy: PRE_ORDER,
@@ -306,4 +234,45 @@ export function getFsmStateList(fsm){
   const stateHashMap = traverseObj(traverse, states);
 
   return stateHashMap
+}
+
+// DOC : the mapped action should have same name than the action it is mapping
+export function mapOverTransitionsActions(mapFn, transitions) {
+  return reduceTransitions(function (acc, transition, guardIndex, transitionIndex) {
+    const { from, event, to, action, predicate } = transition;
+    const mappedAction = mapFn(action, transition, guardIndex, transitionIndex);
+    mappedAction.displayName = action.name || action.displayName || formatActionName(action, from, event, to, predicate);
+
+    if (typeof(predicate) === 'undefined') {
+      acc.push({ from, event, to, action: mappedAction })
+    }
+    else {
+      if (guardIndex === 0) {
+        acc.push({ from, event, guards: [{ to, predicate, action: mappedAction }] })
+      }
+      else {
+        acc[acc.length - 1].guards.push({ to, predicate, action: mappedAction })
+      }
+    }
+
+    return acc
+  }, [], transitions)
+}
+
+export function reduceTransitions(reduceFn, seed, transitions) {
+  const result = transitions.reduce((acc, transitionStruct, transitionIndex) => {
+    let { from, event, to, gen, action, guards } = transitionStruct;
+    // Edge case when no guards are defined
+    if (!guards) {
+      guards = gen ? [{ to, action, gen, predicate: undefined }] : [{ to, action, predicate: undefined }]
+    }
+    return guards.reduce((acc, guard, guardIndex) => {
+      const { to, action, gen, predicate } = guard;
+      return gen
+        ? reduceFn(acc, { from, event, to, action, predicate, gen }, guardIndex, transitionIndex)
+        : reduceFn(acc, { from, event, to, action, predicate }, guardIndex, transitionIndex)
+    }, acc);
+  }, seed);
+
+  return result
 }

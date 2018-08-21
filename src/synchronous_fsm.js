@@ -19,7 +19,7 @@
 // TODO : as a isActualOutput function to discriminate out the Maybe
 
 import { ACTION_IDENTITY, AUTO_EVENT, INIT_EVENT, INIT_STATE, NO_OUTPUT, STATE_PROTOTYPE_NAME } from "./properties";
-import { applyUpdateOperations, get_fn_name, getFsmStateList, keys, mapOverActions, wrap } from "./helpers";
+import { applyUpdateOperations, get_fn_name, getFsmStateList, keys, mapOverTransitionsActions, wrap } from "./helpers";
 
 /**
  * Takes a list of identifiers (strings), adds init to it, and returns a hash whose properties are
@@ -576,6 +576,7 @@ export function decorateWithEntryActions(fsm, entryActions, mergeOutputFn) {
   if (!isValidEntryActions) {
     throw `decorateWithEntryActions : found control states for which entry actions are defined, and yet do not exist in the state machine!`;
   } else {
+    // TODO : use mapOverActionTransition helper
     const decoratedTransitions = transitions.map(transitionRecord => {
       const { from, event, guards } = transitionRecord;
 
@@ -671,32 +672,37 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
  * @param {FSM_Def} fsm
  */
 export function traceFSM(env, fsm) {
-  return mapOverActions(env, fsm, function (env, fsmData, action) {
-    return function (model, eventData, settings) {
-      const { controlState, eventLabel, targetControlState, predicate } = fsmData;
-      const actionResult = action(model, eventData, settings);
-      const { output, model_update } = actionResult;
+  const {initial_extended_state, events, states, transitions} = fsm;
 
-      return {
-        model_update,
-        output: {
-          output,
+  return {
+    initial_extended_state,
+    events,
+    states,
+    transitions: mapOverTransitionsActions((action, transition, guardIndex, transitionIndex) => {
+      return function (model, eventData, settings) {
+        const { from: controlState, event: eventLabel, to: targetControlState, predicate } = transition;
+        const actionResult = action(model, eventData, settings);
+        const { output, model_update } = actionResult;
+
+        return {
           model_update,
-          extendedState: model,
-          controlState,
-          event: { eventLabel, eventData },
-          settings: settings,
-          targetControlState,
-          predicate,
-          actionFactory: action
-        },
+          output: {
+            output,
+            model_update,
+            extendedState: model,
+            controlState,
+            event: { eventLabel, eventData },
+            settings: settings,
+            targetControlState,
+            predicate,
+            actionFactory: action
+          },
+        }
       }
-    }
-  })
+    }, transitions)
+  }
 }
 
-// TODO : in tracing try to conserve or check that action names are conserved
-// TODO : actually add display name systematically for action in core
 // TODO DOC: beware not to modify settings, it is passed by reference and not cloned!!
 // TODO DOC: explain hierarchy, initial events, auto events, and other contracts
 // TODO DOC: document the obs merge settings (+filter necessary on prototype)
