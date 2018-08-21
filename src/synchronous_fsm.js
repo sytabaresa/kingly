@@ -20,7 +20,6 @@
 
 import { ACTION_IDENTITY, AUTO_EVENT, INIT_EVENT, INIT_STATE, NO_OUTPUT, STATE_PROTOTYPE_NAME } from "./properties";
 import { applyUpdateOperations, get_fn_name, getFsmStateList, keys, mapOverActions, wrap } from "./helpers";
-import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree";
 
 /**
  * Takes a list of identifiers (strings), adds init to it, and returns a hash whose properties are
@@ -568,7 +567,7 @@ export function makeNamedActionsFactory(namedActionSpecs) {
  * and application in question
  */
 export function decorateWithEntryActions(fsm, entryActions, mergeOutputFn) {
-  const {transitions} = fsm;
+  const { transitions, states, initial_extended_state, events } = fsm;
   const stateHashMap = getFsmStateList(fsm);
   const isValidEntryActions = Object.keys(entryActions).every(controlState => {
     return stateHashMap[controlState] != null;
@@ -598,7 +597,12 @@ export function decorateWithEntryActions(fsm, entryActions, mergeOutputFn) {
       };
     });
 
-    return decoratedTransitions;
+    return {
+      initial_extended_state,
+      states,
+      events,
+      transitions: decoratedTransitions
+    }
   }
 }
 
