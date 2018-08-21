@@ -568,6 +568,7 @@ export function makeNamedActionsFactory(namedActionSpecs) {
  * and application in question
  */
 export function decorateWithEntryActions(fsm, entryActions, mergeOutputFn) {
+  const {transitions} = fsm;
   const stateHashMap = getFsmStateList(fsm);
   const isValidEntryActions = Object.keys(entryActions).every(controlState => {
     return stateHashMap[controlState] != null;
