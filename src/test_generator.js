@@ -1,12 +1,12 @@
 // TODO import {depthFirstTraverseGraphEdges} from 'graph-adt'
 import { depthFirstTraverseGraphEdges } from '../../graph-adt/src'
 import { INIT_STATE } from "./properties"
-import { lastOf } from "./helpers"
+import { getFsmStateList, lastOf } from "./helpers"
 import * as Rx from "rx"
-import { traceFSM } from "./synchronous_fsm"
+import { create_state_machine, traceFSM } from "./synchronous_fsm"
 const $ = Rx.Observable;
 
-const settingsRx = {
+const fsmRxSettings = {
   subject_factory: () => {
     const subject = new Rx.Subject();
     // NOTE : this is intended for Rxjs v4-5!! but should work for most also
@@ -15,6 +15,18 @@ const settingsRx = {
   },
   merge: function merge(arrayObs) {return $.merge(...arrayObs)},
   of: $.of,
+};
+
+const graphSettings = {
+  getEdgeOrigin : function (edge){
+    return edge.from
+  },
+  getEdgeTarget: function (edge){
+    return edge.to
+  },
+  constructEdge : function (originVertex, targetVertex){
+    return {from : originVertex, to : targetVertex}
+  }
 };
 
 function generateTestsFromFSM(fsm, generators, settings) {
@@ -40,10 +52,10 @@ function generateTestsFromFSM(fsm, generators, settings) {
       // NOTE : edge is a transition of the state machine
       const { path, inputSequence, outputSequence} = pathTraversalState;
       // Execute the state machine with the input sequence to get it in the matching control state
-      const fsm = create_state_machine(tracedFSM, fsmSettings);
+      const fsm = create_state_machine(tracedFSM, fsmRxSettings);
       const tracedOutputSequence = inputSequence.map(fsm.yield);
       const {controlState, extendedState} = lastOf(tracedOutputSequence);
-      const transition = getGeneratorMappedTransitionFromEdge(edge);
+      const transition = getGeneratorMappedTransitionFromEdge(genMap, edge);
       const gen = genMap(controlState, transition);
       const {input : newInput, hasGeneratedInput }= gen(extendedState);
       if (!hasGeneratedInput) {
@@ -99,7 +111,7 @@ function getGeneratorMapFromGeneratorMachine(generators) {
     }
     guards.forEach((guard, guardIndex) => {
       const {to, gen, predicate} = guard;
-      genMap.set({from, event, guardIndex}, gen);
+      genMap.set(JSON.stringify({from, event, guardIndex}), gen);
     });
   });
 
@@ -113,13 +125,34 @@ function getGeneratorMapFromGeneratorMachine(generators) {
  */
 function convertFSMtoGraph(tracedFSM){
   const {initial_extended_state, events, states, transitions} = tracedFSM;
-  const vertices =
-  const settings = {
-    getEdgeTarget,
-    getEdgeOrigin,
-    constructEdge
-  };
-  return constructGraph(settings, edges, vertices)
+  const vertices = Object.keys(getFsmStateList(tracedFSM));
+  const edges = transitions.reduce((acc, transitionStruct) => {
+    let {from, event, to, action, guards} = transitionStruct;
+    // Edge case when no guards are defined
+    if (!guards){
+      guards = [{to, action, predicate : undefined, }]
+    }
+    guards.forEach((guard, guardIndex) => {
+      const {to, action, predicate} = guard;
+      const edge = {from, event, to, action, predicate, guardIndex};
+      acc.push(edge);
+    });
+
+    return acc
+  }, []);
+
+  return constructGraph(graphSettings, edges, vertices)
+}
+
+function getGeneratorMappedTransitionFromEdge(genMap, edge){
+  // TODO : check edge case for starting edge where event, to etc. are not set!!
+  const {from, event, to, action, predicate, guardIndex} = edge;
+
+  return genMap.get(JSON.stringify(edge))
+}
+
+function makeFakeEdge(targetState){
+  return graphSettings.constructEdge(null, targetState)
 }
 
 // API
