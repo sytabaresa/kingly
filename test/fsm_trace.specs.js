@@ -125,7 +125,12 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
       "a_key": "some value",
       "another_key": "another value"
     },
+    "guardIndex": 0,
     "model_update": [],
+    "newExtendedState": {
+      "a_key": "some value",
+      "another_key": "another value"
+    },
     "output": null,
     "predicate": undefined,
     "settings": {
@@ -133,7 +138,8 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
       "of": "anonymous",
       "subject_factory": "subject_factory"
     },
-    "targetControlState": "A"
+    "targetControlState": "A",
+    "transitionIndex": 0
   }, `trace is correct`);
 });
 
@@ -157,100 +163,119 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
   const formattedResult2 = formatResult(result2);
   const cloned_model_initial = clone(model_initial);
 
-  assert.deepEqual([formattedResult1, formattedResult2], [{
-    "actionFactory": "dummy_action_with_update",
-    "controlState": "nok",
-    "event": {
-      "eventData": {
-        "a_key": "some value",
-        "another_key": "another value"
-      },
-      "eventLabel": "init"
-    },
-    "extendedState": {
-      "a_key": "some value",
-      "another_key": "another value"
-    },
-    "model_update": [
+  assert.deepEqual([formattedResult1, formattedResult2],
+    [
       {
-        "op": "add",
-        "path": "/new_model_key_1",
-        "value": "new_model_value_1"
-      },
-      {
-        "op": "replace",
-        "path": "/a_key",
-        "value": {
-          "new_model_key": "new_model_value"
-        }
-      },
-      {
-        "op": "remove",
-        "path": "/another_key"
-      }
-    ],
-    "output": {
-      "event_data": {
-        "a_key": "some value",
-        "another_key": "another value"
-      },
-      "model": {
-        "a_key": "some value",
-        "another_key": "another value"
-      },
-      "settings": {}
-    },
-    "predicate": undefined,
-    "settings": {
-      "merge": "merge",
-      "of": "anonymous",
-      "subject_factory": "subject_factory"
-    },
-    "targetControlState": "A"
-  },
-    {
-      "actionFactory": "another_dummy_action_with_update",
-      "controlState": "A",
-      "event": {
-        "eventData": {
-          "event1_data_key1": "event1_data_value1"
+        "actionFactory": "dummy_action_with_update",
+        "controlState": "nok",
+        "event": {
+          "eventData": {
+            "a_key": "some value",
+            "another_key": "another value"
+          },
+          "eventLabel": "init"
         },
-        "eventLabel": "event1"
-      },
-      "extendedState": {
-        "a_key": {
-          "new_model_key": "new_model_value"
+        "extendedState": {
+          "a_key": "some value",
+          "another_key": "another value"
         },
-        "new_model_key_1": "new_model_value_1"
-      },
-      "model_update": [
-        {
-          "op": "add",
-          "path": "/new_model_key_2",
-          "value": "new_model_value_2"
-        }
-      ],
-      "output": {
-        "event_data": {
-          "event1_data_key1": "event1_data_value1"
-        },
-        "model": {
+        "guardIndex": 0,
+        "model_update": [
+          {
+            "op": "add",
+            "path": "/new_model_key_1",
+            "value": "new_model_value_1"
+          },
+          {
+            "op": "replace",
+            "path": "/a_key",
+            "value": {
+              "new_model_key": "new_model_value"
+            }
+          },
+          {
+            "op": "remove",
+            "path": "/another_key"
+          }
+        ],
+        "newExtendedState": {
           "a_key": {
             "new_model_key": "new_model_value"
           },
           "new_model_key_1": "new_model_value_1"
         },
-        "settings": {}
+        "output": {
+          "event_data": {
+            "a_key": "some value",
+            "another_key": "another value"
+          },
+          "model": {
+            "a_key": "some value",
+            "another_key": "another value"
+          },
+          "settings": {}
+        },
+        "predicate": undefined,
+        "settings": {
+          "merge": "merge",
+          "of": "anonymous",
+          "subject_factory": "subject_factory"
+        },
+        "targetControlState": "A",
+        "transitionIndex": 0
       },
-      "predicate": undefined,
-      "settings": {
-        "merge": "merge",
-        "of": "anonymous",
-        "subject_factory": "subject_factory"
-      },
-      "targetControlState": "B"
-    }
-  ], `trace is correct`);
+      {
+        "actionFactory": "another_dummy_action_with_update",
+        "controlState": "A",
+        "event": {
+          "eventData": {
+            "event1_data_key1": "event1_data_value1"
+          },
+          "eventLabel": "event1"
+        },
+        "extendedState": {
+          "a_key": {
+            "new_model_key": "new_model_value"
+          },
+          "new_model_key_1": "new_model_value_1"
+        },
+        "guardIndex": 0,
+        "model_update": [
+          {
+            "op": "add",
+            "path": "/new_model_key_2",
+            "value": "new_model_value_2"
+          }
+        ],
+        "newExtendedState": {
+          "a_key": {
+            "new_model_key": "new_model_value"
+          },
+          "new_model_key_1": "new_model_value_1",
+          "new_model_key_2": "new_model_value_2"
+        },
+        "output": {
+          "event_data": {
+            "event1_data_key1": "event1_data_value1"
+          },
+          "model": {
+            "a_key": {
+              "new_model_key": "new_model_value"
+            },
+            "new_model_key_1": "new_model_value_1"
+          },
+          "settings": {}
+        },
+        "predicate": undefined,
+        "settings": {
+          "merge": "merge",
+          "of": "anonymous",
+          "subject_factory": "subject_factory"
+        },
+        "targetControlState": "B",
+        "transitionIndex": 1
+      }
+    ], `trace is correct`);
 });
 
 // TODO : continue with the rest of the tests from no-hierarchy.specs

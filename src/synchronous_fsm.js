@@ -420,7 +420,7 @@ export function create_state_machine(fsmDef, settings) {
         const auto_event = is_init_state[new_current_state]
           ? INIT_EVENT
           : AUTO_EVENT;
-        return send_event({ [AUTO_EVENT]: event_data }); // TODO : probably [auto_event]...
+        return send_event({ [AUTO_EVENT]: event_data });
       } else return output;
     } else {
       // CASE : There is no transition associated to that event from that state
@@ -672,7 +672,7 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
  * @param {FSM_Def} fsm
  */
 export function traceFSM(env, fsm) {
-  const {initial_extended_state, events, states, transitions} = fsm;
+  const { initial_extended_state, events, states, transitions } = fsm;
 
   return {
     initial_extended_state,
@@ -690,12 +690,16 @@ export function traceFSM(env, fsm) {
             output,
             model_update,
             extendedState: model,
+            // NOTE : I can do this because pure function! This is the extended state after taking the transition
+            newExtendedState: applyUpdateOperations(model, model_update || []),
             controlState,
             event: { eventLabel, eventData },
             settings: settings,
             targetControlState,
             predicate,
-            actionFactory: action
+            actionFactory: action,
+            guardIndex,
+            transitionIndex
           },
         }
       }

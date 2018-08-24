@@ -241,7 +241,8 @@ export function mapOverTransitionsActions(mapFn, transitions) {
   return reduceTransitions(function (acc, transition, guardIndex, transitionIndex) {
     const { from, event, to, action, predicate } = transition;
     const mappedAction = mapFn(action, transition, guardIndex, transitionIndex);
-    mappedAction.displayName = action.name || action.displayName || formatActionName(action, from, event, to, predicate);
+    // TODO : action could be null, as w gather also the gen case here. SEPARATE THE TWO IN TWO FUNCTIONS!!
+    mappedAction.displayName = action && (action.name || action.displayName || formatActionName(action, from, event, to, predicate));
 
     if (typeof(predicate) === 'undefined') {
       acc.push({ from, event, to, action: mappedAction })
@@ -275,4 +276,8 @@ export function reduceTransitions(reduceFn, seed, transitions) {
   }, seed);
 
   return result
+}
+
+export function computeTimesCircledOn(edgePath, edge) {
+  return edgePath.reduce((acc, edgeInEdgePath) => edgeInEdgePath === edge ? acc + 1 : acc, 0);
 }

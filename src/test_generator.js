@@ -1,6 +1,6 @@
 // TODO import {depthFirstTraverseGraphEdges} from 'graph-adt'
-import { depthFirstTraverseGraphEdges, constructGraph } from '../../graph-adt/src'
-import { INIT_STATE } from "./properties"
+import { constructGraph, depthFirstTraverseGraphEdges } from '../../graph-adt/src'
+import { ACTION_IDENTITY, INIT_EVENT, INIT_STATE } from "./properties"
 import { getFsmStateList, lastOf, reduceTransitions } from "./helpers"
 import * as Rx from "rx"
 import { create_state_machine, traceFSM } from "./synchronous_fsm"
@@ -30,57 +30,100 @@ const graphSettings = {
   }
 };
 
-function generateTestsFromFSM(fsm, generators, settings) {
+/**
+ *
+ * @param {FSM_Def} fsm Machine modelizing the system under test
+ * @param {FSM_Gen_Def} generators
+ * @param {{ strategy: { isGoalReached : SearchPredicate, isTraversableEdge : SearchPredicate} }} settings
+ * `isTraversableEdge` tells us
+ * whether to
+ * continue the graph exploration. `isGoalReached` tells us when to aggregate results
+ * @returns {*}
+ */
+export function generateTestsFromFSM(fsm, generators, settings) {
+  const startingVertex = INIT_STATE;
   const tracedFSM = traceFSM({}, fsm);
+  const initial_extended_state = tracedFSM.initial_extended_state;
+
   // associate a gen to from, event, guard index = the transition it is mapped
+  // Note that we need to deal specially with edge case when edge is starting edge
   const genMap = getGeneratorMapFromGeneratorMachine(generators);
-  const { search } = settings;
+
+  const { strategy: { isGoalReached, isTraversableEdge } } = settings;
   // build a graph from the tracedFSM
   const fsmGraph = convertFSMtoGraph(tracedFSM);
   // search that graph with the right parameters
-  const startingEdge = makeFakeEdge(INIT_STATE);
+  const search = {
+    initialGoalEvalState: { results: [] },
+    showResults: graphTraversalState => graphTraversalState.results,
+    evaluateGoal: (edge, graph, pathTraversalState, graphTraversalState) => {
+      const { results } = graphTraversalState;
+      const bIsGoalReached = isGoalReached(edge, graph, pathTraversalState, graphTraversalState);
+      const {inputSequence, outputSequence, controlStateSequence} = pathTraversalState;
+      const newResults = bIsGoalReached
+        ? results.concat([{inputSequence, outputSequence, controlStateSequence}])
+        : results;
+      const newGraphTraversalState = { results: newResults };
+
+      return {
+        isGoalReached: bIsGoalReached,
+        graphTraversalState: newGraphTraversalState
+      }
+    },
+  };
+  // TODO : no!! should not have to do that, it should be in gen!! to generate the input!!
   const visit = {
-    initialEdgesPathState: { path: [], inputSequence: [], outputSequence: [], noMoreInput: false },
+    initialPathTraversalState: { path: [], controlStateSequence :[INIT_STATE], inputSequence: [], outputSequence: [], noMoreInput: false },
     visitEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
       let noMoreInput = false;
-      let newInputSequence;
-      let newOutputSequence;
+      let newInputSequence, newOutputSequence, newControlStateSequence, newPath;
       // NOTE : edge is a transition of the state machine
-      const { path, inputSequence, outputSequence } = pathTraversalState;
+      const {event: eventLabel} = edge;
+      const { path, inputSequence, outputSequence, controlStateSequence } = pathTraversalState;
       // Execute the state machine with the input sequence to get it in the matching control state
       // Note that the machine has to be recreated each time, as it is a stateful object
       const fsm = create_state_machine(tracedFSM, fsmRxSettings);
-      const tracedOutputSequence = inputSequence.map(fsm.yield);
-      const { controlState, extendedState } = lastOf(tracedOutputSequence);
-      const transition = getGeneratorMappedTransitionFromEdge(genMap, edge);
+      const extendedState = inputSequence.length === 0
+        // Edge case : we are in INIT_STATE, the init event has the initial extended state as event data
+      ? initial_extended_state
+        // Main case : we run the sequence of inpus and
+        // we take the extended state of the machine at the end of the run
+        : lastOf(inputSequence.map(fsm.yield)).newExtendedState;
       // Then get and run the generator matching the control state, and the edge transition
       // to get the input and output sequences
-      const gen = genMap(controlState, transition);
-      const { input: newInput, hasGeneratedInput } = gen(extendedState);
+      const gen = getGeneratorMappedTransitionFromEdge(genMap, edge)
+      const { input: newInputData, hasGeneratedInput } = gen(extendedState);
       if (!hasGeneratedInput) {
         noMoreInput = true;
         newInputSequence = inputSequence;
         newOutputSequence = outputSequence;
+        newControlStateSequence = controlStateSequence;
+        newPath = path;
       }
       else {
-        newInputSequence = inputSequence.concat(newInput);
+        const newInput = {[eventLabel]: newInputData};
+        newInputSequence = inputSequence.concat([newInput]);
         const newOutput = fsm.yield(newInput);
-        newOutputSequence = outputSequence.concat(newOutput);
+        const {output: untracedOutput, targetControlState} = newOutput;
+        newOutputSequence = outputSequence.concat(untracedOutput);
+        newControlStateSequence = controlStateSequence.concat([targetControlState]);
+        newPath = path.concat([edge]);
         noMoreInput = false;
       }
 
       return {
         pathTraversalState: {
-          path: path.concat([edge]),
+          path: newPath,
           inputSequence: newInputSequence,
           outputSequence: newOutputSequence,
+          controlStateSequence : newControlStateSequence,
           noMoreInput
         },
-        isTraversableEdge: !noMoreInput
+        isTraversableEdge: !noMoreInput && isTraversableEdge(edge, graph, pathTraversalState, graphTraversalState)
       }
     }
   };
-  const testCases = depthFirstTraverseGraphEdges(search, visit, startingEdge, fsmGraph);
+  const testCases = depthFirstTraverseGraphEdges(search, visit, startingVertex, fsmGraph);
 
   return testCases
 }
@@ -97,7 +140,7 @@ function generateTestsFromFSM(fsm, generators, settings) {
  */
 export function getGeneratorMapFromGeneratorMachine(generators) {
   return reduceTransitions((acc, transition, guardIndex, transitionIndex) => {
-    const {from, event, gen} = transition;
+    const { from, event, gen } = transition;
     acc.set(JSON.stringify({ from, event, guardIndex }), gen);
     return acc
   }, new Map(), generators)
@@ -112,7 +155,7 @@ export function convertFSMtoGraph(tracedFSM) {
   const { transitions } = tracedFSM;
   const vertices = Object.keys(getFsmStateList(tracedFSM)).concat(INIT_STATE);
   const edges = reduceTransitions((acc, transition, guardIndex, transitionIndex) => {
-    const {from, event, to, action, predicate} = transition;
+    const { from, event, to, action, predicate } = transition;
     return acc.concat({ from, event, to, action, predicate, guardIndex, transitionIndex })
   }, [], transitions);
 
@@ -121,11 +164,20 @@ export function convertFSMtoGraph(tracedFSM) {
 
 function getGeneratorMappedTransitionFromEdge(genMap, edge) {
   // TODO : check edge case for starting edge where event, to etc. are not set!!
-  return genMap.get(JSON.stringify(edge))
+  const { from, event, guardIndex } = edge;
+  return genMap.get(JSON.stringify({ from, event, guardIndex }))
 }
 
-function makeFakeEdge(targetState) {
-  return graphSettings.constructEdge(null, targetState)
+function makeStartingEdge() {
+  return {
+    from: null,
+    event: INIT_EVENT,
+    guardIndex: 0,
+    transitionIndex: 0,
+    to: INIT_STATE,
+    predicate: undefined,
+    action: ACTION_IDENTITY
+  }
 }
 
 // API
@@ -155,11 +207,11 @@ function makeFakeEdge(targetState) {
  * state.
  */
 /**
- * @typedef {function (ExtendedState) : LabelledEvent | NoInput} InputGenerator generator which knows how to generate an
- * input, taking into account the extended state of the machine under test, after an input sequence has been run on
- * it. The generated input is generated so as to trigger a specific transition of the state machine. In the event,
- * it is not possible to generate the targeted transition of the state machine, the generator returns a value of
- * type `NoInput`.
+ * @typedef {function (ExtendedState) : {input: EventData, hasGeneratedInput: Boolean}} InputGenerator generator which
+ * knows how to generate an input, taking into account the extended state of the machine under test, after an input
+ * sequence has been run on it. The generated input is generated so as to trigger a specific transition of the state
+ * machine. In the event, it is not possible to generate the targeted transition of the state machine, the generator
+ * set the returned property `hasGeneratedInput` to `false`.
  */
 /**
  * @typedef {*} NoInput any object which unequivocally signifies an absence of input.
@@ -173,3 +225,9 @@ function makeFakeEdge(targetState) {
 /**
  * @typedef {Array<MachineOutput>} OutputSequence
  */
+/**
+ * @typedef {function (Edge, Graph, PathTraversalState, GraphTraversalState) : Boolean} SearchPredicate Computes a
+ * boolean in function of the current visited edge, the current search path, and the previously accumulated results.
+ * In addition the graph ADT is available for querying graph entities (vertices, edges, etc).
+ */
+

@@ -2,12 +2,12 @@ import * as QUnit from "qunitjs"
 import * as Rx from "rx"
 import { clone, F, merge, T } from "ramda"
 import {
-  ACTION_IDENTITY,
-  create_state_machine, INIT_EVENT, INIT_STATE, mapOverTransitionsActions, NO_OUTPUT, reduceTransitions
+  ACTION_IDENTITY, computeTimesCircledOn, create_state_machine, generateTestsFromFSM, INIT_EVENT, INIT_STATE,
+  mapOverTransitionsActions, reduceTransitions
 } from "../src"
-import {applyPatch} from "json-patch-es6"
 import { formatMap, formatResult } from "./helpers"
 import { convertFSMtoGraph, getGeneratorMapFromGeneratorMachine } from "../src/test_generator"
+
 const $ = Rx.Observable;
 
 const default_settings = {
@@ -20,8 +20,8 @@ const default_settings = {
   merge: function merge(arrayObs) {return $.merge(...arrayObs)},
   of: $.of,
 };
-const FALSE_GUARD = function always_false(action, state) {return [{predicate:F, to : state, action}]};
-const TRUE_GUARD = function always_true(to, action) { return [{predicate:T, to, action}]};
+const FALSE_GUARD = function always_false(action, state) {return [{ predicate: F, to: state, action }]};
+const TRUE_GUARD = function always_true(to, action) { return [{ predicate: T, to, action }]};
 
 const EVENT1 = 'event1';
 const EVENT1_DATA = {
@@ -70,9 +70,11 @@ const another_dummy_action_result_with_update = {
 function dummy_action(model, event_data, settings) {
   return dummy_action_result
 }
+
 function another_dummy_action(model, event_data, settings) {
   return another_dummy_action_result
 }
+
 function dummy_action_with_update(model, event_data, settings) {
   return merge(dummy_action_result_with_update, {
     output: {
@@ -83,6 +85,7 @@ function dummy_action_with_update(model, event_data, settings) {
     }
   })
 }
+
 function another_dummy_action_with_update(model, event_data, settings) {
   return merge(another_dummy_action_result_with_update, {
       output: {
@@ -96,11 +99,12 @@ function another_dummy_action_with_update(model, event_data, settings) {
 }
 
 const reduceFn = (acc, transitionStruct, guardIndex, transitionIndex) => {
-  return acc.concat({transitionStruct, guardIndex, transitionIndex})
+  return acc.concat({ transitionStruct, guardIndex, transitionIndex })
 };
 const mapFn = (action, transition, guardIndex, transitionIndex) => {
-  return function (){}
+  return function () {}
 };
+
 QUnit.module("Testing reduceTransitions(reduceFn, seed, transitions)", {});
 
 QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
@@ -137,7 +141,7 @@ QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", funct
       {
         from: INIT_STATE, event: INIT_EVENT, guards: [
           { predicate: F, to: 'A', action: ACTION_IDENTITY },
-          { predicate: T, to: 'A', action: ACTION_IDENTITY}
+          { predicate: T, to: 'A', action: ACTION_IDENTITY }
         ]
       }
     ],
@@ -185,7 +189,7 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
   };
   const settings = default_settings;
   const result = reduceTransitions(reduceFn, [], fsmDef.transitions).map(formatResult);
-  assert.deepEqual(result,[
+  assert.deepEqual(result, [
     {
       "guardIndex": 0,
       "transitionIndex": 0,
@@ -242,7 +246,7 @@ QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", funct
       {
         from: INIT_STATE, event: INIT_EVENT, guards: [
           { predicate: F, to: 'A', action: ACTION_IDENTITY },
-          { predicate: T, to: 'A', action: ACTION_IDENTITY}
+          { predicate: T, to: 'A', action: ACTION_IDENTITY }
         ]
       }
     ],
@@ -250,7 +254,7 @@ QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", funct
   };
   const settings = default_settings;
   const result = mapOverTransitionsActions(mapFn, fsmDef.transitions)
-    .map(({event, from, guards}) => ({event, from, guards : guards.map(formatResult)}));
+    .map(({ event, from, guards }) => ({ event, from, guards: guards.map(formatResult) }));
   assert.deepEqual(result,
     [
       {
@@ -316,7 +320,6 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
   const result = formatResult(convertFSMtoGraph(fsmDef));
   assert.deepEqual(result, {
     "clear": "clear",
-    "constructEdge": "constructEdge",
     "edges": [
       {
         "action": "ACTION_IDENTITY",
@@ -349,7 +352,7 @@ QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", funct
       {
         from: INIT_STATE, event: INIT_EVENT, guards: [
           { predicate: F, to: 'A', action: ACTION_IDENTITY },
-          { predicate: T, to: 'A', action: ACTION_IDENTITY}
+          { predicate: T, to: 'A', action: ACTION_IDENTITY }
         ]
       }
     ],
@@ -360,7 +363,6 @@ QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", funct
   const result = formatResult(convertFSMtoGraph(fsmDef));
   assert.deepEqual(result, {
       "clear": "clear",
-      "constructEdge": "constructEdge",
       "edges": [
         {
           "action": "ACTION_IDENTITY",
@@ -407,9 +409,8 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
   };
   const settings = default_settings;
   const result = formatResult(convertFSMtoGraph(fsmDef));
-  assert.deepEqual(result,{
+  assert.deepEqual(result, {
     "clear": "clear",
-    "constructEdge": "constructEdge",
     "edges": [
       {
         "action": "dummy_action_with_update",
@@ -451,9 +452,11 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
     states: { A: '' },
     events: [],
     transitions: [
-      { from: INIT_STATE, to: 'A', event: INIT_EVENT, gen : function genFn(extendedState) {
+      {
+        from: INIT_STATE, to: 'A', event: INIT_EVENT, gen: function genFn(extendedState) {
           // does not matter
-        }}
+        }
+      }
     ],
     initial_extended_state: model_initial
   };
@@ -464,5 +467,797 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
       "{\"from\":\"nok\",\"event\":\"init\",\"guardIndex\":0}",
       "genFn"
     ]
+  ], `...`);
+});
+
+QUnit.module("Testing generateTestsFromFSM(fsm, generators, settings)", {});
+
+QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
+  const fsmDef = {
+    states: { A: '' },
+    events: [],
+    transitions: [
+      {
+        from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY
+      }
+    ],
+    initial_extended_state: model_initial
+  };
+  const genFsmDef = {
+    states: { A: '' },
+    events: [],
+    transitions: [
+      {
+        from: INIT_STATE, to: 'A', event: INIT_EVENT, gen: function genFn(extendedState) {
+          return { input: extendedState, hasGeneratedInput: true }
+        }
+      }
+    ],
+    initial_extended_state: model_initial
+  };
+  const generators = genFsmDef.transitions;
+  const maxNumberOfTraversals = 1;
+  const target = 'A';
+  /** @type SearchSpecs*/
+  const strategy = {
+    isTraversableEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
+      return computeTimesCircledOn(pathTraversalState.path, edge) < (maxNumberOfTraversals || 1)
+    },
+    isGoalReached: (edge, graph, pathTraversalState, graphTraversalState) => {
+      const { getEdgeTarget, getEdgeOrigin } = graph;
+      const lastPathVertex = getEdgeTarget(edge);
+      // Edge case : accounting for initial vertex
+      const vertexOrigin = getEdgeOrigin(edge);
+
+      const isGoalReached = vertexOrigin ? lastPathVertex === target : false;
+      return isGoalReached
+    },
+  };
+  const settings = merge(default_settings, { strategy });
+  const results = generateTestsFromFSM(fsmDef, generators, settings);
+  const formattedResults = results.map(formatResult);
+  assert.deepEqual(formattedResults, [
+    {
+      "controlStateSequence": [
+        "nok",
+        "A"
+      ],
+      "inputSequence": [
+        {
+          "init": {
+            "a_key": "some value",
+            "another_key": "another value"
+          }
+        }
+      ],
+      "outputSequence": [
+        null
+      ]
+    }
+  ], `...`);
+});
+
+QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", function exec_test(assert) {
+  const fsmDef = {
+    states: { A: '' },
+    events: [],
+    transitions: [
+      {
+        from: INIT_STATE, event: INIT_EVENT, guards: [
+          { predicate: F, to: 'A', action: ACTION_IDENTITY },
+          { predicate: T, to: 'A', action: ACTION_IDENTITY }
+        ]
+      }
+    ],
+    initial_extended_state: model_initial
+  };
+  const genFsmDef = {
+    states: { A: '' },
+    events: [],
+    transitions: [
+      {
+        from: INIT_STATE, event: INIT_EVENT, guards: [
+          { predicate: F, to: 'A', gen: extendedState => ({ input: null, hasGeneratedInput: false }) },
+          {
+            predicate: T,
+            to: 'A',
+            gen: function genFnF(extendedState) {return { input: extendedState, hasGeneratedInput: true }}
+          },
+        ]
+      }
+    ],
+    initial_extended_state: model_initial
+  };
+  const generators = genFsmDef.transitions;
+  const maxNumberOfTraversals = 1;
+  const target = 'A';
+  /** @type SearchSpecs*/
+  const strategy = {
+    isTraversableEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
+      return computeTimesCircledOn(pathTraversalState.path, edge) < (maxNumberOfTraversals || 1)
+    },
+    isGoalReached: (edge, graph, pathTraversalState, graphTraversalState) => {
+      const { getEdgeTarget, getEdgeOrigin } = graph;
+      const lastPathVertex = getEdgeTarget(edge);
+      // Edge case : accounting for initial vertex
+      const vertexOrigin = getEdgeOrigin(edge);
+
+      const isGoalReached = vertexOrigin ? lastPathVertex === target : false;
+      return isGoalReached
+    },
+  };
+  const settings = merge(default_settings, { strategy });
+  const results = generateTestsFromFSM(fsmDef, generators, settings);
+  const formattedResults = results.map(formatResult);
+  assert.deepEqual(formattedResults, [
+    {
+      "controlStateSequence": [
+        "nok",
+        "A"
+      ],
+      "inputSequence": [
+        {
+          "init": {
+            "a_key": "some value",
+            "another_key": "another value"
+          }
+        }
+      ],
+      "outputSequence": [
+        null
+      ]
+    }
+  ], `...`);
+});
+
+QUnit.test("INIT event, 2 actions, 2 conditions", function exec_test(assert) {
+  const fsmDef = {
+    states: { A: '' },
+    events: [],
+    transitions: [
+      {
+        from: INIT_STATE, event: INIT_EVENT, guards: [
+          { predicate: function yes({ branch }) {return branch === 'Y'}, to: 'A', action: ACTION_IDENTITY },
+          { predicate: T, to: 'A', action: ACTION_IDENTITY }
+        ]
+      }
+    ],
+    initial_extended_state: { branch: 'Y' }
+  };
+  const genFsmDef = {
+    states: { A: '' },
+    events: [],
+    transitions: [
+      {
+        from: INIT_STATE, event: INIT_EVENT, guards: [
+          {
+            predicate: function yes(x) {return x === 'Y'},
+            to: 'A',
+            gen: extendedState => ({ input: { branch: 'Y' }, hasGeneratedInput: true })
+          },
+          {
+            predicate: T,
+            to: 'A',
+            gen: function genFnF(extendedState) {return { input: { branch: 'N' }, hasGeneratedInput: true }}
+          },
+        ]
+      }
+    ],
+    initial_extended_state: model_initial
+  };
+  const generators = genFsmDef.transitions;
+  const maxNumberOfTraversals = 1;
+  const target = 'A';
+  /** @type SearchSpecs*/
+  const strategy = {
+    isTraversableEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
+      return computeTimesCircledOn(pathTraversalState.path, edge) < (maxNumberOfTraversals || 1)
+    },
+    isGoalReached: (edge, graph, pathTraversalState, graphTraversalState) => {
+      const { getEdgeTarget, getEdgeOrigin } = graph;
+      const lastPathVertex = getEdgeTarget(edge);
+      // Edge case : accounting for initial vertex
+      const vertexOrigin = getEdgeOrigin(edge);
+
+      const isGoalReached = vertexOrigin ? lastPathVertex === target : false;
+      return isGoalReached
+    },
+  };
+  const settings = merge(default_settings, { strategy });
+  const results = generateTestsFromFSM(fsmDef, generators, settings);
+  const formattedResults = results.map(formatResult);
+  assert.deepEqual(formattedResults, [
+    {
+      "controlStateSequence": [
+        "nok",
+        "A"
+      ],
+      "inputSequence": [
+        {
+          "init": {
+            "branch": "Y"
+          }
+        }
+      ],
+      "outputSequence": [
+        null
+      ]
+    },
+    {
+      "controlStateSequence": [
+        "nok",
+        "A"
+      ],
+      "inputSequence": [
+        {
+          "init": {
+            "branch": "N"
+          }
+        }
+      ],
+      "outputSequence": [
+        null
+      ]
+    }
+  ], `...`);
+});
+
+function setBdata(extendedState, eventData) {
+  return {
+    model_update: [
+      { op: 'add', path: '/b', value: eventData }
+    ]
+  }
+}
+
+function setCinvalidData(extendedState, eventData) {
+  return {
+    model_update: [
+      { op: 'add', path: '/c', value: { error: eventData.error, data: eventData.data } },
+      { op: 'add', path: '/switch', value: false },
+    ]
+  }
+}
+
+function setCvalidData(extendedState, eventData) {
+  return {
+    model_update: [
+      { op: 'add', path: '/c', value: { error: null, data: eventData.data } },
+      { op: 'add', path: '/switch', value: true },
+    ]
+  }
+}
+
+function setReviewed(extendedState, eventData) {
+  return {
+    model_update: [
+      { op: 'add', path: '/reviewed', value: true },
+    ]
+  }
+}
+
+function setReviewedAndOuput(extendedState, eventData) {
+  return {
+    model_update: [
+      { op: 'add', path: '/reviewed', value: true },
+    ],
+    output: extendedState
+  }
+}
+
+const dummyB = { keyB: 'valueB' };
+const dummyCv = { valid: true, data: 'valueC' };
+const dummyCi = { valid: false, data: 'invalid key for C' };
+
+// NOTE : graph for fsm is in /test/assets
+QUnit.test("INIT event multi transitions, self-loop, 1-loop, conditions", function exec_test(assert) {
+  const CLICK = 'click';
+  const REVIEW_A = 'reviewA';
+  const REVIEW_B = 'reviewB';
+  const SAVE = 'save';
+  const fsmDef = {
+    states: { A: '', B: '', C: '', D: '', E: '' },
+    events: [CLICK, REVIEW_A, REVIEW_B, SAVE],
+    initial_extended_state: { switch: false, reviewed: false },
+    transitions: [
+      {
+        from: INIT_STATE, event: INIT_EVENT, guards: [
+          { predicate: function isSwitchOn(x, e) {return x.switch}, to: 'A', action: ACTION_IDENTITY },
+          { predicate: function isSwitchOff(x, e) {return !x.switch}, to: 'B', action: ACTION_IDENTITY }
+        ]
+      },
+      {
+        from: 'A', event: CLICK, guards: [
+          { predicate: function isReviewed(x, e) {return x.reviewed}, to: 'D', action: ACTION_IDENTITY },
+          { predicate: function isNotReviewed(x, e) {return !x.reviewed}, to: 'B', action: ACTION_IDENTITY }
+        ]
+      },
+      { from: 'B', event: CLICK, to: 'C', action: setBdata },
+      {
+        from: 'C', event: CLICK, guards: [
+          { predicate: function isValid(x, e) {return e.valid}, to: 'D', action: setCvalidData },
+          { predicate: function isNotValid(x, e) {return !e.valid}, to: 'C', action: setCinvalidData }
+        ]
+      },
+      { from: 'D', event: REVIEW_A, to: 'A', action: setReviewed },
+      { from: 'D', event: REVIEW_B, to: 'B', action: ACTION_IDENTITY },
+      { from: 'D', event: SAVE, to: 'E', action: setReviewedAndOuput },
+    ],
+  };
+  const genFsmDef = {
+    // TODO add contract for test gen : apply only to FSM for which init event sets the initial state in the machine
+    transitions: [
+      {
+        from: INIT_STATE, event: INIT_EVENT, guards: [
+          {
+            predicate: function isSwitchOn(x, e) {return x.switch}, to: 'A', gen: function genINIT2A(extS) {
+              return {
+                input: null, // does not matter, the guard does not depend on e
+                hasGeneratedInput: extS.switch
+              }
+            }
+          },
+          {
+            predicate: function isSwitchOff(x, e) {return !x.switch}, to: 'B', gen: function genINIT2B(extS) {
+              return {
+                input: null, // does not matter, the guard does not depend on e
+                hasGeneratedInput: !extS.switch
+              }
+            }
+          }
+        ]
+      },
+      {
+        from: 'A', event: CLICK, guards: [
+          {
+            predicate: function isReviewed(x, e) {return x.reviewed}, to: 'D', gen: function genA2D(extS) {
+              return {
+                input: null, // does not matter, the guard does not depend on e
+                hasGeneratedInput: extS.reviewed
+              }
+            }
+          },
+          {
+            predicate: function isNotReviewed(x, e) {return !x.reviewed}, to: 'B', gen: function genA2B(extS) {
+              return {
+                input: null, // does not matter, the guard does not depend on e
+                hasGeneratedInput: !extS.reviewed
+              }
+            }
+          }
+        ]
+      },
+      {
+        from: 'B',
+        event: CLICK,
+        to: 'C',
+        gen: function genB2C(extS) {return { input: dummyB, hasGeneratedInput: true }}
+      },
+      {
+        from: 'C', event: CLICK, guards: [
+          {
+            predicate: function isValid(x, e) {return e.valid},
+            to: 'D',
+            gen: function genC2D(extS) {return { input: dummyCv, hasGeneratedInput: true }}
+          },
+          {
+            predicate: function isNotValid(x, e) {return !e.valid},
+            to: 'C',
+            gen: function genC2C(extS) {return { input: dummyCi, hasGeneratedInput: true }}
+          },
+        ]
+      },
+      { from: 'D', event: REVIEW_A, to: 'A', gen: extS => ({ input: null, hasGeneratedInput: true }) },
+      { from: 'D', event: REVIEW_B, to: 'B', gen: extS => ({ input: null, hasGeneratedInput: true }) },
+      { from: 'D', event: SAVE, to: 'E', gen: extS => ({ input: null, hasGeneratedInput: true }) },
+    ],
+  };
+  const generators = genFsmDef.transitions;
+  const maxNumberOfTraversals = 1;
+  const target = 'E';
+  /** @type SearchSpecs*/
+  const strategy = {
+    isTraversableEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
+      return computeTimesCircledOn(pathTraversalState.path, edge) < (maxNumberOfTraversals || 1)
+    },
+    isGoalReached: (edge, graph, pathTraversalState, graphTraversalState) => {
+      const { getEdgeTarget, getEdgeOrigin } = graph;
+      const lastPathVertex = getEdgeTarget(edge);
+      // Edge case : accounting for initial vertex
+      const vertexOrigin = getEdgeOrigin(edge);
+
+      const isGoalReached = vertexOrigin ? lastPathVertex === target : false;
+      return isGoalReached
+    },
+  };
+  const settings = merge(default_settings, { strategy });
+  const results = generateTestsFromFSM(fsmDef, generators, settings);
+  const formattedResults = results.map(formatResult);
+  assert.deepEqual(formattedResults, [
+    {
+      "controlStateSequence": [
+        "nok",
+        "B",
+        "C",
+        "D",
+        "A",
+        "D",
+        "E"
+      ],
+      "inputSequence": [
+        {
+          "init": null
+        },
+        {
+          "click": {
+            "keyB": "valueB"
+          }
+        },
+        {
+          "click": {
+            "data": "valueC",
+            "valid": true
+          }
+        },
+        {
+          "reviewA": null
+        },
+        {
+          "click": null
+        },
+        {
+          "save": null
+        }
+      ],
+      "outputSequence": [
+        null,
+        undefined,
+        undefined,
+        undefined,
+        null,
+        {
+          "b": {
+            "keyB": "valueB"
+          },
+          "c": {
+            "data": "valueC",
+            "error": null
+          },
+          "reviewed": true,
+          "switch": true
+        }
+      ]
+    },
+    {
+      "controlStateSequence": [
+        "nok",
+        "B",
+        "C",
+        "D",
+        "E"
+      ],
+      "inputSequence": [
+        {
+          "init": null
+        },
+        {
+          "click": {
+            "keyB": "valueB"
+          }
+        },
+        {
+          "click": {
+            "data": "valueC",
+            "valid": true
+          }
+        },
+        {
+          "save": null
+        }
+      ],
+      "outputSequence": [
+        null,
+        undefined,
+        undefined,
+        {
+          "b": {
+            "keyB": "valueB"
+          },
+          "c": {
+            "data": "valueC",
+            "error": null
+          },
+          "reviewed": false,
+          "switch": true
+        }
+      ]
+    },
+    {
+      "controlStateSequence": [
+        "nok",
+        "B",
+        "C",
+        "C",
+        "D",
+        "A",
+        "D",
+        "E"
+      ],
+      "inputSequence": [
+        {
+          "init": null
+        },
+        {
+          "click": {
+            "keyB": "valueB"
+          }
+        },
+        {
+          "click": {
+            "data": "invalid key for C",
+            "valid": false
+          }
+        },
+        {
+          "click": {
+            "data": "valueC",
+            "valid": true
+          }
+        },
+        {
+          "reviewA": null
+        },
+        {
+          "click": null
+        },
+        {
+          "save": null
+        }
+      ],
+      "outputSequence": [
+        null,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        null,
+        {
+          "b": {
+            "keyB": "valueB"
+          },
+          "c": {
+            "data": "valueC",
+            "error": null
+          },
+          "reviewed": true,
+          "switch": true
+        }
+      ]
+    },
+    {
+      "controlStateSequence": [
+        "nok",
+        "B",
+        "C",
+        "C",
+        "D",
+        "E"
+      ],
+      "inputSequence": [
+        {
+          "init": null
+        },
+        {
+          "click": {
+            "keyB": "valueB"
+          }
+        },
+        {
+          "click": {
+            "data": "invalid key for C",
+            "valid": false
+          }
+        },
+        {
+          "click": {
+            "data": "valueC",
+            "valid": true
+          }
+        },
+        {
+          "save": null
+        }
+      ],
+      "outputSequence": [
+        null,
+        undefined,
+        undefined,
+        undefined,
+        {
+          "b": {
+            "keyB": "valueB"
+          },
+          "c": {
+            "data": "valueC",
+            "error": null
+          },
+          "reviewed": false,
+          "switch": true
+        }
+      ]
+    }
+  ], `...`);
+});
+
+QUnit.test("INIT event multi transitions, self-loop, 1-loop, conditions, 2 cycles allowed", function exec_test(assert) {
+  const CLICK = 'click';
+  const REVIEW_A = 'reviewA';
+  const REVIEW_B = 'reviewB';
+  const SAVE = 'save';
+  const fsmDef = {
+    states: { A: '', B: '', C: '', D: '', E: '' },
+    events: [CLICK, REVIEW_A, REVIEW_B, SAVE],
+    initial_extended_state: { switch: true, reviewed: false },
+    transitions: [
+      {
+        from: INIT_STATE, event: INIT_EVENT, guards: [
+          { predicate: function isSwitchOn(x, e) {return x.switch}, to: 'A', action: ACTION_IDENTITY },
+          { predicate: function isSwitchOff(x, e) {return !x.switch}, to: 'B', action: ACTION_IDENTITY }
+        ]
+      },
+      {
+        from: 'A', event: CLICK, guards: [
+          { predicate: function isReviewed(x, e) {return x.reviewed}, to: 'D', action: ACTION_IDENTITY },
+          { predicate: function isNotReviewed(x, e) {return !x.reviewed}, to: 'B', action: ACTION_IDENTITY }
+        ]
+      },
+      { from: 'B', event: CLICK, to: 'C', action: setBdata },
+      {
+        from: 'C', event: CLICK, guards: [
+          { predicate: function isValid(x, e) {return e.valid}, to: 'D', action: setCvalidData },
+          { predicate: function isNotValid(x, e) {return !e.valid}, to: 'C', action: setCinvalidData }
+        ]
+      },
+      { from: 'D', event: REVIEW_A, to: 'A', action: setReviewed },
+      { from: 'D', event: REVIEW_B, to: 'B', action: ACTION_IDENTITY },
+      { from: 'D', event: SAVE, to: 'E', action: setReviewedAndOuput },
+    ],
+  };
+  const genFsmDef = {
+    // TODO add contract for test gen : apply only to FSM for which init event sets the initial state in the machine
+    transitions: [
+      {
+        from: INIT_STATE, event: INIT_EVENT, guards: [
+          {
+            predicate: function isSwitchOn(x, e) {return x.switch}, to: 'A', gen: function genINIT2A(extS) {
+              return {
+                input: null, // does not matter, the guard does not depend on e
+                hasGeneratedInput: extS.switch
+              }
+            }
+          },
+          {
+            predicate: function isSwitchOff(x, e) {return !x.switch}, to: 'B', gen: function genINIT2B(extS) {
+              return {
+                input: null, // does not matter, the guard does not depend on e
+                hasGeneratedInput: !extS.switch
+              }
+            }
+          }
+        ]
+      },
+      {
+        from: 'A', event: CLICK, guards: [
+          {
+            predicate: function isReviewed(x, e) {return x.reviewed}, to: 'D', gen: function genA2D(extS) {
+              return {
+                input: null, // does not matter, the guard does not depend on e
+                hasGeneratedInput: extS.reviewed
+              }
+            }
+          },
+          {
+            predicate: function isNotReviewed(x, e) {return !x.reviewed}, to: 'B', gen: function genA2B(extS) {
+              return {
+                input: null, // does not matter, the guard does not depend on e
+                hasGeneratedInput: !extS.reviewed
+              }
+            }
+          }
+        ]
+      },
+      {
+        from: 'B',
+        event: CLICK,
+        to: 'C',
+        gen: function genB2C(extS) {return { input: dummyB, hasGeneratedInput: true }}
+      },
+      {
+        from: 'C', event: CLICK, guards: [
+          {
+            predicate: function isValid(x, e) {return e.valid},
+            to: 'D',
+            gen: function genC2D(extS) {return { input: dummyCv, hasGeneratedInput: true }}
+          },
+          {
+            predicate: function isNotValid(x, e) {return !e.valid},
+            to: 'C',
+            gen: function genC2C(extS) {return { input: dummyCi, hasGeneratedInput: true }}
+          },
+        ]
+      },
+      { from: 'D', event: REVIEW_A, to: 'A', gen: extS => ({ input: null, hasGeneratedInput: true }) },
+      { from: 'D', event: REVIEW_B, to: 'B', gen: extS => ({ input: null, hasGeneratedInput: true }) },
+      { from: 'D', event: SAVE, to: 'E', gen: extS => ({ input: null, hasGeneratedInput: true }) },
+    ],
+  };
+  const generators = genFsmDef.transitions;
+  const maxNumberOfTraversals = 2;
+  const target = 'E';
+  /** @type SearchSpecs*/
+  const strategy = {
+    isTraversableEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
+      return computeTimesCircledOn(pathTraversalState.path, edge) < (maxNumberOfTraversals || 1)
+    },
+    isGoalReached: (edge, graph, pathTraversalState, graphTraversalState) => {
+      const { getEdgeTarget, getEdgeOrigin } = graph;
+      const lastPathVertex = getEdgeTarget(edge);
+      // Edge case : accounting for initial vertex
+      const vertexOrigin = getEdgeOrigin(edge);
+
+      const isGoalReached = vertexOrigin ? lastPathVertex === target : false;
+      return isGoalReached
+    },
+  };
+  const settings = merge(default_settings, { strategy });
+  const results = generateTestsFromFSM(fsmDef, generators, settings);
+  const formattedResults = results.map(formatResult);
+  assert.deepEqual(formattedResults.map(
+    x => x.controlStateSequence), [
+    ["nok", "A", "B", "C", "D", "A", "D", "A", "D", "B", "C", "D", "E"],
+    ["nok", "A", "B", "C", "D", "A", "D", "A", "D", "B", "C", "C", "D", "E"],
+    ["nok", "A", "B", "C", "D", "A", "D", "A", "D", "B", "C", "C", "C", "D", "E"],
+    ["nok", "A", "B", "C", "D", "A", "D", "A", "D", "E"],
+    ["nok", "A", "B", "C", "D", "A", "D", "B", "C", "D", "A", "D", "E"],
+    ["nok", "A", "B", "C", "D", "A", "D", "B", "C", "D", "E"],
+    ["nok", "A", "B", "C", "D", "A", "D", "B", "C", "C", "D", "A", "D", "E"],
+    ["nok", "A", "B", "C", "D", "A", "D", "B", "C", "C", "D", "E"],
+    ["nok", "A", "B", "C", "D", "A", "D", "B", "C", "C", "C", "D", "A", "D", "E"],
+    ["nok", "A", "B", "C", "D", "A", "D", "B", "C", "C", "C", "D", "E"],
+    ["nok", "A", "B", "C", "D", "A", "D", "E"],
+    ["nok", "A", "B", "C", "D", "B", "C", "D", "A", "D", "A", "D", "E"],
+    ["nok", "A", "B", "C", "D", "B", "C", "D", "A", "D", "E"],
+    ["nok", "A", "B", "C", "D", "B", "C", "D", "E"],
+    ["nok", "A", "B", "C", "D", "B", "C", "C", "D", "A", "D", "A", "D", "E"],
+    ["nok", "A", "B", "C", "D", "B", "C", "C", "D", "A", "D", "E"],
+    ["nok", "A", "B", "C", "D", "B", "C", "C", "D", "E"],
+    ["nok", "A", "B", "C", "D", "B", "C", "C", "C", "D", "A", "D", "A", "D", "E"],
+    ["nok", "A", "B", "C", "D", "B", "C", "C", "C", "D", "A", "D", "E"],
+    ["nok", "A", "B", "C", "D", "B", "C", "C", "C", "D", "E"],
+    ["nok", "A", "B", "C", "D", "E"],
+    ["nok", "A", "B", "C", "C", "D", "A", "D", "A", "D", "B", "C", "D", "E"],
+    ["nok", "A", "B", "C", "C", "D", "A", "D", "A", "D", "B", "C", "C", "D", "E"],
+    ["nok", "A", "B", "C", "C", "D", "A", "D", "A", "D", "E"],
+    ["nok", "A", "B", "C", "C", "D", "A", "D", "B", "C", "D", "A", "D", "E"],
+    ["nok", "A", "B", "C", "C", "D", "A", "D", "B", "C", "D", "E"],
+    ["nok", "A", "B", "C", "C", "D", "A", "D", "B", "C", "C", "D", "A", "D", "E"],
+    ["nok", "A", "B", "C", "C", "D", "A", "D", "B", "C", "C", "D", "E"],
+    ["nok", "A", "B", "C", "C", "D", "A", "D", "E"],
+    ["nok", "A", "B", "C", "C", "D", "B", "C", "D", "A", "D", "A", "D", "E"],
+    ["nok", "A", "B", "C", "C", "D", "B", "C", "D", "A", "D", "E"],
+    ["nok", "A", "B", "C", "C", "D", "B", "C", "D", "E"],
+    ["nok", "A", "B", "C", "C", "D", "B", "C", "C", "D", "A", "D", "A", "D", "E"],
+    ["nok", "A", "B", "C", "C", "D", "B", "C", "C", "D", "A", "D", "E"],
+    ["nok", "A", "B", "C", "C", "D", "B", "C", "C", "D", "E"],
+    ["nok", "A", "B", "C", "C", "D", "E"],
+    ["nok", "A", "B", "C", "C", "C", "D", "A", "D", "A", "D", "B", "C", "D", "E"],
+    ["nok", "A", "B", "C", "C", "C", "D", "A", "D", "A", "D", "E"],
+    ["nok", "A", "B", "C", "C", "C", "D", "A", "D", "B", "C", "D", "A", "D", "E"],
+    ["nok", "A", "B", "C", "C", "C", "D", "A", "D", "B", "C", "D", "E"],
+    ["nok", "A", "B", "C", "C", "C", "D", "A", "D", "E"],
+    ["nok", "A", "B", "C", "C", "C", "D", "B", "C", "D", "A", "D", "A", "D", "E"],
+    ["nok", "A", "B", "C", "C", "C", "D", "B", "C", "D", "A", "D", "E"],
+    ["nok", "A", "B", "C", "C", "C", "D", "B", "C", "D", "E"],
+    ["nok", "A", "B", "C", "C", "C", "D", "E"]
   ], `...`);
 });
