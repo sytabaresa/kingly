@@ -68,7 +68,7 @@ const dummyCi = { valid: false, data: 'invalid key for C' };
 
 QUnit.module("Testing hierarchy features", {});
 
-QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions, inner INIT event transitions", function exec_test(assert) {
+QUnit.test("INIT event multi transitions, CASCADING inner INIT event transitions", function exec_test(assert) {
   const CLICK = 'click';
   const REVIEW_A = 'reviewA';
   const REVIEW_B = 'reviewB';
@@ -217,4 +217,168 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
       "transitionIndex": 8
     }
   ], `Cascading init transitions are correctly taken`);
+});
+
+QUnit.test("eventless transition, INIT event multi transitions, CASCADING inner INIT event transitions", function exec_test(assert) {
+  const CLICK = 'click';
+  const REVIEW_A = 'reviewA';
+  const REVIEW_B = 'reviewB';
+  const SAVE = 'save';
+  const fsmDef = {
+    states: { EVENTLESS:'', A: '', B: '', C: '', OUTER_GROUP_D: { INNER_GROUP_D: { D: '' }}, E: '' },
+    events: [CLICK, REVIEW_A, REVIEW_B, SAVE],
+    initial_extended_state: { switch: false, reviewed: false },
+    transitions: [
+      {
+        from: INIT_STATE, event: INIT_EVENT, guards: [
+          { predicate: function isSwitchOn(x, e) {return x.switch}, to: 'A', action: ACTION_IDENTITY },
+          { predicate: function isSwitchOff(x, e) {return !x.switch}, to: 'EVENTLESS', action: ACTION_IDENTITY }
+        ]
+      },
+      {
+        from: 'A', event: CLICK, guards: [
+          { predicate: function isReviewed(x, e) {return x.reviewed}, to: 'OUTER_GROUP_D', action: ACTION_IDENTITY },
+          { predicate: function isNotReviewed(x, e) {return !x.reviewed}, to: 'B', action: ACTION_IDENTITY }
+        ]
+      },
+      { from: 'EVENTLESS', to: 'B', action: ACTION_IDENTITY },
+      { from: 'B', event: CLICK, to: 'C', action: setBdata },
+      {
+        from: 'C', event: CLICK, guards: [
+          { predicate: function isValid(x, e) {return e.valid}, to: 'INNER_GROUP_D', action: setCvalidData },
+          { predicate: function isNotValid(x, e) {return !e.valid}, to: 'C', action: setCinvalidData }
+        ]
+      },
+      { from: 'D', event: REVIEW_A, to: 'A', action: setReviewed },
+      { from: 'D', event: REVIEW_B, to: 'B', action: ACTION_IDENTITY },
+      { from: 'D', event: SAVE, to: 'E', action: setReviewedAndOuput },
+      { from: 'OUTER_GROUP_D', event: INIT_EVENT, to: 'INNER_GROUP_D', action: ACTION_IDENTITY },
+      { from: 'INNER_GROUP_D', event: INIT_EVENT, to: 'D', action: ACTION_IDENTITY },
+    ],
+  };
+  const settings = default_settings;
+  const inputSequence = [
+    { "init": fsmDef.initial_extended_state },
+    { "click": { "keyB": "valueB" } },
+    { "click": { "valid": true, "data": "valueC" } }
+  ];
+  const fsm = create_state_machine(traceFSM({}, fsmDef), settings);
+  const outputSequence = inputSequence.map(fsm.yield);
+  const formattedResults = outputSequence.map(formatResult);
+  assert.deepEqual(formattedResults, [
+    {
+      "actionFactory": "ACTION_IDENTITY",
+      "controlState": "EVENTLESS",
+      "event": {
+        "eventData": {
+          "reviewed": false,
+          "switch": false
+        },
+        "eventLabel": undefined
+      },
+      "extendedState": {
+        "reviewed": false,
+        "switch": false
+      },
+      "guardIndex": 0,
+      "model_update": [],
+      "newExtendedState": {
+        "reviewed": false,
+        "switch": false
+      },
+      "output": null,
+      "predicate": undefined,
+      "settings": {
+        "merge": "merge",
+        "of": "anonymous",
+        "subject_factory": "subject_factory"
+      },
+      "targetControlState": "B",
+      "transitionIndex": 2
+    },
+    {
+      "actionFactory": "setBdata",
+      "controlState": "B",
+      "event": {
+        "eventData": {
+          "keyB": "valueB"
+        },
+        "eventLabel": "click"
+      },
+      "extendedState": {
+        "reviewed": false,
+        "switch": false
+      },
+      "guardIndex": 0,
+      "model_update": [
+        {
+          "op": "add",
+          "path": "/b",
+          "value": {
+            "keyB": "valueB"
+          }
+        }
+      ],
+      "newExtendedState": {
+        "b": {
+          "keyB": "valueB"
+        },
+        "reviewed": false,
+        "switch": false
+      },
+      "output": undefined,
+      "predicate": undefined,
+      "settings": {
+        "merge": "merge",
+        "of": "anonymous",
+        "subject_factory": "subject_factory"
+      },
+      "targetControlState": "C",
+      "transitionIndex": 3
+    },
+    {
+      "actionFactory": "ACTION_IDENTITY",
+      "controlState": "INNER_GROUP_D",
+      "event": {
+        "eventData": {
+          "data": "valueC",
+          "valid": true
+        },
+        "eventLabel": "init"
+      },
+      "extendedState": {
+        "b": {
+          "keyB": "valueB"
+        },
+        "c": {
+          "data": "valueC",
+          "error": null
+        },
+        "reviewed": false,
+        "switch": true
+      },
+      "guardIndex": 0,
+      "model_update": [],
+      "newExtendedState": {
+        "b": {
+          "keyB": "valueB"
+        },
+        "c": {
+          "data": "valueC",
+          "error": null
+        },
+        "reviewed": false,
+        "switch": true
+      },
+      "output": null,
+      "predicate": undefined,
+      "settings": {
+        "merge": "merge",
+        "of": "anonymous",
+        "subject_factory": "subject_factory"
+      },
+      "targetControlState": "D",
+      "transitionIndex": 9
+    }
+  ], `eventless transitions are correctly taken`);
 });

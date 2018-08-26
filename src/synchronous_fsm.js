@@ -423,6 +423,7 @@ export function create_state_machine(fsmDef, settings) {
         const auto_event = is_init_state[new_current_state]
           ? INIT_EVENT
           : AUTO_EVENT;
+        // TODO : aggregate outputs on the way to traversing??
         return send_event({ [auto_event]: event_data });
       } else return output;
     } else {

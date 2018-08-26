@@ -700,10 +700,21 @@ control state, triggered by an event
 specifications for the machine's transition
 
 Note that the trace functionality is obtained by wrapping over the action factories in `A`. As 
-such, all action factories will see their output wrapped. However, transitions which do not lead 
-to the execution of action factories are not traced.
+such, all action factories will see their output wrapped. This means :
 
-Note also that `env` is not used for now.
+- transitions which do not lead to the execution of action factories are not traced
+- transitions which lead to automatic transitions will only see traced the action on the last 
+transition taken
+
+As such, the trace provided is close to, but not equal to a step-by-step trace mechanism : 
+transitions which trigger automatic transitions (transition to compound states, eventless 
+transitions, history transitions) are not traced.
+
+NOTE TO SELF : a full tracing mechanism could be implemented by wrapping over the **machine 
+instance** instead of the **machine specification**. At the moment, the present mechanism is 
+sufficient however.
+
+Note also that `env` is not used for now, and could be used to parameterize the tracing.
 
 ### Contracts
 Types contracts, nothing special.
