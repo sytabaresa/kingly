@@ -284,3 +284,4 @@ export function computeTimesCircledOn(edgePath, edge) {
 
 export function isInitState(s){return s === INIT_STATE}
 export function isInitEvent(e){return e === INIT_EVENT}
+export function isEventless(e){return typeof e === 'undefined'}

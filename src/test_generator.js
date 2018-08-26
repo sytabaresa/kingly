@@ -1,7 +1,7 @@
 // TODO import {depthFirstTraverseGraphEdges} from 'graph-adt'
 import { constructGraph, depthFirstTraverseGraphEdges } from '../../graph-adt/src'
 import { INIT_STATE } from "./properties"
-import { getFsmStateList, isInitEvent, isInitState, lastOf, reduceTransitions } from "./helpers"
+import { getFsmStateList, isEventless, isInitEvent, isInitState, lastOf, reduceTransitions } from "./helpers"
 import * as Rx from "rx"
 import { create_state_machine, traceFSM } from "./synchronous_fsm"
 
@@ -132,7 +132,12 @@ function computeNewPathTraversalState(fsm, edge, gen, extendedState, pathTravers
   // Case X : control state is not INIT_STATE and event is not INIT_EVENT
   // TODO : for now base case, we will add history here
   else if (!isInitState(controlState) && !isInitEvent(eventLabel)) {
-    return computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, gen, extendedState, pathTraversalState)
+    if (isEventless(eventLabel)) {
+      return computeGeneratedInfoDoNothingCase(fsm, edge, isTraversableEdge, gen, extendedState, pathTraversalState)
+    }
+    else {
+      return computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, gen, extendedState, pathTraversalState)
+    }
   }
 }
 

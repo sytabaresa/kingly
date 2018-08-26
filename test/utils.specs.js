@@ -1495,23 +1495,20 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
 
 // NOTE : this is a state machine with the same semantics as the first test, only that we have extra eventless
 // transition
-QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions, inner INIT event transitions", function exec_test(assert) {
+QUnit.test("eventless transitions, inner INIT event transitions, loops", function exec_test(assert) {
   const CLICK = 'click';
   const REVIEW_A = 'reviewA';
   const REVIEW_B = 'reviewB';
   const SAVE = 'save';
   const fsmDef = {
-    states: { A: '', B: '', C: '', OUTER_GROUP_D: { INNER_GROUP_D: { D: '' }, E: '' } },
+    states: { EVENTLESS: '', A: '', B: '', C: '', OUTER_GROUP_D: { INNER_GROUP_D: { D: '' } }, E: '' },
     events: [CLICK, REVIEW_A, REVIEW_B, SAVE],
     initial_extended_state: { switch: false, reviewed: false },
     transitions: [
-      // TODO : check if the actions are located where they should? Can I have actions on a group state?? not if I
-      // have outputs THINK, maybe allow to aggregate outputs on the path, just like extended state is, but then
-      // output can also be an array of outputs, can be annoying on the receiving end
       {
         from: INIT_STATE, event: INIT_EVENT, guards: [
           { predicate: function isSwitchOn(x, e) {return x.switch}, to: 'A', action: ACTION_IDENTITY },
-          { predicate: function isSwitchOff(x, e) {return !x.switch}, to: 'B', action: ACTION_IDENTITY }
+          { predicate: function isSwitchOff(x, e) {return !x.switch}, to: 'EVENTLESS', action: ACTION_IDENTITY }
         ]
       },
       {
@@ -1520,6 +1517,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
           { predicate: function isNotReviewed(x, e) {return !x.reviewed}, to: 'B', action: ACTION_IDENTITY }
         ]
       },
+      { from: 'EVENTLESS', to: 'B', action: ACTION_IDENTITY },
       { from: 'B', event: CLICK, to: 'C', action: setBdata },
       {
         from: 'C', event: CLICK, guards: [
@@ -1535,35 +1533,6 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
     ],
   };
   const genFsmDef = {
-    transitions: [
-      // TODO : check if the actions are located where they should? Can I have actions on a group state?? not if I
-      // have outputs THINK, maybe allow to aggregate outputs on the path, just like extended state is, but then
-      // output can also be an array of outputs, can be annoying on the receiving end
-      {
-        from: INIT_STATE, event: INIT_EVENT, guards: [
-          { predicate: function isSwitchOn(x, e) {return x.switch}, to: 'A', action: ACTION_IDENTITY },
-          { predicate: function isSwitchOff(x, e) {return !x.switch}, to: 'B', action: ACTION_IDENTITY }
-        ]
-      },
-      {
-        from: 'A', event: CLICK, guards: [
-          { predicate: function isReviewed(x, e) {return x.reviewed}, to: 'OUTER_GROUP_D', action: ACTION_IDENTITY },
-          { predicate: function isNotReviewed(x, e) {return !x.reviewed}, to: 'B', action: ACTION_IDENTITY }
-        ]
-      },
-      { from: 'B', event: CLICK, to: 'C', action: setBdata },
-      {
-        from: 'C', event: CLICK, guards: [
-          { predicate: function isValid(x, e) {return e.valid}, to: 'INNER_GROUP_D', action: setCvalidData },
-          { predicate: function isNotValid(x, e) {return !e.valid}, to: 'C', action: setCinvalidData }
-        ]
-      },
-      { from: 'D', event: REVIEW_A, to: 'A', action: setReviewed },
-      { from: 'D', event: REVIEW_B, to: 'B', action: ACTION_IDENTITY },
-      { from: 'D', event: SAVE, to: 'E', action: setReviewedAndOuput },
-      { from: 'OUTER_GROUP_D', event: INIT_EVENT, to: 'INNER_GROUP_D', action: ACTION_IDENTITY },
-      { from: 'INNER_GROUP_D', event: INIT_EVENT, to: 'D', action: ACTION_IDENTITY },
-    ],
     transitions: [
       {
         from: INIT_STATE, event: INIT_EVENT, guards: [
@@ -1596,7 +1565,9 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
             }
           },
           {
-            predicate: function isNotReviewed(x, e) {return !x.reviewed}, to: 'B', gen: function genA2B(extS) {
+            predicate: function isNotReviewed(x, e) {return !x.reviewed},
+            to: 'EVENTLESS',
+            gen: function genA2eventLess(extS) {
               return {
                 input: null, // does not matter, the guard does not depend on e
                 hasGeneratedInput: !extS.reviewed
@@ -1605,6 +1576,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
           }
         ]
       },
+      { from: 'EVENTLESS', to: 'B' },
       {
         from: 'B',
         event: CLICK,
@@ -1655,10 +1627,10 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
   const results = generateTestsFromFSM(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);
   assert.deepEqual(formattedResults.map(x => x.controlStateSequence), [
-    ["nok", "B", "C", "INNER_GROUP_D", "D", "A", "OUTER_GROUP_D", "INNER_GROUP_D", "D", "E"],
-    ["nok", "B", "C", "INNER_GROUP_D", "D", "E"],
-    ["nok", "B", "C", "C", "INNER_GROUP_D", "D", "A", "OUTER_GROUP_D", "INNER_GROUP_D", "D", "E"],
-    ["nok", "B", "C", "C", "INNER_GROUP_D", "D", "E"]
+    ["nok", "EVENTLESS", "B", "C", "INNER_GROUP_D", "D", "A", "OUTER_GROUP_D", "INNER_GROUP_D", "D", "E"],
+    ["nok", "EVENTLESS", "B", "C", "INNER_GROUP_D", "D", "E"],
+    ["nok", "EVENTLESS", "B", "C", "C", "INNER_GROUP_D", "D", "A", "OUTER_GROUP_D", "INNER_GROUP_D", "D", "E"],
+    ["nok", "EVENTLESS", "B", "C", "C", "INNER_GROUP_D", "D", "E"]
   ], `...`);
   assert.deepEqual(formattedResults.map(x => x.inputSequence), [
     [
