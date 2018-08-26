@@ -234,7 +234,7 @@ export function create_state_machine(fsmDef, settings) {
 
   // Create the nested hierarchical
   const hash_states_struct = build_nested_state_structure(
-    _control_states,
+    control_states,
     subject_factory
   );
 
@@ -412,15 +412,18 @@ export function create_state_machine(fsmDef, settings) {
       // This allows for sequence of init events in various state levels
       // For instance, L1: init -> L2:init -> L3:init -> L4: stateX
       // In this case event_data will carry on the data passed on from the last event (else we loose
-      // the model?) 2. transitions with no events associated, only conditions (i.e. transient
-      // states) In this case, there is no need for event data
-      if (is_auto_state[new_current_state]) {
+      // the model?)
+      // 2. transitions with no events associated, only conditions (i.e. transient states)
+      // In this case, there is no need for event data
+      // NOTE : the guard is to defend against loops occuring when an AUTO transition fails to advance and stays
+      // in the same control state!! But by contract that should never happen : all AUTO transitions should advance!
+      if (is_auto_state[new_current_state] && new_current_state !== current_state) {
         // CASE : transient state with no triggering event, just conditions
         // automatic transitions = transitions without events
         const auto_event = is_init_state[new_current_state]
           ? INIT_EVENT
           : AUTO_EVENT;
-        return send_event({ [AUTO_EVENT]: event_data });
+        return send_event({ [auto_event]: event_data });
       } else return output;
     } else {
       // CASE : There is no transition associated to that event from that state

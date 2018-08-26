@@ -28,6 +28,9 @@
 - add contract
   - if eventless transition, then cannot have event-basd transitions for the same origin control 
   state
+  - all AUTO transition should advance
+  - TODO add contract for test gen : apply only to FSM for which init event sets the initial state
+   in the machine
 
 # Later
 - at some point, write more serious tests, cf. [Imgur](https://i.imgur.com/IWoe84U.png)

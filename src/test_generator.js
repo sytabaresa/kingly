@@ -1,7 +1,7 @@
 // TODO import {depthFirstTraverseGraphEdges} from 'graph-adt'
 import { constructGraph, depthFirstTraverseGraphEdges } from '../../graph-adt/src'
-import { ACTION_IDENTITY, INIT_EVENT, INIT_STATE } from "./properties"
-import { getFsmStateList, lastOf, reduceTransitions } from "./helpers"
+import { INIT_STATE } from "./properties"
+import { getFsmStateList, isInitEvent, isInitState, lastOf, reduceTransitions } from "./helpers"
 import * as Rx from "rx"
 import { create_state_machine, traceFSM } from "./synchronous_fsm"
 
@@ -59,9 +59,9 @@ export function generateTestsFromFSM(fsm, generators, settings) {
     evaluateGoal: (edge, graph, pathTraversalState, graphTraversalState) => {
       const { results } = graphTraversalState;
       const bIsGoalReached = isGoalReached(edge, graph, pathTraversalState, graphTraversalState);
-      const {inputSequence, outputSequence, controlStateSequence} = pathTraversalState;
+      const { inputSequence, outputSequence, controlStateSequence } = pathTraversalState;
       const newResults = bIsGoalReached
-        ? results.concat([{inputSequence, outputSequence, controlStateSequence}])
+        ? results.concat([{ inputSequence, outputSequence, controlStateSequence }])
         : results;
       const newGraphTraversalState = { results: newResults };
 
@@ -73,59 +73,120 @@ export function generateTestsFromFSM(fsm, generators, settings) {
   };
   // TODO : no!! should not have to do that, it should be in gen!! to generate the input!!
   const visit = {
-    initialPathTraversalState: { path: [], controlStateSequence :[INIT_STATE], inputSequence: [], outputSequence: [], noMoreInput: false },
+    initialPathTraversalState: {
+      path: [],
+      controlStateSequence: [INIT_STATE],
+      inputSequence: [],
+      outputSequence: [],
+      noMoreInput: false
+    },
     visitEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
-      let noMoreInput = false;
-      let newInputSequence, newOutputSequence, newControlStateSequence, newPath;
       // NOTE : edge is a transition of the state machine
-      const {event: eventLabel} = edge;
-      const { path, inputSequence, outputSequence, controlStateSequence } = pathTraversalState;
+      const { inputSequence } = pathTraversalState;
       // Execute the state machine with the input sequence to get it in the matching control state
       // Note that the machine has to be recreated each time, as it is a stateful object
       const fsm = create_state_machine(tracedFSM, fsmRxSettings);
       const extendedState = inputSequence.length === 0
         // Edge case : we are in INIT_STATE, the init event has the initial extended state as event data
-      ? initial_extended_state
+        ? initial_extended_state
         // Main case : we run the sequence of inpus and
         // we take the extended state of the machine at the end of the run
         : lastOf(inputSequence.map(fsm.yield)).newExtendedState;
       // Then get and run the generator matching the control state, and the edge transition
       // to get the input and output sequences
-      const gen = getGeneratorMappedTransitionFromEdge(genMap, edge)
-      const { input: newInputData, hasGeneratedInput } = gen(extendedState);
-      if (!hasGeneratedInput) {
-        noMoreInput = true;
-        newInputSequence = inputSequence;
-        newOutputSequence = outputSequence;
-        newControlStateSequence = controlStateSequence;
-        newPath = path;
-      }
-      else {
-        const newInput = {[eventLabel]: newInputData};
-        newInputSequence = inputSequence.concat([newInput]);
-        const newOutput = fsm.yield(newInput);
-        const {output: untracedOutput, targetControlState} = newOutput;
-        newOutputSequence = outputSequence.concat(untracedOutput);
-        newControlStateSequence = controlStateSequence.concat([targetControlState]);
-        newPath = path.concat([edge]);
-        noMoreInput = false;
-      }
+      const gen = getGeneratorMappedTransitionFromEdge(genMap, edge);
+      const _isTraversableEdge = isTraversableEdge(edge, graph, pathTraversalState, graphTraversalState);
+      const { newPathTraversalState, newIsTraversableEdge } =
+        computeNewPathTraversalState(fsm, edge, gen, extendedState, pathTraversalState, _isTraversableEdge);
+
 
       return {
-        pathTraversalState: {
-          path: newPath,
-          inputSequence: newInputSequence,
-          outputSequence: newOutputSequence,
-          controlStateSequence : newControlStateSequence,
-          noMoreInput
-        },
-        isTraversableEdge: !noMoreInput && isTraversableEdge(edge, graph, pathTraversalState, graphTraversalState)
+        pathTraversalState: newPathTraversalState,
+        isTraversableEdge: newIsTraversableEdge
       }
     }
   };
   const testCases = depthFirstTraverseGraphEdges(search, visit, startingVertex, fsmGraph);
 
   return testCases
+}
+
+function computeNewPathTraversalState(fsm, edge, gen, extendedState, pathTraversalState, isTraversableEdge) {
+  const { event: eventLabel, from: controlState, to: targetControlState } = edge;
+
+  // Case 1 : control state is INIT_STATE and event is INIT_EVENT
+  // Reminder : in INIT_STATE, the only event admissible is INIT_EVENT
+  if (isInitState(controlState) && !isInitEvent(eventLabel)) {
+    throw `computeNewPathTraversalState : cannot be in INIT_STATE and receive another event than INIT_EVENT! Check your fsm configuration!`
+  }
+  else if (isInitState(controlState) && isInitEvent(eventLabel)) {
+    // In this case, the init event is manually sent
+    // we have to generate the corresponding input
+    return computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, gen, extendedState, pathTraversalState)
+  }
+  else if (!isInitState(controlState) && isInitEvent(eventLabel)) {
+    // In this case, the init event is automatically and internally sent by the state machine
+    // no need to generate inputs!
+    return computeGeneratedInfoDoNothingCase(fsm, edge, isTraversableEdge, gen, extendedState, pathTraversalState)
+  }
+  // Case X : control state is not INIT_STATE and event is not INIT_EVENT
+  // TODO : for now base case, we will add history here
+  else if (!isInitState(controlState) && !isInitEvent(eventLabel)) {
+    return computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, gen, extendedState, pathTraversalState)
+  }
+}
+
+function computeGeneratedInfoDoNothingCase(fsm, edge, isTraversableEdge, gen, extendedState, pathTraversalState) {
+  const { event: eventLabel, from: controlState, to: targetControlState } = edge;
+  const { path, inputSequence, outputSequence, controlStateSequence } = pathTraversalState;
+
+  return {
+    newIsTraversableEdge: true,
+    newPathTraversalState: {
+      inputSequence,
+      // NOTE: reminder : intermediary states do not output!
+      outputSequence,
+      controlStateSequence: controlStateSequence.concat([targetControlState]),
+      path: path.concat([edge])
+    }
+  }
+}
+
+function computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, gen, extendedState, pathTraversalState) {
+  const { event: eventLabel, from: controlState, to :  targetControlState} = edge;
+  const { path, inputSequence, outputSequence, controlStateSequence } = pathTraversalState;
+  const { input: newInputData, hasGeneratedInput } = gen(extendedState);
+  let noMoreInput, newInputSequence, newOutputSequence, newControlStateSequence, newPath;
+
+  if (!hasGeneratedInput) {
+    noMoreInput = true;
+    newInputSequence = inputSequence;
+    newOutputSequence = outputSequence;
+    newControlStateSequence = controlStateSequence;
+    newPath = path;
+  }
+  else {
+    const newInput = { [eventLabel]: newInputData };
+    newInputSequence = inputSequence.concat([newInput]);
+    const newOutput = fsm.yield(newInput);
+    // NOTE : finalControlState is the control state at the end of the associated automatic transitions, if any
+    // A -INIT> B -INIT> C ; edge : [A -INIT> B] => finalControlState = C, targetControlState = B
+    const { output: untracedOutput, targetControlState : finalControlState} = newOutput;
+    newOutputSequence = outputSequence.concat(untracedOutput);
+    newControlStateSequence = controlStateSequence.concat([targetControlState]);
+    newPath = path.concat([edge]);
+    noMoreInput = false;
+  }
+
+  return {
+    newIsTraversableEdge: !noMoreInput && isTraversableEdge,
+    newPathTraversalState: {
+      inputSequence: newInputSequence,
+      outputSequence: newOutputSequence,
+      controlStateSequence: newControlStateSequence,
+      path: newPath
+    }
+  }
 }
 
 /**
@@ -166,18 +227,6 @@ function getGeneratorMappedTransitionFromEdge(genMap, edge) {
   // TODO : check edge case for starting edge where event, to etc. are not set!!
   const { from, event, guardIndex } = edge;
   return genMap.get(JSON.stringify({ from, event, guardIndex }))
-}
-
-function makeStartingEdge() {
-  return {
-    from: null,
-    event: INIT_EVENT,
-    guardIndex: 0,
-    transitionIndex: 0,
-    to: INIT_STATE,
-    predicate: undefined,
-    action: ACTION_IDENTITY
-  }
 }
 
 // API

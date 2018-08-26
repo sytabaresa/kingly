@@ -121,6 +121,8 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
 });
 
 // NOK -init> A, no action, false guard, it is init -> outputs as NO_OUTPUT
+// SKIPPED because it violates contract that initial transition MUST advance!!
+// The test caused a stack size overflow, as it was repeatedly emitting an init event
 QUnit.test("INIT event, no action, false guard", function exec_test(assert) {
   const fsmDef = {
     states: { A: '' },

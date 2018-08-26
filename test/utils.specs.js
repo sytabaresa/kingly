@@ -750,7 +750,7 @@ const dummyCv = { valid: true, data: 'valueC' };
 const dummyCi = { valid: false, data: 'invalid key for C' };
 
 // NOTE : graph for fsm is in /test/assets
-QUnit.test("INIT event multi transitions, self-loop, 1-loop, conditions", function exec_test(assert) {
+QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions", function exec_test(assert) {
   const CLICK = 'click';
   const REVIEW_A = 'reviewA';
   const REVIEW_B = 'reviewB';
@@ -785,7 +785,6 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, conditions", functi
     ],
   };
   const genFsmDef = {
-    // TODO add contract for test gen : apply only to FSM for which init event sets the initial state in the machine
     transitions: [
       {
         from: INIT_STATE, event: INIT_EVENT, guards: [
@@ -1089,7 +1088,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, conditions", functi
   ], `...`);
 });
 
-QUnit.test("INIT event multi transitions, self-loop, 1-loop, conditions, 2 cycles allowed", function exec_test(assert) {
+QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions, 2 cycles allowed", function exec_test(assert) {
   const CLICK = 'click';
   const REVIEW_A = 'reviewA';
   const REVIEW_B = 'reviewB';
@@ -1124,7 +1123,6 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, conditions, 2 cycle
     ],
   };
   const genFsmDef = {
-    // TODO add contract for test gen : apply only to FSM for which init event sets the initial state in the machine
     transitions: [
       {
         from: INIT_STATE, event: INIT_EVENT, guards: [
@@ -1212,8 +1210,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, conditions, 2 cycle
   const settings = merge(default_settings, { strategy });
   const results = generateTestsFromFSM(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);
-  assert.deepEqual(formattedResults.map(
-    x => x.controlStateSequence), [
+  assert.deepEqual(formattedResults.map(x => x.controlStateSequence), [
     ["nok", "A", "B", "C", "D", "A", "D", "A", "D", "B", "C", "D", "E"],
     ["nok", "A", "B", "C", "D", "A", "D", "A", "D", "B", "C", "C", "D", "E"],
     ["nok", "A", "B", "C", "D", "A", "D", "A", "D", "B", "C", "C", "C", "D", "E"],
@@ -1260,4 +1257,237 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, conditions, 2 cycle
     ["nok", "A", "B", "C", "C", "C", "D", "B", "C", "D", "E"],
     ["nok", "A", "B", "C", "C", "C", "D", "E"]
   ], `...`);
+});
+
+QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions, inner INIT event transitions", function exec_test(assert) {
+  const CLICK = 'click';
+  const REVIEW_A = 'reviewA';
+  const REVIEW_B = 'reviewB';
+  const SAVE = 'save';
+  const fsmDef = {
+    states: { A: '', B: '', C: '', OUTER_GROUP_D: { INNER_GROUP_D: { D: '' }, E: '' } },
+    events: [CLICK, REVIEW_A, REVIEW_B, SAVE],
+    initial_extended_state: { switch: false, reviewed: false },
+    transitions: [
+      // TODO : check if the actions are located where they should? Can I have actions on a group state?? not if I
+      // have outputs THINK, maybe allow to aggregate outputs on the path, just like extended state is, but then
+      // output can also be an array of outputs, can be annoying on the receiving end
+      {
+        from: INIT_STATE, event: INIT_EVENT, guards: [
+          { predicate: function isSwitchOn(x, e) {return x.switch}, to: 'A', action: ACTION_IDENTITY },
+          { predicate: function isSwitchOff(x, e) {return !x.switch}, to: 'B', action: ACTION_IDENTITY }
+        ]
+      },
+      {
+        from: 'A', event: CLICK, guards: [
+          { predicate: function isReviewed(x, e) {return x.reviewed}, to: 'OUTER_GROUP_D', action: ACTION_IDENTITY },
+          { predicate: function isNotReviewed(x, e) {return !x.reviewed}, to: 'B', action: ACTION_IDENTITY }
+        ]
+      },
+      { from: 'B', event: CLICK, to: 'C', action: setBdata },
+      {
+        from: 'C', event: CLICK, guards: [
+          { predicate: function isValid(x, e) {return e.valid}, to: 'INNER_GROUP_D', action: setCvalidData },
+          { predicate: function isNotValid(x, e) {return !e.valid}, to: 'C', action: setCinvalidData }
+        ]
+      },
+      { from: 'D', event: REVIEW_A, to: 'A', action: setReviewed },
+      { from: 'D', event: REVIEW_B, to: 'B', action: ACTION_IDENTITY },
+      { from: 'D', event: SAVE, to: 'E', action: setReviewedAndOuput },
+      { from: 'OUTER_GROUP_D', event: INIT_EVENT, to: 'INNER_GROUP_D', action: ACTION_IDENTITY },
+      { from: 'INNER_GROUP_D', event: INIT_EVENT, to: 'D', action: ACTION_IDENTITY },
+    ],
+  };
+  const genFsmDef = {
+    transitions: [
+      // TODO : check if the actions are located where they should? Can I have actions on a group state?? not if I
+      // have outputs THINK, maybe allow to aggregate outputs on the path, just like extended state is, but then
+      // output can also be an array of outputs, can be annoying on the receiving end
+      {
+        from: INIT_STATE, event: INIT_EVENT, guards: [
+          { predicate: function isSwitchOn(x, e) {return x.switch}, to: 'A', action: ACTION_IDENTITY },
+          { predicate: function isSwitchOff(x, e) {return !x.switch}, to: 'B', action: ACTION_IDENTITY }
+        ]
+      },
+      {
+        from: 'A', event: CLICK, guards: [
+          { predicate: function isReviewed(x, e) {return x.reviewed}, to: 'OUTER_GROUP_D', action: ACTION_IDENTITY },
+          { predicate: function isNotReviewed(x, e) {return !x.reviewed}, to: 'B', action: ACTION_IDENTITY }
+        ]
+      },
+      { from: 'B', event: CLICK, to: 'C', action: setBdata },
+      {
+        from: 'C', event: CLICK, guards: [
+          { predicate: function isValid(x, e) {return e.valid}, to: 'INNER_GROUP_D', action: setCvalidData },
+          { predicate: function isNotValid(x, e) {return !e.valid}, to: 'C', action: setCinvalidData }
+        ]
+      },
+      { from: 'D', event: REVIEW_A, to: 'A', action: setReviewed },
+      { from: 'D', event: REVIEW_B, to: 'B', action: ACTION_IDENTITY },
+      { from: 'D', event: SAVE, to: 'E', action: setReviewedAndOuput },
+      { from: 'OUTER_GROUP_D', event: INIT_EVENT, to: 'INNER_GROUP_D', action: ACTION_IDENTITY },
+      { from: 'INNER_GROUP_D', event: INIT_EVENT, to: 'D', action: ACTION_IDENTITY },
+    ],
+    transitions: [
+      {
+        from: INIT_STATE, event: INIT_EVENT, guards: [
+          {
+            predicate: function isSwitchOn(x, e) {return x.switch}, to: 'A', gen: function genINIT2A(extS) {
+              return {
+                input: null, // does not matter, the guard does not depend on e
+                hasGeneratedInput: extS.switch
+              }
+            }
+          },
+          {
+            predicate: function isSwitchOff(x, e) {return !x.switch}, to: 'B', gen: function genINIT2B(extS) {
+              return {
+                input: null, // does not matter, the guard does not depend on e
+                hasGeneratedInput: !extS.switch
+              }
+            }
+          }
+        ]
+      },
+      {
+        from: 'A', event: CLICK, guards: [
+          {
+            predicate: function isReviewed(x, e) {return x.reviewed}, to: 'D', gen: function genA2D(extS) {
+              return {
+                input: null, // does not matter, the guard does not depend on e
+                hasGeneratedInput: extS.reviewed
+              }
+            }
+          },
+          {
+            predicate: function isNotReviewed(x, e) {return !x.reviewed}, to: 'B', gen: function genA2B(extS) {
+              return {
+                input: null, // does not matter, the guard does not depend on e
+                hasGeneratedInput: !extS.reviewed
+              }
+            }
+          }
+        ]
+      },
+      {
+        from: 'B',
+        event: CLICK,
+        to: 'C',
+        gen: function genB2C(extS) {return { input: dummyB, hasGeneratedInput: true }}
+      },
+      {
+        from: 'C', event: CLICK, guards: [
+          {
+            predicate: function isValid(x, e) {return e.valid},
+            to: 'INNER_GROUP_D',
+            gen: function genC2D(extS) {return { input: dummyCv, hasGeneratedInput: true }}
+          },
+          {
+            predicate: function isNotValid(x, e) {return !e.valid},
+            to: 'C',
+            gen: function genC2C(extS) {return { input: dummyCi, hasGeneratedInput: true }}
+          },
+        ]
+      },
+      { from: 'D', event: REVIEW_A, to: 'A', gen: extS => ({ input: null, hasGeneratedInput: true }) },
+      { from: 'D', event: REVIEW_B, to: 'B', gen: extS => ({ input: null, hasGeneratedInput: true }) },
+      { from: 'D', event: SAVE, to: 'E', gen: extS => ({ input: null, hasGeneratedInput: true }) },
+      // No need for input generators on automatic events (except at machine start time)
+      { from: 'OUTER_GROUP_D', event: INIT_EVENT, to: 'INNER_GROUP_D' },
+      { from: 'INNER_GROUP_D', event: INIT_EVENT, to: 'D' },
+    ],
+  };
+  const generators = genFsmDef.transitions;
+  const maxNumberOfTraversals = 1;
+  const target = 'E';
+  /** @type SearchSpecs*/
+  const strategy = {
+    isTraversableEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
+      return computeTimesCircledOn(pathTraversalState.path, edge) < (maxNumberOfTraversals || 1)
+    },
+    isGoalReached: (edge, graph, pathTraversalState, graphTraversalState) => {
+      const { getEdgeTarget, getEdgeOrigin } = graph;
+      const lastPathVertex = getEdgeTarget(edge);
+      // Edge case : accounting for initial vertex
+      const vertexOrigin = getEdgeOrigin(edge);
+
+      const isGoalReached = vertexOrigin ? lastPathVertex === target : false;
+      return isGoalReached
+    },
+  };
+  const settings = merge(default_settings, { strategy });
+  const results = generateTestsFromFSM(fsmDef, generators, settings);
+  const formattedResults = results.map(formatResult);
+  assert.deepEqual(formattedResults.map(x => x.controlStateSequence), [
+    ["nok", "B", "C", "INNER_GROUP_D", "D", "A", "OUTER_GROUP_D", "INNER_GROUP_D", "D", "E"],
+    ["nok", "B", "C", "INNER_GROUP_D", "D", "E"],
+    ["nok", "B", "C", "C", "INNER_GROUP_D", "D", "A", "OUTER_GROUP_D", "INNER_GROUP_D", "D", "E"],
+    ["nok", "B", "C", "C", "INNER_GROUP_D", "D", "E"]
+  ], `...`);
+  assert.deepEqual(formattedResults.map(x => x.inputSequence), [
+    [
+      { "init": null },
+      { "click": { "keyB": "valueB" } },
+      { "click": { "data": "valueC", "valid": true } },
+      { "reviewA": null },
+      { "click": null },
+      { "save": null }
+    ],
+    [
+      { "init": null },
+      { "click": { "keyB": "valueB" } },
+      { "click": { "data": "valueC", "valid": true } },
+      { "save": null }],
+    [
+      { "init": null },
+      { "click": { "keyB": "valueB" } },
+      { "click": { "data": "invalid key for C", "valid": false } },
+      { "click": { "data": "valueC", "valid": true } },
+      { "reviewA": null },
+      { "click": null },
+      { "save": null }
+    ],
+    [
+      { "init": null },
+      { "click": { "keyB": "valueB" } },
+      { "click": { "data": "invalid key for C", "valid": false } },
+      { "click": { "data": "valueC", "valid": true } },
+      { "save": null }
+    ]
+  ], `...`);
+  assert.deepEqual(formattedResults.map(x => x.outputSequence), [
+    [
+      null, undefined, null, undefined, null, {
+      "b": { "keyB": "valueB" },
+      "c": { "data": "valueC", "error": null },
+      "reviewed": true,
+      "switch": true
+    }
+    ],
+    [
+      null, undefined, null, {
+      "b": { "keyB": "valueB" },
+      "c": { "data": "valueC", "error": null },
+      "reviewed": false,
+      "switch": true
+    }
+    ],
+    [
+      null, undefined, undefined, null, undefined, null, {
+      "b": { "keyB": "valueB" },
+      "c": { "data": "valueC", "error": null },
+      "reviewed": true,
+      "switch": true
+    }
+    ],
+    [
+      null, undefined, undefined, null, {
+      "b": { "keyB": "valueB" },
+      "c": { "data": "valueC", "error": null },
+      "reviewed": false,
+      "switch": true
+    }
+    ]
+  ], `...`);
+
 });

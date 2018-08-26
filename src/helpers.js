@@ -1,6 +1,6 @@
 // Ramda fns
 import {
-  CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE, HISTORY_PREFIX, HISTORY_STATE_NAME, INIT_EVENT, NO_OUTPUT
+  CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE, HISTORY_PREFIX, HISTORY_STATE_NAME, INIT_EVENT, INIT_STATE, NO_OUTPUT
 } from "./properties"
 // import { applyPatch } from "./fast-json-patch/duplex"
 import { applyPatch } from "json-patch-es6"
@@ -281,3 +281,6 @@ export function reduceTransitions(reduceFn, seed, transitions) {
 export function computeTimesCircledOn(edgePath, edge) {
   return edgePath.reduce((acc, edgeInEdgePath) => edgeInEdgePath === edge ? acc + 1 : acc, 0);
 }
+
+export function isInitState(s){return s === INIT_STATE}
+export function isInitEvent(e){return e === INIT_EVENT}
