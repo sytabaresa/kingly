@@ -1,13 +1,34 @@
 # Now
+! output now should be array
+  - rename output to outputs to mean it is an array (so if output is array, should return 
+  [output]!!)
+  - action can output NO_OUTPUT or Array<OUTPUT> or OUTPUT
+  - if outputs OUTPUT then turn it into [OUTPUT]
+  - in evaluation detect type of output and homogenize to array
+  - aggregate output on the transition path
+  - update the streaming machine
+  - update the demo and retest 
+  - look for all the place I put null (also tests!) and put No_OUTPUT instead then change 
+  NO_OUTPUT to {} to see if still works (should use referential equality so should be fine for js)
+  - update doc and README
+  - update minor version and publish (change it for demo too!!)
+! might have to code history differently - right now I use event emitter and prototype... AND I 
+USE evil EVAL!!!
+  - I only implement H* i.e. deep history I think (CHECK IT)
+  - current implemntation will only work if I do the state enum probably
+  - change it to a hashmap deep_history[compoundControlState] = atomicState, and adjust that hash
+   for every transition out of `compoundControlState`
+   - that means I need a history test first!! first without tracing, then with tracing
 - add support for tracing
-  - add history states? that is the last piece of state that is not included. Note that it must 
-  be immutable, i.e. not a refernce to a mutable object
+  ! add history states? that is the last piece of state that is not included. Note that it must 
+  be immutable, i.e. not a reference to a mutable object
+  - change create_state_machine API to return array of output (case of automatic transitions)?
+    - have in settings a mergeOutput?
+      - take the last output in normal behaviour (e.g. default setting)
+      - take all outputs in trace behaviour (e.g. trace setting)
+    - beware of returning an array of outputs!! an output could be an array too, so necessary to 
+    distinguish unequivocally TYPE... maybe use a symbol?? dirty, leave for later
 - add edge cases : 
-  - eventless transition (event in {INIT, NULL}
-    - will be A -init> B, and a if (edge.event == INIT) isTraversable YES, no change in input, 
-    but output??
-    - will be A -null> B and if (edge.event == null && edge.from not history) isTraversable YES, no 
-    change in input, but output? do eventless transition have actions?? 
   - history transitions
     - in path state, add the list of control states, including the state when input sequence is 
     run (not the state for the new input)
@@ -26,11 +47,16 @@
 - test not hierarchical state machine with INIT -> (A,B) and 1 self-loop. and 1 loop C -> D -> C,
  basically simplifaction of the application process state machine. Think about guards too
 - add contract
-  - if eventless transition, then cannot have event-basd transitions for the same origin control 
+  - if eventless transition, then cannot have event-based transitions for the same origin control 
   state
   - all AUTO transition should advance
   - TODO add contract for test gen : apply only to FSM for which init event sets the initial state
    in the machine
+  - all action factories MUST return a model_update, MUST return a outputs!! no syntactic sugar here
+- would be great to have a query language to select input sequences from the generated set
+  - for instance includes a cycle
+  - includes a cycle which includes this node etc. 
+  - it is an array
 
 # Later
 - at some point, write more serious tests, cf. [Imgur](https://i.imgur.com/IWoe84U.png)
@@ -52,8 +78,7 @@ provided the autocomplete fields fulfill some validity rules (part of a given li
 LOTS OF WORK
 do the design on spare time but work rather on the dev tool!!! that is the killing thing
 
-# incorporate
-
-You can decouple the UI component from its behaviour and declaratively define its behaviour in a way that allows you to more easily reason about the code and spot any possible missing states.
-The behaviour of your component can be tested independently and, in some cases, with automatically generated tests.
-It’s a great communication tool. By defining all the states up front, the behaviour of the component can be very easily defined and communicated to other developers, testers, designers and other stakeholders.
+# to think about
+- modelling tool for visual DSL!! https://github.com/webgme/webgme
+- already one exists for state machines. Complex but already exists. Would be good to have a 
+plugin to exchange format between the two!! That way I don't have to do a tracer myself!.!.!

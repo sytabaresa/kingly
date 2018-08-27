@@ -20,11 +20,11 @@ const model_initial = {
 };
 const dummy_action_result = {
   model_update: [],
-  output: an_output
+  outputs: an_output
 };
 const another_dummy_action_result = {
   model_update: [],
-  output: another_output
+  outputs: another_output
 };
 
 function dummy_action(model, event_data, settings) {

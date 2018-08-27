@@ -3,7 +3,7 @@ import * as Rx from "rx"
 import { clone, F, merge, T } from "ramda"
 import {
   ACTION_IDENTITY, computeTimesCircledOn, create_state_machine, generateTestsFromFSM, INIT_EVENT, INIT_STATE,
-  mapOverTransitionsActions, reduceTransitions
+  mapOverTransitionsActions, NO_OUTPUT, reduceTransitions
 } from "../src"
 import { formatMap, formatResult } from "./helpers"
 import { convertFSMtoGraph, getGeneratorMapFromGeneratorMachine } from "../src/test_generator"
@@ -41,11 +41,11 @@ const model_initial = {
 };
 const dummy_action_result = {
   model_update: [],
-  output: an_output
+  outputs: an_output
 };
 const another_dummy_action_result = {
   model_update: [],
-  output: another_output
+  outputs: another_output
 };
 const replaced_model_property = {
   new_model_key: 'new_model_value'
@@ -60,11 +60,11 @@ const update_model_ops_2 = [
 ];
 const dummy_action_result_with_update = {
   model_update: update_model_ops_1,
-  output: an_output
+  outputs: an_output
 };
 const another_dummy_action_result_with_update = {
   model_update: update_model_ops_2,
-  output: another_output
+  outputs: another_output
 };
 
 function dummy_action(model, event_data, settings) {
@@ -77,7 +77,7 @@ function another_dummy_action(model, event_data, settings) {
 
 function dummy_action_with_update(model, event_data, settings) {
   return merge(dummy_action_result_with_update, {
-    output: {
+    outputs: {
       // NOTE : ! this is the model before update!!
       model: clone(model),
       event_data: clone(event_data),
@@ -88,7 +88,7 @@ function dummy_action_with_update(model, event_data, settings) {
 
 function another_dummy_action_with_update(model, event_data, settings) {
   return merge(another_dummy_action_result_with_update, {
-      output: {
+      outputs: {
         // NOTE : ! this is the model before update!!
         model: clone(model),
         event_data: clone(event_data),
@@ -484,8 +484,6 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
     initial_extended_state: model_initial
   };
   const genFsmDef = {
-    states: { A: '' },
-    events: [],
     transitions: [
       {
         from: INIT_STATE, to: 'A', event: INIT_EVENT, gen: function genFn(extendedState) {
@@ -493,7 +491,6 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
         }
       }
     ],
-    initial_extended_state: model_initial
   };
   const generators = genFsmDef.transitions;
   const maxNumberOfTraversals = 1;
@@ -706,7 +703,8 @@ function setBdata(extendedState, eventData) {
   return {
     model_update: [
       { op: 'add', path: '/b', value: eventData }
-    ]
+    ],
+    outputs : NO_OUTPUT
   }
 }
 
@@ -715,7 +713,8 @@ function setCinvalidData(extendedState, eventData) {
     model_update: [
       { op: 'add', path: '/c', value: { error: eventData.error, data: eventData.data } },
       { op: 'add', path: '/switch', value: false },
-    ]
+    ],
+    outputs : NO_OUTPUT
   }
 }
 
@@ -724,7 +723,8 @@ function setCvalidData(extendedState, eventData) {
     model_update: [
       { op: 'add', path: '/c', value: { error: null, data: eventData.data } },
       { op: 'add', path: '/switch', value: true },
-    ]
+    ],
+    outputs : NO_OUTPUT
   }
 }
 
@@ -732,7 +732,8 @@ function setReviewed(extendedState, eventData) {
   return {
     model_update: [
       { op: 'add', path: '/reviewed', value: true },
-    ]
+    ],
+    outputs : NO_OUTPUT
   }
 }
 
@@ -741,7 +742,7 @@ function setReviewedAndOuput(extendedState, eventData) {
     model_update: [
       { op: 'add', path: '/reviewed', value: true },
     ],
-    output: extendedState
+    outputs: extendedState
   }
 }
 
@@ -909,11 +910,11 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
         }
       ],
       "outputSequence": [
-        null,
-        undefined,
-        undefined,
-        undefined,
-        null,
+        NO_OUTPUT,
+        NO_OUTPUT,
+        NO_OUTPUT,
+        NO_OUTPUT,
+        NO_OUTPUT,
         {
           "b": {
             "keyB": "valueB"
@@ -955,9 +956,9 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
         }
       ],
       "outputSequence": [
-        null,
-        undefined,
-        undefined,
+        NO_OUTPUT,
+        NO_OUTPUT,
+        NO_OUTPUT,
         {
           "b": {
             "keyB": "valueB"
@@ -1014,12 +1015,12 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
         }
       ],
       "outputSequence": [
-        null,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        null,
+        NO_OUTPUT,
+        NO_OUTPUT,
+        NO_OUTPUT,
+        NO_OUTPUT,
+        NO_OUTPUT,
+        NO_OUTPUT,
         {
           "b": {
             "keyB": "valueB"
@@ -1068,10 +1069,10 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
         }
       ],
       "outputSequence": [
-        null,
-        undefined,
-        undefined,
-        undefined,
+        NO_OUTPUT,
+        NO_OUTPUT,
+        NO_OUTPUT,
+        NO_OUTPUT,
         {
           "b": {
             "keyB": "valueB"
@@ -1270,9 +1271,6 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
     events: [CLICK, REVIEW_A, REVIEW_B, SAVE],
     initial_extended_state: { switch: false, reviewed: false },
     transitions: [
-      // TODO : check if the actions are located where they should? Can I have actions on a group state?? not if I
-      // have outputs THINK, maybe allow to aggregate outputs on the path, just like extended state is, but then
-      // output can also be an array of outputs, can be annoying on the receiving end
       {
         from: INIT_STATE, event: INIT_EVENT, guards: [
           { predicate: function isSwitchOn(x, e) {return x.switch}, to: 'A', action: ACTION_IDENTITY },
@@ -1301,41 +1299,12 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
   };
   const genFsmDef = {
     transitions: [
-      // TODO : check if the actions are located where they should? Can I have actions on a group state?? not if I
-      // have outputs THINK, maybe allow to aggregate outputs on the path, just like extended state is, but then
-      // output can also be an array of outputs, can be annoying on the receiving end
-      {
-        from: INIT_STATE, event: INIT_EVENT, guards: [
-          { predicate: function isSwitchOn(x, e) {return x.switch}, to: 'A', action: ACTION_IDENTITY },
-          { predicate: function isSwitchOff(x, e) {return !x.switch}, to: 'B', action: ACTION_IDENTITY }
-        ]
-      },
-      {
-        from: 'A', event: CLICK, guards: [
-          { predicate: function isReviewed(x, e) {return x.reviewed}, to: 'OUTER_GROUP_D', action: ACTION_IDENTITY },
-          { predicate: function isNotReviewed(x, e) {return !x.reviewed}, to: 'B', action: ACTION_IDENTITY }
-        ]
-      },
-      { from: 'B', event: CLICK, to: 'C', action: setBdata },
-      {
-        from: 'C', event: CLICK, guards: [
-          { predicate: function isValid(x, e) {return e.valid}, to: 'INNER_GROUP_D', action: setCvalidData },
-          { predicate: function isNotValid(x, e) {return !e.valid}, to: 'C', action: setCinvalidData }
-        ]
-      },
-      { from: 'D', event: REVIEW_A, to: 'A', action: setReviewed },
-      { from: 'D', event: REVIEW_B, to: 'B', action: ACTION_IDENTITY },
-      { from: 'D', event: SAVE, to: 'E', action: setReviewedAndOuput },
-      { from: 'OUTER_GROUP_D', event: INIT_EVENT, to: 'INNER_GROUP_D', action: ACTION_IDENTITY },
-      { from: 'INNER_GROUP_D', event: INIT_EVENT, to: 'D', action: ACTION_IDENTITY },
-    ],
-    transitions: [
       {
         from: INIT_STATE, event: INIT_EVENT, guards: [
           {
             predicate: function isSwitchOn(x, e) {return x.switch}, to: 'A', gen: function genINIT2A(extS) {
               return {
-                input: null, // does not matter, the guard does not depend on e
+                input: extS, // does not matter, the guard does not depend on e
                 hasGeneratedInput: extS.switch
               }
             }
@@ -1343,7 +1312,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
           {
             predicate: function isSwitchOff(x, e) {return !x.switch}, to: 'B', gen: function genINIT2B(extS) {
               return {
-                input: null, // does not matter, the guard does not depend on e
+                input: extS, // does not matter, the guard does not depend on e
                 hasGeneratedInput: !extS.switch
               }
             }
@@ -1427,7 +1396,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
   ], `...`);
   assert.deepEqual(formattedResults.map(x => x.inputSequence), [
     [
-      { "init": null },
+      { "init": fsmDef.initial_extended_state },
       { "click": { "keyB": "valueB" } },
       { "click": { "data": "valueC", "valid": true } },
       { "reviewA": null },
@@ -1435,12 +1404,12 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
       { "save": null }
     ],
     [
-      { "init": null },
+      { "init": fsmDef.initial_extended_state },
       { "click": { "keyB": "valueB" } },
       { "click": { "data": "valueC", "valid": true } },
       { "save": null }],
     [
-      { "init": null },
+      { "init": fsmDef.initial_extended_state },
       { "click": { "keyB": "valueB" } },
       { "click": { "data": "invalid key for C", "valid": false } },
       { "click": { "data": "valueC", "valid": true } },
@@ -1449,7 +1418,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
       { "save": null }
     ],
     [
-      { "init": null },
+      { "init": fsmDef.initial_extended_state },
       { "click": { "keyB": "valueB" } },
       { "click": { "data": "invalid key for C", "valid": false } },
       { "click": { "data": "valueC", "valid": true } },
@@ -1458,7 +1427,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
   ], `...`);
   assert.deepEqual(formattedResults.map(x => x.outputSequence), [
     [
-      null, undefined, null, undefined, null, {
+      NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, {
       "b": { "keyB": "valueB" },
       "c": { "data": "valueC", "error": null },
       "reviewed": true,
@@ -1466,7 +1435,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
     }
     ],
     [
-      null, undefined, null, {
+      NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, {
       "b": { "keyB": "valueB" },
       "c": { "data": "valueC", "error": null },
       "reviewed": false,
@@ -1474,7 +1443,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
     }
     ],
     [
-      null, undefined, undefined, null, undefined, null, {
+      NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, {
       "b": { "keyB": "valueB" },
       "c": { "data": "valueC", "error": null },
       "reviewed": true,
@@ -1482,7 +1451,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
     }
     ],
     [
-      null, undefined, undefined, null, {
+      NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, {
       "b": { "keyB": "valueB" },
       "c": { "data": "valueC", "error": null },
       "reviewed": false,
@@ -1665,7 +1634,7 @@ QUnit.test("eventless transitions, inner INIT event transitions, loops", functio
   ], `...`);
   assert.deepEqual(formattedResults.map(x => x.outputSequence), [
     [
-      null, undefined, null, undefined, null, {
+      NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, {
       "b": { "keyB": "valueB" },
       "c": { "data": "valueC", "error": null },
       "reviewed": true,
@@ -1673,7 +1642,7 @@ QUnit.test("eventless transitions, inner INIT event transitions, loops", functio
     }
     ],
     [
-      null, undefined, null, {
+      NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, {
       "b": { "keyB": "valueB" },
       "c": { "data": "valueC", "error": null },
       "reviewed": false,
@@ -1681,7 +1650,7 @@ QUnit.test("eventless transitions, inner INIT event transitions, loops", functio
     }
     ],
     [
-      null, undefined, undefined, null, undefined, null, {
+      NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, {
       "b": { "keyB": "valueB" },
       "c": { "data": "valueC", "error": null },
       "reviewed": true,
@@ -1689,7 +1658,7 @@ QUnit.test("eventless transitions, inner INIT event transitions, loops", functio
     }
     ],
     [
-      null, undefined, undefined, null, {
+      NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, {
       "b": { "keyB": "valueB" },
       "c": { "data": "valueC", "error": null },
       "reviewed": false,

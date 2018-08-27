@@ -19,7 +19,7 @@
 // TODO : as a isActualOutput function to discriminate out the Maybe
 
 import { ACTION_IDENTITY, AUTO_EVENT, INIT_EVENT, INIT_STATE, NO_OUTPUT, STATE_PROTOTYPE_NAME } from "./properties";
-import { applyUpdateOperations, get_fn_name, getFsmStateList, keys, mapOverTransitionsActions, wrap } from "./helpers";
+import { applyUpdateOperations, get_fn_name, getFsmStateList, keys, mapOverTransitionsActions, wrap, arrayizeOutput } from "./helpers";
 
 /**
  * Takes a list of identifiers (strings), adds init to it, and returns a hash whose properties are
@@ -169,7 +169,7 @@ function build_nested_state_structure(states, event_emitter_factory) {
  * @param states A hash describing a hierarchy of nested states
  * @returns {state_name: {String}, {history: {Function}}}
  */
-function build_state_enum(states) {
+export function build_state_enum(states) {
   let states_enum = { history: {} };
 
   // Set initial state
@@ -209,7 +209,7 @@ function build_state_enum(states) {
  *   - condition(s) : if several, pass them in an array (field `conditions`), the order of the
  * array is the order of applying the conditions. When a single condition (field `condition`) When
  * the first is found true, the sequence of condition checking stops there
- *   - action : function (model, event_data, settings) : {output, update_state}
+ *   - action : function (model, event_data, settings) : {outputs, update_state}
  *   - from : state from which the described transition operates
  *   - to : target state for the described transition
  * @param {FSM_Def} fsmDef
@@ -229,7 +229,7 @@ export function create_state_machine(fsmDef, settings) {
   if (!subject_factory)
     throw `create_state_machine : cannot find a subject factory (use Rxjs subject??)`;
 
-  const _control_states = build_state_enum(control_states);
+//  const _control_states = build_state_enum(control_states); // TODO : to remove when rewrote history mechanism
   const _events = build_event_enum(events);
 
   // Create the nested hierarchical
@@ -333,7 +333,7 @@ export function create_state_machine(fsmDef, settings) {
               // Emit the new model event
               // new_model_event_emitter.onNext(model);
               console.info("RESULTING IN UPDATED MODEL : ", model);
-              console.info("RESULTING IN OUTPUT : ", actionResult.output);
+              console.info("RESULTING IN OUTPUT : ", actionResult.outputs);
 
               // ...and enter the next state (can be different from to if we have nesting state group)
               const next_state = enter_next_state(
@@ -343,7 +343,7 @@ export function create_state_machine(fsmDef, settings) {
               );
               console.info("ENTERING NEXT STATE : ", next_state);
 
-              return { stop: true, output: actionResult.output }; // allows for chaining and stop
+              return { stop: true, outputs: actionResult.outputs }; // allows for chaining and stop
               // chaining guard
             } else {
               // CASE : guard for transition is not fulfilled
@@ -355,7 +355,7 @@ export function create_state_machine(fsmDef, settings) {
                   " for transition NOT fulfilled..."
                   : "no predicate")
               );
-              return { stop: false, output: NO_OUTPUT };
+              return { stop: false, outputs: NO_OUTPUT };
             }
           };
           condition_checking_fn.displayName = from + condition_suffix;
@@ -374,7 +374,7 @@ export function create_state_machine(fsmDef, settings) {
         };
       },
       function dummy() {
-        return { stop: false, output: NO_OUTPUT };
+        return { stop: false, outputs: NO_OUTPUT };
       }
     );
   });
@@ -402,7 +402,7 @@ export function create_state_machine(fsmDef, settings) {
       console.log("found event handler!");
       console.info("WHEN EVENT ", event);
       /* OUT : this event handler modifies the model and possibly other data structures */
-      const output = event_handler(model, event_data, current_state).output;
+      const outputs = arrayizeOutput(event_handler(model, event_data, current_state).outputs);
 
       // we read it anew as the execution of the event handler may have changed it
       const new_current_state = hash_states[INIT_STATE].current_state_name;
@@ -423,9 +423,8 @@ export function create_state_machine(fsmDef, settings) {
         const auto_event = is_init_state[new_current_state]
           ? INIT_EVENT
           : AUTO_EVENT;
-        // TODO : aggregate outputs on the way to traversing??
-        return send_event({ [auto_event]: event_data });
-      } else return output;
+        return outputs.concat(send_event({ [auto_event]: event_data }));
+      } else return outputs;
     } else {
       // CASE : There is no transition associated to that event from that state
       console.error(`There is no transition associated to that event!`);
@@ -456,13 +455,17 @@ export function create_state_machine(fsmDef, settings) {
     });
   }
 
+  function remove_trailing_underscore(str) {
+    return (str[0] === '_') ? str.slice(1) : str
+  }
+
   function enter_next_state(to, model_prime, hash_states) {
     // Enter the target state
     let state_to;
     let state_to_name;
     // CASE : history state (H)
     if (typeof to === "function") {
-      state_to_name = get_fn_name(to);
+      state_to_name = remove_trailing_underscore(get_fn_name(to));
 
       const target_state = hash_states[state_to_name].history.last_seen_state;
       state_to_name = target_state
@@ -539,9 +542,17 @@ export function makeStreamingStateMachine(settings, fsmDef) {
       )
     )
       .map(fsm.yield)
+      .filter(outputs => outputs !== NO_OUTPUT)
+      // TODO : check scheduling : we want all outputs (=actions) passed synchronously if possible
+      // NOTE : Rxjs : https://github.com/ReactiveX/rxjs/blob/master/doc/scheduler.md
+      // By not passing any scheduler, notifications are delivered synchronously and recursively.
+      // DOC : settings.of should emit synchronously and recursively
+      .flatMap(outputs => of(outputs))
       .filter(output => output !== NO_OUTPUT)
       .share();
   };
+  // TODO : rewrite this to avoid using merge, map, filter and flatMap: use a subject/event emitter basically
+  // that ensures synchronicity. All operators can be flattened in one long function
 
   return computeActions;
 }
@@ -646,7 +657,7 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
         actionUpdate || [],
         exitActionResult.model_update || []
       ),
-      output: mergeOutputFn([actionResult.output, exitActionResult.output])
+      outputs: mergeOutputFn([actionResult.outputs, exitActionResult.outputs])
     };
   };
   decoratedAction.displayName = action.displayName;
@@ -657,7 +668,7 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
 /**
  * This function converts a state machine `A` into a traced state machine `T(A)`. The traced state machine, on
  * receiving an input `I` outputs the following information :
- * - `output` : the output `A.yield(I)`
+ * - `outputs` : the outputs `A.yield(I)`
  * - `model_update` : the update of the extended state of `A` to be performed as a consequence of receiving the
  * input `I`
  * - `extendedState` : the extended state of `A` prior to receiving the input `I`
@@ -686,12 +697,12 @@ export function traceFSM(env, fsm) {
       return function (model, eventData, settings) {
         const { from: controlState, event: eventLabel, to: targetControlState, predicate } = transition;
         const actionResult = action(model, eventData, settings);
-        const { output, model_update } = actionResult;
+        const { outputs, model_update } = actionResult;
 
         return {
           model_update,
-          output: {
-            output,
+          outputs: {
+            outputs,
             model_update,
             extendedState: model,
             // NOTE : I can do this because pure function! This is the extended state after taking the transition

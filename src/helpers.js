@@ -179,20 +179,20 @@ function defaultMerge(arrayOutputs) {
 
 /**
  *
- * @param {function (Array<MachineOutput>) : MachineOutput} mergeOutputFn
+ * @param {function (Array<Array<MachineOutput>>) : Array<MachineOutput>} mergeOutputFn
  * @param {Array<ActionFactory>} arrayActionFactory
- * @returns {function(*=, *=, *=): {model_update: *[], output: *|null}}
+ * @returns {function(*=, *=, *=): {model_update: *[], outputs: *|null}}
  */
 export function mergeActionFactories(mergeOutputFn, arrayActionFactory) {
   return function (model, eventData, settings) {
     const arrayActions = arrayActionFactory.map(factory => factory(model, eventData, settings));
     const arrayModelUpdates = arrayActions.map(x => x.model_update || []);
-    const arrayOutputs = arrayActions.map(x => x.output || {});
+    const arrayOutputs = arrayActions.map(x => x.outputs || {});
 
     return {
       model_update: [].concat(...arrayModelUpdates),
       // for instance, mergeFn = R.mergeAll or some variations around R.mergeDeepLeft
-      output: (mergeOutputFn || defaultMerge)(arrayOutputs)
+      outputs: (mergeOutputFn || defaultMerge)(arrayOutputs)
     }
   }
 }
@@ -201,7 +201,7 @@ export function mergeActionFactories(mergeOutputFn, arrayActionFactory) {
 export function identity(model, eventData, settings) {
   return {
     model_update: [],
-    output: NO_OUTPUT
+    outputs: NO_OUTPUT
   }
 }
 
@@ -241,7 +241,7 @@ export function mapOverTransitionsActions(mapFn, transitions) {
   return reduceTransitions(function (acc, transition, guardIndex, transitionIndex) {
     const { from, event, to, action, predicate } = transition;
     const mappedAction = mapFn(action, transition, guardIndex, transitionIndex);
-    // TODO : action could be null, as w gather also the gen case here. SEPARATE THE TWO IN TWO FUNCTIONS!!
+    // TODO : action could be null, as we gather also the gen case here. SEPARATE THE TWO IN TWO FUNCTIONS!!
     mappedAction.displayName = action && (action.name || action.displayName || formatActionName(action, from, event, to, predicate));
 
     if (typeof(predicate) === 'undefined') {
@@ -285,3 +285,11 @@ export function computeTimesCircledOn(edgePath, edge) {
 export function isInitState(s){return s === INIT_STATE}
 export function isInitEvent(e){return e === INIT_EVENT}
 export function isEventless(e){return typeof e === 'undefined'}
+
+export function arrayizeOutput(output) {
+  return output === NO_OUTPUT
+    ? NO_OUTPUT
+    : Array.isArray(output)
+      ? output
+      : [output]
+}

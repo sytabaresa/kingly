@@ -2,7 +2,7 @@ import * as QUnit from "qunitjs"
 import * as Rx from "rx"
 import { clone, F, merge, T } from "ramda"
 import {
-  ACTION_IDENTITY,
+  ACTION_IDENTITY, arrayizeOutput,
   create_state_machine, INIT_EVENT, INIT_STATE, NO_OUTPUT
 } from "../src"
 import {applyPatch} from "json-patch-es6"
@@ -47,11 +47,11 @@ const model_initial = {
 };
 const dummy_action_result = {
   model_update: [],
-  output: an_output
+  outputs: an_output
 };
 const another_dummy_action_result = {
   model_update: [],
-  output: another_output
+  outputs: another_output
 };
 const replaced_model_property = {
   new_model_key: 'new_model_value'
@@ -66,11 +66,11 @@ const update_model_ops_2 = [
 ];
 const dummy_action_result_with_update = {
   model_update: update_model_ops_1,
-  output: an_output
+  outputs: an_output
 };
 const another_dummy_action_result_with_update = {
   model_update: update_model_ops_2,
-  output: another_output
+  outputs: another_output
 };
 
 function dummy_action(model, event_data, settings) {
@@ -81,7 +81,7 @@ function another_dummy_action(model, event_data, settings) {
 }
 function dummy_action_with_update(model, event_data, settings) {
   return merge(dummy_action_result_with_update, {
-    output: {
+    outputs: {
       // NOTE : ! this is the model before update!!
       model: clone(model),
       event_data: clone(event_data),
@@ -91,7 +91,7 @@ function dummy_action_with_update(model, event_data, settings) {
 }
 function another_dummy_action_with_update(model, event_data, settings) {
   return merge(another_dummy_action_result_with_update, {
-      output: {
+      outputs: {
         // NOTE : ! this is the model before update!!
         model: clone(model),
         event_data: clone(event_data),
@@ -197,7 +197,7 @@ QUnit.test("INIT event, action, true guard", function exec_test(assert) {
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
   const result = fsm.start();
-  assert.deepEqual(result, dummy_action_result.output,
+  assert.deepEqual(result, arrayizeOutput(dummy_action_result.outputs),
     `INIT event starts the state machine, transition is taken, action is executed`);
 });
 
@@ -229,7 +229,7 @@ QUnit.test("INIT event, 2 actions, [T,T] conditions, 1st action executed", funct
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
   const result = fsm.start();
-  assert.deepEqual(result, dummy_action_result.output,
+  assert.deepEqual(result, arrayizeOutput(dummy_action_result.outputs),
     `INIT event starts the state machine, transition is taken, action is executed`);
 });
 
@@ -260,7 +260,7 @@ QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", funct
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
   const result = fsm.start();
-  assert.deepEqual(result, dummy_action_result.output,
+  assert.deepEqual(result, arrayizeOutput(dummy_action_result.outputs),
     `INIT event starts the state machine, transition is taken, action is executed`);
 });
 
@@ -291,7 +291,7 @@ QUnit.test("INIT event, 2 actions, [T,F] conditions, 1st action executed", funct
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
   const result = fsm.start();
-  assert.deepEqual(result, dummy_action_result.output,
+  assert.deepEqual(result, arrayizeOutput(dummy_action_result.outputs),
     `INIT event starts the state machine, transition is taken, action is executed`);
 });
 
@@ -342,7 +342,7 @@ QUnit.test("INIT event, 2 actions with no model update, NOK -> A -> B, no guards
   const fsm = create_state_machine(fsmDef, settings);
   const result1 = fsm.start();
   const result2 = fsm.yield({ [EVENT1]: EVENT1_DATA });
-  assert.deepEqual([result1, result2], [an_output, another_output], `event triggers correct transition`);
+  assert.deepEqual([result1, result2], [arrayizeOutput(an_output), arrayizeOutput(another_output)], `event triggers correct transition`);
 });
 
 // NOK -init> A, no guards, dummy action
@@ -364,20 +364,19 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
   const result2 = fsm.yield({ [EVENT1]: EVENT1_DATA });
   const cloned_model_initial = clone(model_initial);
   assert.deepEqual([result1, result2],[
-    {
+    [{
       "event_data": model_initial,
       "model": model_initial,
       // settings has its function and regexp removed by JSON.parse(JSON.stringify...
       "settings": {}
-    },
-    {
+    }],
+    [{
       "event_data": EVENT1_DATA,
       "model": applyPatch(cloned_model_initial, update_model_ops_1, true, false).newDocument,
       "settings": {}
-    }
+    }]
   ], `event triggers correct transition`);
 });
-
 
 // TODO : add tests for when event passed in not in state machine
 // TODO : add tests for NO_OUTPUT in settings when implemented

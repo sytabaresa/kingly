@@ -37,11 +37,11 @@ const model_initial = {
 };
 const dummy_action_result = {
   model_update: [],
-  output: an_output
+  outputs: an_output
 };
 const another_dummy_action_result = {
   model_update: [],
-  output: another_output
+  outputs: another_output
 };
 const replaced_model_property = {
   new_model_key: 'new_model_value'
@@ -56,11 +56,11 @@ const update_model_ops_2 = [
 ];
 const dummy_action_result_with_update = {
   model_update: update_model_ops_1,
-  output: an_output
+  outputs: an_output
 };
 const another_dummy_action_result_with_update = {
   model_update: update_model_ops_2,
-  output: another_output
+  outputs: another_output
 };
 
 function dummy_action(model, event_data, settings) {
@@ -73,7 +73,7 @@ function another_dummy_action(model, event_data, settings) {
 
 function dummy_action_with_update(model, event_data, settings) {
   return merge(dummy_action_result_with_update, {
-    output: {
+    outputs: {
       // NOTE : ! this is the model before update!!
       model: clone(model),
       event_data: clone(event_data),
@@ -84,7 +84,7 @@ function dummy_action_with_update(model, event_data, settings) {
 
 function another_dummy_action_with_update(model, event_data, settings) {
   return merge(another_dummy_action_result_with_update, {
-      output: {
+      outputs: {
         // NOTE : ! this is the model before update!!
         model: clone(model),
         event_data: clone(event_data),
@@ -110,8 +110,9 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
   const decoratedFsmDef = traceFSM(env, fsmDef);
   const decoratedFSM = create_state_machine(decoratedFsmDef, settings);
   const result = decoratedFSM.start();
-  const formattedResult = formatResult(result);
-  assert.deepEqual(formattedResult, {
+  const formattedResult = result.map(formatResult);
+  assert.deepEqual(formattedResult,
+    [{
     "actionFactory": "ACTION_IDENTITY",
     "controlState": "nok",
     "event": {
@@ -131,7 +132,7 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
       "a_key": "some value",
       "another_key": "another value"
     },
-    "output": null,
+    "outputs": null,
     "predicate": undefined,
     "settings": {
       "merge": "merge",
@@ -140,7 +141,7 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
     },
     "targetControlState": "A",
     "transitionIndex": 0
-  }, `trace is correct`);
+  }], `trace is correct`);
 });
 
 QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", function exec_test(assert) {
@@ -159,13 +160,13 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
   const decoratedFSM = create_state_machine(decoratedFsmDef, settings);
   const result1 = decoratedFSM.start();
   const result2 = decoratedFSM.yield({ [EVENT1]: EVENT1_DATA });
-  const formattedResult1 = formatResult(result1);
-  const formattedResult2 = formatResult(result2);
+  const formattedResult1 = result1.map(formatResult);
+  const formattedResult2 = result2.map(formatResult);
   const cloned_model_initial = clone(model_initial);
 
   assert.deepEqual([formattedResult1, formattedResult2],
     [
-      {
+      [{
         "actionFactory": "dummy_action_with_update",
         "controlState": "nok",
         "event": {
@@ -204,7 +205,7 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
           },
           "new_model_key_1": "new_model_value_1"
         },
-        "output": {
+        "outputs": {
           "event_data": {
             "a_key": "some value",
             "another_key": "another value"
@@ -223,8 +224,8 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
         },
         "targetControlState": "A",
         "transitionIndex": 0
-      },
-      {
+      }],
+      [{
         "actionFactory": "another_dummy_action_with_update",
         "controlState": "A",
         "event": {
@@ -254,7 +255,7 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
           "new_model_key_1": "new_model_value_1",
           "new_model_key_2": "new_model_value_2"
         },
-        "output": {
+        "outputs": {
           "event_data": {
             "event1_data_key1": "event1_data_value1"
           },
@@ -274,9 +275,6 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
         },
         "targetControlState": "B",
         "transitionIndex": 1
-      }
+      }]
     ], `trace is correct`);
 });
-
-// TODO : continue with the rest of the tests from no-hierarchy.specs
-// TODO : write tests then for the tracing decorator

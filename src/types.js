@@ -31,7 +31,8 @@
  * @typedef {function(model: FSM_Model, event_data: *, settings: FSM_Settings) : Actions} ActionFactory
  */
 /**
- * @typedef {{model_update: Array<JSON_PatchOperation>, output: MachineOutput}} Actions The actions to be performed
+ * @typedef {{model_update: Array<JSON_PatchOperation>, outputs: Array<MachineOutput> | NO_OUTPUT}} Actions The actions
+ * to be performed
  * by the state machine in response to a transition. `model_update` represents the state update for the variables
  * of the extended state machine. `output` represents the output of the state machine passed to the API caller.
  */

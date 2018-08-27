@@ -1,4 +1,4 @@
-// TODO import {depthFirstTraverseGraphEdges} from 'graph-adt'
+// TODO import {depthFirstTraverseGraphEdges} from 'graph-adt' uncomment whn finished
 import { constructGraph, depthFirstTraverseGraphEdges } from '../../graph-adt/src'
 import { INIT_STATE } from "./properties"
 import { getFsmStateList, isEventless, isInitEvent, isInitState, lastOf, reduceTransitions } from "./helpers"
@@ -71,7 +71,6 @@ export function generateTestsFromFSM(fsm, generators, settings) {
       }
     },
   };
-  // TODO : no!! should not have to do that, it should be in gen!! to generate the input!!
   const visit = {
     initialPathTraversalState: {
       path: [],
@@ -91,7 +90,8 @@ export function generateTestsFromFSM(fsm, generators, settings) {
         ? initial_extended_state
         // Main case : we run the sequence of inpus and
         // we take the extended state of the machine at the end of the run
-        : lastOf(inputSequence.map(fsm.yield)).newExtendedState;
+        // NOTE : fsm is a traced fsm, the output returned will always be an array of length 1
+        : lastOf(inputSequence.map(fsm.yield))[0].newExtendedState;
       // Then get and run the generator matching the control state, and the edge transition
       // to get the input and output sequences
       const gen = getGeneratorMappedTransitionFromEdge(genMap, edge);
@@ -173,10 +173,11 @@ function computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, gen, extende
   else {
     const newInput = { [eventLabel]: newInputData };
     newInputSequence = inputSequence.concat([newInput]);
-    const newOutput = fsm.yield(newInput);
+    // NOTE : the fsm is a traced one. That means it will always return as output an array with exactly one item!
+    const newOutput = fsm.yield(newInput)[0];
     // NOTE : finalControlState is the control state at the end of the associated automatic transitions, if any
     // A -INIT> B -INIT> C ; edge : [A -INIT> B] => finalControlState = C, targetControlState = B
-    const { output: untracedOutput, targetControlState : finalControlState} = newOutput;
+    const { outputs: untracedOutput, targetControlState : finalControlState} = newOutput;
     newOutputSequence = outputSequence.concat(untracedOutput);
     newControlStateSequence = controlStateSequence.concat([targetControlState]);
     newPath = path.concat([edge]);
@@ -229,7 +230,6 @@ export function convertFSMtoGraph(tracedFSM) {
 }
 
 function getGeneratorMappedTransitionFromEdge(genMap, edge) {
-  // TODO : check edge case for starting edge where event, to etc. are not set!!
   const { from, event, guardIndex } = edge;
   return genMap.get(JSON.stringify({ from, event, guardIndex }))
 }

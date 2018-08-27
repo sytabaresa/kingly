@@ -16,7 +16,7 @@ export const NO_MODEL_UPDATE = [];
 export const NO_OUTPUT = null;
 export const ACTION_IDENTITY = function ACTION_IDENTITY(){
   return {
-    output : NO_OUTPUT,
+    outputs : NO_OUTPUT,
     model_update : NO_MODEL_UPDATE
   }
 }
