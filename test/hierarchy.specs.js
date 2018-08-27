@@ -220,7 +220,10 @@ QUnit.test("INIT event multi transitions, CASCADING inner INIT event transitions
           {
             "op": "add",
             "path": "/c",
-            "value": null // TODO
+            "value": {
+              "data": "valueC",
+              "error": null
+            }
           },
           {
             "op": "add",
@@ -336,36 +339,68 @@ QUnit.test("eventless transition, INIT event multi transitions, CASCADING inner 
   const outputSequence = inputSequence.map(fsm.yield);
   const formattedResults = outputSequence.map(output => output.map(formatResult));
   assert.deepEqual(formattedResults, [
-    [{
-      "actionFactory": "ACTION_IDENTITY",
-      "controlState": "EVENTLESS",
-      "event": {
-        "eventData": {
+    [
+      {
+        "actionFactory": "ACTION_IDENTITY",
+        "controlState": INIT_STATE,
+        "event": {
+          "eventData": {
+            "reviewed": false,
+            "switch": false
+          },
+          "eventLabel": INIT_EVENT
+        },
+        "extendedState": {
           "reviewed": false,
           "switch": false
         },
-        "eventLabel": undefined
+        "guardIndex": 1,
+        "model_update": [],
+        "newExtendedState": {
+          "reviewed": false,
+          "switch": false
+        },
+        "outputs": null,
+        "predicate": "isSwitchOff",
+        "settings": {
+          "merge": "merge",
+          "of": "anonymous",
+          "subject_factory": "subject_factory"
+        },
+        "targetControlState": "EVENTLESS",
+        "transitionIndex": 0
       },
-      "extendedState": {
-        "reviewed": false,
-        "switch": false
-      },
-      "guardIndex": 0,
-      "model_update": [],
-      "newExtendedState": {
-        "reviewed": false,
-        "switch": false
-      },
-      "outputs": null,
-      "predicate": undefined,
-      "settings": {
-        "merge": "merge",
-        "of": "anonymous",
-        "subject_factory": "subject_factory"
-      },
-      "targetControlState": "B",
-      "transitionIndex": 2
-    }],
+      {
+        "actionFactory": "ACTION_IDENTITY",
+        "controlState": "EVENTLESS",
+        "event": {
+          "eventData": {
+            "reviewed": false,
+            "switch": false
+          },
+          "eventLabel": undefined
+        },
+        "extendedState": {
+          "reviewed": false,
+          "switch": false
+        },
+        "guardIndex": 0,
+        "model_update": [],
+        "newExtendedState": {
+          "reviewed": false,
+          "switch": false
+        },
+        "outputs": null,
+        "predicate": undefined,
+        "settings": {
+          "merge": "merge",
+          "of": "anonymous",
+          "subject_factory": "subject_factory"
+        },
+        "targetControlState": "B",
+        "transitionIndex": 2
+      }
+    ],
     [{
       "actionFactory": "setBdata",
       "controlState": "B",
@@ -396,7 +431,7 @@ QUnit.test("eventless transition, INIT event multi transitions, CASCADING inner 
         "reviewed": false,
         "switch": false
       },
-      "outputs": undefined,
+      "outputs": null,
       "predicate": undefined,
       "settings": {
         "merge": "merge",
@@ -406,53 +441,110 @@ QUnit.test("eventless transition, INIT event multi transitions, CASCADING inner 
       "targetControlState": "C",
       "transitionIndex": 3
     }],
-    [{
-      "actionFactory": "ACTION_IDENTITY",
-      "controlState": "INNER_GROUP_D",
-      "event": {
-        "eventData": {
-          "data": "valueC",
-          "valid": true
+    [
+      {
+        "actionFactory": "setCvalidData",
+        "controlState": "C",
+        "event": {
+          "eventData": {
+            "data": "valueC",
+            "valid": true
+          },
+          "eventLabel": "click"
         },
-        "eventLabel": "init"
+        "extendedState": {
+          "b": {
+            "keyB": "valueB"
+          },
+          "reviewed": false,
+          "switch": false
+        },
+        "guardIndex": 0,
+        "model_update": [
+          {
+            "op": "add",
+            "path": "/c",
+            "value": {
+              "data": "valueC",
+              "error": null
+            }
+          },
+          {
+            "op": "add",
+            "path": "/switch",
+            "value": true
+          }
+        ],
+        "newExtendedState": {
+          "b": {
+            "keyB": "valueB"
+          },
+          "c": {
+            "data": "valueC",
+            "error": null
+          },
+          "reviewed": false,
+          "switch": true
+        },
+        "outputs": null,
+        "predicate": "isValid",
+        "settings": {
+          "merge": "merge",
+          "of": "anonymous",
+          "subject_factory": "subject_factory"
+        },
+        "targetControlState": "INNER_GROUP_D",
+        "transitionIndex": 4
       },
-      "extendedState": {
-        "b": {
-          "keyB": "valueB"
+      {
+        "actionFactory": "ACTION_IDENTITY",
+        "controlState": "INNER_GROUP_D",
+        "event": {
+          "eventData": {
+            "data": "valueC",
+            "valid": true
+          },
+          "eventLabel": "init"
         },
-        "c": {
-          "data": "valueC",
-          "error": null
+        "extendedState": {
+          "b": {
+            "keyB": "valueB"
+          },
+          "c": {
+            "data": "valueC",
+            "error": null
+          },
+          "reviewed": false,
+          "switch": true
         },
-        "reviewed": false,
-        "switch": true
-      },
-      "guardIndex": 0,
-      "model_update": [],
-      "newExtendedState": {
-        "b": {
-          "keyB": "valueB"
+        "guardIndex": 0,
+        "model_update": [],
+        "newExtendedState": {
+          "b": {
+            "keyB": "valueB"
+          },
+          "c": {
+            "data": "valueC",
+            "error": null
+          },
+          "reviewed": false,
+          "switch": true
         },
-        "c": {
-          "data": "valueC",
-          "error": null
+        "outputs": null,
+        "predicate": undefined,
+        "settings": {
+          "merge": "merge",
+          "of": "anonymous",
+          "subject_factory": "subject_factory"
         },
-        "reviewed": false,
-        "switch": true
-      },
-      "outputs": null,
-      "predicate": undefined,
-      "settings": {
-        "merge": "merge",
-        "of": "anonymous",
-        "subject_factory": "subject_factory"
-      },
-      "targetControlState": "D",
-      "transitionIndex": 9
-    }]
+        "targetControlState": "D",
+        "transitionIndex": 9
+      }
+    ]
   ], `eventless transitions are correctly taken`);
 });
 
+// TODO : continue with adding the init transition not present NO there is no trace here?
 QUnit.test("history transitions, INIT event CASCADING transitions", function exec_test(assert) {
   // TODO : cf.
   // https://hfsm.collaborative-design.org/?project=HFSM%2BExamples&branch=master&node=%2Fo&visualizer=HFSMViz&tab=0&layout=DefaultLayout&selection=%2Fo%2Fr%2Fy
@@ -509,7 +601,7 @@ QUnit.test("history transitions, INIT event CASCADING transitions", function exe
   // Fix bug : action output is not output for history states!! What to do with
 });
 
-QUnit.test("with trace : history transitions, INIT event CASCADING transitions", function exec_test(assert) {
+QUnit.skip("with trace : history transitions, INIT event CASCADING transitions", function exec_test(assert) {
   // TODO : cf.
   // https://hfsm.collaborative-design.org/?project=HFSM%2BExamples&branch=master&node=%2Fo&visualizer=HFSMViz&tab=0&layout=DefaultLayout&selection=%2Fo%2Fr%2Fy
   const OUTER = 'OUTER';
