@@ -12,14 +12,13 @@
 // break out of it, maybe put a guard that if we remain in the same state for X steps,
 // transition automatically (to error or else)
 
-// TODO : add a null event notion. If a null input is received return a null output, taht means no event
-// TODO : in streaming, ignore automatically null events. We don't have a choice but to return null output in the
-// normal autoamta. However null could be a valid return, so using a NULL_OUTPUT variable or SYMBOL??!!  We
-// basically simulate a Maybe Input -> Maybe Output
-// TODO : as a isActualOutput function to discriminate out the Maybe
-
-import { ACTION_IDENTITY, AUTO_EVENT, INIT_EVENT, INIT_STATE, NO_OUTPUT, STATE_PROTOTYPE_NAME } from "./properties";
-import { applyUpdateOperations, get_fn_name, getFsmStateList, keys, mapOverTransitionsActions, wrap, arrayizeOutput } from "./helpers";
+import {
+  ACTION_IDENTITY, AUTO_EVENT, DEEP, history_symbol, INIT_EVENT, INIT_STATE, NO_OUTPUT, SHALLOW, STATE_PROTOTYPE_NAME
+} from "./properties";
+import {
+  applyUpdateOperations, arrayizeOutput, get_fn_name, getFsmStateList, keys, mapOverTransitionsActions, wrap
+} from "./helpers";
+import { DFS, objectTreeLenses, traverseObj } from "fp-rosetree"
 
 /**
  * Takes a list of identifiers (strings), adds init to it, and returns a hash whose properties are
@@ -201,18 +200,82 @@ export function build_state_enum(states) {
   return states_enum;
 }
 
+export function computeHistoryMaps(control_states) {
+  // TODO: I am here
+  const { getLabel, isLeafLabel } = objectTreeLenses;
+  const traverse = {
+    strategy: DFS,
+    seed: { stateList:{}, stateAncestors: { [DEEP]: {}, [SHALLOW]: {} } },
+    visit: (acc, traversalState, tree) => {
+      const treeLabel = getLabel(tree);
+      const controlState = Object.keys(treeLabel)[0];
+      acc.stateList[controlState] = "";
+
+      // NOTE : we don't have to worry about path having only one element
+      // that case correspond to the root of the tree which is excluded from visiting
+      const { path } = traversalState.get(tree);
+      traversalState.set(JSON.stringify(path), controlState);
+      const parentPath = path.slice(0, -1);
+      if (parentPath.length === 1) {
+        // That's the root
+        traversalState.set(JSON.stringify(parentPath), INIT_STATE);
+      }
+      else {
+        const parentControlState = traversalState.get(JSON.stringify(parentPath));
+        acc.stateAncestors[SHALLOW][controlState] = parentControlState;
+
+        if (isLeafLabel(treeLabel)) {
+          // we have an atomic state : build the ancestor list in one go
+          path.reduce((acc,_) => {
+            const parentPath = acc.path.slice(0, -1);
+            acc.path = parentPath;
+            if (parentPath.length > 1) {
+              const parentControlState = traversalState.get(JSON.stringify(parentPath));
+              acc.ancestors = acc.ancestors.concat(parentControlState);
+            }
+
+            return acc
+              // TODO :edge case no states!! {}, or only one state
+          }, {ancestors :[], path});
+          acc.stateAncestors[DEEP][controlState] = (acc.stateAncestors[DEEP][controlState] || []).concat(parentControlState);
+        }
+      }
+
+      return acc
+    }
+  };
+  const { stateList, stateAncestors } = traverseObj(traverse, control_states);
+
+  return { stateList, stateAncestors }
+}
+
+function getHistory(history, control_states) {
+  const { stateList, stateAncestors } = computeHistoryMaps(control_states);
+  // TODO: two lists : one with state -> parent, one with state -> ancestors
+  const initHistory = stateList.reduce((acc, state) => (acc[state] = {}, acc), {});
+  return {
+    [DEEP]: initHistory,
+    [SHALLOW]: initHistory,
+    updateWith: state_from_name => {
+      [SHALLOW, DEEP].forEach(historyType => {
+        const ancestors = stateAncestors[historyType];
+        ancestors.reduce((acc, ancestor) => {
+          acc[ancestor] = state_from_name
+
+          return acc
+        }, history[historyType]);
+      });
+
+      return history
+    }
+  };
+}
+
 /**
- * TODO : DOC transition mechanism
- * - transition format
- *   - events : if not present, then actions become automatic
- *   // DOC : only document the array : always array even if only one condition
- *   - condition(s) : if several, pass them in an array (field `conditions`), the order of the
- * array is the order of applying the conditions. When a single condition (field `condition`) When
- * the first is found true, the sequence of condition checking stops there
- *   - action : function (model, event_data, settings) : {outputs, update_state}
- *   - from : state from which the described transition operates
- *   - to : target state for the described transition
+ * Creates an instance of state machine from a set of states, transitions, and accepted events. The initial
+ * extended state for the machine is included in the machine definition.
  * @param {FSM_Def} fsmDef
+ * TODO : get rid of the subject factory! what is the merge for??
  * @param {{subject_factory: Function, merge: Function}} settings Contains the subject factory as mandatory settings,
  * and any other. The `merge` settings is mandatory only when using the streaming state machine functionality
  * extra settings the API user wants to make available in state machine's scope
@@ -229,7 +292,6 @@ export function create_state_machine(fsmDef, settings) {
   if (!subject_factory)
     throw `create_state_machine : cannot find a subject factory (use Rxjs subject??)`;
 
-//  const _control_states = build_state_enum(control_states); // TODO : to remove when rewrote history mechanism
   const _events = build_event_enum(events);
 
   // Create the nested hierarchical
@@ -243,6 +305,10 @@ export function create_state_machine(fsmDef, settings) {
   // outside the state machine. Note also that the model is only modified through JSON patch operations which create
   // a new model every time. There is hence no need to do any cloning.
   let model = initial_extended_state;
+  // history maps
+  let history = {};
+  history = getHistory(history, control_states);
+
   // {Object<state_name,boolean>}, allows to know whether a state has a init transition defined
   let is_init_state = {};
   // {Object<state_name,boolean>}, allows to know whether a state has an automatic transition defined
@@ -288,7 +354,7 @@ export function create_state_machine(fsmDef, settings) {
         let action = guard.action;
         if (!action) {
           action = ACTION_IDENTITY
-        }// TODO
+        }
         console.log("Guard:", guard);
         const condition_checking_fn = (function (guard, settings) {
           let condition_suffix = "";
@@ -423,7 +489,7 @@ export function create_state_machine(fsmDef, settings) {
         const auto_event = is_init_state[new_current_state]
           ? INIT_EVENT
           : AUTO_EVENT;
-        return outputs.concat(send_event({ [auto_event]: event_data }));
+        return [].concat(outputs).concat(send_event({ [auto_event]: event_data }));
       } else return outputs;
     } else {
       // CASE : There is no transition associated to that event from that state
@@ -437,6 +503,10 @@ export function create_state_machine(fsmDef, settings) {
     // NOTE : model is passed as a parameter for symetry reasons, no real use for it so far
     const state_from = hash_states[from];
     const state_from_name = state_from.name;
+
+    // TODO : I am here
+    // TODO : from is the state we leave , so update the parent of that state (shallow)
+    history.updateWith(state_from_name);
 
     // Set the `last_seen_state` property in the object representing that state's state (!)...
     state_from.history.last_seen_state = state_from_name;
@@ -464,18 +534,26 @@ export function create_state_machine(fsmDef, settings) {
     let state_to;
     let state_to_name;
     // CASE : history state (H)
-    if (typeof to === "function") {
-      state_to_name = remove_trailing_underscore(get_fn_name(to));
-
-      const target_state = hash_states[state_to_name].history.last_seen_state;
-      state_to_name = target_state
-        ? // CASE : history state (H) && existing history, target state is the last seen state
-        target_state
-        : // CASE : history state (H) && no history (i.e. first time state is entered), target state
-          // is the entered state
-        state_to_name;
+    // TODO : I am here
+    if (typeof to === "object" && to.type === history_symbol) {
+      const history_type = to.deep ? DEEP : to.shallow ? SHALLOW : void 0;
+      const history_target = to[history_type];
+      // Edge case : history state (H) && no history (i.e. first time state is entered), target state
+      // is the entered state
+      state_to_name = history[history_type][history_target] || history_target;
       state_to = hash_states[state_to_name];
-    } else if (to) {
+    }
+    // if (typeof to === "function") {
+    //   state_to_name = remove_trailing_underscore(get_fn_name(to));
+    //
+    //   const target_state = hash_states[state_to_name].history.last_seen_state;
+    //   state_to_name = target_state
+    //     ? // CASE : history state (H) && existing history, target state is the last seen state
+    //     target_state
+    //     state_to_name;
+    //   state_to = hash_states[state_to_name];
+    // }
+    else if (to) {
       // CASE : normal state
       state_to = hash_states[to];
       state_to_name = state_to.name;
@@ -583,7 +661,7 @@ export function makeNamedActionsFactory(namedActionSpecs) {
  */
 export function decorateWithEntryActions(fsm, entryActions, mergeOutputFn) {
   const { transitions, states, initial_extended_state, events } = fsm;
-  const stateHashMap = getFsmStateList(fsm);
+  const stateHashMap = getFsmStateList(states);
   const isValidEntryActions = Object.keys(entryActions).every(controlState => {
     return stateHashMap[controlState] != null;
   });
@@ -722,37 +800,41 @@ export function traceFSM(env, fsm) {
   }
 }
 
+/**
+ * Construct history states `hs` from a list of states for a given state machine. The history states for a given control
+ * state can then be referenced as follows :
+ * - `hs.shallow(state)` will be the shallow history state associated to the `state`
+ * - `hs.deep(state)` will be the deep history state associated to the `state`
+ * @param {Object.<ControlState, *>} states
+ */
+export function makeHistoryStates(states) {
+  const stateList = getFsmStateList(states);
+  // used for referential equality comparison to discriminate history type
+
+  return {
+    shallow: state => {
+      if (!stateList.includes(state)) {
+        throw `makeHistoryStates: the state for which a history state must be constructed is not a configured state for the state machine under implementation!!`
+      }
+
+      return {
+        [SHALLOW]: state,
+        type: history_symbol
+      }
+    },
+    deep: state => {
+      if (!stateList.includes(state)) {
+        throw `makeHistoryStates: the state for which a history state must be constructed is not a configured state for the state machine under implementation!!`
+      }
+
+      return {
+        [DEEP]: state,
+        type: history_symbol
+      }
+    }
+  }
+}
+
 // TODO DOC: beware not to modify settings, it is passed by reference and not cloned!!
 // TODO DOC: explain hierarchy, initial events, auto events, and other contracts
 // TODO DOC: document the obs merge settings (+filter necessary on prototype)
-
-/* test plan
-Case non-hierarchical state machine :
-A -> B with event[ guard ] / action
-action -> {update state, output] | exception
-update_state = [no update, update 1, update 2, malformed] (I need to update to test composition of updates. Ideally they should be chosen such that order matters, and not idempotent (use JSON patch push possibility))
-output = [no output, {model, event_data} - not cloned, to check immutable, malformed]
-event -> [init, event1, event2, unknown event]
-guard -> [T, F, exception]
-// TODO : I should also clone settings prior to usage, so it is not modified later on inadvertently
-
-  Then Machines = [States x Transitions x event[ guard ] / action]
-    States in [Init, State1, State2, State3]
-    Transitions in [pick two states in States possibly the same]
-
-So stage 1 : input generation
-   Stage 2 : for the generated input, guess the right result and then check vs. actual run
-
-Edge case : malformed state machine : write checker of well-formed (to test too then...)
-
-So Model based Testing algorithm :
-- accumulator initialized to null
-- generate set of states -> accumulator
-- generate set of transitions -> accumulator
-- generate event sequence -> accumulator
-- generate guard -> accumulator
-- generate actions -> accumulator
-
-Now I want to generate some more interesting cases than other, rather than go with exhaustive testing
-*/
-

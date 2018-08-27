@@ -220,7 +220,7 @@ export function getGeneratorMapFromGeneratorMachine(generators) {
  */
 export function convertFSMtoGraph(tracedFSM) {
   const { transitions } = tracedFSM;
-  const vertices = Object.keys(getFsmStateList(tracedFSM)).concat(INIT_STATE);
+  const vertices = Object.keys(getFsmStateList(tracedFSM.states)).concat(INIT_STATE);
   const edges = reduceTransitions((acc, transition, guardIndex, transitionIndex) => {
     const { from, event, to, action, predicate } = transition;
     return acc.concat({ from, event, to, action, predicate, guardIndex, transitionIndex })

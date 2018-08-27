@@ -20,3 +20,6 @@ export const ACTION_IDENTITY = function ACTION_IDENTITY(){
     model_update : NO_MODEL_UPDATE
   }
 }
+export const history_symbol = {};
+export const SHALLOW = 'shallow';
+export const DEEP = 'deep';

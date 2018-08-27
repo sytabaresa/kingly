@@ -217,8 +217,7 @@ function formatActionName(action, from, event, to, predicate) {
   return `${formattedAction}:${from}-${event}->${to} ${formattedPredicate}`;
 }
 
-export function getFsmStateList(fsm) {
-  const { states } = fsm;
+export function getFsmStateList(states) {
   const { getLabel } = objectTreeLenses;
   const traverse = {
     strategy: PRE_ORDER,
