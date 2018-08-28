@@ -19,7 +19,6 @@ import {
   applyUpdateOperations, arrayizeOutput, computeHistoryMaps, get_fn_name, getFsmStateList, keys,
   mapOverTransitionsActions, wrap
 } from "./helpers";
-import { DFS } from "fp-rosetree"
 
 /**
  * Takes a list of identifiers (strings), adds init to it, and returns a hash whose properties are
@@ -59,14 +58,11 @@ function build_event_enum(array_identifiers) {
  * `states.history` {Object<String,Function>} : Hash which maps every state name with a function
  * whose name is the state name
  * @param states
- * @param event_emitter_factory
  * @returns {{hash_states: {}, is_group_state: {}}}
  */
-function build_nested_state_structure(states, event_emitter_factory) {
+function build_nested_state_structure(states) {
   const root_name = "State";
-  const last_seen_state_event_emitter = event_emitter_factory();
   let hash_states = {};
-  let last_seen_state_listener_disposables = [];
   let is_group_state = {};
 
   // Add the starting state
@@ -74,32 +70,9 @@ function build_nested_state_structure(states, event_emitter_factory) {
 
   ////////
   // Helper functions
-  function add_last_seen_state_listener(child_name, parent_name) {
-    last_seen_state_listener_disposables.push(
-      last_seen_state_event_emitter.subscribe(function (x) {
-        const event_emitter_name = x.event_emitter_name;
-        const last_seen_state_name = x.last_seen_state_name;
-        if (event_emitter_name === child_name) {
-          console.log(
-            [
-              "last seen state set to",
-              wrap(last_seen_state_name),
-              "in",
-              wrap(parent_name)
-            ].join(" ")
-          );
-          hash_states[
-            parent_name
-            ].history.last_seen_state = last_seen_state_name;
-        }
-      })
-    );
-  }
-
   function build_state_reducer(states, curr_constructor) {
     keys(states).forEach(function (state_name) {
       const state_config = states[state_name];
-      let curr_constructor_new;
 
       // The hierarchical state mechanism is implemented by reusing the standard Javascript
       // prototypal inheritance If A < B < C, then C has a B as prototype which has an A as
@@ -111,25 +84,11 @@ function build_nested_state_structure(states, event_emitter_factory) {
         curr_constructor
       ));
       hash_states[state_name].root_name = root_name;
-      hash_states[state_name].history = { last_seen_state: null };
       hash_states[state_name].active = false;
-
-      // Set up the listeners for propagating the last seen state up the prototypal chain
-      // Prototypal inheritance only works in one direction, we need to implement the other
-      // direction by hand if A < B < C is a state hierarchy, to implement correctly the history
-      // mechanism, we need the last seen state to be the same throughout the whole hierarchy.
-      // Prototypal inheritance does not help here as it works in the opposite direction. So we
-      // resort to an event emitter (here an RxJS subject) which connect C and B, B and A. When
-      // state C is abandoned, then it updates it `last_seen_state` property and emits a change
-      // event, B is subscribed to it, and updates its property and emits a change. A is subscribed
-      // to B changes, so that the change event is propagated recursively up the hierarchy. This is
-      // a reactive mechanim which is simpler that the interactive one where you adjust the whole
-      // hierarchy when state C is abandoned.
-      add_last_seen_state_listener(state_name, parent_name);
 
       if (typeof state_config === "object") {
         is_group_state[state_name] = true;
-        eval(["curr_constructor_new = function", state_name, "(){}"].join(" "));
+        const curr_constructor_new = function (){};
         curr_constructor_new.displayName = state_name;
         curr_constructor_new.prototype = hash_states[state_name];
         build_state_reducer(state_config, curr_constructor_new);
@@ -138,15 +97,9 @@ function build_nested_state_structure(states, event_emitter_factory) {
   }
 
   function State() {
-    this.history = { last_seen_state: null };
   }
 
-  // The `emitLastSeenStateEvent` is set on the State object which is inherited by all state
-  // objects, so it can be called from all of them when a transition triggers a change of state
   State.prototype = {
-    emitLastSeenStateEvent: function (x) {
-      last_seen_state_event_emitter.emit(x);
-    },
     current_state_name: INIT_STATE
   };
 
@@ -164,10 +117,8 @@ function build_nested_state_structure(states, event_emitter_factory) {
 /**
  * Returns a hash which maps a state name to :
  * - a string identifier which represents the standard state
- * - a function whose name is the state name to represent the state history (set in the `history`
- * property of the hash)
  * @param states A hash describing a hierarchy of nested states
- * @returns {state_name: {String}, {history: {Function}}}
+ * @returns {state_name: {String}}
  */
 export function build_state_enum(states) {
   let states_enum = { history: {} };
@@ -180,15 +131,6 @@ export function build_state_enum(states) {
       const state_config = states[state_name];
 
       states_enum[state_name] = state_name;
-      // All history states will be signalled through the history property, and a function instead
-      // of a value The function name is the state name whose history is referred to
-      let state_name_history_fn;
-      // NOTE : we add an underscore to avoid collision with javascript reserved word (new,
-      // each, ...)
-      eval(
-        ["state_name_history_fn = function", "_" + state_name, "(){}"].join(" ")
-      );
-      states_enum.history[state_name] = state_name_history_fn;
 
       if (typeof state_config === "object") {
         build_state_reducer(state_config);
@@ -234,8 +176,7 @@ export function updateHistory(history, stateAncestors, state_from_name) {
  * Creates an instance of state machine from a set of states, transitions, and accepted events. The initial
  * extended state for the machine is included in the machine definition.
  * @param {FSM_Def} fsmDef
- * TODO : get rid of the subject factory! what is the merge for??
- * @param {{subject_factory: Function, merge: Function}} settings Contains the subject factory as mandatory settings,
+ * @param {*} settings Contains the subject factory as mandatory settings,
  * and any other. The `merge` settings is mandatory only when using the streaming state machine functionality
  * extra settings the API user wants to make available in state machine's scope
  * @returns {{yield : Function, start: Function}}
@@ -247,17 +188,11 @@ export function create_state_machine(fsmDef, settings) {
     transitions,
     initial_extended_state
   } = fsmDef;
-  const subject_factory = settings && settings.subject_factory;
-  if (!subject_factory)
-    throw `create_state_machine : cannot find a subject factory (use Rxjs subject??)`;
 
   const _events = build_event_enum(events);
 
   // Create the nested hierarchical
-  const hash_states_struct = build_nested_state_structure(
-    control_states,
-    subject_factory
-  );
+  const hash_states_struct = build_nested_state_structure(control_states);
 
   // This will be the model object which will be updated by all actions and on which conditions
   // will be evaluated It is safely contained in a closure so it cannot be accessed in any way
@@ -467,29 +402,10 @@ export function create_state_machine(fsmDef, settings) {
     const state_from = hash_states[from];
     const state_from_name = state_from.name;
 
-    // TODO : I am here
-    debugger
     history = updateHistory(history, stateAncestors, state_from_name);
 
-    // Set the `last_seen_state` property in the object representing that state's state (!)...
-    state_from.history.last_seen_state = state_from_name;
     state_from.active = false;
     console.log("left state", wrap(from));
-
-    // ... and emit the change event for the parents up the hierarchy to update also their
-    // last_seen_state properties This updating solution is preferred to an imperative solution, as
-    // it allows not to think too much about how to go up the hierarchy There is no big difference
-    // also, as by default subject emits synchronously their values to all subscribers. The
-    // difference in speed should be neglectable, and anyways it is not expected to have large
-    // state chart depths
-    state_from.emitLastSeenStateEvent({
-      event_emitter_name: state_from_name,
-      last_seen_state_name: state_from_name
-    });
-  }
-
-  function remove_trailing_underscore(str) {
-    return (str[0] === '_') ? str.slice(1) : str
   }
 
   function enter_next_state(to, model_prime, hash_states) {

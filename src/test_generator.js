@@ -2,21 +2,7 @@
 import { constructGraph, depthFirstTraverseGraphEdges } from '../../graph-adt/src'
 import { INIT_STATE } from "./properties"
 import { getFsmStateList, isEventless, isInitEvent, isInitState, lastOf, reduceTransitions } from "./helpers"
-import * as Rx from "rx"
 import { create_state_machine, traceFSM } from "./synchronous_fsm"
-
-const $ = Rx.Observable;
-
-const fsmRxSettings = {
-  subject_factory: () => {
-    const subject = new Rx.Subject();
-    // NOTE : this is intended for Rxjs v4-5!! but should work for most also
-    subject.emit = subject.next || subject.onNext;
-    return subject
-  },
-  merge: function merge(arrayObs) {return $.merge(...arrayObs)},
-  of: $.of,
-};
 
 const graphSettings = {
   getEdgeOrigin: function (edge) {
@@ -84,7 +70,7 @@ export function generateTestsFromFSM(fsm, generators, settings) {
       const { inputSequence } = pathTraversalState;
       // Execute the state machine with the input sequence to get it in the matching control state
       // Note that the machine has to be recreated each time, as it is a stateful object
-      const fsm = create_state_machine(tracedFSM, fsmRxSettings);
+      const fsm = create_state_machine(tracedFSM, {});
       const extendedState = inputSequence.length === 0
         // Edge case : we are in INIT_STATE, the init event has the initial extended state as event data
         ? initial_extended_state
@@ -158,7 +144,7 @@ function computeGeneratedInfoDoNothingCase(fsm, edge, isTraversableEdge, gen, ex
 }
 
 function computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, gen, extendedState, pathTraversalState) {
-  const { event: eventLabel, from: controlState, to :  targetControlState} = edge;
+  const { event: eventLabel, from: controlState, to: targetControlState } = edge;
   const { path, inputSequence, outputSequence, controlStateSequence } = pathTraversalState;
   const { input: newInputData, hasGeneratedInput } = gen(extendedState);
   let noMoreInput, newInputSequence, newOutputSequence, newControlStateSequence, newPath;
@@ -177,7 +163,7 @@ function computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, gen, extende
     const newOutput = fsm.yield(newInput)[0];
     // NOTE : finalControlState is the control state at the end of the associated automatic transitions, if any
     // A -INIT> B -INIT> C ; edge : [A -INIT> B] => finalControlState = C, targetControlState = B
-    const { outputs: untracedOutput, targetControlState : finalControlState} = newOutput;
+    const { outputs: untracedOutput, targetControlState: finalControlState } = newOutput;
     newOutputSequence = outputSequence.concat(untracedOutput);
     newControlStateSequence = controlStateSequence.concat([targetControlState]);
     newPath = path.concat([edge]);

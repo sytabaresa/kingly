@@ -5,7 +5,7 @@ import {
 } from "./properties"
 // import { applyPatch } from "./fast-json-patch/duplex"
 import { applyPatch } from "json-patch-es6"
-import { DFS, objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
+import { PRE_ORDER, objectTreeLenses, traverseObj } from "fp-rosetree"
 
 /**
  * Returns the name of the function as taken from its source definition.
@@ -239,7 +239,7 @@ export function getFsmStateList(states) {
 export function computeHistoryMaps(control_states) {
   const { getLabel, isLeafLabel } = objectTreeLenses;
   const traverse = {
-    strategy: DFS,
+    strategy: PRE_ORDER,
     seed: { stateList:[], stateAncestors: { [DEEP]: {}, [SHALLOW]: {} } },
     visit: (acc, traversalState, tree) => {
       const treeLabel = getLabel(tree);

@@ -1,11 +1,9 @@
 import {
-  ACTION_IDENTITY, build_state_enum, create_state_machine, INIT_EVENT, INIT_STATE, makeHistoryStates, NO_OUTPUT,
-  traceFSM
+  ACTION_IDENTITY, create_state_machine, INIT_EVENT, INIT_STATE, makeHistoryStates, NO_OUTPUT, traceFSM
 } from "../src"
 import { formatResult } from "./helpers"
 import * as QUnit from "qunitjs"
 import * as Rx from "rx"
-import { F, T } from "ramda"
 
 const $ = Rx.Observable;
 
@@ -19,8 +17,6 @@ const default_settings = {
   merge: function merge(arrayObs) {return $.merge(...arrayObs)},
   of: $.of,
 };
-const FALSE_GUARD = function always_false(action, state) {return [{ predicate: F, to: state, action }]};
-const TRUE_GUARD = function always_true(to, action) { return [{ predicate: T, to, action }]};
 
 const EVENT1 = 'event1';
 const EVENT2 = 'event2';
@@ -84,10 +80,6 @@ function setReviewedAndOuput(extendedState, eventData) {
     outputs: extendedState
   }
 }
-
-const dummyB = { keyB: 'valueB' };
-const dummyCv = { valid: true, data: 'valueC' };
-const dummyCi = { valid: false, data: 'invalid key for C' };
 
 QUnit.module("Testing hierarchy features", {});
 
@@ -598,8 +590,8 @@ QUnit.test("shallow history transitions, INIT event CASCADING transitions", func
   const outputSequence = inputSequence.map(fsm.yield);
   const formattedResults = outputSequence.map(output => output && output.map(formatResult));
   assert.deepEqual(formattedResults, [
-    [NO_OUTPUT,NO_OUTPUT],
-    [NO_OUTPUT,NO_OUTPUT],
+    [NO_OUTPUT, NO_OUTPUT],
+    [NO_OUTPUT, NO_OUTPUT],
     NO_OUTPUT,
     NO_OUTPUT,
     [0, NO_OUTPUT]
@@ -660,8 +652,8 @@ QUnit.test("deep history transitions, INIT event CASCADING transitions", functio
   const outputSequence = inputSequence.map(fsm.yield);
   const formattedResults = outputSequence.map(output => output && output.map(formatResult));
   assert.deepEqual(formattedResults, [
-    [NO_OUTPUT,NO_OUTPUT],
-    [NO_OUTPUT,NO_OUTPUT],
+    [NO_OUTPUT, NO_OUTPUT],
+    [NO_OUTPUT, NO_OUTPUT],
     NO_OUTPUT,
     NO_OUTPUT,
     [0]

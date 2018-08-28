@@ -5,7 +5,6 @@ import { ACTION_IDENTITY, computeTimesCircledOn, generateTestsFromFSM, INIT_EVEN
 import { formatResult } from "./helpers"
 
 const $ = Rx.Observable;
-
 const default_settings = {
   subject_factory: () => {
     const subject = new Rx.Subject();

@@ -1,34 +1,18 @@
 # Now
 ! output now should be array
-  - rename output to outputs to mean it is an array (so if output is array, should return 
-  [output]!!)
-  - action can output NO_OUTPUT or Array<OUTPUT> or OUTPUT
-  - if outputs OUTPUT then turn it into [OUTPUT]
-  - in evaluation detect type of output and homogenize to array
-  - aggregate output on the transition path
   - update the streaming machine
+    - seems to be working??
+    - rewrite with create observable 
   - update the demo and retest 
+    - apparently problem with entry/exit actions...
+    - add tests for it, I don't have any
   - look for all the place I put null (also tests!) and put No_OUTPUT instead then change 
   NO_OUTPUT to {} to see if still works (should use referential equality so should be fine for js)
   - update doc and README
   - update minor version and publish (change it for demo too!!)
 ! might have to code history differently - right now I use event emitter and prototype... AND I 
 USE evil EVAL!!!
-  - I only implement H* i.e. deep history I think (CHECK IT)
-  - current implemntation will only work if I do the state enum probably
-  - change it to a hashmap deep_history[compoundControlState] = atomicState, and adjust that hash
-   for every transition out of `compoundControlState`
-   - that means I need a history test first!! first without tracing, then with tracing
-- add support for tracing
-  ! add history states? that is the last piece of state that is not included. Note that it must 
-  be immutable, i.e. not a reference to a mutable object
-  - change create_state_machine API to return array of output (case of automatic transitions)?
-    - have in settings a mergeOutput?
-      - take the last output in normal behaviour (e.g. default setting)
-      - take all outputs in trace behaviour (e.g. trace setting)
-    - beware of returning an array of outputs!! an output could be an array too, so necessary to 
-    distinguish unequivocally TYPE... maybe use a symbol?? dirty, leave for later
-- add edge cases : 
+- add edge cases for test generation: 
   - history transitions
     - in path state, add the list of control states, including the state when input sequence is 
     run (not the state for the new input)
