@@ -1,5 +1,6 @@
 import {
-  ACTION_IDENTITY, build_state_enum, create_state_machine, INIT_EVENT, INIT_STATE, NO_OUTPUT, traceFSM
+  ACTION_IDENTITY, build_state_enum, create_state_machine, INIT_EVENT, INIT_STATE, makeHistoryStates, NO_OUTPUT,
+  traceFSM
 } from "../src"
 import { formatResult } from "./helpers"
 import * as QUnit from "qunitjs"
@@ -544,8 +545,7 @@ QUnit.test("eventless transition, INIT event multi transitions, CASCADING inner 
   ], `eventless transitions are correctly taken`);
 });
 
-// TODO : continue with adding the init transition not present
-QUnit.test("history transitions, INIT event CASCADING transitions", function exec_test(assert) {
+QUnit.test("shallow history transitions, INIT event CASCADING transitions", function exec_test(assert) {
   // TODO : cf.
   // https://hfsm.collaborative-design.org/?project=HFSM%2BExamples&branch=master&node=%2Fo&visualizer=HFSMViz&tab=0&layout=DefaultLayout&selection=%2Fo%2Fr%2Fy
   const OUTER = 'OUTER';
@@ -607,7 +607,7 @@ QUnit.test("history transitions, INIT event CASCADING transitions", function exe
   // Fix bug : action output is not output for history states!! What to do with
 });
 
-QUnit.test("with trace : history transitions, INIT event CASCADING transitions", function exec_test(assert) {
+QUnit.test("deep history transitions, INIT event CASCADING transitions", function exec_test(assert) {
   // TODO : cf.
   // https://hfsm.collaborative-design.org/?project=HFSM%2BExamples&branch=master&node=%2Fo&visualizer=HFSMViz&tab=0&layout=DefaultLayout&selection=%2Fo%2Fr%2Fy
   const OUTER = 'OUTER';
@@ -618,7 +618,69 @@ QUnit.test("with trace : history transitions, INIT event CASCADING transitions",
   const INNER_T = 'inner_t';
   const Z = 'z';
   const states = { [OUTER]: { [INNER]: { [INNER_S]: '', [INNER_T]: '' }, [OUTER_A]: '', [OUTER_B]: '' }, [Z]: '' };
-  const states_ = build_state_enum(states);
+  const hs = makeHistoryStates(states);
+  const fsmDef = {
+    states,
+    events: [EVENT1, EVENT2, EVENT3, EVENT4],
+    initial_extended_state: { history: DEEP, counter: 0 },
+    transitions: [
+      { from: INIT_STATE, event: INIT_EVENT, to: OUTER, action: ACTION_IDENTITY },
+      { from: OUTER, event: INIT_EVENT, to: OUTER_A, action: ACTION_IDENTITY },
+      { from: OUTER_A, event: EVENT1, to: INNER, action: ACTION_IDENTITY },
+      { from: INNER, event: INIT_EVENT, to: INNER_S, action: ACTION_IDENTITY },
+      { from: INNER_S, event: EVENT3, to: INNER_T, action: ACTION_IDENTITY },
+      { from: INNER_T, event: EVENT3, to: INNER_S, action: ACTION_IDENTITY },
+      { from: INNER, event: EVENT2, to: OUTER_B, action: ACTION_IDENTITY },
+      { from: OUTER, event: EVENT1, to: Z, action: ACTION_IDENTITY },
+      {
+        from: Z, event: EVENT4, guards: [
+          {
+            predicate: function isDeep(x, e) {return x.history === DEEP},
+            to: hs.deep(OUTER),
+            action: incCounter
+          },
+          {
+            predicate: function isShallow(x, e) {return x.history !== DEEP},
+            to: hs.shallow(OUTER),
+            action: incCounter
+          }
+        ]
+      },
+    ],
+  };
+  const settings = default_settings;
+  const inputSequence = [
+    { "init": fsmDef.initial_extended_state },
+    { [EVENT1]: {} },
+    { [EVENT3]: {} },
+    { [EVENT1]: {} },
+    { [EVENT4]: {} },
+  ];
+  const fsm = create_state_machine(fsmDef, settings);
+  const outputSequence = inputSequence.map(fsm.yield);
+  const formattedResults = outputSequence.map(output => output && output.map(formatResult));
+  assert.deepEqual(formattedResults, [
+    [NO_OUTPUT,NO_OUTPUT],
+    [NO_OUTPUT,NO_OUTPUT],
+    NO_OUTPUT,
+    NO_OUTPUT,
+    [0]
+  ], `eventless transitions are correctly taken`);
+  // Fix bug : action output is not output for history states!! What to do with
+});
+
+QUnit.test("with trace : shallow history transitions, INIT event CASCADING transitions", function exec_test(assert) {
+  // TODO : cf.
+  // https://hfsm.collaborative-design.org/?project=HFSM%2BExamples&branch=master&node=%2Fo&visualizer=HFSMViz&tab=0&layout=DefaultLayout&selection=%2Fo%2Fr%2Fy
+  const OUTER = 'OUTER';
+  const INNER = 'INNER';
+  const OUTER_A = 'outer_a';
+  const OUTER_B = 'outer_b';
+  const INNER_S = 'inner_s';
+  const INNER_T = 'inner_t';
+  const Z = 'z';
+  const states = { [OUTER]: { [INNER]: { [INNER_S]: '', [INNER_T]: '' }, [OUTER_A]: '', [OUTER_B]: '' }, [Z]: '' };
+  const hs = makeHistoryStates(states);
   const fsmDef = {
     states,
     events: [EVENT1, EVENT2, EVENT3, EVENT4],
@@ -636,12 +698,12 @@ QUnit.test("with trace : history transitions, INIT event CASCADING transitions",
         from: Z, event: EVENT4, guards: [
           {
             predicate: function isDeep(x, e) {return x.history === DEEP},
-            to: 'TODO:OUTER.H.DEEP',
+            to: hs.deep(OUTER),
             action: incCounter
           },
           {
             predicate: function isShallow(x, e) {return x.history !== DEEP},
-            to: states_.history[OUTER],
+            to: hs.shallow(OUTER),
             action: incCounter
           }
         ]
@@ -660,5 +722,520 @@ QUnit.test("with trace : history transitions, INIT event CASCADING transitions",
   const fsm = create_state_machine(traceFSM({}, fsmDef), settings);
   const outputSequence = inputSequence.map(fsm.yield);
   const formattedResults = outputSequence.map(output => output.map(formatResult));
-  assert.deepEqual(formattedResults, [], `eventless transitions are correctly taken`);
+  assert.deepEqual(formattedResults,
+    [
+      [
+        {
+          "actionFactory": "ACTION_IDENTITY",
+          "controlState": "nok",
+          "event": {
+            "eventData": {
+              "counter": 0,
+              "history": "shallow"
+            },
+            "eventLabel": "init"
+          },
+          "extendedState": {
+            "counter": 0,
+            "history": "shallow"
+          },
+          "guardIndex": 0,
+          "model_update": [],
+          "newExtendedState": {
+            "counter": 0,
+            "history": "shallow"
+          },
+          "outputs": null,
+          "predicate": undefined,
+          "settings": {
+            "merge": "merge",
+            "of": "anonymous",
+            "subject_factory": "subject_factory"
+          },
+          "targetControlState": "OUTER",
+          "transitionIndex": 0
+        },
+        {
+          "actionFactory": "ACTION_IDENTITY",
+          "controlState": "OUTER",
+          "event": {
+            "eventData": {
+              "counter": 0,
+              "history": "shallow"
+            },
+            "eventLabel": "init"
+          },
+          "extendedState": {
+            "counter": 0,
+            "history": "shallow"
+          },
+          "guardIndex": 0,
+          "model_update": [],
+          "newExtendedState": {
+            "counter": 0,
+            "history": "shallow"
+          },
+          "outputs": null,
+          "predicate": undefined,
+          "settings": {
+            "merge": "merge",
+            "of": "anonymous",
+            "subject_factory": "subject_factory"
+          },
+          "targetControlState": "outer_a",
+          "transitionIndex": 1
+        }
+      ],
+      [
+        {
+          "actionFactory": "ACTION_IDENTITY",
+          "controlState": "outer_a",
+          "event": {
+            "eventData": {},
+            "eventLabel": "event1"
+          },
+          "extendedState": {
+            "counter": 0,
+            "history": "shallow"
+          },
+          "guardIndex": 0,
+          "model_update": [],
+          "newExtendedState": {
+            "counter": 0,
+            "history": "shallow"
+          },
+          "outputs": null,
+          "predicate": undefined,
+          "settings": {
+            "merge": "merge",
+            "of": "anonymous",
+            "subject_factory": "subject_factory"
+          },
+          "targetControlState": "INNER",
+          "transitionIndex": 2
+        },
+        {
+          "actionFactory": "ACTION_IDENTITY",
+          "controlState": "INNER",
+          "event": {
+            "eventData": {},
+            "eventLabel": "init"
+          },
+          "extendedState": {
+            "counter": 0,
+            "history": "shallow"
+          },
+          "guardIndex": 0,
+          "model_update": [],
+          "newExtendedState": {
+            "counter": 0,
+            "history": "shallow"
+          },
+          "outputs": null,
+          "predicate": undefined,
+          "settings": {
+            "merge": "merge",
+            "of": "anonymous",
+            "subject_factory": "subject_factory"
+          },
+          "targetControlState": "inner_s",
+          "transitionIndex": 3
+        }
+      ],
+      [
+        {
+          "actionFactory": "ACTION_IDENTITY",
+          "controlState": "inner_s",
+          "event": {
+            "eventData": {},
+            "eventLabel": "event3"
+          },
+          "extendedState": {
+            "counter": 0,
+            "history": "shallow"
+          },
+          "guardIndex": 0,
+          "model_update": [],
+          "newExtendedState": {
+            "counter": 0,
+            "history": "shallow"
+          },
+          "outputs": null,
+          "predicate": undefined,
+          "settings": {
+            "merge": "merge",
+            "of": "anonymous",
+            "subject_factory": "subject_factory"
+          },
+          "targetControlState": "inner_t",
+          "transitionIndex": 4
+        }
+      ],
+      [
+        {
+          "actionFactory": "ACTION_IDENTITY",
+          "controlState": "OUTER",
+          "event": {
+            "eventData": {},
+            "eventLabel": "event1"
+          },
+          "extendedState": {
+            "counter": 0,
+            "history": "shallow"
+          },
+          "guardIndex": 0,
+          "model_update": [],
+          "newExtendedState": {
+            "counter": 0,
+            "history": "shallow"
+          },
+          "outputs": null,
+          "predicate": undefined,
+          "settings": {
+            "merge": "merge",
+            "of": "anonymous",
+            "subject_factory": "subject_factory"
+          },
+          "targetControlState": "z",
+          "transitionIndex": 7
+        }
+      ],
+      [
+        {
+          "actionFactory": "incCounter",
+          "controlState": "z",
+          "event": {
+            "eventData": {},
+            "eventLabel": "event4"
+          },
+          "extendedState": {
+            "counter": 0,
+            "history": "shallow"
+          },
+          "guardIndex": 1,
+          "model_update": [
+            {
+              "op": "add",
+              "path": "/counter",
+              "value": 1
+            }
+          ],
+          "newExtendedState": {
+            "counter": 1,
+            "history": "shallow"
+          },
+          "outputs": 0,
+          "predicate": "isShallow",
+          "settings": {
+            "merge": "merge",
+            "of": "anonymous",
+            "subject_factory": "subject_factory"
+          },
+          "targetControlState": {
+            "shallow": "OUTER",
+            "type": {}
+          },
+          "transitionIndex": 8
+        },
+        {
+          "actionFactory": "ACTION_IDENTITY",
+          "controlState": "INNER",
+          "event": {
+            "eventData": {},
+            "eventLabel": "init"
+          },
+          "extendedState": {
+            "counter": 1,
+            "history": "shallow"
+          },
+          "guardIndex": 0,
+          "model_update": [],
+          "newExtendedState": {
+            "counter": 1,
+            "history": "shallow"
+          },
+          "outputs": null,
+          "predicate": undefined,
+          "settings": {
+            "merge": "merge",
+            "of": "anonymous",
+            "subject_factory": "subject_factory"
+          },
+          "targetControlState": "inner_s",
+          "transitionIndex": 3
+        }
+      ]
+    ], `eventless transitions are correctly taken`);
+});
+
+QUnit.test("with trace : deep history transitions, INIT event CASCADING transitions", function exec_test(assert) {
+  // TODO : cf.
+  // https://hfsm.collaborative-design.org/?project=HFSM%2BExamples&branch=master&node=%2Fo&visualizer=HFSMViz&tab=0&layout=DefaultLayout&selection=%2Fo%2Fr%2Fy
+  const OUTER = 'OUTER';
+  const INNER = 'INNER';
+  const OUTER_A = 'outer_a';
+  const OUTER_B = 'outer_b';
+  const INNER_S = 'inner_s';
+  const INNER_T = 'inner_t';
+  const Z = 'z';
+  const states = { [OUTER]: { [INNER]: { [INNER_S]: '', [INNER_T]: '' }, [OUTER_A]: '', [OUTER_B]: '' }, [Z]: '' };
+  const hs = makeHistoryStates(states);
+  const fsmDef = {
+    states,
+    events: [EVENT1, EVENT2, EVENT3, EVENT4],
+    initial_extended_state: { history: DEEP, counter: 0 },
+    transitions: [
+      { from: INIT_STATE, event: INIT_EVENT, to: OUTER, action: ACTION_IDENTITY },
+      { from: OUTER, event: INIT_EVENT, to: OUTER_A, action: ACTION_IDENTITY },
+      { from: OUTER_A, event: EVENT1, to: INNER, action: ACTION_IDENTITY },
+      { from: INNER, event: INIT_EVENT, to: INNER_S, action: ACTION_IDENTITY },
+      { from: INNER_S, event: EVENT3, to: INNER_T, action: ACTION_IDENTITY },
+      { from: INNER_T, event: EVENT3, to: INNER_S, action: ACTION_IDENTITY },
+      { from: INNER, event: EVENT2, to: OUTER_B, action: ACTION_IDENTITY },
+      { from: OUTER, event: EVENT1, to: Z, action: ACTION_IDENTITY },
+      {
+        from: Z, event: EVENT4, guards: [
+          {
+            predicate: function isDeep(x, e) {return x.history === DEEP},
+            to: hs.deep(OUTER),
+            action: incCounter
+          },
+          {
+            predicate: function isShallow(x, e) {return x.history !== DEEP},
+            to: hs.shallow(OUTER),
+            action: incCounter
+          }
+        ]
+      },
+    ],
+  };
+  const settings = default_settings;
+  const inputSequence = [
+    { "init": fsmDef.initial_extended_state },
+    // TODO
+    { [EVENT1]: {} },
+    { [EVENT3]: {} },
+    { [EVENT1]: {} },
+    { [EVENT4]: {} },
+  ];
+  const fsm = create_state_machine(traceFSM({}, fsmDef), settings);
+  const outputSequence = inputSequence.map(fsm.yield);
+  const formattedResults = outputSequence.map(output => output.map(formatResult));
+  assert.deepEqual(formattedResults,
+    [
+      [
+        {
+          "actionFactory": "ACTION_IDENTITY",
+          "controlState": "nok",
+          "event": {
+            "eventData": {
+              "counter": 0,
+              "history": "deep"
+            },
+            "eventLabel": "init"
+          },
+          "extendedState": {
+            "counter": 0,
+            "history": "deep"
+          },
+          "guardIndex": 0,
+          "model_update": [],
+          "newExtendedState": {
+            "counter": 0,
+            "history": "deep"
+          },
+          "outputs": null,
+          "predicate": undefined,
+          "settings": {
+            "merge": "merge",
+            "of": "anonymous",
+            "subject_factory": "subject_factory"
+          },
+          "targetControlState": "OUTER",
+          "transitionIndex": 0
+        },
+        {
+          "actionFactory": "ACTION_IDENTITY",
+          "controlState": "OUTER",
+          "event": {
+            "eventData": {
+              "counter": 0,
+              "history": "deep"
+            },
+            "eventLabel": "init"
+          },
+          "extendedState": {
+            "counter": 0,
+            "history": "deep"
+          },
+          "guardIndex": 0,
+          "model_update": [],
+          "newExtendedState": {
+            "counter": 0,
+            "history": "deep"
+          },
+          "outputs": null,
+          "predicate": undefined,
+          "settings": {
+            "merge": "merge",
+            "of": "anonymous",
+            "subject_factory": "subject_factory"
+          },
+          "targetControlState": "outer_a",
+          "transitionIndex": 1
+        }
+      ],
+      [
+        {
+          "actionFactory": "ACTION_IDENTITY",
+          "controlState": "outer_a",
+          "event": {
+            "eventData": {},
+            "eventLabel": "event1"
+          },
+          "extendedState": {
+            "counter": 0,
+            "history": "deep"
+          },
+          "guardIndex": 0,
+          "model_update": [],
+          "newExtendedState": {
+            "counter": 0,
+            "history": "deep"
+          },
+          "outputs": null,
+          "predicate": undefined,
+          "settings": {
+            "merge": "merge",
+            "of": "anonymous",
+            "subject_factory": "subject_factory"
+          },
+          "targetControlState": "INNER",
+          "transitionIndex": 2
+        },
+        {
+          "actionFactory": "ACTION_IDENTITY",
+          "controlState": "INNER",
+          "event": {
+            "eventData": {},
+            "eventLabel": "init"
+          },
+          "extendedState": {
+            "counter": 0,
+            "history": "deep"
+          },
+          "guardIndex": 0,
+          "model_update": [],
+          "newExtendedState": {
+            "counter": 0,
+            "history": "deep"
+          },
+          "outputs": null,
+          "predicate": undefined,
+          "settings": {
+            "merge": "merge",
+            "of": "anonymous",
+            "subject_factory": "subject_factory"
+          },
+          "targetControlState": "inner_s",
+          "transitionIndex": 3
+        }
+      ],
+      [
+        {
+          "actionFactory": "ACTION_IDENTITY",
+          "controlState": "inner_s",
+          "event": {
+            "eventData": {},
+            "eventLabel": "event3"
+          },
+          "extendedState": {
+            "counter": 0,
+            "history": "deep"
+          },
+          "guardIndex": 0,
+          "model_update": [],
+          "newExtendedState": {
+            "counter": 0,
+            "history": "deep"
+          },
+          "outputs": null,
+          "predicate": undefined,
+          "settings": {
+            "merge": "merge",
+            "of": "anonymous",
+            "subject_factory": "subject_factory"
+          },
+          "targetControlState": "inner_t",
+          "transitionIndex": 4
+        }
+      ],
+      [
+        {
+          "actionFactory": "ACTION_IDENTITY",
+          "controlState": "OUTER",
+          "event": {
+            "eventData": {},
+            "eventLabel": "event1"
+          },
+          "extendedState": {
+            "counter": 0,
+            "history": "deep"
+          },
+          "guardIndex": 0,
+          "model_update": [],
+          "newExtendedState": {
+            "counter": 0,
+            "history": "deep"
+          },
+          "outputs": null,
+          "predicate": undefined,
+          "settings": {
+            "merge": "merge",
+            "of": "anonymous",
+            "subject_factory": "subject_factory"
+          },
+          "targetControlState": "z",
+          "transitionIndex": 7
+        }
+      ],
+      [
+        {
+          "actionFactory": "incCounter",
+          "controlState": "z",
+          "event": {
+            "eventData": {},
+            "eventLabel": "event4"
+          },
+          "extendedState": {
+            "counter": 0,
+            "history": "deep"
+          },
+          "guardIndex": 0,
+          "model_update": [
+            {
+              "op": "add",
+              "path": "/counter",
+              "value": 1
+            }
+          ],
+          "newExtendedState": {
+            "counter": 1,
+            "history": "deep"
+          },
+          "outputs": 0,
+          "predicate": "isDeep",
+          "settings": {
+            "merge": "merge",
+            "of": "anonymous",
+            "subject_factory": "subject_factory"
+          },
+          "targetControlState": {
+            "deep": "OUTER",
+            "type": {}
+          },
+          "transitionIndex": 8
+        }
+      ]
+    ], `eventless transitions are correctly taken`);
 });

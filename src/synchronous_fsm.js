@@ -16,9 +16,10 @@ import {
   ACTION_IDENTITY, AUTO_EVENT, DEEP, history_symbol, INIT_EVENT, INIT_STATE, NO_OUTPUT, SHALLOW, STATE_PROTOTYPE_NAME
 } from "./properties";
 import {
-  applyUpdateOperations, arrayizeOutput, get_fn_name, getFsmStateList, keys, mapOverTransitionsActions, wrap
+  applyUpdateOperations, arrayizeOutput, computeHistoryMaps, get_fn_name, getFsmStateList, keys,
+  mapOverTransitionsActions, wrap
 } from "./helpers";
-import { DFS, objectTreeLenses, traverseObj } from "fp-rosetree"
+import { DFS } from "fp-rosetree"
 
 /**
  * Takes a list of identifiers (strings), adds init to it, and returns a hash whose properties are
@@ -200,76 +201,34 @@ export function build_state_enum(states) {
   return states_enum;
 }
 
-export function computeHistoryMaps(control_states) {
-  // TODO: I am here
-  const { getLabel, isLeafLabel } = objectTreeLenses;
-  const traverse = {
-    strategy: DFS,
-    seed: { stateList:{}, stateAncestors: { [DEEP]: {}, [SHALLOW]: {} } },
-    visit: (acc, traversalState, tree) => {
-      const treeLabel = getLabel(tree);
-      const controlState = Object.keys(treeLabel)[0];
-      acc.stateList[controlState] = "";
+/**
+ *
+ * @param {{updateHistory: function(*=): *, [p: string]: *}} history Contains deep history and shallow history for all
+ * control states, except the INIT_STATE (not that the concept has no value for atomic state). The function
+ * `updateHistory` allows to update the history as transitions occur in the state machine.
+ * @param {Object.<ControlState, *>} control_states
+ * @returns {{updateHistory: function(*=): *, [p: string]: *}}
+ */
+export function updateHistory(history, stateAncestors, state_from_name) {
+  // Edge case, we start with INIT_STATE but that is not kept in the history (no transition to it!!)
 
-      // NOTE : we don't have to worry about path having only one element
-      // that case correspond to the root of the tree which is excluded from visiting
-      const { path } = traversalState.get(tree);
-      traversalState.set(JSON.stringify(path), controlState);
-      const parentPath = path.slice(0, -1);
-      if (parentPath.length === 1) {
-        // That's the root
-        traversalState.set(JSON.stringify(parentPath), INIT_STATE);
-      }
-      else {
-        const parentControlState = traversalState.get(JSON.stringify(parentPath));
-        acc.stateAncestors[SHALLOW][controlState] = parentControlState;
-
-        if (isLeafLabel(treeLabel)) {
-          // we have an atomic state : build the ancestor list in one go
-          path.reduce((acc,_) => {
-            const parentPath = acc.path.slice(0, -1);
-            acc.path = parentPath;
-            if (parentPath.length > 1) {
-              const parentControlState = traversalState.get(JSON.stringify(parentPath));
-              acc.ancestors = acc.ancestors.concat(parentControlState);
-            }
-
-            return acc
-              // TODO :edge case no states!! {}, or only one state
-          }, {ancestors :[], path});
-          acc.stateAncestors[DEEP][controlState] = (acc.stateAncestors[DEEP][controlState] || []).concat(parentControlState);
-        }
-      }
-
-      return acc
-    }
-  };
-  const { stateList, stateAncestors } = traverseObj(traverse, control_states);
-
-  return { stateList, stateAncestors }
-}
-
-function getHistory(history, control_states) {
-  const { stateList, stateAncestors } = computeHistoryMaps(control_states);
-  // TODO: two lists : one with state -> parent, one with state -> ancestors
-  const initHistory = stateList.reduce((acc, state) => (acc[state] = {}, acc), {});
-  return {
-    [DEEP]: initHistory,
-    [SHALLOW]: initHistory,
-    updateWith: state_from_name => {
-      [SHALLOW, DEEP].forEach(historyType => {
-        const ancestors = stateAncestors[historyType];
-        ancestors.reduce((acc, ancestor) => {
-          acc[ancestor] = state_from_name
-
-          return acc
-        }, history[historyType]);
+  if (state_from_name === INIT_STATE) {
+    return history
+  }
+  else {
+    [SHALLOW, DEEP].forEach(historyType => {
+      // ancestors for the state which is exited
+      const ancestors = stateAncestors[historyType][state_from_name] || [];
+      ancestors.forEach(ancestor => {
+        // set the exited state in the history of all ancestors
+        history[historyType][ancestor] = state_from_name
       });
+    });
 
-      return history
-    }
-  };
+    return history
+  }
 }
+
 
 /**
  * Creates an instance of state machine from a set of states, transitions, and accepted events. The initial
@@ -306,8 +265,12 @@ export function create_state_machine(fsmDef, settings) {
   // a new model every time. There is hence no need to do any cloning.
   let model = initial_extended_state;
   // history maps
-  let history = {};
-  history = getHistory(history, control_states);
+
+  const { stateList, stateAncestors } = computeHistoryMaps(control_states);
+  // NOTE : we update history in place, so we need two different objects here, even
+  // when they start with the same value
+  const initHistory = () => stateList.reduce((acc, state) => (acc[state] = '', acc), {});
+  let history = { [DEEP]: initHistory(), [SHALLOW]: initHistory() };
 
   // {Object<state_name,boolean>}, allows to know whether a state has a init transition defined
   let is_init_state = {};
@@ -505,8 +468,8 @@ export function create_state_machine(fsmDef, settings) {
     const state_from_name = state_from.name;
 
     // TODO : I am here
-    // TODO : from is the state we leave , so update the parent of that state (shallow)
-    history.updateWith(state_from_name);
+    debugger
+    history = updateHistory(history, stateAncestors, state_from_name);
 
     // Set the `last_seen_state` property in the object representing that state's state (!)...
     state_from.history.last_seen_state = state_from_name;
@@ -536,6 +499,7 @@ export function create_state_machine(fsmDef, settings) {
     // CASE : history state (H)
     // TODO : I am here
     if (typeof to === "object" && to.type === history_symbol) {
+      debugger
       const history_type = to.deep ? DEEP : to.shallow ? SHALLOW : void 0;
       const history_target = to[history_type];
       // Edge case : history state (H) && no history (i.e. first time state is entered), target state
@@ -808,7 +772,7 @@ export function traceFSM(env, fsm) {
  * @param {Object.<ControlState, *>} states
  */
 export function makeHistoryStates(states) {
-  const stateList = getFsmStateList(states);
+  const stateList = Object.keys(getFsmStateList(states));
   // used for referential equality comparison to discriminate history type
 
   return {

@@ -1,10 +1,11 @@
 // Ramda fns
 import {
-  CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE, HISTORY_PREFIX, HISTORY_STATE_NAME, INIT_EVENT, INIT_STATE, NO_OUTPUT
+  CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE, DEEP, HISTORY_PREFIX, HISTORY_STATE_NAME, INIT_EVENT, INIT_STATE, NO_OUTPUT,
+  SHALLOW
 } from "./properties"
 // import { applyPatch } from "./fast-json-patch/duplex"
 import { applyPatch } from "json-patch-es6"
-import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
+import { DFS, objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
 
 /**
  * Returns the name of the function as taken from its source definition.
@@ -233,6 +234,54 @@ export function getFsmStateList(states) {
   const stateHashMap = traverseObj(traverse, states);
 
   return stateHashMap
+}
+
+export function computeHistoryMaps(control_states) {
+  const { getLabel, isLeafLabel } = objectTreeLenses;
+  const traverse = {
+    strategy: DFS,
+    seed: { stateList:[], stateAncestors: { [DEEP]: {}, [SHALLOW]: {} } },
+    visit: (acc, traversalState, tree) => {
+      const treeLabel = getLabel(tree);
+      const controlState = Object.keys(treeLabel)[0];
+      acc.stateList = acc.stateList.concat(controlState);
+
+      // NOTE : we don't have to worry about path having only one element
+      // that case correspond to the root of the tree which is excluded from visiting
+      const { path } = traversalState.get(tree);
+      traversalState.set(JSON.stringify(path), controlState);
+      const parentPath = path.slice(0, -1);
+      if (parentPath.length === 1) {
+        // That's the root
+        traversalState.set(JSON.stringify(parentPath), INIT_STATE);
+      }
+      else {
+        const parentControlState = traversalState.get(JSON.stringify(parentPath));
+        acc.stateAncestors[SHALLOW][controlState] = [parentControlState];
+
+        if (isLeafLabel(treeLabel)) {
+          // we have an atomic state : build the ancestor list in one go
+          const {ancestors} = path.reduce((acc,_) => {
+            const parentPath = acc.path.slice(0, -1);
+            acc.path = parentPath;
+            if (parentPath.length > 1) {
+              const parentControlState = traversalState.get(JSON.stringify(parentPath));
+              acc.ancestors = acc.ancestors.concat(parentControlState);
+            }
+
+            return acc
+            // TODO :edge case no states!! {}, or only one state
+          }, {ancestors :[], path});
+          acc.stateAncestors[DEEP][controlState] = ancestors;
+        }
+      }
+
+      return acc
+    }
+  };
+  const { stateList, stateAncestors } = traverseObj(traverse, control_states);
+
+  return { stateList, stateAncestors }
 }
 
 // DOC : the mapped action should have same name than the action it is mapping

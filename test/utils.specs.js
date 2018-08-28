@@ -484,6 +484,43 @@ const Z = 'z';
 QUnit.test("states with hierarchy", function exec_test(assert) {
   const states = { [OUTER]: { [INNER]: { [INNER_S]: '', [INNER_T]: '' }, [OUTER_A]: '', [OUTER_B]: '' }, [Z]: '' };
   const history =computeHistoryMaps(states);
-  debugger
-  assert.deepEqual(history, [], `...`);
+  assert.deepEqual(history, {
+    "stateAncestors": {
+      "deep": {
+        "INNER": [
+          "OUTER"
+        ],
+        "inner_s": [
+          "INNER",
+          "OUTER"
+        ],
+        "inner_t": [
+          "INNER",
+          "OUTER"
+        ],
+        "outer_a": [
+          "OUTER"
+        ],
+        "outer_b": [
+          "OUTER"
+        ]
+      },
+      "shallow": {
+        "INNER": ["OUTER"],
+        "inner_s": ["INNER"],
+        "inner_t": ["INNER"],
+        "outer_a": ["OUTER"],
+        "outer_b": ["OUTER"]
+      }
+    },
+    "stateList": [
+      "OUTER",
+      "INNER",
+      "inner_s",
+      "inner_t",
+      "outer_a",
+      "outer_b",
+      "z"
+    ]
+  }, `...`);
 });
