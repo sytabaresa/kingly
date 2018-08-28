@@ -182,13 +182,6 @@ function computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, gen, extende
 }
 
 /**
- * from, event, index : CONTRACT : all transition from `from` triggered by `event` must be defined together in the
- * same record
- * TODO : write the contract when creating the state machine
- // DOC : contract, all transition for a (from, event) must be gathered in one place
- * CONTRACT : cannot have the same predicate for a same (from, event) as is logical, the second is contracdictory or
- * redundant
- * CONTRACT : predicate MUST be defined if in a guard !
  * @param {FSM_Gen_Def} generators
  */
 export function getGeneratorMapFromGeneratorMachine(generators) {

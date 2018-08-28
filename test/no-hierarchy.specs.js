@@ -396,13 +396,3 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
   ], `event triggers correct transition`);
 });
 
-// TODO : add tests for when event passed in not in state machine
-// TODO : add tests for NO_OUTPUT in settings when implemented
-// - review former tests and change deepEqual to equal or ==
-
-// TODO : document initial state is NOK, and event init automatically fired on starting the fsm
-// TODO : allow to start with a fsm in anotehr initial state than NOK
-//   for that     state_to.active = true;
-//                hash_states[INIT_STATE].current_state_name = state_to_name;
-// set the model to some initial value, and the initial state in hash_states, and the active = true
-// to MUST be a name of the state_to = hash_states[to]; NOT a history state (to is fn then)

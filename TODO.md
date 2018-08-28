@@ -28,15 +28,23 @@ USE evil EVAL!!!
       - if the edge.target corresponds to history(S) then isTraversable YES else NO
 - write all contracts
   - some of them hre : https://www.embedded.com/design/prototyping-and-development/4008341/State-charts-can-provide-you-with-software-quality-insurance
-- test not hierarchical state machine with INIT -> (A,B) and 1 self-loop. and 1 loop C -> D -> C,
- basically simplifaction of the application process state machine. Think about guards too
-- add contract
   - if eventless transition, then cannot have event-based transitions for the same origin control 
   state
   - all AUTO transition should advance
+  - updateModel must be pure fcuntion!! (necessary for tracing mechanism)
   - TODO add contract for test gen : apply only to FSM for which init event sets the initial state
    in the machine
   - all action factories MUST return a model_update, MUST return a outputs!! no syntactic sugar here
+  - DOC : contract, all transition for a (from, event) must be gathered in one place
+ * from, event, index : CONTRACT : all transition from `from` triggered by `event` must be defined together in the
+ * same record
+ * CONTRACT : cannot have the same predicate for a same (from, event) as is logical, the second is contracdictory or
+ * redundant
+ * CONTRACT : predicate MUST be defined if in a guard !
+
+// TODO DOC : document initial state is NOK, and event init automatically fired on starting the fsm
+// no hierarchy : TODO : add tests for when event passed in not in state machine
+
 - would be great to have a query language to select input sequences from the generated set
   - for instance includes a cycle
   - includes a cycle which includes this node etc. 

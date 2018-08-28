@@ -170,7 +170,6 @@ export function updateHistory(history, stateAncestors, state_from_name) {
   }
 }
 
-
 /**
  * Creates an instance of state machine from a set of states, transitions, and accepted events. The initial
  * extended state for the machine is included in the machine definition.
@@ -197,8 +196,9 @@ export function create_state_machine(fsmDef, settings) {
 
   // This will be the model object which will be updated by all actions and on which conditions
   // will be evaluated It is safely contained in a closure so it cannot be accessed in any way
-  // outside the state machine. Note also that the model is only modified through JSON patch operations which create
-  // a new model every time. There is hence no need to do any cloning.
+  // outside the state machine.
+  // Note the model is modified by the `settings.updateModel` function, which should not modify
+  // the model. There is hence no need to do any cloning.
   let model = initial_extended_state;
   // history maps
 
@@ -208,11 +208,11 @@ export function create_state_machine(fsmDef, settings) {
   const initHistory = () => stateList.reduce((acc, state) => (acc[state] = '', acc), {});
   let history = { [DEEP]: initHistory(), [SHALLOW]: initHistory() };
 
-  // {Object<state_name,boolean>}, allows to know whether a state has a init transition defined
+  // @type {Object<state_name,boolean>}, allows to know whether a state has a init transition defined
   let is_init_state = {};
-  // {Object<state_name,boolean>}, allows to know whether a state has an automatic transition defined
+  // @type {Object<state_name,boolean>}, allows to know whether a state has an automatic transition defined
   let is_auto_state = {};
-  // {Object<state_name,boolean>}, allows to know whether a state is a group of state or not
+  // @type {Object<state_name,boolean>}, allows to know whether a state is a group of state or not
   const is_group_state = hash_states_struct.is_group_state;
   let hash_states = hash_states_struct.hash_states;
 
@@ -272,18 +272,8 @@ export function create_state_machine(fsmDef, settings) {
             if (!predicate || predicate(model_, event_data, settings)) {
               // CASE : guard for transition is fulfilled so we can execute the actions...
               console.info("IN STATE ", from);
-              console.info(
-                "WITH model, event data, settings BEING ",
-                model_,
-                event_data,
-                settings
-              );
-              console.info(
-                "CASE : " +
-                (predicate
-                  ? "guard " + predicate.name + " for transition is fulfilled"
-                  : "automatic transition")
-              );
+              console.info("WITH model, event data, settings BEING ", model_, event_data, settings);
+              console.info("CASE : " + (predicate ? "guard " + predicate.name + "for transition is fulfilled" : "automatic transition"));
               // CASE : we do have some actions to execute
               console.info("THEN : we execute the action " + action.name);
               // NOTE : in a further extension, passing the fsm and the events object could help
@@ -301,25 +291,14 @@ export function create_state_machine(fsmDef, settings) {
               console.info("RESULTING IN OUTPUT : ", actionResult.outputs);
 
               // ...and enter the next state (can be different from to if we have nesting state group)
-              const next_state = enter_next_state(
-                to,
-                actionResult.model_update,
-                hash_states
-              );
+              const next_state = enter_next_state(to, actionResult.model_update, hash_states);
               console.info("ENTERING NEXT STATE : ", next_state);
 
               return { stop: true, outputs: actionResult.outputs }; // allows for chaining and stop
               // chaining guard
             } else {
               // CASE : guard for transition is not fulfilled
-              console.log(
-                "CASE : " +
-                (predicate
-                  ? "guard " +
-                  predicate.name +
-                  " for transition NOT fulfilled..."
-                  : "no predicate")
-              );
+              console.log("CASE : " + (predicate ? "guard " + predicate.name + " for transition NOT fulfilled..." : "no predicate"));
               return { stop: false, outputs: NO_OUTPUT };
             }
           };
@@ -410,11 +389,9 @@ export function create_state_machine(fsmDef, settings) {
   }
 
   function enter_next_state(to, model_prime, hash_states) {
-    // Enter the target state
     let state_to;
     let state_to_name;
     // CASE : history state (H)
-    // TODO : I am here
     if (typeof to === "object" && to.type === history_symbol) {
       debugger
       const history_type = to.deep ? DEEP : to.shallow ? SHALLOW : void 0;
@@ -424,16 +401,6 @@ export function create_state_machine(fsmDef, settings) {
       state_to_name = history[history_type][history_target] || history_target;
       state_to = hash_states[state_to_name];
     }
-    // if (typeof to === "function") {
-    //   state_to_name = remove_trailing_underscore(get_fn_name(to));
-    //
-    //   const target_state = hash_states[state_to_name].history.last_seen_state;
-    //   state_to_name = target_state
-    //     ? // CASE : history state (H) && existing history, target state is the last seen state
-    //     target_state
-    //     state_to_name;
-    //   state_to = hash_states[state_to_name];
-    // }
     else if (to) {
       // CASE : normal state
       state_to = hash_states[to];
@@ -450,14 +417,6 @@ export function create_state_machine(fsmDef, settings) {
 
   function start() {
     return send_event({ [INIT_EVENT]: initial_extended_state });
-  }
-
-  /**
-   * @param model
-   * @param modelUpdateOperations
-   */
-  function update_model(model, modelUpdateOperations) {
-    return applyUpdateOperations(model, modelUpdateOperations);
   }
 
   return {
@@ -594,8 +553,7 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
   // processed, or to express it differently, transition and state entry are simultaneous, this modelization is
   // accurate.
   // DOC : entry actions for a control state will apply before any automatic event related to that state! In fact before
-  // anything. That means the automatic event should logically receive the state updated by the entry action TODO :
-  // test it!
+  // anything. That means the automatic event should logically receive the state updated by the entry action
   const decoratedAction = function (model, eventData, settings) {
     const actionResult = action(model, eventData, settings);
     const actionUpdate = actionResult.model_update;
@@ -664,7 +622,7 @@ export function traceFSM(settings, fsm) {
             outputs,
             model_update,
             extendedState: model,
-            // NOTE : I can do this because pure function! This is the extended state after taking the transition
+            // NOTE : I can do this because pure function!! This is the extended state after taking the transition
             newExtendedState: updateModel(model, model_update || []),
             controlState,
             event: { eventLabel, eventData },

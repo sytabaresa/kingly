@@ -1,6 +1,5 @@
 // Ramda fns
 import { DEEP, HISTORY_PREFIX, HISTORY_STATE_NAME, INIT_EVENT, INIT_STATE, NO_OUTPUT, SHALLOW } from "./properties"
-// import { applyPatch } from "./fast-json-patch/duplex"
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
 
 /**
@@ -141,12 +140,13 @@ export function mergeModelUpdates(arrayUpdateFns) {
  */
 export function chainModelUpdates(arrayUpdateFns) {
   return function (model, eventData, settings) {
+    const { updateModel } = settings;
     return {
       model_update: arrayUpdateFns
         .reduce((acc, updateFn) => {
           const { model, model_update } = acc;
           const update = updateFn(model, eventData, settings).model_update;
-          const updatedModel = applyUpdateOperations(model, model_update)
+          const updatedModel = updateModel(model, model_update)
 
           return { model: updatedModel, model_update: update }
         }, { model, model_update: [] })
@@ -218,6 +218,8 @@ export function getFsmStateList(states) {
 }
 
 export function computeHistoryMaps(control_states) {
+  if (Object.keys(control_states).length === 0) {throw `computeHistoryMaps : passed empty control states parameter?`}
+
   const { getLabel, isLeafLabel } = objectTreeLenses;
   const traverse = {
     strategy: PRE_ORDER,
@@ -251,7 +253,6 @@ export function computeHistoryMaps(control_states) {
             }
 
             return acc
-            // TODO :edge case no states!! {}, or only one state
           }, { ancestors: [], path });
           acc.stateAncestors[DEEP][controlState] = ancestors;
         }
@@ -270,7 +271,6 @@ export function mapOverTransitionsActions(mapFn, transitions) {
   return reduceTransitions(function (acc, transition, guardIndex, transitionIndex) {
     const { from, event, to, action, predicate } = transition;
     const mappedAction = mapFn(action, transition, guardIndex, transitionIndex);
-    // TODO : action could be null, as we gather also the gen case here. SEPARATE THE TWO IN TWO FUNCTIONS!!
     mappedAction.displayName = action && (action.name || action.displayName || formatActionName(action, from, event, to, predicate));
 
     if (typeof(predicate) === 'undefined') {

@@ -112,9 +112,6 @@ QUnit.test("INIT event multi transitions, CASCADING inner INIT event transitions
     events: [CLICK, REVIEW_A, REVIEW_B, SAVE],
     initial_extended_state: { switch: false, reviewed: false },
     transitions: [
-      // TODO : check if the actions are located where they should? Can I have actions on a group state?? not if I
-      // have outputs THINK, maybe allow to aggregate outputs on the path, just like extended state is, but then
-      // output can also be an array of outputs, can be annoying on the receiving end
       {
         from: INIT_STATE, event: INIT_EVENT, guards: [
           { predicate: function isSwitchOn(x, e) {return x.switch}, to: 'A', action: ACTION_IDENTITY },
@@ -150,7 +147,6 @@ QUnit.test("INIT event multi transitions, CASCADING inner INIT event transitions
   const fsm = create_state_machine(traceFSM({}, fsmDef), settings);
   const outputSequence = inputSequence.map(fsm.yield);
   const formattedResults = outputSequence.map(output => output.map(formatResult));
-  // TODO : to finish : should not have outputs : undefined, and value should be formatted, not object object
   assert.deepEqual(formattedResults, [
     [{
       "actionFactory": "ACTION_IDENTITY",
@@ -564,8 +560,6 @@ QUnit.test("eventless transition, INIT event multi transitions, CASCADING inner 
 });
 
 QUnit.test("shallow history transitions, INIT event CASCADING transitions", function exec_test(assert) {
-  // TODO : cf.
-  // https://hfsm.collaborative-design.org/?project=HFSM%2BExamples&branch=master&node=%2Fo&visualizer=HFSMViz&tab=0&layout=DefaultLayout&selection=%2Fo%2Fr%2Fy
   const OUTER = 'OUTER';
   const INNER = 'INNER';
   const OUTER_A = 'outer_a';
@@ -626,8 +620,6 @@ QUnit.test("shallow history transitions, INIT event CASCADING transitions", func
 });
 
 QUnit.test("deep history transitions, INIT event CASCADING transitions", function exec_test(assert) {
-  // TODO : cf.
-  // https://hfsm.collaborative-design.org/?project=HFSM%2BExamples&branch=master&node=%2Fo&visualizer=HFSMViz&tab=0&layout=DefaultLayout&selection=%2Fo%2Fr%2Fy
   const OUTER = 'OUTER';
   const INNER = 'INNER';
   const OUTER_A = 'outer_a';
@@ -688,8 +680,6 @@ QUnit.test("deep history transitions, INIT event CASCADING transitions", functio
 });
 
 QUnit.test("with trace : shallow history transitions, INIT event CASCADING transitions", function exec_test(assert) {
-  // TODO : cf.
-  // https://hfsm.collaborative-design.org/?project=HFSM%2BExamples&branch=master&node=%2Fo&visualizer=HFSMViz&tab=0&layout=DefaultLayout&selection=%2Fo%2Fr%2Fy
   const OUTER = 'OUTER';
   const INNER = 'INNER';
   const OUTER_A = 'outer_a';
@@ -731,7 +721,6 @@ QUnit.test("with trace : shallow history transitions, INIT event CASCADING trans
   const settings = default_settings;
   const inputSequence = [
     { "init": fsmDef.initial_extended_state },
-    // TODO
     { [EVENT1]: {} },
     { [EVENT3]: {} },
     { [EVENT1]: {} },
@@ -995,8 +984,6 @@ QUnit.test("with trace : shallow history transitions, INIT event CASCADING trans
 });
 
 QUnit.test("with trace : deep history transitions, INIT event CASCADING transitions", function exec_test(assert) {
-  // TODO : cf.
-  // https://hfsm.collaborative-design.org/?project=HFSM%2BExamples&branch=master&node=%2Fo&visualizer=HFSMViz&tab=0&layout=DefaultLayout&selection=%2Fo%2Fr%2Fy
   const OUTER = 'OUTER';
   const INNER = 'INNER';
   const OUTER_A = 'outer_a';
@@ -1038,7 +1025,6 @@ QUnit.test("with trace : deep history transitions, INIT event CASCADING transiti
   const settings = default_settings;
   const inputSequence = [
     { "init": fsmDef.initial_extended_state },
-    // TODO
     { [EVENT1]: {} },
     { [EVENT3]: {} },
     { [EVENT1]: {} },
