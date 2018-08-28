@@ -1,11 +1,7 @@
 // Ramda fns
-import {
-  CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE, DEEP, HISTORY_PREFIX, HISTORY_STATE_NAME, INIT_EVENT, INIT_STATE, NO_OUTPUT,
-  SHALLOW
-} from "./properties"
+import { DEEP, HISTORY_PREFIX, HISTORY_STATE_NAME, INIT_EVENT, INIT_STATE, NO_OUTPUT, SHALLOW } from "./properties"
 // import { applyPatch } from "./fast-json-patch/duplex"
-import { applyPatch } from "json-patch-es6"
-import { PRE_ORDER, objectTreeLenses, traverseObj } from "fp-rosetree"
+import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
 
 /**
  * Returns the name of the function as taken from its source definition.
@@ -24,21 +20,6 @@ export function wrap(str) { return ['-', str, '-'].join(""); }
 
 export function times(fn, n) {
   return Array.apply(null, { length: n }).map(Number.call, Number).map(fn)
-}
-
-/**
- *
- * @param {FSM_Model} model
- * @param {JSON_Patch_Operation[]} modelUpdateOperations
- * @returns {FSM_Model}
- */
-export function applyUpdateOperations(/*OUT*/model, modelUpdateOperations) {
-  assertContract(isArrayUpdateOperations, [modelUpdateOperations],
-    `applyUpdateOperations : ${CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE}`);
-
-  // NOTE : we don't validate operations, to avoid throwing errors when for instance the value property for an
-  // `add` JSON operation is `undefined` ; and of course we don't mutate the document in place
-  return applyPatch(model, modelUpdateOperations, false, false).newDocument;
 }
 
 export function always(x) {return x}
@@ -240,7 +221,7 @@ export function computeHistoryMaps(control_states) {
   const { getLabel, isLeafLabel } = objectTreeLenses;
   const traverse = {
     strategy: PRE_ORDER,
-    seed: { stateList:[], stateAncestors: { [DEEP]: {}, [SHALLOW]: {} } },
+    seed: { stateList: [], stateAncestors: { [DEEP]: {}, [SHALLOW]: {} } },
     visit: (acc, traversalState, tree) => {
       const treeLabel = getLabel(tree);
       const controlState = Object.keys(treeLabel)[0];
@@ -261,7 +242,7 @@ export function computeHistoryMaps(control_states) {
 
         if (isLeafLabel(treeLabel)) {
           // we have an atomic state : build the ancestor list in one go
-          const {ancestors} = path.reduce((acc,_) => {
+          const { ancestors } = path.reduce((acc, _) => {
             const parentPath = acc.path.slice(0, -1);
             acc.path = parentPath;
             if (parentPath.length > 1) {
@@ -271,7 +252,7 @@ export function computeHistoryMaps(control_states) {
 
             return acc
             // TODO :edge case no states!! {}, or only one state
-          }, {ancestors :[], path});
+          }, { ancestors: [], path });
           acc.stateAncestors[DEEP][controlState] = ancestors;
         }
       }
@@ -330,9 +311,11 @@ export function computeTimesCircledOn(edgePath, edge) {
   return edgePath.reduce((acc, edgeInEdgePath) => edgeInEdgePath === edge ? acc + 1 : acc, 0);
 }
 
-export function isInitState(s){return s === INIT_STATE}
-export function isInitEvent(e){return e === INIT_EVENT}
-export function isEventless(e){return typeof e === 'undefined'}
+export function isInitState(s) {return s === INIT_STATE}
+
+export function isInitEvent(e) {return e === INIT_EVENT}
+
+export function isEventless(e) {return typeof e === 'undefined'}
 
 export function arrayizeOutput(output) {
   return output === NO_OUTPUT

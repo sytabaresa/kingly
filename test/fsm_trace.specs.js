@@ -3,9 +3,13 @@ import * as Rx from "rx"
 import { clone, F, merge, T } from "ramda"
 import { ACTION_IDENTITY, create_state_machine, INIT_EVENT, INIT_STATE, traceFSM } from "../src"
 import { formatResult } from "./helpers"
+import { assertContract, isArrayUpdateOperations } from "../src/helpers"
+import { applyPatch } from "json-patch-es6/lib/duplex"
+import { CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE } from "../src/properties"
 
 const $ = Rx.Observable;
 const default_settings = {
+  updateModel : applyJSONpatch,
   subject_factory: () => {
     const subject = new Rx.Subject();
     // NOTE : this is intended for Rxjs v4-5!! but should work for most also
@@ -63,6 +67,21 @@ const another_dummy_action_result_with_update = {
   outputs: another_output
 };
 
+/**
+ *
+ * @param {FSM_Model} model
+ * @param {Operation[]} modelUpdateOperations
+ * @returns {FSM_Model}
+ */
+function applyJSONpatch(model, modelUpdateOperations) {
+  assertContract(isArrayUpdateOperations, [modelUpdateOperations],
+    `applyUpdateOperations : ${CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE}`);
+
+  // NOTE : we don't validate operations, to avoid throwing errors when for instance the value property for an
+  // `add` JSON operation is `undefined` ; and of course we don't mutate the document in place
+  return applyPatch(model, modelUpdateOperations, false, false).newDocument;
+}
+
 function dummy_action(model, event_data, settings) {
   return dummy_action_result
 }
@@ -106,8 +125,7 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
     initial_extended_state: model_initial
   };
   const settings = default_settings;
-  const env = {};
-  const decoratedFsmDef = traceFSM(env, fsmDef);
+  const decoratedFsmDef = traceFSM(settings, fsmDef);
   const decoratedFSM = create_state_machine(decoratedFsmDef, settings);
   const result = decoratedFSM.start();
   const formattedResult = result.map(formatResult);
@@ -137,7 +155,8 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
     "settings": {
       "merge": "merge",
       "of": "anonymous",
-      "subject_factory": "subject_factory"
+      "subject_factory": "subject_factory",
+      "updateModel": "applyJSONpatch"
     },
     "targetControlState": "A",
     "transitionIndex": 0
@@ -155,8 +174,7 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
     initial_extended_state: model_initial
   };
   const settings = default_settings;
-  const env = {};
-  const decoratedFsmDef = traceFSM(env, fsmDef);
+  const decoratedFsmDef = traceFSM(settings, fsmDef);
   const decoratedFSM = create_state_machine(decoratedFsmDef, settings);
   const result1 = decoratedFSM.start();
   const result2 = decoratedFSM.yield({ [EVENT1]: EVENT1_DATA });
@@ -220,7 +238,8 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
         "settings": {
           "merge": "merge",
           "of": "anonymous",
-          "subject_factory": "subject_factory"
+          "subject_factory": "subject_factory",
+          "updateModel": "applyJSONpatch"
         },
         "targetControlState": "A",
         "transitionIndex": 0
@@ -271,7 +290,8 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
         "settings": {
           "merge": "merge",
           "of": "anonymous",
-          "subject_factory": "subject_factory"
+          "subject_factory": "subject_factory",
+          "updateModel": "applyJSONpatch"
         },
         "targetControlState": "B",
         "transitionIndex": 1

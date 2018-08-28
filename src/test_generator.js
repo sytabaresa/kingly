@@ -70,7 +70,7 @@ export function generateTestsFromFSM(fsm, generators, settings) {
       const { inputSequence } = pathTraversalState;
       // Execute the state machine with the input sequence to get it in the matching control state
       // Note that the machine has to be recreated each time, as it is a stateful object
-      const fsm = create_state_machine(tracedFSM, {});
+      const fsm = create_state_machine(tracedFSM, settings);
       const extendedState = inputSequence.length === 0
         // Edge case : we are in INIT_STATE, the init event has the initial extended state as event data
         ? initial_extended_state

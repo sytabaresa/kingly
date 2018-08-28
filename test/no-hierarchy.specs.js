@@ -6,6 +6,8 @@ import {
   create_state_machine, INIT_EVENT, INIT_STATE, NO_OUTPUT
 } from "../src"
 import {applyPatch} from "json-patch-es6"
+import { assertContract, isArrayUpdateOperations } from "../src/helpers"
+import { CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE } from "../src/properties"
 const $ = Rx.Observable;
 
 function spy_on_args(fn, spy_fn) {
@@ -16,7 +18,23 @@ function spy_on_args(fn, spy_fn) {
   }
 }
 
+/**
+ *
+ * @param {FSM_Model} model
+ * @param {Operation[]} modelUpdateOperations
+ * @returns {FSM_Model}
+ */
+export function applyJSONpatch(model, modelUpdateOperations) {
+  assertContract(isArrayUpdateOperations, [modelUpdateOperations],
+    `applyUpdateOperations : ${CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE}`);
+
+  // NOTE : we don't validate operations, to avoid throwing errors when for instance the value property for an
+  // `add` JSON operation is `undefined` ; and of course we don't mutate the document in place
+  return applyPatch(model, modelUpdateOperations, false, false).newDocument;
+}
+
 const default_settings = {
+  updateModel : applyJSONpatch,
   subject_factory: () => {
     const subject = new Rx.Subject();
     // NOTE : this is intended for Rxjs v4-5!! but should work for most also

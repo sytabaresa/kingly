@@ -16,8 +16,7 @@ import {
   ACTION_IDENTITY, AUTO_EVENT, DEEP, history_symbol, INIT_EVENT, INIT_STATE, NO_OUTPUT, SHALLOW, STATE_PROTOTYPE_NAME
 } from "./properties";
 import {
-  applyUpdateOperations, arrayizeOutput, computeHistoryMaps, get_fn_name, getFsmStateList, keys,
-  mapOverTransitionsActions, wrap
+  arrayizeOutput, computeHistoryMaps, get_fn_name, getFsmStateList, keys, mapOverTransitionsActions, wrap
 } from "./helpers";
 
 /**
@@ -88,7 +87,7 @@ function build_nested_state_structure(states) {
 
       if (typeof state_config === "object") {
         is_group_state[state_name] = true;
-        const curr_constructor_new = function (){};
+        const curr_constructor_new = function () {};
         curr_constructor_new.displayName = state_name;
         curr_constructor_new.prototype = hash_states[state_name];
         build_state_reducer(state_config, curr_constructor_new);
@@ -176,7 +175,8 @@ export function updateHistory(history, stateAncestors, state_from_name) {
  * Creates an instance of state machine from a set of states, transitions, and accepted events. The initial
  * extended state for the machine is included in the machine definition.
  * @param {FSM_Def} fsmDef
- * @param {*} settings Contains the subject factory as mandatory settings,
+ * @param {{updateModel : (function (FSM_Model, *) : FSM_Model), ...}} settings Contains the subject factory as
+ * mandatory settings,
  * and any other. The `merge` settings is mandatory only when using the streaming state machine functionality
  * extra settings the API user wants to make available in state machine's scope
  * @returns {{yield : Function, start: Function}}
@@ -188,6 +188,7 @@ export function create_state_machine(fsmDef, settings) {
     transitions,
     initial_extended_state
   } = fsmDef;
+  const { updateModel } = settings;
 
   const _events = build_event_enum(events);
 
@@ -293,7 +294,7 @@ export function create_state_machine(fsmDef, settings) {
               leave_state(from, model_, hash_states);
 
               // Update the model before entering the next state
-              model = update_model(model_, actionResult.model_update);
+              model = updateModel(model_, actionResult.model_update);
               // Emit the new model event
               // new_model_event_emitter.onNext(model);
               console.info("RESULTING IN UPDATED MODEL : ", model);
@@ -452,7 +453,6 @@ export function create_state_machine(fsmDef, settings) {
   }
 
   /**
-   * OUT
    * @param model
    * @param modelUpdateOperations
    */
@@ -641,10 +641,10 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
  *  Note that the trace functionality is obtained by wrapping over the action factories in `A`. As such, all action
  *  factories will see their output wrapped. However, transitions which do not lead to the execution of action
  *  factories are not traced.
- * @param {*} env unused for now
+ * @param {*} settings
  * @param {FSM_Def} fsm
  */
-export function traceFSM(env, fsm) {
+export function traceFSM(settings, fsm) {
   const { initial_extended_state, events, states, transitions } = fsm;
 
   return {
@@ -656,6 +656,7 @@ export function traceFSM(env, fsm) {
         const { from: controlState, event: eventLabel, to: targetControlState, predicate } = transition;
         const actionResult = action(model, eventData, settings);
         const { outputs, model_update } = actionResult;
+        const { updateModel } = settings;
 
         return {
           model_update,
@@ -664,7 +665,7 @@ export function traceFSM(env, fsm) {
             model_update,
             extendedState: model,
             // NOTE : I can do this because pure function! This is the extended state after taking the transition
-            newExtendedState: applyUpdateOperations(model, model_update || []),
+            newExtendedState: updateModel(model, model_update || []),
             controlState,
             event: { eventLabel, eventData },
             settings: settings,
