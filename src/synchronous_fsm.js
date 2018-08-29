@@ -427,7 +427,7 @@ export function create_state_machine(fsmDef, settings) {
 
 /**
  *
- * @param {{subject_factory: Function, merge: Function, of:Function}} settings Contains the `merge` property as
+ * @param {{subject_factory: Function, merge: Function, from:Function}} settings Contains the `merge` property as
  * mandatory
  * @param {FSM_Def} fsmDef
  * settings. That merge function must take an array of observables and return an observable.
@@ -437,8 +437,8 @@ export function create_state_machine(fsmDef, settings) {
 export function makeStreamingStateMachine(settings, fsmDef) {
   const fsm = create_state_machine(fsmDef, settings);
   const merge = settings && settings.merge;
-  const of = settings && settings.of;
-  if (!merge || !of)
+  const from = settings && settings.from;
+  if (!merge || !from)
     throw `makeStreamingStateMachine : could not find an observable merge or of functions ! use Rx??`;
 
   /**
@@ -450,7 +450,7 @@ export function makeStreamingStateMachine(settings, fsmDef) {
     return merge(
       // Contract : the `merge` function must subscribe to its source parameters in order of appearance
       // This ensures that the init event is indeed processed always before the other events
-      [of({ [INIT_EVENT]: fsmDef.initial_extended_state })].concat(
+      [from([{ [INIT_EVENT]: fsmDef.initial_extended_state }])].concat(
         keys(events).map(eventLabel => {
           const eventSource$ = events[eventLabel];
 
@@ -466,7 +466,7 @@ export function makeStreamingStateMachine(settings, fsmDef) {
       // DOC : settings.of should emit synchronously and recursively
       .flatMap(outputs => {
         const filteredOutputs = outputs.filter(x => x !== NO_OUTPUT);
-        return of(filteredOutputs)
+        return from(filteredOutputs)
       })
       .share();
   };
