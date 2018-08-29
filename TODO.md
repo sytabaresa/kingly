@@ -1,17 +1,10 @@
 # Now
 ! output now should be array
   - update the streaming machine
-    - seems to be working??
     - rewrite with create observable 
-  - update the demo and retest 
-    - apparently problem with entry/exit actions...
-    - add tests for it, I don't have any
   - look for all the place I put null (also tests!) and put No_OUTPUT instead then change 
   NO_OUTPUT to {} to see if still works (should use referential equality so should be fine for js)
   - update doc and README
-  - update minor version and publish (change it for demo too!!)
-! might have to code history differently - right now I use event emitter and prototype... AND I 
-USE evil EVAL!!!
 - add edge cases for test generation: 
   - history transitions
     - in path state, add the list of control states, including the state when input sequence is 

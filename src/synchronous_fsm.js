@@ -427,27 +427,35 @@ export function create_state_machine(fsmDef, settings) {
 
 /**
  *
- * @param {{subject_factory: Function, merge: Function, from:Function}} settings Contains the `merge` property as
- * mandatory
+ * @param {{merge: Function, from:Function, filter:Function, map:Function, flatMap:Function, share:Function}} settings
+ * Contains the interface necessary from the choosen streaming library
  * @param {FSM_Def} fsmDef
  * settings. That merge function must take an array of observables and return an observable.
  * Otherwise can also hold extra settings the API user wants to make available in state machine's scope
  * @returns {function(Object<String, Rx.Observable>): *}
  */
+// DOC : settings.from should emit synchronously and recursively
+// NOTE : Rxjs : https://github.com/ReactiveX/rxjs/blob/master/doc/scheduler.md
+// By not passing any scheduler, notifications are delivered synchronously and recursively.
 export function makeStreamingStateMachine(settings, fsmDef) {
   const fsm = create_state_machine(fsmDef, settings);
   const merge = settings && settings.merge;
+  const filter = settings && settings.filter;
+  const map = settings && settings.map;
   const from = settings && settings.from;
-  if (!merge || !from)
+  const flatMap = settings && settings.flatMap;
+  const share = settings && settings.share;
+
+  if (!(merge && from && filter && map && flatMap && share))
     throw `makeStreamingStateMachine : could not find an observable merge or of functions ! use Rx??`;
 
   /**
-   * @param {Object.<Event_Label, Rx.Observable>} events A mapping of event labels to the corresponding event sources
+   * @param {Object.<EventLabel, Rx.Observable>} events A mapping of event labels to the corresponding event sources
    * @returns {Rx.Observable} Returns an observable containing the actions emitted by the state machine in response
    * to the specified input events
    */
   const computeActions = function computeActions(events) {
-    return merge(
+    const events$ = merge(
       // Contract : the `merge` function must subscribe to its source parameters in order of appearance
       // This ensures that the init event is indeed processed always before the other events
       [from([{ [INIT_EVENT]: fsmDef.initial_extended_state }])].concat(
@@ -457,21 +465,16 @@ export function makeStreamingStateMachine(settings, fsmDef) {
           return eventSource$.map(eventData => ({ [eventLabel]: eventData }));
         })
       )
-    )
-      .map(fsm.yield)
-      .filter(outputs => outputs !== NO_OUTPUT)
-      // TODO : check scheduling : we want all outputs (=actions) passed synchronously if possible
-      // NOTE : Rxjs : https://github.com/ReactiveX/rxjs/blob/master/doc/scheduler.md
-      // By not passing any scheduler, notifications are delivered synchronously and recursively.
-      // DOC : settings.of should emit synchronously and recursively
-      .flatMap(outputs => {
-        const filteredOutputs = outputs.filter(x => x !== NO_OUTPUT);
-        return from(filteredOutputs)
-      })
-      .share();
+    );
+
+    const outputs$ = filter(outputs => outputs !== NO_OUTPUT, map(fsm.yield, events$));
+    const filteredOutputs$ = flatMap(outputs => {
+      const filteredOutputs = outputs.filter(x => x !== NO_OUTPUT);
+      return from(filteredOutputs)
+    }, outputs$);
+
+    return share(filteredOutputs$)
   };
-  // TODO : rewrite this to avoid using merge, map, filter and flatMap: use a subject/event emitter basically
-  // that ensures synchronicity. All operators can be flattened in one long function
 
   return computeActions;
 }
@@ -557,7 +560,7 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
   // DOC : entry actions for a control state will apply before any automatic event related to that state! In fact before
   // anything. That means the automatic event should logically receive the state updated by the entry action
   const decoratedAction = function (model, eventData, settings) {
-    const {updateModel} = settings;
+    const { updateModel } = settings;
     const actionResult = action(model, eventData, settings);
     const actionUpdate = actionResult.model_update;
     const updatedModel = updateModel(model, actionUpdate);
