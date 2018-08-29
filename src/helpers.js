@@ -176,7 +176,7 @@ export function mergeActionFactories(mergeOutputFn, arrayActionFactory) {
     return {
       model_update: [].concat(...arrayModelUpdates),
       // for instance, mergeFn = R.mergeAll or some variations around R.mergeDeepLeft
-      outputs: (mergeOutputFn || defaultMerge)(arrayOutputs)
+      outputs: mergeOutputFn(arrayOutputs)
     }
   }
 }
