@@ -464,7 +464,9 @@ export function makeStreamingStateMachine(settings, fsmDef) {
       // NOTE : Rxjs : https://github.com/ReactiveX/rxjs/blob/master/doc/scheduler.md
       // By not passing any scheduler, notifications are delivered synchronously and recursively.
       // DOC : settings.of should emit synchronously and recursively
-      .flatMap(outputs => of(outputs))
+      .flatMap(outputs => {
+        return of(outputs)
+      })
       .filter(output => output !== NO_OUTPUT)
       .share();
   };
