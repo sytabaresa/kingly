@@ -467,7 +467,9 @@ export function makeStreamingStateMachine(settings, fsmDef) {
       .flatMap(outputs => {
         return of(outputs)
       })
-      .filter(output => output !== NO_OUTPUT)
+      .filter(output => {
+        return output !== NO_OUTPUT
+      })
       .share();
   };
   // TODO : rewrite this to avoid using merge, map, filter and flatMap: use a subject/event emitter basically
