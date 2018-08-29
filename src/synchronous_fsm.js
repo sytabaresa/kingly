@@ -605,10 +605,10 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
  *  Note that the trace functionality is obtained by wrapping over the action factories in `A`. As such, all action
  *  factories will see their output wrapped. However, transitions which do not lead to the execution of action
  *  factories are not traced.
- * @param {*} settings
+ * @param {*} env
  * @param {FSM_Def} fsm
  */
-export function traceFSM(settings, fsm) {
+export function traceFSM(env, fsm) {
   const { initial_extended_state, events, states, transitions } = fsm;
 
   return {

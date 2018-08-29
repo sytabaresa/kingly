@@ -509,14 +509,24 @@ The aforedescribed behaviour is summarized here :
 ![event processing](assets/FSM%20event%20processing%20semantics.png)
 
 **History states semantics**
+An history state relates to the past configuration a compound state. There 
+are two kinds of history states : shallow history states (H), and deep history states (H*). A 
+picture being worth more than words, thereafter follows an illustration of both history states :
 
-- An history state is always an atomic state
-- An history state corresponds to a compound state, and is the last atomic state nested in that 
-compound state that was visited, before exiting that compound state
+![deep and shallow history](test/assets/history%20transitions,%20INIT%20event%20CASCADING%20transitions.png)
+
+Assuming the corresponding machine has had the following run `[INIT, EVENT1, EVENT3, EVENT1, 
+EVENT4]`:
+ 
+- the configurations for the `OUTER` control state will have been `[OUTER.A, INNER, INNER.S, INNER.T]`
+ - the shallow history state for the `OUTER` control state will correspond to the `INNER` control
+  state (the last direct substate of `OUTER`), leading to an automatic transition to INNER_S  
+ - the deep history state for the `OUTER` control state will correspond to the `INNER.T` control
+     state (the last substate of `OUTER` before exiting it)
 
 In short the history state allows to short-circuit the default entry behaviour for a compound 
 state, which is to follow the transition triggered by the INIT event. When transitioning to the 
-history state, transition is towards the last seen atomic state for the entered compound state.
+history state, transition is towards the last seen state for the entered compound state.
 
 ### Example run
 To illustrate the previously described transducer semantics, let's run the CD player example.
@@ -551,38 +561,45 @@ must be one)
  
 ### Contracts
 
+- state names must be unique and conform to the same nomenclature than javascript variable 
+identifiers (cannot be empty strings, cannot start with a number, etc.)
 - the first event processed by the state machine must be the init event
 - the state machine starts in the initial state
 - all transitions must be valid :
   - all states referenced in the `transitions` data structure must be defined in the `states` data 
   structure
+  - the transition syntax must be followed (cf. types)
 - The machine cannot stay blocked in the initial control state. This means that at least one 
 transition must be configured and be executed between the initial control state and another state
-.  This is turn means :
+.   This is turn means :
   - at least one non-reserved control state must be configured
   - at least one transition out of the initial control state must be configured
   - of all guards for such transitions, if any, at least one must be fulfilled to enable a 
   transition away from the initial control state
 - A transition evaluation must end in an atomic state
-  - for every compound state, there must be an INIT transition, identifying the target nested state 
-  - init transitions must have an atomic state as target state, or have a target compound state 
-  with an init transition ending in an atomic state, eventually
-  - to avoid issues, there will be no guards accepted on INIT transition for another state than 
-  the initial state (ensuring the machine always progresses state on INIT) 
-  - An init transition must have as target control state a state which is strictly nested under the 
-state origination the transition (i.e. no hierarchy crossing, and we must go down one level in 
-the hierarchy)
-  - (the following conditions ensure that there is always a way down the hierarchy for compound 
+  - Initial states must be defined on every state hierarchy and must have exactly one outgoing 
+  transition going down exactly one level in the hierarchy (i.e. no hierarchy crossing, no fast 
+  stepping down the hierarchy)
+    - (the previous conditions ensure that there is always a way down the hierarchy for compound 
   states, and that way is always taken when entering the compound state, and the descent 
   process always terminate)
 - guards, action factories are pure functions
   - as such exceptions while running those functions are fatal, and will not be caught
 - eventless transitions must progress the state machine
-  - at least one guard must be fulfilled
-  - the target control state has to be different from the origin control state (else we may loop 
-  forever)
+  - at least one guard must be fulfilled, otherwise we would remain forever in the same state
+- eventless transitions must not be contradicted by event-ful transitions
+  - they must be the only transition defined for a given origin control state and triggering event
+- to a (from, event) couple, there can only correspond one row in the `transitions` array of the 
+state machine
+- `updateModel :: ExtendedState -> ExtendedStateUpdates -> ExtendedState` must be a pure function
+ (this is important in particular for the tracing mechanism which triggers two execution of this 
+ function with the same parameters)
+- all action factories must fill in the `model_update` and `outputs` property (no syntax sugar)
+  - NO_OUTPUT must be used to indicate the absence of outputs
+- there cannot be two transitions with the same `(from, event, predicate)` - sameness defined for
+ predicate by referential equality
   
-## `create_state_machine :: FSM_Def -> FSM`
+## `create_state_machine :: FSM_Def -> Settings -> FSM`
 ### Description
 This FSM factory function takes the parameters defining the behaviour of the state transducer, 
 and returns the created state transducer. That transducer has a method `yield` by which an input 
@@ -593,8 +610,18 @@ is the event identifier, and the value matching the key is the event data.
 Note that by contract the state machine must be started by sending the `INIT` event. We provide 
 the syntatic sugar `.start()` to do so. 
 
+The machine additionnally can carry over environment variables, which are accessible in guards, 
+and action factories. This helps maintaining such functions pure and testable. 
+
+The `settings.updateModel` property is mandatory, and specify how to update a model from the `
+.model_update` produced by an action factory. We used successfully JSON patch operations for 
+model updates, but you can choose to use the inmutable library of your choice or else. The 
+important point is that the extended state should not be modified in place, i.e. `updateModel` is
+ a pure function. 
+
 ### Contracts
-All [previously mentioned](https://github.com/brucou/state-transducer#contracts) contracts apply. 
+All [previously mentioned](https://github.com/brucou/state-transducer#contracts) contracts apply.
+  The `settings.updateModel` property is mandatory. 
 
 The key types contracts are summarized here :
 
@@ -613,49 +640,75 @@ The key types contracts are summarized here :
  */
 /**
  * @typedef {{from: ControlState, to: ControlState, event: EventLabel, action: ActionFactory}} InconditionalTransition
- * **!! DEPRECATED!!**
  *   Inconditional_Transition encodes transition with no guards attached. Every time the specified event occurs, and
  *   the machine is in the specified state, it will transition to the target control state, and invoke the action
  *   returned by the action factory
  */
 /**
- * @typedef {{from: ControlState, guards: Array<Condition>}} ConditionalTransition Transition for the
+ * @typedef {{from: ControlState, event: EventLabel, guards: Array<Condition>}} ConditionalTransition Transition for the
  * specified state is contingent to some guards being passed. Those guards are defined as an array.
  */
 /**
- * @typedef {{predicate: Predicate, to: ControlState, action: ActionFactory}} Condition On satisfying the
+ * @typedef {{predicate: FSM_Predicate, to: ControlState, action: ActionFactory}} Condition On satisfying the
  * specified predicate, the received event data will trigger the transition to the specified target control state
  * and invoke the action created by the specified action factory, leading to an update of the internal state of the
  * extended state machine and possibly an output to the state machine client.
  */
 /**
- * @typedef {function(model: FSM_Model, event_data: *, settings: FSM_Settings) : Actions} ActionFactory
+ * @typedef {function(model: ExtendedState, event_data: *, settings: FSM_Settings) : Actions} ActionFactory
  */
 /**
- * @typedef {{model_update: Array<JSON_PatchOperation>, output: MachineOutput}} Actions The actions to be performed
- * by the state machine in response to a transition. `model_update` represents the state update for the variables
- * of the extended state machine. `output` represents the output of the state machine passed to the API caller.
+ * @typedef {{model_update: *, outputs: Array<MachineOutput> | NO_OUTPUT}} Actions The actions
+ * to be performed by the state machine in response to a transition. `model_update` represents the state update for
+ * the variables of the extended state machine. `output` represents the output of the state machine passed to the
+ * API caller.
  */
-/** @typedef {function (*=) : Boolean} Predicate */
-/** @typedef {{subject_factory: function() : Subject, ...}} FSM_Settings */
-/** @typedef {{subject_factory: function() : Subject, merge: MergeObsFn, of: OfObsFn, ...}} FSM$_Settings */
-/** @typedef {*} FSM_Model */
+/** @typedef {function (ExtendedState, EventData) : Boolean} FSM_Predicate */
+/** @typedef {{updateModel :: Function(ExtendedState, *) : ExtendedState, ...}} FSM_Settings */
+/** @typedef {{merge: MergeObsFn, from: FromObsFn, filter: FilterObsFn, map: MapObsFn, share:ShareObsFn, ...}} FSM$_Settings */
 /** @typedef {*} MachineOutput well it is preferrable that that be an object instead of a primitive */
 /** @typedef {String} EventLabel */
 /** @typedef {String} ControlState Name of the control state */
-/**
- * @typedef {{emit: function(value) : void, ...}} Subject An object with emulates a subject. The subject must have an
- * `emit` method by which values can be emitted. This allows to decouple the streaming library from our library. For
- * Rxjs v5, `emit` is the equivalent of `next`. The subject must also have an `subscribe` method corresponding to
- * the eponym method for Rxjs v5 subjects.
- */
 /**
  * @typedef {function (Array<Observable>) : Observable} MergeObsFn Similar to Rxjs v4's `Rx.Observable.merge`. Takes
  * an array of observables and return an observable which passes on all outputs emitted by the observables in the array.
  */
 /**
- * @typedef {function (value) : Observable} OfObsFn Similar to Rxjs v4's `Rx.Observable.of`. Takes
+ * @typedef {function (value) : Observable} FromObsFn Similar to Rxjs v4's `Rx.Observable.from`. Takes
  * a value and lift it into an observable which completes immediately after emitting that value.
+ */
+/**
+ * @typedef {function (value) : Observable} FilterObsFn Similar to Rxjs v4's `Rx.Observable.filter`. Takes
+ * a value and lift it into an observable which completes immediately after emitting that value.
+ */
+/**
+ * @typedef {function (value) : Observable} MapObsFn Similar to Rxjs v4's `Rx.Observable.map`. Takes
+ * a value and lift it into an observable which completes immediately after emitting that value.
+ */
+/**
+ * @typedef {function (value) : Observable} ShareObsFn Similar to Rxjs v4's `Rx.Observable.share`. Takes
+ * a value and lift it into an observable which completes immediately after emitting that value.
+ */
+/**
+ * @typedef {Object.<EventLabel, EventData>} LabelledEvent extended state for a given state machine
+ */
+/**
+ * @typedef {*} EventData
+ */
+/**
+ * @typedef {*} ExtendedState extended state for a given state machine
+ */
+/**
+ * @typedef {Object} FsmTraceData
+ * @property {ControlState} controlState
+ * @property {{EventLabel, EventData}} eventLabel
+ * @property {ControlState} targetControlState
+ * @property {FSM_Predicate} predicate
+ * @property {*} model_update
+ * @property {ExtendedState} extendedState
+ * @property {ActionFactory} actionFactory
+ * @property {Number} guardIndex
+ * @property {Number} transitionIndex
  */
 ```
 
@@ -670,6 +723,10 @@ machine defined in `FSM_Def` and the computed output is emitted by the `Streamin
 Note that it is not necessary to start the state machine manually here, as it is started 
 automatically at subscription time.
 
+The API user must provide a series of stream operators in settings (cf. types). This allows to use 
+the  `StreamingStateMachine` function with any streaming library, which makes those stream operators 
+available, with the same semantics.
+
 ### Contracts
 - events have the shape `HashMap<EventLabel, EventData>`, i.e. an object whose keys are event 
 identifiers, and values are the data carried with the event. 
@@ -683,7 +740,7 @@ Cf. [multi-step workflow demo repo](https://github.com/brucou/cycle-state-machin
 This function converts a state machine `A` into a traced state machine `T(A)`. The traced state 
 machine, on receiving an input `I` outputs the following information :
 
-- `output` : the output `A.yield(I)` 
+- `outputs` : the output `A.yield(I)` 
 - `model_update` : the update of the extended state of `A` to be performed as a consequence of receiving the input `I` 
 - `extendedState` : the extended state of `A` prior to receiving the input `I`
 - `controlState` : the control state in which the machine is when receiving the input `I`
@@ -700,19 +757,8 @@ control state, triggered by an event
 specifications for the machine's transition
 
 Note that the trace functionality is obtained by wrapping over the action factories in `A`. As 
-such, all action factories will see their output wrapped. This means :
-
-- transitions which do not lead to the execution of action factories are not traced
-- transitions which lead to automatic transitions will only see traced the action on the last 
-transition taken
-
-As such, the trace provided is close to, but not equal to a step-by-step trace mechanism : 
-transitions which trigger automatic transitions (transition to compound states, eventless 
-transitions, history transitions) are not traced.
-
-NOTE TO SELF : a full tracing mechanism could be implemented by wrapping over the **machine 
-instance** instead of the **machine specification**. At the moment, the present mechanism is 
-sufficient however.
+such, all action factories will see their output wrapped. This means that transitions which do 
+not lead to the execution of action factories are not traced.
 
 Note also that `env` is not used for now, and could be used to parameterize the tracing.
 
@@ -727,21 +773,19 @@ Because of the API design choices, it is possible to realize the possible extens
 modifying the state chart library (open/closed principle):
 
 - entry and exit actions
-  - decorating action factories
+  - decorating action factories (cf. the [multi-step workflow demo repo](https://github.com/brucou/cycle-state-machine-demo))
 - logging/tracing/monitoring
-  - decorating guards and action factories
-  - while not directly exposed, control state can still be traced by injecting the information in
-   the decorated guard and action factories
+  - decorating guards and action factories can allow
 - contract checking (preconditions, postconditions and probably invariants - to be investigated) 
 for both states and transitions
   - can be done by inserting in first position extra guards which are always failed and 
   decorating exising guards
   
-Note that these extension more often than not would perform effects, meaning that the order of 
-application becomes significant in general. This is to be investigated further at a later point. 
+Note that these extensions more often than not would perform effects (logs, ...), meaning that the 
+order of application becomes significant in general. This is to be investigated further at a later point. 
 
 Equipped with a history of inputs and the corresponding outputs, it is also possible to do 
-property-based testing (for instance checking that a patter in a sequence of outputs occurs only 
+property-based testing (for instance checking that a pattern in a sequence of outputs occurs only 
 when a pattern occurs in the matching sequence of inputs).
 
 These extensions are useful to check/test the **design** of the automata, i.e. checking that the 
@@ -749,7 +793,7 @@ automata which acts as modelization of requirements indeed satisfy the requireme
 sufficient confidence is acquired, those extensions can be safely removed.
 
 # Tests
-Automated tests are so far incomplete. Most tests have been run manually. To run the 
+Automated tests are close to completion. Most tests have been run manually. To run the 
 current automated tests, type in a terminal : `npm run test`
 
 # Visualization tools
@@ -769,20 +813,6 @@ Automated visualization works well with simple graphs, but seems to encounter tr
  optimally satisfying complex graphs. The Dagre layout seems to be a relatively good option. The 
  [`yed`](https://www.yworks.com/products/yed) orthogonal layout also seems to give pretty good results. 
 
-# How to port to other streaming library
-The library can be adapted for use with other streaming library than `Rxjs`.
-
-- configure `fsm_settings.subject_factory`, `fsm_settings.merge`, `fsm_settings.of` to the 
-equivalent function of your favorite streaming library
-- the streams returned by those function must have the following functions defined, i.e. for 
-instance `obs.filter(...)` must be legit :
-  - concat
-  - map
-  - filter
-  - share (!!) 
-
-It should be pretty easy to put in place a configuration to use this library with `most`. 
-
 # References
 - [comonadic user interfaces](https://functorial.com/the-future-is-comonadic/main.pdf)
 - [the ultimate guide to FSM in games](https://www.researchgate.net/publication/284383920_The_Ultimate_Guide_to_FSMs_in_Games)
@@ -794,5 +824,5 @@ It should be pretty easy to put in place a configuration to use this library wit
 - [x] [online visualizer](https://github.com/brucou/state-transducer-visualizer)
 - [ ] remove dependency on json patch and allow customization of the state update library
 - [ ] add exit actions
-- [ ] add tracing/debugging support
-- [ ] support [model-based testing, and test input generation](https://pdfs.semanticscholar.org/f8e6/b3019c0d5422f35d2d98c242f149184992a3.pdf) 
+- [x] add tracing/debugging support
+- [~] support [model-based testing, and test input generation](https://pdfs.semanticscholar.org/f8e6/b3019c0d5422f35d2d98c242f149184992a3.pdf) 

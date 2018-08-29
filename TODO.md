@@ -1,9 +1,5 @@
 # Now
 ! output now should be array
-  - update the streaming machine
-    - rewrite with create observable 
-  - look for all the place I put null (also tests!) and put No_OUTPUT instead then change 
-  NO_OUTPUT to {} to see if still works (should use referential equality so should be fine for js)
   - update doc and README
 - add edge cases for test generation: 
   - history transitions
@@ -20,20 +16,8 @@
       - get the history state for S from the state sequence
       - if the edge.target corresponds to history(S) then isTraversable YES else NO
 - write all contracts
-  - some of them hre : https://www.embedded.com/design/prototyping-and-development/4008341/State-charts-can-provide-you-with-software-quality-insurance
-  - if eventless transition, then cannot have event-based transitions for the same origin control 
-  state
-  - all AUTO transition should advance
-  - updateModel must be pure fcuntion!! (necessary for tracing mechanism)
   - TODO add contract for test gen : apply only to FSM for which init event sets the initial state
    in the machine
-  - all action factories MUST return a model_update, MUST return a outputs!! no syntactic sugar here
-  - DOC : contract, all transition for a (from, event) must be gathered in one place
- * from, event, index : CONTRACT : all transition from `from` triggered by `event` must be defined together in the
- * same record
- * CONTRACT : cannot have the same predicate for a same (from, event) as is logical, the second is contracdictory or
- * redundant
- * CONTRACT : predicate MUST be defined if in a guard !
 
 // TODO DOC : document initial state is NOK, and event init automatically fired on starting the fsm
 // no hierarchy : TODO : add tests for when event passed in not in state machine
