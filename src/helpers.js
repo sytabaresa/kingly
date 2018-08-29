@@ -128,7 +128,8 @@ export function mergeModelUpdates(arrayUpdateFns) {
         else {
           return acc
         }
-      }, [])
+      }, []),
+      outputs : NO_OUTPUT
     }
   }
 }
