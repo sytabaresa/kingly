@@ -151,7 +151,8 @@ export function chainModelUpdates(arrayUpdateFns) {
 
           return { model: updatedModel, model_update: update }
         }, { model, model_update: [] })
-        .model_update || []
+        .model_update || [],
+      outputs : NO_OUTPUT
     }
   }
 }
