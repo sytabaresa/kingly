@@ -19,10 +19,6 @@ const default_settings = {
   merge: function merge(arrayObs) {return $.merge(...arrayObs)},
   of: $.of,
 };
-const FALSE_GUARD = function always_false(action, state) {return [{ predicate: F, to: state, action }]};
-const TRUE_GUARD = function always_true(to, action) { return [{ predicate: T, to, action }]};
-
-const NO_ACTION = null;
 const EVENT1 = 'event1';
 const EVENT1_DATA = {
   event1_data_key1: 'event1_data_value1'

@@ -555,9 +555,10 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
   // DOC : entry actions for a control state will apply before any automatic event related to that state! In fact before
   // anything. That means the automatic event should logically receive the state updated by the entry action
   const decoratedAction = function (model, eventData, settings) {
+    const {updateModel} = settings;
     const actionResult = action(model, eventData, settings);
     const actionUpdate = actionResult.model_update;
-    const updatedModel = applyUpdateOperations(model, actionUpdate);
+    const updatedModel = updateModel(model, actionUpdate);
     const exitActionResult = entryAction(updatedModel, eventData, settings);
 
     // NOTE : exitActionResult comes last as we want it to have priority over other actions.

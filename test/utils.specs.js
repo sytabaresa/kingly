@@ -2,9 +2,8 @@ import * as QUnit from "qunitjs"
 import * as Rx from "rx"
 import { clone, F, merge, T } from "ramda"
 import {
-  ACTION_IDENTITY, computeHistoryMaps, computeTimesCircledOn, create_state_machine, generateTestsFromFSM, INIT_EVENT,
-  INIT_STATE,
-  mapOverTransitionsActions, NO_OUTPUT, reduceTransitions
+  ACTION_IDENTITY, computeHistoryMaps, create_state_machine, INIT_EVENT, INIT_STATE, mapOverTransitionsActions,
+  reduceTransitions
 } from "../src"
 import { formatMap, formatResult } from "./helpers"
 import { convertFSMtoGraph, getGeneratorMapFromGeneratorMachine } from "../src/test_generator"
@@ -21,13 +20,7 @@ const default_settings = {
   merge: function merge(arrayObs) {return $.merge(...arrayObs)},
   of: $.of,
 };
-const FALSE_GUARD = function always_false(action, state) {return [{ predicate: F, to: state, action }]};
-const TRUE_GUARD = function always_true(to, action) { return [{ predicate: T, to, action }]};
-
 const EVENT1 = 'event1';
-const EVENT1_DATA = {
-  event1_data_key1: 'event1_data_value1'
-}
 const a_value = "some value";
 const another_value = "another value";
 const an_output = {
@@ -67,14 +60,6 @@ const another_dummy_action_result_with_update = {
   model_update: update_model_ops_2,
   outputs: another_output
 };
-
-function dummy_action(model, event_data, settings) {
-  return dummy_action_result
-}
-
-function another_dummy_action(model, event_data, settings) {
-  return another_dummy_action_result
-}
 
 function dummy_action_with_update(model, event_data, settings) {
   return merge(dummy_action_result_with_update, {
@@ -117,7 +102,6 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
     ],
     initial_extended_state: model_initial
   };
-  const settings = default_settings;
   const result = reduceTransitions(reduceFn, [], fsmDef.transitions).map(formatResult);
   assert.deepEqual(result, [
     {
@@ -149,7 +133,6 @@ QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", funct
     initial_extended_state: model_initial
   };
   const settings = default_settings;
-  const fsm = create_state_machine(fsmDef, settings);
   const result = reduceTransitions(reduceFn, [], fsmDef.transitions).map(formatResult);
   assert.deepEqual(result, [
       {
@@ -188,7 +171,6 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
     ],
     initial_extended_state: model_initial
   };
-  const settings = default_settings;
   const result = reduceTransitions(reduceFn, [], fsmDef.transitions).map(formatResult);
   assert.deepEqual(result, [
     {
@@ -227,7 +209,6 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
     ],
     initial_extended_state: model_initial
   };
-  const settings = default_settings;
   const result = mapOverTransitionsActions(mapFn, fsmDef.transitions).map(formatResult);
   assert.deepEqual(result, [
     {
@@ -253,7 +234,6 @@ QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", funct
     ],
     initial_extended_state: model_initial
   };
-  const settings = default_settings;
   const result = mapOverTransitionsActions(mapFn, fsmDef.transitions)
     .map(({ event, from, guards }) => ({ event, from, guards: guards.map(formatResult) }));
   assert.deepEqual(result,
@@ -288,7 +268,6 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
     ],
     initial_extended_state: model_initial
   };
-  const settings = default_settings;
   const result = mapOverTransitionsActions(mapFn, fsmDef.transitions).map(formatResult);
   assert.deepEqual(result,
     [
@@ -359,8 +338,6 @@ QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", funct
     ],
     initial_extended_state: model_initial
   };
-  const settings = default_settings;
-  const fsm = create_state_machine(fsmDef, settings);
   const result = formatResult(convertFSMtoGraph(fsmDef));
   assert.deepEqual(result, {
       "clear": "clear",
@@ -408,7 +385,6 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
     ],
     initial_extended_state: model_initial
   };
-  const settings = default_settings;
   const result = formatResult(convertFSMtoGraph(fsmDef));
   assert.deepEqual(result, {
     "clear": "clear",
@@ -483,7 +459,7 @@ const Z = 'z';
 
 QUnit.test("states with hierarchy", function exec_test(assert) {
   const states = { [OUTER]: { [INNER]: { [INNER_S]: '', [INNER_T]: '' }, [OUTER_A]: '', [OUTER_B]: '' }, [Z]: '' };
-  const history =computeHistoryMaps(states);
+  const history = computeHistoryMaps(states);
   assert.deepEqual(history, {
     "stateAncestors": {
       "deep": {
