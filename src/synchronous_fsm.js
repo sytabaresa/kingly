@@ -465,10 +465,8 @@ export function makeStreamingStateMachine(settings, fsmDef) {
       // By not passing any scheduler, notifications are delivered synchronously and recursively.
       // DOC : settings.of should emit synchronously and recursively
       .flatMap(outputs => {
-        return of(outputs)
-      })
-      .filter(output => {
-        return output !== NO_OUTPUT
+        const filteredOutputs = outputs.filter(x => x !== NO_OUTPUT);
+        return of(filteredOutputs)
       })
       .share();
   };
