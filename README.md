@@ -59,8 +59,7 @@ which may require that every single system requirement
 be traced to the code that implements it (!). Requirements modeled by state-machines are amenable
  to formal verification and validation. 
 
-State machines have also been used extensively in [games of reasonable complexity]
-(http://howtomakeanrpg.com/a/state-machines.html), and [tutorials](https://www.gamedev.net/articles/programming/general-and-gameplay-programming/state-machines-in-games-r2982/) abound
+State machines have also been used extensively in [games of reasonable complexity](http://howtomakeanrpg.com/a/state-machines.html), and [tutorials](https://www.gamedev.net/articles/programming/general-and-gameplay-programming/state-machines-in-games-r2982/) abound
  on the subject. The driving factors are again two. First, the basic problem for AI to solve 
  here is : given the state of the world, what should I do? Because game character behavior can be
   modeled (in most cases) as a sequence of different character "mental states", where change in 

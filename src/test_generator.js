@@ -96,6 +96,7 @@ export function generateTestsFromFSM(fsm, generators, settings) {
 
   return testCases
 }
+// TODO : the returned path will have a history in some parts of the path keep it?
 
 function computeNewPathTraversalState(fsm, edge, gen, extendedState, pathTraversalState, isTraversableEdge) {
   const { event: eventLabel, from: controlState, to: targetControlState } = edge;
@@ -121,7 +122,15 @@ function computeNewPathTraversalState(fsm, edge, gen, extendedState, pathTravers
     if (isEventless(eventLabel)) {
       return computeGeneratedInfoDoNothingCase(fsm, edge, isTraversableEdge, gen, extendedState, pathTraversalState)
     }
+    else if (isHistoryStateEdge(targetControlState)){
+      // TODO
+      // edge comes from the graph, so history prop will be set in edge
+      // here we set the gen ourself, basically isTraversable only if the history <- inputSequence is the `to`
+      // might have to recompute the analyzeStates, or rather compute the history myself from inputSequence
+      // beware of edge cases, transition must exit a state to be counted as history
+    }
     else {
+      // General case : not init state, not init event, not eventless, not history transition
       return computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, gen, extendedState, pathTraversalState)
     }
   }
@@ -198,10 +207,31 @@ export function getGeneratorMapFromGeneratorMachine(generators) {
  * @returns Graph
  */
 export function convertFSMtoGraph(tracedFSM) {
-  const { transitions } = tracedFSM;
-  const vertices = Object.keys(getFsmStateList(tracedFSM.states)).concat(INIT_STATE);
+  const { transitions, states } = tracedFSM;
+  const vertices = Object.keys(getFsmStateList(states)).concat(INIT_STATE);
+  const { statesAdjacencyList, statesLeafChildrenList } = analyzeStateTree(states);
   const edges = reduceTransitions((acc, transition, guardIndex, transitionIndex) => {
     const { from, event, to, action, predicate } = transition;
+
+    // TODO
+    // if transition has hisory state target :
+    // - shallow : for the enclosing control state, add all transitions to its direct substates, with a marker
+    // realTarget = H
+    // - deep : for the enclosing control state, add all transitions to its atomic substates at any level
+    if (isHistoryControlState(to)) {
+      const historyParentState = getHistoryParentState(to);
+      const partialTransitionRecord = { from, event, action, predicate, guardIndex, transitionIndex, history: to };
+      if (isShallowHistory(to)) {
+        // note : must be an array
+        return acc.concat(merge(partialTransitionRecord, { to: statesAdjacencyList[historyParentState] }))
+      }
+      else if (isDeepHistory(to)) {
+        // TODO : merge obj helper basically Object assign
+        return acc.concat(merge(partialTransitionRecord, { to: statesLeafChildrenList[historyParentState] }))
+      }
+      else throw `convertFSMtoGraph : found unrecognizable history control state!`
+    }
+
     return acc.concat({ from, event, to, action, predicate, guardIndex, transitionIndex })
   }, [], transitions);
 
