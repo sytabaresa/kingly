@@ -25,6 +25,10 @@ export function always(x) {return x}
 
 export function keys(obj) {return Object.keys(obj)}
 
+export function merge(a, b) {
+  return Object.assign({}, a, b)
+}
+
 // Contracts
 export function assertContract(contractFn, contractArgs, errorMessage) {
   const boolOrError = contractFn.apply(null, contractArgs)
@@ -129,7 +133,7 @@ export function mergeModelUpdates(arrayUpdateFns) {
           return acc
         }
       }, []),
-      outputs : NO_OUTPUT
+      outputs: NO_OUTPUT
     }
   }
 }
@@ -152,7 +156,7 @@ export function chainModelUpdates(arrayUpdateFns) {
           return { model: updatedModel, model_update: update }
         }, { model, model_update: [] })
         .model_update || [],
-      outputs : NO_OUTPUT
+      outputs: NO_OUTPUT
     }
   }
 }
@@ -244,20 +248,17 @@ export function computeHistoryMaps(control_states) {
         const parentControlState = traversalState.get(JSON.stringify(parentPath));
         acc.stateAncestors[SHALLOW][controlState] = [parentControlState];
 
-        if (isLeafLabel(treeLabel)) {
-          // we have an atomic state : build the ancestor list in one go
-          const { ancestors } = path.reduce((acc, _) => {
-            const parentPath = acc.path.slice(0, -1);
-            acc.path = parentPath;
-            if (parentPath.length > 1) {
-              const parentControlState = traversalState.get(JSON.stringify(parentPath));
-              acc.ancestors = acc.ancestors.concat(parentControlState);
-            }
+        const { ancestors } = path.reduce((acc, _) => {
+          const parentPath = acc.path.slice(0, -1);
+          acc.path = parentPath;
+          if (parentPath.length > 1) {
+            const parentControlState = traversalState.get(JSON.stringify(parentPath));
+            acc.ancestors = acc.ancestors.concat(parentControlState);
+          }
 
-            return acc
-          }, { ancestors: [], path });
-          acc.stateAncestors[DEEP][controlState] = ancestors;
-        }
+          return acc
+        }, { ancestors: [], path });
+        acc.stateAncestors[DEEP][controlState] = ancestors;
       }
 
       return acc
@@ -325,5 +326,21 @@ export function arrayizeOutput(output) {
     : Array.isArray(output)
       ? output
       : [output]
+}
+
+export function isHistoryControlState(to) {
+  return typeof to === 'object' && (DEEP in to || SHALLOW in to)
+}
+
+export function getHistoryParentState(to) {
+  return to[SHALLOW] || to[DEEP]
+}
+
+export function isShallowHistory(to) {
+  return to[SHALLOW]
+}
+
+export function isDeepHistory(to) {
+  return to[DEEP]
 }
 

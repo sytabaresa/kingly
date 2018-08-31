@@ -657,7 +657,7 @@ export function makeHistoryStates(states) {
   // used for referential equality comparison to discriminate history type
 
   return {
-    shallow: state => {
+    [SHALLOW]: state => {
       if (!stateList.includes(state)) {
         throw `makeHistoryStates: the state for which a history state must be constructed is not a configured state for the state machine under implementation!!`
       }
@@ -667,7 +667,7 @@ export function makeHistoryStates(states) {
         type: history_symbol
       }
     },
-    deep: state => {
+    [DEEP]: state => {
       if (!stateList.includes(state)) {
         throw `makeHistoryStates: the state for which a history state must be constructed is not a configured state for the state machine under implementation!!`
       }

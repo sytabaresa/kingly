@@ -2,7 +2,7 @@ import * as QUnit from "qunitjs"
 import * as Rx from "rx"
 import { clone, F, merge, T } from "ramda"
 import {
-  ACTION_IDENTITY, computeHistoryMaps, create_state_machine, INIT_EVENT, INIT_STATE, mapOverTransitionsActions,
+  ACTION_IDENTITY, analyzeStateTree, computeHistoryMaps, INIT_EVENT, INIT_STATE, mapOverTransitionsActions,
   reduceTransitions
 } from "../src"
 import { formatMap, formatResult } from "./helpers"
@@ -499,4 +499,81 @@ QUnit.test("states with hierarchy", function exec_test(assert) {
       "z"
     ]
   }, `...`);
+});
+
+QUnit.module("Testing analyzeStateTree(states)", {});
+
+QUnit.test("empty states", function exec_test(assert) {
+  const states = {};
+  const result = analyzeStateTree(states);
+
+  assert.deepEqual(result,
+    {
+      "statesAdjacencyList": {},
+      "statesLeafChildrenList": {}
+    }, `...`);
+});
+
+QUnit.test("flat states hierarchy", function exec_test(assert) {
+  const states = {A:'', B:'', C:''};
+  const result = analyzeStateTree(states);
+
+  assert.deepEqual(result,
+    {
+      "statesAdjacencyList": {
+        "A": [],
+        "B": [],
+        "C": []
+      },
+      "statesLeafChildrenList": {
+        "A": [],
+        "B": [],
+        "C": []
+      }
+    }, `...`);
+});
+
+QUnit.test("non-flat states hierarchy", function exec_test(assert) {
+  const states = {A: {'A.1' : '', 'A.2' : {'A.2.1': ''}, 'A.3':''}, B:'', C:{'C.1':''}};
+  const result = analyzeStateTree(states);
+
+  assert.deepEqual(result,
+    {
+      "statesAdjacencyList": {
+        "A": [
+          "A.1",
+          "A.2",
+          "A.3"
+        ],
+        "A.1": [],
+        "A.2": [
+          "A.2.1"
+        ],
+        "A.2.1": [],
+        "A.3": [],
+        "B": [],
+        "C": [
+          "C.1"
+        ],
+        "C.1": []
+      },
+      "statesLeafChildrenList": {
+        "A": [
+          "A.1",
+          "A.2.1",
+          "A.3"
+        ],
+        "A.1": [],
+        "A.2": [
+          "A.2.1"
+        ],
+        "A.2.1": [],
+        "A.3": [],
+        "B": [],
+        "C": [
+          "C.1"
+        ],
+        "C.1": []
+      }
+    }, `...`);
 });

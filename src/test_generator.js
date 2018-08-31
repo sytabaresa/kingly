@@ -1,8 +1,12 @@
 // TODO import {depthFirstTraverseGraphEdges} from 'graph-adt' uncomment whn finished
 import { constructGraph, depthFirstTraverseGraphEdges } from '../../graph-adt/src'
 import { INIT_STATE } from "./properties"
-import { getFsmStateList, isEventless, isInitEvent, isInitState, lastOf, reduceTransitions } from "./helpers"
+import {
+  getFsmStateList, getHistoryParentState, isDeepHistory, isEventless, isHistoryControlState, isInitEvent, isInitState,
+  isShallowHistory, lastOf, merge, reduceTransitions
+} from "./helpers"
 import { create_state_machine, traceFSM } from "./synchronous_fsm"
+import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
 
 const graphSettings = {
   getEdgeOrigin: function (edge) {
@@ -96,10 +100,11 @@ export function generateTestsFromFSM(fsm, generators, settings) {
 
   return testCases
 }
+
 // TODO : the returned path will have a history in some parts of the path keep it?
 
 function computeNewPathTraversalState(fsm, edge, gen, extendedState, pathTraversalState, isTraversableEdge) {
-  const { event: eventLabel, from: controlState, to: targetControlState } = edge;
+  const { event: eventLabel, from: controlState, to: targetControlState, history } = edge;
 
   // Case 1 : control state is INIT_STATE and event is INIT_EVENT
   // Reminder : in INIT_STATE, the only event admissible is INIT_EVENT
@@ -122,12 +127,8 @@ function computeNewPathTraversalState(fsm, edge, gen, extendedState, pathTravers
     if (isEventless(eventLabel)) {
       return computeGeneratedInfoDoNothingCase(fsm, edge, isTraversableEdge, gen, extendedState, pathTraversalState)
     }
-    else if (isHistoryStateEdge(targetControlState)){
-      // TODO
-      // edge comes from the graph, so history prop will be set in edge
-      // here we set the gen ourself, basically isTraversable only if the history <- inputSequence is the `to`
-      // might have to recompute the analyzeStates, or rather compute the history myself from inputSequence
-      // beware of edge cases, transition must exit a state to be counted as history
+    else if (isHistoryStateEdge(edge)) {
+      return computeGeneratedInfoHistoryStateCase(fsm, edge, isTraversableEdge, gen, extendedState, pathTraversalState)
     }
     else {
       // General case : not init state, not init event, not eventless, not history transition
@@ -190,6 +191,35 @@ function computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, gen, extende
   }
 }
 
+function computeGeneratedInfoHistoryStateCase(fsm, edge, isTraversableEdge, gen, extendedState, pathTraversalState) {
+  // TODO
+  // edge comes from the graph, so history prop will be set in edge
+  // here we set the gen ourself, basically isTraversable as normal only if the history <- inputSequence is the `to`
+  // might have to recompute the analyzeStates, or rather compute the history myself from inputSequence
+  // beware of edge cases, transition must exit a state to be counted as history
+  const { event: eventLabel, from: controlState, to: targetControlState, history } = edge;
+  const { path, inputSequence, outputSequence, controlStateSequence } = pathTraversalState;
+  const { input: newInputData, hasGeneratedInput } = gen(extendedState);
+  let noMoreInput, newInputSequence, newOutputSequence, newControlStateSequence, newPath;
+
+  const historyParentState = getHistoryParentState(history);
+  const historyType = getHistoryType(history);
+  const historyStateForParentState = computeHistoryState(historyType, historyParentState, inputSequence);
+
+  if (historyStateForParentState !== historyParentState) {
+    // We have an history edge for a parent state with a potential target state
+    // However the input sequence gives an history state for that parent state that
+    // is different from the potential target state! We invalidate the traversal of that edge
+    return {
+      newIsTraversableEdge: false,
+      newPathTraversalState: pathTraversalState
+    }
+  }
+  else {
+    return computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, gen, extendedState, pathTraversalState)
+  }
+}
+
 /**
  * @param {FSM_Gen_Def} generators
  */
@@ -213,11 +243,6 @@ export function convertFSMtoGraph(tracedFSM) {
   const edges = reduceTransitions((acc, transition, guardIndex, transitionIndex) => {
     const { from, event, to, action, predicate } = transition;
 
-    // TODO
-    // if transition has hisory state target :
-    // - shallow : for the enclosing control state, add all transitions to its direct substates, with a marker
-    // realTarget = H
-    // - deep : for the enclosing control state, add all transitions to its atomic substates at any level
     if (isHistoryControlState(to)) {
       const historyParentState = getHistoryParentState(to);
       const partialTransitionRecord = { from, event, action, predicate, guardIndex, transitionIndex, history: to };
@@ -226,16 +251,61 @@ export function convertFSMtoGraph(tracedFSM) {
         return acc.concat(merge(partialTransitionRecord, { to: statesAdjacencyList[historyParentState] }))
       }
       else if (isDeepHistory(to)) {
-        // TODO : merge obj helper basically Object assign
         return acc.concat(merge(partialTransitionRecord, { to: statesLeafChildrenList[historyParentState] }))
       }
       else throw `convertFSMtoGraph : found unrecognizable history control state!`
     }
-
-    return acc.concat({ from, event, to, action, predicate, guardIndex, transitionIndex })
+    else {
+      return acc.concat({ from, event, to, action, predicate, guardIndex, transitionIndex })
+    }
   }, [], transitions);
 
   return constructGraph(graphSettings, edges, vertices)
+}
+
+export function analyzeStateTree(states) {
+  const { getLabel, getChildren, isLeafLabel } = objectTreeLenses;
+  const traverse = {
+    strategy: PRE_ORDER,
+    seed: { statesAdjacencyList: {}, leaveStates: {} },
+    visit: (acc, traversalState, tree) => {
+      const { path } = traversalState.get(tree);
+      const treeLabel = getLabel(tree);
+      const controlState = Object.keys(treeLabel)[0];
+      acc.statesAdjacencyList[controlState] = getChildren(tree).map(x => Object.keys(x)[0]);
+      if (isLeafLabel(treeLabel)) {
+        acc.leaveStates[path.join('.')] = controlState;
+      }
+
+      return acc;
+    }
+  };
+  const { statesAdjacencyList, leaveStates } = traverseObj(traverse, states);
+
+  const leavePathsStr = Object.keys(leaveStates);
+  const traverseAgain = {
+    strategy: PRE_ORDER,
+    seed: { statesLeafChildrenList: {} },
+    visit: (acc, traversalState, tree) => {
+      const { path } = traversalState.get(tree);
+      const pathStr = path.join('.');
+      const treeLabel = getLabel(tree);
+      const controlState = Object.keys(treeLabel)[0];
+      acc.statesLeafChildrenList[controlState] = [];
+      leavePathsStr.filter(x => x !== pathStr).filter(x => x.startsWith(pathStr)).forEach(pathStr => {
+        debugger
+        acc.statesLeafChildrenList[controlState].push(leaveStates[pathStr]);
+      });
+
+      return acc;
+    }
+  };
+  const { statesLeafChildrenList } = traverseObj(traverseAgain, states);
+
+  return {
+    statesAdjacencyList,
+    statesLeafChildrenList
+  }
 }
 
 function getGeneratorMappedTransitionFromEdge(genMap, edge) {

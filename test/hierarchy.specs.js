@@ -54,6 +54,15 @@ function incCounter(extS, eventData) {
   }
 }
 
+function incCounterTwice(extS, eventData) {
+  const { counter } = extS;
+
+  return {
+    model_update: [{ op: 'add', path: '/counter', value: counter + 2 }],
+    outputs: counter
+  }
+}
+
 function setBdata(extendedState, eventData) {
   return {
     model_update: [
@@ -616,7 +625,6 @@ QUnit.test("shallow history transitions, INIT event CASCADING transitions", func
     NO_OUTPUT,
     [0, NO_OUTPUT]
   ], `eventless transitions are correctly taken`);
-  // Fix bug : action output is not output for history states!! What to do with
 });
 
 QUnit.test("deep history transitions, INIT event CASCADING transitions", function exec_test(assert) {
@@ -676,7 +684,6 @@ QUnit.test("deep history transitions, INIT event CASCADING transitions", functio
     NO_OUTPUT,
     [0]
   ], `eventless transitions are correctly taken`);
-  // Fix bug : action output is not output for history states!! What to do with
 });
 
 QUnit.test("with trace : shallow history transitions, INIT event CASCADING transitions", function exec_test(assert) {
@@ -1258,3 +1265,147 @@ QUnit.test("with trace : deep history transitions, INIT event CASCADING transiti
       ]
     ], `eventless transitions are correctly taken`);
 });
+
+QUnit.test("shallow history transitions FROM INSIDE, INIT event CASCADING transitions", function exec_test(assert) {
+  const OUTER = 'OUTER';
+  const INNER = 'INNER';
+  const OUTER_A = 'outer_a';
+  const OUTER_B = 'outer_b';
+  const INNER_S = 'inner_s';
+  const INNER_T = 'inner_t';
+  const Z = 'z';
+  const states = { [OUTER]: { [INNER]: { [INNER_S]: '', [INNER_T]: '' }, [OUTER_A]: '', [OUTER_B]: '' }, [Z]: '' };
+  const hs = makeHistoryStates(states);
+  const fsmDef = {
+    states,
+    events: [EVENT1, EVENT2, EVENT3, EVENT4],
+    initial_extended_state: { history: SHALLOW, counter: 0 },
+    transitions: [
+      { from: INIT_STATE, event: INIT_EVENT, to: OUTER, action: ACTION_IDENTITY },
+      { from: OUTER, event: INIT_EVENT, to: OUTER_A, action: ACTION_IDENTITY },
+      { from: OUTER_A, event: EVENT1, to: INNER, action: ACTION_IDENTITY },
+      { from: INNER, event: INIT_EVENT, to: INNER_S, action: ACTION_IDENTITY },
+      { from: INNER_S, event: EVENT3, to: INNER_T, action: ACTION_IDENTITY },
+      { from: INNER_T, event: EVENT3, to: INNER_S, action: ACTION_IDENTITY },
+      {
+        from: INNER_T, event: EVENT4, guards: [
+          {
+            predicate: function isDeep(x, e) {return x.history === DEEP},
+            to: hs.deep(OUTER),
+            action: incCounterTwice
+          },
+          {
+            predicate: function isShallow(x, e) {return x.history !== DEEP},
+            to: hs.shallow(OUTER),
+            action: incCounterTwice
+          }
+        ]
+      },
+      { from: INNER, event: EVENT2, to: OUTER_B, action: ACTION_IDENTITY },
+      { from: OUTER, event: EVENT1, to: Z, action: ACTION_IDENTITY },
+      {
+        from: Z, event: EVENT4, guards: [
+          {
+            predicate: function isDeep(x, e) {return x.history === DEEP},
+            to: hs.deep(OUTER),
+            action: incCounter
+          },
+          {
+            predicate: function isShallow(x, e) {return x.history !== DEEP},
+            to: hs.shallow(OUTER),
+            action: incCounter
+          }
+        ]
+      },
+    ],
+  };
+  const settings = default_settings;
+  const inputSequence = [
+    { "init": fsmDef.initial_extended_state },
+    { [EVENT1]: {} },
+    { [EVENT3]: {} },
+    { [EVENT4]: {} },
+  ];
+  const fsm = create_state_machine(fsmDef, settings);
+  const outputSequence = inputSequence.map(fsm.yield);
+  console.log(`outputSequence `, outputSequence)
+  const formattedResults = outputSequence.map(output => output && output.map(formatResult));
+  assert.deepEqual(formattedResults, [
+    [NO_OUTPUT, NO_OUTPUT],
+    [NO_OUTPUT, NO_OUTPUT],
+    NO_OUTPUT,
+    [0, NO_OUTPUT]
+  ], `eventless transitions are correctly taken`);
+});
+
+QUnit.test("deep history transitions FROM INSIDE, INIT event CASCADING transitions", function exec_test(assert) {
+  const OUTER = 'OUTER';
+  const INNER = 'INNER';
+  const OUTER_A = 'outer_a';
+  const OUTER_B = 'outer_b';
+  const INNER_S = 'inner_s';
+  const INNER_T = 'inner_t';
+  const Z = 'z';
+  const states = { [OUTER]: { [INNER]: { [INNER_S]: '', [INNER_T]: '' }, [OUTER_A]: '', [OUTER_B]: '' }, [Z]: '' };
+  const hs = makeHistoryStates(states);
+  const fsmDef = {
+    states,
+    events: [EVENT1, EVENT2, EVENT3, EVENT4],
+    initial_extended_state: { history: DEEP, counter: 0 },
+    transitions: [
+      { from: INIT_STATE, event: INIT_EVENT, to: OUTER, action: ACTION_IDENTITY },
+      { from: OUTER, event: INIT_EVENT, to: OUTER_A, action: ACTION_IDENTITY },
+      { from: OUTER_A, event: EVENT1, to: INNER, action: ACTION_IDENTITY },
+      { from: INNER, event: INIT_EVENT, to: INNER_S, action: ACTION_IDENTITY },
+      { from: INNER_S, event: EVENT3, to: INNER_T, action: ACTION_IDENTITY },
+      { from: INNER_T, event: EVENT3, to: INNER_S, action: ACTION_IDENTITY },
+      {
+        from: INNER_T, event: EVENT4, guards: [
+          {
+            predicate: function isDeep(x, e) {return x.history === DEEP},
+            to: hs.deep(OUTER),
+            action: incCounterTwice
+          },
+          {
+            predicate: function isShallow(x, e) {return x.history !== DEEP},
+            to: hs.shallow(OUTER),
+            action: incCounterTwice
+          }
+        ]
+      },
+      { from: INNER, event: EVENT2, to: OUTER_B, action: ACTION_IDENTITY },
+      { from: OUTER, event: EVENT1, to: Z, action: ACTION_IDENTITY },
+      {
+        from: Z, event: EVENT4, guards: [
+          {
+            predicate: function isDeep(x, e) {return x.history === DEEP},
+            to: hs.deep(OUTER),
+            action: incCounter
+          },
+          {
+            predicate: function isShallow(x, e) {return x.history !== DEEP},
+            to: hs.shallow(OUTER),
+            action: incCounter
+          }
+        ]
+      },
+    ],
+  };
+  const settings = default_settings;
+  const inputSequence = [
+    { "init": fsmDef.initial_extended_state },
+    { [EVENT1]: {} },
+    { [EVENT3]: {} },
+    { [EVENT4]: {} },
+  ];
+  const fsm = create_state_machine(fsmDef, settings);
+  const outputSequence = inputSequence.map(fsm.yield);
+  const formattedResults = outputSequence.map(output => output && output.map(formatResult));
+  assert.deepEqual(formattedResults, [
+    [NO_OUTPUT, NO_OUTPUT],
+    [NO_OUTPUT, NO_OUTPUT],
+    NO_OUTPUT,
+    [0]
+  ], `eventless transitions are correctly taken`);
+});
+
