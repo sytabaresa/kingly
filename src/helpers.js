@@ -32,17 +32,6 @@ export function merge(a, b) {
 }
 
 // Contracts
-export function assertContract(contractFn, contractArgs, errorMessage) {
-  const boolOrError = contractFn.apply(null, contractArgs)
-  const isPredicateSatisfied = isBoolean(boolOrError) && boolOrError;
-
-  if (!isPredicateSatisfied) {
-    throw `assertContract: fails contract ${contractFn.name}\n${errorMessage}\n ${boolOrError}`
-  }
-  return true
-}
-
-export function isBoolean(obj) {return typeof(obj) === 'boolean'}
 
 export function isUpdateOperation(obj) {
   return (typeof(obj) === 'object' && Object.keys(obj).length === 0) ||
@@ -50,14 +39,6 @@ export function isUpdateOperation(obj) {
       ['add', 'replace', 'move', 'test', 'remove', 'copy'].some(op => obj.op === op) &&
       typeof(obj.path) === 'string'
     )
-}
-
-export function isEmptyArray(obj) {return Array.isArray(obj) && obj.length === 0}
-
-export function isArrayOf(predicate) {return obj => Array.isArray(obj) && obj.every(predicate)}
-
-export function isArrayUpdateOperations(obj) {
-  return isEmptyArray(obj) || isArrayOf(isUpdateOperation)(obj)
 }
 
 export function is_history_transition(transition) {
@@ -161,10 +142,6 @@ export function chainModelUpdates(arrayUpdateFns) {
       outputs: NO_OUTPUT
     }
   }
-}
-
-function defaultMerge(arrayOutputs) {
-  return arrayOutputs.length === 0 ? NO_OUTPUT : Object.assign({}, ...arrayOutputs)
 }
 
 /**

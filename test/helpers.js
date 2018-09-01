@@ -38,3 +38,23 @@ export function formatMap(mapObj){
 export function formatFunction(fn){
   return fn.name || fn.displayName || 'anonymous'
 }
+
+export function isArrayOf(predicate) {return obj => Array.isArray(obj) && obj.every(predicate)}
+
+export function isArrayUpdateOperations(obj) {
+  return isEmptyArray(obj) || isArrayOf(isUpdateOperation)(obj)
+}
+
+export function isEmptyArray(obj) {return Array.isArray(obj) && obj.length === 0}
+
+export function assertContract(contractFn, contractArgs, errorMessage) {
+  const boolOrError = contractFn.apply(null, contractArgs)
+  const isPredicateSatisfied = isBoolean(boolOrError) && boolOrError;
+
+  if (!isPredicateSatisfied) {
+    throw `assertContract: fails contract ${contractFn.name}\n${errorMessage}\n ${boolOrError}`
+  }
+  return true
+}
+
+export function isBoolean(obj) {return typeof(obj) === 'boolean'}
