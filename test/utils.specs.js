@@ -2,8 +2,8 @@ import * as QUnit from "qunitjs"
 import * as Rx from "rx"
 import { clone, F, merge, T } from "ramda"
 import {
-  ACTION_IDENTITY, analyzeStateTree, computeHistoryMaps, INIT_EVENT, INIT_STATE, mapOverTransitionsActions,
-  reduceTransitions
+  ACTION_IDENTITY, analyzeStateTree, computeHistoryMaps, INIT_EVENT, INIT_STATE, isShallowHistory, makeHistoryStates,
+  mapOverTransitionsActions, reduceTransitions
 } from "../src"
 import { formatMap, formatResult } from "./helpers"
 import { convertFSMtoGraph, getGeneratorMapFromGeneratorMachine } from "../src/test_generator"
@@ -20,7 +20,6 @@ const default_settings = {
   merge: function merge(arrayObs) {return $.merge(...arrayObs)},
   of: $.of,
 };
-const EVENT1 = 'event1';
 const a_value = "some value";
 const another_value = "another value";
 const an_output = {
@@ -60,6 +59,32 @@ const another_dummy_action_result_with_update = {
   model_update: update_model_ops_2,
   outputs: another_output
 };
+const EVENT1 = 'event1';
+const EVENT2 = 'event2';
+const EVENT3 = 'event3';
+const EVENT4 = 'event4';
+const EVENT5 = 'event5';
+// constant for switching between deep history and shallow history
+const DEEP = 'deep';
+const SHALLOW = 'shallow';
+
+function incCounter(extS, eventData) {
+  const { counter } = extS;
+
+  return {
+    model_update: [{ op: 'add', path: '/counter', value: counter + 1 }],
+    outputs: counter
+  }
+}
+
+function incCounterTwice(extS, eventData) {
+  const { counter } = extS;
+
+  return {
+    model_update: [{ op: 'add', path: '/counter', value: counter + 2 }],
+    outputs: counter
+  }
+}
 
 function dummy_action_with_update(model, event_data, settings) {
   return merge(dummy_action_result_with_update, {
@@ -422,6 +447,381 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
   }, `event triggers correct transition`);
 });
 
+// NOTE : did not test compound to compound!
+QUnit.test("whth history states deep and shallow", function exec_test(assert) {
+  const OUTER = 'OUTER';
+  const INNER = 'INNER';
+  const OUTER_A = 'outer_a';
+  const OUTER_B = 'outer_b';
+  const INNER_S = 'inner_s';
+  const INNER_T = 'inner_t';
+  const Z = 'z';
+  const states = { [OUTER]: { [INNER]: { [INNER_S]: '', [INNER_T]: '' }, [OUTER_A]: '', [OUTER_B]: '' }, [Z]: '' };
+  const hs = makeHistoryStates(states);
+  const fsmDef = {
+    states,
+    events: [EVENT1, EVENT2, EVENT3, EVENT4, EVENT5],
+    initial_extended_state: { history: SHALLOW, counter: 0 },
+    transitions: [
+      { from: INIT_STATE, event: INIT_EVENT, to: OUTER, action: ACTION_IDENTITY },
+      { from: OUTER, event: INIT_EVENT, to: OUTER_A, action: ACTION_IDENTITY },
+      { from: OUTER_A, event: EVENT1, to: INNER, action: ACTION_IDENTITY },
+      { from: INNER, event: INIT_EVENT, to: INNER_S, action: ACTION_IDENTITY },
+      { from: INNER_S, event: EVENT3, to: INNER_T, action: ACTION_IDENTITY },
+      { from: INNER_T, event: EVENT3, to: INNER_S, action: ACTION_IDENTITY },
+      {
+        from: INNER_T, event: EVENT4, guards: [
+          {
+            predicate: function isDeep(x, e) {return x.history === DEEP},
+            to: hs.deep(OUTER),
+            action: incCounterTwice
+          },
+          {
+            predicate: function isShallow(x, e) {return x.history !== DEEP},
+            to: hs.shallow(OUTER),
+            action: incCounterTwice
+          }
+        ]
+      },
+      { from: INNER, event: EVENT2, to: OUTER_B, action: ACTION_IDENTITY },
+      { from: OUTER, event: EVENT5, to: Z, action: ACTION_IDENTITY },
+      {
+        from: Z, event: EVENT4, guards: [
+          {
+            predicate: function isDeep(x, e) {return x.history === DEEP},
+            to: hs.deep(OUTER),
+            action: incCounter
+          },
+          {
+            predicate: function isShallow(x, e) {return x.history !== DEEP},
+            to: hs.shallow(OUTER),
+            action: incCounter
+          }
+        ]
+      },
+    ],
+  };
+  const result = formatResult(convertFSMtoGraph(fsmDef));
+  assert.deepEqual(result,
+    {
+      "clear": "clear",
+      "edges": [
+        {
+          "action": "ACTION_IDENTITY",
+          "event": "init",
+          "from": "nok",
+          "guardIndex": 0,
+          "predicate": undefined,
+          "to": "OUTER",
+          "transitionIndex": 0
+        },
+        {
+          "action": "ACTION_IDENTITY",
+          "event": "init",
+          "from": "OUTER",
+          "guardIndex": 0,
+          "predicate": undefined,
+          "to": "outer_a",
+          "transitionIndex": 1
+        },
+        {
+          "action": "ACTION_IDENTITY",
+          "event": "event1",
+          "from": "outer_a",
+          "guardIndex": 0,
+          "predicate": undefined,
+          "to": "INNER",
+          "transitionIndex": 2
+        },
+        {
+          "action": "ACTION_IDENTITY",
+          "event": "init",
+          "from": "INNER",
+          "guardIndex": 0,
+          "predicate": undefined,
+          "to": "inner_s",
+          "transitionIndex": 3
+        },
+        {
+          "action": "ACTION_IDENTITY",
+          "event": "event3",
+          "from": "inner_s",
+          "guardIndex": 0,
+          "predicate": undefined,
+          "to": "inner_t",
+          "transitionIndex": 4
+        },
+        {
+          "action": "ACTION_IDENTITY",
+          "event": "event3",
+          "from": "inner_t",
+          "guardIndex": 0,
+          "predicate": undefined,
+          "to": "inner_s",
+          "transitionIndex": 5
+        },
+        {
+          "action": "incCounterTwice",
+          "event": "event4",
+          "from": "inner_t",
+          "guardIndex": 0,
+          "history": {
+            "deep": "OUTER",
+            "type": {}
+          },
+          "predicate": "isDeep",
+          "to": "inner_s",
+          "transitionIndex": 6
+        },
+        {
+          "action": "incCounterTwice",
+          "event": "event4",
+          "from": "inner_t",
+          "guardIndex": 0,
+          "history": {
+            "deep": "OUTER",
+            "type": {}
+          },
+          "predicate": "isDeep",
+          "to": "inner_t",
+          "transitionIndex": 6
+        },
+        {
+          "action": "incCounterTwice",
+          "event": "event4",
+          "from": "inner_t",
+          "guardIndex": 0,
+          "history": {
+            "deep": "OUTER",
+            "type": {}
+          },
+          "predicate": "isDeep",
+          "to": "outer_a",
+          "transitionIndex": 6
+        },
+        {
+          "action": "incCounterTwice",
+          "event": "event4",
+          "from": "inner_t",
+          "guardIndex": 0,
+          "history": {
+            "deep": "OUTER",
+            "type": {}
+          },
+          "predicate": "isDeep",
+          "to": "outer_b",
+          "transitionIndex": 6
+        },
+        {
+          "action": "incCounterTwice",
+          "event": "event4",
+          "from": "inner_t",
+          "guardIndex": 1,
+          "history": {
+            "shallow": "OUTER",
+            "type": {}
+          },
+          "predicate": "isShallow",
+          "to": "INNER",
+          "transitionIndex": 6
+        },
+        {
+          "action": "incCounterTwice",
+          "event": "event4",
+          "from": "inner_t",
+          "guardIndex": 1,
+          "history": {
+            "shallow": "OUTER",
+            "type": {}
+          },
+          "predicate": "isShallow",
+          "to": "outer_a",
+          "transitionIndex": 6
+        },
+        {
+          "action": "incCounterTwice",
+          "event": "event4",
+          "from": "inner_t",
+          "guardIndex": 1,
+          "history": {
+            "shallow": "OUTER",
+            "type": {}
+          },
+          "predicate": "isShallow",
+          "to": "outer_b",
+          "transitionIndex": 6
+        },
+        {
+          "action": "ACTION_IDENTITY",
+          "compound": "INNER",
+          "event": "event2",
+          "from": "inner_s",
+          "guardIndex": 0,
+          "predicate": undefined,
+          "to": "outer_b",
+          "transitionIndex": 7
+        },
+        {
+          "action": "ACTION_IDENTITY",
+          "compound": "INNER",
+          "event": "event2",
+          "from": "inner_t",
+          "guardIndex": 0,
+          "predicate": undefined,
+          "to": "outer_b",
+          "transitionIndex": 7
+        },
+        {
+          "action": "ACTION_IDENTITY",
+          "compound": "OUTER",
+          "event": "event5",
+          "from": "inner_s",
+          "guardIndex": 0,
+          "predicate": undefined,
+          "to": "z",
+          "transitionIndex": 8
+        },
+        {
+          "action": "ACTION_IDENTITY",
+          "compound": "OUTER",
+          "event": "event5",
+          "from": "inner_t",
+          "guardIndex": 0,
+          "predicate": undefined,
+          "to": "z",
+          "transitionIndex": 8
+        },
+        {
+          "action": "ACTION_IDENTITY",
+          "compound": "OUTER",
+          "event": "event5",
+          "from": "outer_a",
+          "guardIndex": 0,
+          "predicate": undefined,
+          "to": "z",
+          "transitionIndex": 8
+        },
+        {
+          "action": "ACTION_IDENTITY",
+          "compound": "OUTER",
+          "event": "event5",
+          "from": "outer_b",
+          "guardIndex": 0,
+          "predicate": undefined,
+          "to": "z",
+          "transitionIndex": 8
+        },
+        {
+          "action": "incCounter",
+          "event": "event4",
+          "from": "z",
+          "guardIndex": 0,
+          "history": {
+            "deep": "OUTER",
+            "type": {}
+          },
+          "predicate": "isDeep",
+          "to": "inner_s",
+          "transitionIndex": 9
+        },
+        {
+          "action": "incCounter",
+          "event": "event4",
+          "from": "z",
+          "guardIndex": 0,
+          "history": {
+            "deep": "OUTER",
+            "type": {}
+          },
+          "predicate": "isDeep",
+          "to": "inner_t",
+          "transitionIndex": 9
+        },
+        {
+          "action": "incCounter",
+          "event": "event4",
+          "from": "z",
+          "guardIndex": 0,
+          "history": {
+            "deep": "OUTER",
+            "type": {}
+          },
+          "predicate": "isDeep",
+          "to": "outer_a",
+          "transitionIndex": 9
+        },
+        {
+          "action": "incCounter",
+          "event": "event4",
+          "from": "z",
+          "guardIndex": 0,
+          "history": {
+            "deep": "OUTER",
+            "type": {}
+          },
+          "predicate": "isDeep",
+          "to": "outer_b",
+          "transitionIndex": 9
+        },
+        {
+          "action": "incCounter",
+          "event": "event4",
+          "from": "z",
+          "guardIndex": 1,
+          "history": {
+            "shallow": "OUTER",
+            "type": {}
+          },
+          "predicate": "isShallow",
+          "to": "INNER",
+          "transitionIndex": 9
+        },
+        {
+          "action": "incCounter",
+          "event": "event4",
+          "from": "z",
+          "guardIndex": 1,
+          "history": {
+            "shallow": "OUTER",
+            "type": {}
+          },
+          "predicate": "isShallow",
+          "to": "outer_a",
+          "transitionIndex": 9
+        },
+        {
+          "action": "incCounter",
+          "event": "event4",
+          "from": "z",
+          "guardIndex": 1,
+          "history": {
+            "shallow": "OUTER",
+            "type": {}
+          },
+          "predicate": "isShallow",
+          "to": "outer_b",
+          "transitionIndex": 9
+        }
+      ],
+      "getEdgeOrigin": "getEdgeOrigin",
+      "getEdgeTarget": "getEdgeTarget",
+      "incomingEdges": "incomingEdges",
+      "outgoingEdges": "outgoingEdges",
+      "showEdge": "showEdge",
+      "showVertex": "showVertex",
+      "vertices": [
+        "OUTER",
+        "INNER",
+        "inner_s",
+        "inner_t",
+        "outer_a",
+        "outer_b",
+        "z",
+        "nok"
+      ]
+    }, `...`);
+});
+
 QUnit.module("Testing getGeneratorMapFromGeneratorMachine(generators)", {});
 
 QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
@@ -515,7 +915,7 @@ QUnit.test("empty states", function exec_test(assert) {
 });
 
 QUnit.test("flat states hierarchy", function exec_test(assert) {
-  const states = {A:'', B:'', C:''};
+  const states = { A: '', B: '', C: '' };
   const result = analyzeStateTree(states);
 
   assert.deepEqual(result,
@@ -534,7 +934,7 @@ QUnit.test("flat states hierarchy", function exec_test(assert) {
 });
 
 QUnit.test("non-flat states hierarchy", function exec_test(assert) {
-  const states = {A: {'A.1' : '', 'A.2' : {'A.2.1': ''}, 'A.3':''}, B:'', C:{'C.1':''}};
+  const states = { A: { 'A.1': '', 'A.2': { 'A.2.1': '' }, 'A.3': '' }, B: '', C: { 'C.1': '' } };
   const result = analyzeStateTree(states);
 
   assert.deepEqual(result,

@@ -1,6 +1,8 @@
 // Ramda fns
 import { DEEP, HISTORY_PREFIX, HISTORY_STATE_NAME, INIT_EVENT, INIT_STATE, NO_OUTPUT, SHALLOW } from "./properties"
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
+import { updateHistory } from "./synchronous_fsm"
+import { analyzeStateTree } from "./test_generator"
 
 /**
  * Returns the name of the function as taken from its source definition.
@@ -220,6 +222,8 @@ export function getFsmStateList(states) {
   };
   const stateHashMap = traverseObj(traverse, states);
 
+  // add history states
+  stateHashMap.constructor
   return stateHashMap
 }
 
@@ -344,3 +348,36 @@ export function isDeepHistory(to) {
   return to[DEEP]
 }
 
+export function getHistoryType(history) {
+  return history[DEEP] ? DEEP : SHALLOW
+}
+
+export function isHistoryStateEdge(edge) {
+  return typeof edge.history !== 'undefined'
+}
+
+export function initHistoryDataStructure(stateList) {
+  // NOTE : we update history in place, so we need two different objects here, even
+  // when they start with the same value
+  const initHistory = () => stateList.reduce((acc, state) => (acc[state] = '', acc), {});
+  return { [DEEP]: initHistory(), [SHALLOW]: initHistory() };
+}
+
+export function computeHistoryState(states, controlStateSequence, historyType, historyParentState) {
+  // NOTE : we compute the whole story every time. This is inefficient, but for now sufficient
+  const { stateList, stateAncestors } = computeHistoryMaps(states);
+  let history = initHistoryDataStructure(stateList);
+  history = controlStateSequence.reduce((history,
+                                         controlState) => updateHistory(history, stateAncestors, controlState), history);
+
+  return history[historyType][historyParentState]
+}
+
+export function isCompoundState(analyzedStates, controlState) {
+  const {statesAdjacencyList} = analyzedStates;
+  return statesAdjacencyList[controlState] && statesAdjacencyList[controlState].length !== 0
+}
+
+export function isAtomicState(analyzedStates, controlState) {
+return !isCompoundState(analyzedStates, controlState)
+}

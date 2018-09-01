@@ -16,7 +16,8 @@ import {
   ACTION_IDENTITY, AUTO_EVENT, DEEP, history_symbol, INIT_EVENT, INIT_STATE, NO_OUTPUT, SHALLOW, STATE_PROTOTYPE_NAME
 } from "./properties";
 import {
-  arrayizeOutput, computeHistoryMaps, get_fn_name, getFsmStateList, keys, mapOverTransitionsActions, wrap
+  arrayizeOutput, computeHistoryMaps, get_fn_name, getFsmStateList, initHistoryDataStructure, keys,
+  mapOverTransitionsActions, wrap
 } from "./helpers";
 
 /**
@@ -49,8 +50,6 @@ function build_event_enum(array_identifiers) {
  * - Holds a `history` property which holds a `last_seen_state` property which holds the latest
  * state for that hierarchy group For instance, if A < B < C and the state machine leaves C for a
  * state in another branch, then `last_seen_state` will be set to C for A, B and C
- * - Holds an `active` property which is not so useful so far, and which signal whether the state
- * is active (current) or not
  * - Tthe root state (NOK) is added to the whole hierarchy, i.e. all states inherit from the root
  * state
  * `states` {Object<String,Boolean>} : Hash which maps every state name with itself
@@ -83,7 +82,6 @@ function build_nested_state_structure(states) {
         curr_constructor
       ));
       hash_states[state_name].root_name = root_name;
-      hash_states[state_name].active = false;
 
       if (typeof state_config === "object") {
         is_group_state[state_name] = true;
@@ -203,10 +201,7 @@ export function create_state_machine(fsmDef, settings) {
   // history maps
 
   const { stateList, stateAncestors } = computeHistoryMaps(control_states);
-  // NOTE : we update history in place, so we need two different objects here, even
-  // when they start with the same value
-  const initHistory = () => stateList.reduce((acc, state) => (acc[state] = '', acc), {});
-  let history = { [DEEP]: initHistory(), [SHALLOW]: initHistory() };
+  let history = initHistoryDataStructure(stateList);
 
   // @type {Object<state_name,boolean>}, allows to know whether a state has a init transition defined
   let is_init_state = {};
@@ -384,7 +379,6 @@ export function create_state_machine(fsmDef, settings) {
 
     history = updateHistory(history, stateAncestors, state_from_name);
 
-    state_from.active = false;
     console.log("left state", wrap(from));
   }
 
@@ -408,7 +402,6 @@ export function create_state_machine(fsmDef, settings) {
     } else {
       throw "enter_state : unknown case! Not a state name, and not a history state to enter!";
     }
-    state_to.active = true;
     hash_states[INIT_STATE].current_state_name = state_to_name;
 
     console.info("AND TRANSITION TO STATE", state_to_name);
@@ -657,7 +650,7 @@ export function makeHistoryStates(states) {
   // used for referential equality comparison to discriminate history type
 
   return {
-    [SHALLOW]: state => {
+    shallow: state => {
       if (!stateList.includes(state)) {
         throw `makeHistoryStates: the state for which a history state must be constructed is not a configured state for the state machine under implementation!!`
       }
@@ -667,7 +660,7 @@ export function makeHistoryStates(states) {
         type: history_symbol
       }
     },
-    [DEEP]: state => {
+    deep: state => {
       if (!stateList.includes(state)) {
         throw `makeHistoryStates: the state for which a history state must be constructed is not a configured state for the state machine under implementation!!`
       }

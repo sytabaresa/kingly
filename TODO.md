@@ -16,6 +16,10 @@
       - get the history state for S from the state sequence
       - if the edge.target corresponds to history(S) then isTraversable YES else NO
 - write all contracts
+  - cannot have non-determinstic transitions
+    - A -ev> B and A < OUTER_A with OUTER_A -ev>C !!, the fsm might work in a deterministic way, 
+    but the input generation won't!!
+    
   - TODO add contract for test gen : apply only to FSM for which init event sets the initial state
    in the machine
 

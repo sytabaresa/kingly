@@ -1,7 +1,9 @@
 import * as QUnit from "qunitjs"
 import * as Rx from "rx"
 import { F, merge, T } from "ramda"
-import { ACTION_IDENTITY, computeTimesCircledOn, generateTestsFromFSM, INIT_EVENT, INIT_STATE, NO_OUTPUT } from "../src"
+import {
+  ACTION_IDENTITY, computeTimesCircledOn, generateTestsFromFSM, INIT_EVENT, INIT_STATE, makeHistoryStates, NO_OUTPUT
+} from "../src"
 import { formatResult } from "./helpers"
 import { assertContract, isArrayUpdateOperations } from "../src/helpers"
 import { applyPatch } from "json-patch-es6/lib/duplex"
@@ -24,7 +26,7 @@ function applyJSONpatch(model, modelUpdateOperations) {
 
 const $ = Rx.Observable;
 const default_settings = {
-  updateModel : applyJSONpatch,
+  updateModel: applyJSONpatch,
   subject_factory: () => {
     const subject = new Rx.Subject();
     // NOTE : this is intended for Rxjs v4-5!! but should work for most also
@@ -41,6 +43,32 @@ const model_initial = {
   a_key: a_value,
   another_key: another_value
 };
+const EVENT1 = 'event1';
+const EVENT2 = 'event2';
+const EVENT3 = 'event3';
+const EVENT4 = 'event4';
+const EVENT5 = 'event5';
+// constant for switching between deep history and shallow history
+const DEEP = 'deep';
+const SHALLOW = 'shallow';
+
+function incCounter(extS, eventData) {
+  const { counter } = extS;
+
+  return {
+    model_update: [{ op: 'add', path: '/counter', value: counter + 1 }],
+    outputs: counter
+  }
+}
+
+function incCounterTwice(extS, eventData) {
+  const { counter } = extS;
+
+  return {
+    model_update: [{ op: 'add', path: '/counter', value: counter + 2 }],
+    outputs: counter
+  }
+}
 
 QUnit.module("Testing generateTestsFromFSM(fsm, generators, settings)", {});
 
@@ -1237,5 +1265,497 @@ QUnit.test("eventless transitions, inner INIT event transitions, loops", functio
       "switch": true
     }
     ]
+  ], `...`);
+});
+
+QUnit.test("shallow history transitions, INIT event CASCADING transitions", function exec_test(assert) {
+  const OUTER = 'OUTER';
+  const INNER = 'INNER';
+  const OUTER_A = 'outer_a';
+  const OUTER_B = 'outer_b';
+  const INNER_S = 'inner_s';
+  const INNER_T = 'inner_t';
+  const Z = 'z';
+  const states = { [OUTER]: { [INNER]: { [INNER_S]: '', [INNER_T]: '' }, [OUTER_A]: '', [OUTER_B]: '' }, [Z]: '' };
+  const hs = makeHistoryStates(states);
+  const fsmDef = {
+    states,
+    events: [EVENT1, EVENT2, EVENT3, EVENT4, EVENT5],
+    initial_extended_state: { history: SHALLOW, counter: 0 },
+    transitions: [
+      { from: INIT_STATE, event: INIT_EVENT, to: OUTER, action: ACTION_IDENTITY },
+      { from: OUTER, event: INIT_EVENT, to: OUTER_A, action: ACTION_IDENTITY },
+      { from: OUTER_A, event: EVENT1, to: INNER, action: ACTION_IDENTITY },
+      { from: INNER, event: INIT_EVENT, to: INNER_S, action: ACTION_IDENTITY },
+      { from: INNER_S, event: EVENT3, to: INNER_T, action: ACTION_IDENTITY },
+      { from: INNER_T, event: EVENT3, to: INNER_S, action: ACTION_IDENTITY },
+      { from: INNER, event: EVENT2, to: OUTER_B, action: ACTION_IDENTITY },
+      { from: OUTER, event: EVENT5, to: Z, action: ACTION_IDENTITY },
+      {
+        from: Z, event: EVENT4, guards: [
+          {
+            predicate: function isDeep(x, e) {return x.history === DEEP},
+            to: hs.deep(OUTER),
+            action: incCounter
+          },
+          {
+            predicate: function isShallow(x, e) {return x.history !== DEEP},
+            to: hs.shallow(OUTER),
+            action: incCounter
+          }
+        ]
+      },
+    ],
+  };
+  const genFsmDef = {
+    transitions: [
+      {
+        from: INIT_STATE,
+        event: INIT_EVENT,
+        to: OUTER,
+        gen: function genINITtoOUTER(extS) {return { input: extS, hasGeneratedInput: true }}
+      },
+      { from: OUTER, event: INIT_EVENT, to: OUTER_A },
+      {
+        from: OUTER_A,
+        event: EVENT1,
+        to: INNER,
+        gen: function genOUTER_AtoINNER(extS) {return { input: null, hasGeneratedInput: true }}
+      },
+      { from: INNER, event: INIT_EVENT, to: INNER_S },
+      {
+        from: INNER_S,
+        event: EVENT3,
+        to: INNER_T,
+        gen: function genINNER_StoINNER_T(extS) {return { input: null, hasGeneratedInput: true }}
+      },
+      {
+        from: INNER_T,
+        event: EVENT3,
+        to: INNER_S,
+        gen: function genINNER_TtoINNER_S(extS) {return { input: null, hasGeneratedInput: true }}
+      },
+      {
+        from: INNER,
+        event: EVENT2,
+        to: OUTER_B,
+        gen: function genINNERtoOUTER_B(extS) {return { input: null, hasGeneratedInput: true }}
+      },
+      {
+        from: OUTER,
+        event: EVENT5,
+        to: Z,
+        gen: function genOUTERtoZ(extS) {return { input: null, hasGeneratedInput: true }}
+      },
+      {
+        from: Z, event: EVENT4, guards: [
+          {
+            predicate: function isDeep(x, e) {return x.history === DEEP},
+            to: hs.deep(OUTER),
+            gen: function genZtoOUTER_DEEP_H(extS) {return { input: DEEP, hasGeneratedInput: extS.history === DEEP }},
+          },
+          {
+            predicate: function isShallow(x, e) {return x.history !== DEEP},
+            to: hs.shallow(OUTER),
+            gen: function genZtoOUTER_SHALLOW_H(extS) {
+              return {
+                input: SHALLOW,
+                hasGeneratedInput: extS.history !== DEEP
+              }
+            },
+          }
+        ]
+      },
+    ],
+  };
+  const generators = genFsmDef.transitions;
+  const maxNumberOfTraversals = 1;
+  const target = OUTER_B;
+  /** @type SearchSpecs*/
+  const strategy = {
+    isTraversableEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
+      return computeTimesCircledOn(pathTraversalState.path, edge) < (maxNumberOfTraversals || 1)
+    },
+    isGoalReached: (edge, graph, pathTraversalState, graphTraversalState) => {
+      const { getEdgeTarget, getEdgeOrigin } = graph;
+      const lastPathVertex = getEdgeTarget(edge);
+      // Edge case : accounting for initial vertex
+      const vertexOrigin = getEdgeOrigin(edge);
+
+      const isGoalReached = vertexOrigin ? lastPathVertex === target : false;
+      return isGoalReached
+    },
+  };
+  const settings = merge(default_settings, { strategy });
+  const results = generateTestsFromFSM(fsmDef, generators, settings);
+  const formattedResults = results.map(formatResult);
+  assert.deepEqual(formattedResults.map(x => x.controlStateSequence), [
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "inner_t", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "inner_t", "inner_s", "z", "INNER", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "inner_t", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "inner_t", "z", "INNER", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "z", "INNER", "inner_s", "inner_t", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "z", "INNER", "inner_s", "inner_t", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "z", "INNER", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "inner_t", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "inner_t", "inner_s", "z", "INNER", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "inner_t", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "inner_t", "z", "INNER", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "z", "INNER", "inner_s", "inner_t", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "z", "INNER", "inner_s", "inner_t", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "z", "INNER", "inner_s", "outer_b"]
+  ], `...`);
+  assert.deepEqual(formattedResults.map(x => x.inputSequence), [
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event1": null }, { "event3": null }, { "event3": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event1": null }, { "event3": null }, { "event3": null }, { "event5": null }, { "event4": "shallow" }, { "event2": null }],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event1": null }, { "event3": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "shallow" }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event1": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event1": null }, { "event5": null }, { "event4": "shallow" }, { "event3": null }, { "event3": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event1": null }, { "event5": null }, { "event4": "shallow" }, { "event3": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event1": null }, { "event5": null }, { "event4": "shallow" }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event3": null }, { "event3": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event3": null }, { "event3": null }, { "event5": null }, { "event4": "shallow" }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event3": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "shallow" }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event5": null }, { "event4": "shallow" }, { "event3": null }, { "event3": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event5": null }, { "event4": "shallow" }, { "event3": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event5": null }, { "event4": "shallow" }, { "event2": null }
+    ]
+  ], `...`);
+  assert.deepEqual(formattedResults.map(x => x.outputSequence), [
+    [null, null, null, null, null],
+    [null, null, null, null, null, 0, null],
+    [null, null, null, null],
+    [null, null, null, null, 0, null],
+    [null, null, null],
+    [null, null, null, 0, null, null, null],
+    [null, null, null, 0, null, null],
+    [null, null, null, 0, null],
+    [null, null, 0, null, null, null, null],
+    [null, null, 0, null, null, null, null, 1, null],
+    [null, null, 0, null, null, null],
+    [null, null, 0, null, null, null, 1, null],
+    [null, null, 0, null, null],
+    [null, null, 0, null, null, 1, null, null, null],
+    [null, null, 0, null, null, 1, null, null],
+    [null, null, 0, null, null, 1, null]
+  ], `...`);
+});
+
+QUnit.test("deep history transitions, INIT event CASCADING transitions", function exec_test(assert) {
+  const OUTER = 'OUTER';
+  const INNER = 'INNER';
+  const OUTER_A = 'outer_a';
+  const OUTER_B = 'outer_b';
+  const INNER_S = 'inner_s';
+  const INNER_T = 'inner_t';
+  const Z = 'z';
+  const states = { [OUTER]: { [INNER]: { [INNER_S]: '', [INNER_T]: '' }, [OUTER_A]: '', [OUTER_B]: '' }, [Z]: '' };
+  const hs = makeHistoryStates(states);
+  const fsmDef = {
+    states,
+    events: [EVENT1, EVENT2, EVENT3, EVENT4, EVENT5],
+    initial_extended_state: { history: DEEP, counter: 0 },
+    transitions: [
+      { from: INIT_STATE, event: INIT_EVENT, to: OUTER, action: ACTION_IDENTITY },
+      { from: OUTER, event: INIT_EVENT, to: OUTER_A, action: ACTION_IDENTITY },
+      { from: OUTER_A, event: EVENT1, to: INNER, action: ACTION_IDENTITY },
+      { from: INNER, event: INIT_EVENT, to: INNER_S, action: ACTION_IDENTITY },
+      { from: INNER_S, event: EVENT3, to: INNER_T, action: ACTION_IDENTITY },
+      { from: INNER_T, event: EVENT3, to: INNER_S, action: ACTION_IDENTITY },
+      { from: INNER, event: EVENT2, to: OUTER_B, action: ACTION_IDENTITY },
+      { from: OUTER, event: EVENT5, to: Z, action: ACTION_IDENTITY },
+      {
+        from: Z, event: EVENT4, guards: [
+          {
+            predicate: function isDeep(x, e) {return x.history === DEEP},
+            to: hs.deep(OUTER),
+            action: incCounter
+          },
+          {
+            predicate: function isShallow(x, e) {return x.history !== DEEP},
+            to: hs.shallow(OUTER),
+            action: incCounter
+          }
+        ]
+      },
+    ],
+  };
+  const genFsmDef = {
+    transitions: [
+      {
+        from: INIT_STATE,
+        event: INIT_EVENT,
+        to: OUTER,
+        gen: function genINITtoOUTER(extS) {return { input: extS, hasGeneratedInput: true }}
+      },
+      { from: OUTER, event: INIT_EVENT, to: OUTER_A },
+      {
+        from: OUTER_A,
+        event: EVENT1,
+        to: INNER,
+        gen: function genOUTER_AtoINNER(extS) {return { input: null, hasGeneratedInput: true }}
+      },
+      { from: INNER, event: INIT_EVENT, to: INNER_S },
+      {
+        from: INNER_S,
+        event: EVENT3,
+        to: INNER_T,
+        gen: function genINNER_StoINNER_T(extS) {return { input: null, hasGeneratedInput: true }}
+      },
+      {
+        from: INNER_T,
+        event: EVENT3,
+        to: INNER_S,
+        gen: function genINNER_TtoINNER_S(extS) {return { input: null, hasGeneratedInput: true }}
+      },
+      {
+        from: INNER,
+        event: EVENT2,
+        to: OUTER_B,
+        gen: function genINNERtoOUTER_B(extS) {return { input: null, hasGeneratedInput: true }}
+      },
+      {
+        from: OUTER,
+        event: EVENT5,
+        to: Z,
+        gen: function genOUTERtoZ(extS) {return { input: null, hasGeneratedInput: true }}
+      },
+      {
+        from: Z, event: EVENT4, guards: [
+          {
+            predicate: function isDeep(x, e) {return x.history === DEEP},
+            to: hs.deep(OUTER),
+            gen: function genZtoOUTER_DEEP_H(extS) {return { input: DEEP, hasGeneratedInput: extS.history === DEEP }},
+          },
+          {
+            predicate: function isShallow(x, e) {return x.history !== DEEP},
+            to: hs.shallow(OUTER),
+            gen: function genZtoOUTER_SHALLOW_H(extS) {
+              return {
+                input: SHALLOW,
+                hasGeneratedInput: extS.history !== DEEP
+              }
+            },
+          }
+        ]
+      },
+    ],
+  };
+  const generators = genFsmDef.transitions;
+  const maxNumberOfTraversals = 1;
+  const target = OUTER_B;
+  /** @type SearchSpecs*/
+  const strategy = {
+    isTraversableEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
+      return computeTimesCircledOn(pathTraversalState.path, edge) < (maxNumberOfTraversals || 1)
+    },
+    isGoalReached: (edge, graph, pathTraversalState, graphTraversalState) => {
+      const { getEdgeTarget, getEdgeOrigin } = graph;
+      const lastPathVertex = getEdgeTarget(edge);
+      // Edge case : accounting for initial vertex
+      const vertexOrigin = getEdgeOrigin(edge);
+
+      const isGoalReached = vertexOrigin ? lastPathVertex === target : false;
+      return isGoalReached
+    },
+  };
+  const settings = merge(default_settings, { strategy });
+  const results = generateTestsFromFSM(fsmDef, generators, settings);
+  const formattedResults = results.map(formatResult);
+  assert.deepEqual(formattedResults.map(x => x.controlStateSequence), [
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "inner_t", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "inner_t", "inner_s", "z", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "inner_t", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "inner_t", "z", "inner_t", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "inner_t", "z", "inner_t", "inner_s", "z", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "inner_t", "z", "inner_t", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "z", "inner_s", "inner_t", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "z", "inner_s", "inner_t", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "z", "inner_s", "inner_t", "z", "inner_t", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "z", "inner_s", "inner_t", "z", "inner_t", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "z", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "inner_t", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "inner_t", "inner_s", "z", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "inner_t", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "inner_t", "z", "inner_t", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "inner_t", "z", "inner_t", "inner_s", "z", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "inner_t", "z", "inner_t", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "z", "inner_s", "inner_t", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "z", "inner_s", "inner_t", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "z", "inner_s", "inner_t", "z", "inner_t", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "z", "inner_s", "inner_t", "z", "inner_t", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "z", "inner_s", "outer_b"]
+  ], `...`);
+  assert.deepEqual(formattedResults.map(x => x.inputSequence), [
+    [
+      { "init": { "counter": 0, "history": "deep" } },
+      { "event1": null }, { "event3": null }, { "event3": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "deep" } },
+      { "event1": null }, { "event3": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "deep" } },
+      { "event1": null }, { "event3": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "deep" } },
+      { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "deep" } },
+      { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "deep" } },
+      { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }], [{
+      "init": {
+        "counter": 0,
+        "history": "deep"
+      }
+    }, { "event1": null }, { "event2": null }], [{
+      "init": {
+        "counter": 0,
+        "history": "deep"
+      }
+    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event3": null }, { "event2": null }], [{
+      "init": {
+        "counter": 0,
+        "history": "deep"
+      }
+    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }], [{
+      "init": {
+        "counter": 0,
+        "history": "deep"
+      }
+    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }], [{
+      "init": {
+        "counter": 0,
+        "history": "deep"
+      }
+    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }], [{
+      "init": {
+        "counter": 0,
+        "history": "deep"
+      }
+    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }], [{
+      "init": {
+        "counter": 0,
+        "history": "deep"
+      }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event3": null }, { "event2": null }], [{
+      "init": {
+        "counter": 0,
+        "history": "deep"
+      }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }], [{
+      "init": {
+        "counter": 0,
+        "history": "deep"
+      }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event2": null }], [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }], [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }], [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }], [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event2": null }], [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event3": null }, { "event2": null }], [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }], [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }], [{
+      "init": {
+        "counter": 0,
+        "history": "deep"
+      }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }], [{
+      "init": {
+        "counter": 0,
+        "history": "deep"
+      }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }]], `...`);
+  assert.deepEqual(formattedResults.map(x => x.outputSequence), [
+    [null, null, null, null, null],
+    [null, null, null, null, null, 0, null],
+    [null, null, null, null],
+    [null, null, null, null, 0, null, null],
+    [null, null, null, null, 0, null, null, 1, null],
+    [null, null, null, null, 0, null],
+    [null, null, null],
+    [null, null, null, 0, null, null, null],
+    [null, null, null, 0, null, null],
+    [null, null, null, 0, null, null, 1, null, null],
+    [null, null, null, 0, null, null, 1, null],
+    [null, null, null, 0, null],
+    [null, null, 0, null, null, null, null],
+    [null, null, 0, null, null, null, null, 1, null],
+    [null, null, 0, null, null, null],
+    [null, null, 0, null, null, null, 1, null, null],
+    [null, null, 0, null, null, null, 1, null, null, 2, null],
+    [null, null, 0, null, null, null, 1, null],
+    [null, null, 0, null, null],
+    [null, null, 0, null, null, 1, null, null, null],
+    [null, null, 0, null, null, 1, null, null],
+    [null, null, 0, null, null, 1, null, null, 2, null, null],
+    [null, null, 0, null, null, 1, null, null, 2, null],
+    [null, null, 0, null, null, 1, null]
   ], `...`);
 });

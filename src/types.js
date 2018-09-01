@@ -1,6 +1,6 @@
 /**
  * @typedef {Object} FSM_Def
- * @property {Object.<ControlState, *>} states Object whose every key is a control state admitted by the
+ * @property {FSM_States} states Object whose every key is a control state admitted by the
  * specified state machine. The value associated to that key is unused in the present version of the library. The
  * hierarchy of the states correspond to property nesting in the `states` object
  * @property {Array<EventLabel>} events A list of event monikers the machine is configured to react to
@@ -81,6 +81,9 @@
  * @property {ActionFactory} actionFactory
  * @property {Number} guardIndex
  * @property {Number} transitionIndex
+ */
+/**
+ * @typedef {Object.<ControlState, *>} FSM_States
  */
 
 
