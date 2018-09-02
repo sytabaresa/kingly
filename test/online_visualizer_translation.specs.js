@@ -1,5 +1,28 @@
 import * as QUnit from "qunitjs"
-import { INIT_EVENT, INIT_STATE, toDagreVisualizerFormat } from "../src"
+import { ACTION_IDENTITY, INIT_EVENT, INIT_STATE, SHALLOW, DEEP, toDagreVisualizerFormat } from "../src"
+
+const EVENT1 = 'event1';
+const EVENT2 = 'event2';
+const EVENT3 = 'event3';
+const EVENT4 = 'event4';
+const EVENT5 = 'event5';
+function incCounter(extS, eventData) {
+  const { counter } = extS;
+
+  return {
+    model_update: [{ op: 'add', path: '/counter', value: counter + 1 }],
+    outputs: counter
+  }
+}
+
+function incCounterTwice(extS, eventData) {
+  const { counter } = extS;
+
+  return {
+    model_update: [{ op: 'add', path: '/counter', value: counter + 2 }],
+    outputs: counter
+  }
+}
 
 QUnit.module("Testing conversion from fsm specs to online visualizer format", {});
 
@@ -262,6 +285,137 @@ QUnit.test("History states, entry states, standard states, and all transitions :
       "event": "REVERSE_DOWN",
       "action": "go_backward_1_s"
     }]
+  };
+
+  assert.deepEqual(JSON.parse(translation), expectedTranslation, `works`);
+});
+
+QUnit.test("test shallow history transitions, INIT event CASCADING transitions", function exec_test(assert) {
+  const OUTER = 'OUTER';
+  const INNER = 'INNER';
+  const OUTER_A = 'outer_a';
+  const OUTER_B = 'outer_b';
+  const INNER_S = 'inner_s';
+  const INNER_T = 'inner_t';
+  const Z = 'z';
+  const states = { [OUTER]: { [INNER]: { [INNER_S]: '', [INNER_T]: '' }, [OUTER_A]: '', [OUTER_B]: '' }, [Z]: '' };
+  const fsmDef = {
+    states,
+    initial_extended_state: { history: SHALLOW, counter: 0 },
+    transitions: [
+      { from: INIT_STATE, event: INIT_EVENT, to: OUTER, action: ACTION_IDENTITY },
+      { from: OUTER, event: INIT_EVENT, to: OUTER_A, action: ACTION_IDENTITY },
+      { from: OUTER_A, event: EVENT1, to: INNER, action: ACTION_IDENTITY },
+      { from: INNER, event: INIT_EVENT, to: INNER_S, action: ACTION_IDENTITY },
+      { from: INNER_S, event: EVENT3, to: INNER_T, action: ACTION_IDENTITY },
+      { from: INNER_T, event: EVENT3, to: INNER_S, action: ACTION_IDENTITY },
+      { from: INNER, event: EVENT2, to: OUTER_B, action: ACTION_IDENTITY },
+      { from: OUTER, event: EVENT5, to: Z, action: ACTION_IDENTITY },
+      {
+        from: Z, event: EVENT4, guards: [
+          {
+            predicate: function isDeep(x, e) {return x.history === DEEP},
+            to: [OUTER, 'H*'].join('.'),
+            action: incCounter
+          },
+          {
+            predicate: function isShallow(x, e) {return x.history !== DEEP},
+            to: [OUTER, 'H'].join('.'),
+            action: incCounter
+          }
+        ]
+      },
+    ],
+  };
+  const translation = toDagreVisualizerFormat(fsmDef, {});
+  // NOTE : Wll not work in the visualizer because the history states are not declared or preocessed (03/09/2018)
+  const expectedTranslation = {
+    "states": [
+      "nok",
+      [
+        [
+          "OUTER",
+          [
+            [
+              "INNER",
+              [
+                "inner_s",
+                "inner_t"
+              ]
+            ],
+            "outer_a",
+            "outer_b"
+          ]
+        ],
+        "z"
+      ]
+    ],
+    "transitions": [
+      {
+        "action": "ACTION_IDENTITY",
+        "event": "init",
+        "from": "nok",
+        "to": "OUTER"
+      },
+      {
+        "action": "ACTION_IDENTITY",
+        "event": "init",
+        "from": "OUTER",
+        "to": "outer_a"
+      },
+      {
+        "action": "ACTION_IDENTITY",
+        "event": "event1",
+        "from": "outer_a",
+        "to": "INNER"
+      },
+      {
+        "action": "ACTION_IDENTITY",
+        "event": "init",
+        "from": "INNER",
+        "to": "inner_s"
+      },
+      {
+        "action": "ACTION_IDENTITY",
+        "event": "event3",
+        "from": "inner_s",
+        "to": "inner_t"
+      },
+      {
+        "action": "ACTION_IDENTITY",
+        "event": "event3",
+        "from": "inner_t",
+        "to": "inner_s"
+      },
+      {
+        "action": "ACTION_IDENTITY",
+        "event": "event2",
+        "from": "INNER",
+        "to": "outer_b"
+      },
+      {
+        "action": "ACTION_IDENTITY",
+        "event": "event5",
+        "from": "OUTER",
+        "to": "z"
+      },
+      {
+        "event": "event4",
+        "from": "z",
+        "guards": [
+          {
+            "action": "incCounter",
+            "predicate": "isDeep",
+            "to": "OUTER.H*"
+          },
+          {
+            "action": "incCounter",
+            "predicate": "isShallow",
+            "to": "OUTER.H"
+          }
+        ]
+      }
+    ]
   };
 
   assert.deepEqual(JSON.parse(translation), expectedTranslation, `works`);

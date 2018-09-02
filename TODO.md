@@ -19,6 +19,7 @@
 - visualization
   - try the visualizer with the examples in tests
 - add the super test from quantum leaps for hierarchy specs
+- make visualizer work for history states too!!
 
 // TODO DOC : document initial state is NOK, and event init automatically fired on starting the fsm
 // no hierarchy : TODO : add tests for when event passed in not in state machine

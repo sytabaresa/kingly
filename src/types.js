@@ -86,4 +86,14 @@
  * @typedef {Object.<ControlState, *>} FSM_States
  */
 
+/**
+ * @typedef {Object.<HistoryType, HistoryDict>} History history object containing deeep and shallow history states
+ * for all relevant control states
+ */
+/**
+ * @typedef {Object.<ControlState, ControlState>} HistoryDict Maps a compound control state to its history state
+ */
+/**
+ * @typedef {DEEP | SHALLOW} HistoryType
+ */
 

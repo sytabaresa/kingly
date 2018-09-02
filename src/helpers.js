@@ -323,6 +323,12 @@ export function isHistoryStateEdge(edge) {
   return typeof edge.history !== 'undefined'
 }
 
+/**
+ * Creates a history object from a state list. The created history object represents the history states when no
+ * control states have been entered or exited.
+ * @param stateList
+ * @returns {History}
+ */
 export function initHistoryDataStructure(stateList) {
   // NOTE : we update history in place, so we need two different objects here, even
   // when they start with the same value
@@ -331,21 +337,23 @@ export function initHistoryDataStructure(stateList) {
 }
 
 export function isCompoundState(analyzedStates, controlState) {
-  const {statesAdjacencyList} = analyzedStates;
+  const { statesAdjacencyList } = analyzedStates;
   return statesAdjacencyList[controlState] && statesAdjacencyList[controlState].length !== 0
 }
 
 export function isAtomicState(analyzedStates, controlState) {
-return !isCompoundState(analyzedStates, controlState)
+  return !isCompoundState(analyzedStates, controlState)
 }
 
 /**
- *
- * @param {{updateHistory: function(*=): *, [p: string]: *}} history Contains deep history and shallow history for all
+ * Updates the history state (both deep and shallow) after `state_from_name` has been exited. Impacted states are the
+ * `stateAncestors` which are the ancestors for the exited state.
+ * @param {History} history Contains deep history and shallow history for all
  * control states, except the INIT_STATE (not that the concept has no value for atomic state). The function
  * `updateHistory` allows to update the history as transitions occur in the state machine.
- * @param {Object.<ControlState, *>} control_states
- * @returns {{updateHistory: function(*=): *, [p: string]: *}}
+ * @param {Object.<DEEP|SHALLOW, Object.<ControlState, Array<ControlState>>>} stateAncestors
+ * @returns {History}
+ * @modifies history
  */
 export function updateHistory(history, stateAncestors, state_from_name) {
   // Edge case, we start with INIT_STATE but that is not kept in the history (no transition to it!!)
@@ -367,12 +375,26 @@ export function updateHistory(history, stateAncestors, state_from_name) {
   }
 }
 
+/**
+ * for all parentState, computes history(parentState), understood as the last control state descending from the
+ * parent state. Last can be understood two ways : DEEP and SHALLOW. Deep history state refer to the last atomic
+ * control state which is a children of the parent state and was exited. Shallow history states refer to the last
+ * control state which is a direct child of the parent state and was exited.
+ * @param {FSM_States} states
+ * @param {Array<ControlState>} controlStateSequence Sequence of control states which has been entered and exited,
+ * and from which the history must be computed
+ * @param {DEEP | SHALLOW} historyType
+ * @param {ControlState} historyParentState
+ * @returns {Object.<DEEP|SHALLOW, Object.<ControlState, ControlState>>}
+ */
 export function computeHistoryState(states, controlStateSequence, historyType, historyParentState) {
   // NOTE : we compute the whole story every time. This is inefficient, but for now sufficient
   const { stateList, stateAncestors } = computeHistoryMaps(states);
   let history = initHistoryDataStructure(stateList);
-  history = controlStateSequence.reduce((history,
-                                         controlState) => updateHistory(history, stateAncestors, controlState), history);
+  history = controlStateSequence.reduce(
+    (history, controlState) => updateHistory(history, stateAncestors, controlState),
+    history
+  );
 
   return history[historyType][historyParentState]
 }

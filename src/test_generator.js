@@ -223,10 +223,9 @@ function computeGeneratedInfoHistoryStateCase(fsm, fsmStates, edge, isTraversabl
 
   const historyParentState = getHistoryParentState(history);
   const historyType = getHistoryType(history);
-  // NOTE : controlStateSequence leads to edge.from, so the from is not exited yet!!
   // We must compute the history state assusming edge.from is exited!
-  const completedControlStateSequence = controlStateSequence//.concat(targetControlState);
-  const historyStateForParentState = computeHistoryState(fsmStates, completedControlStateSequence, historyType, historyParentState);
+  // As edge.from is already in the control state sequence, we are good to call computeHistoryState
+  const historyStateForParentState = computeHistoryState(fsmStates, controlStateSequence, historyType, historyParentState);
 
   if (historyStateForParentState !== targetControlState) {
     // We have an history edge for a parent state with a potential target state
