@@ -17,7 +17,7 @@ import {
 } from "./properties";
 import {
   arrayizeOutput, computeHistoryMaps, get_fn_name, getFsmStateList, initHistoryDataStructure, keys,
-  mapOverTransitionsActions, wrap
+  mapOverTransitionsActions, wrap, updateHistory
 } from "./helpers";
 
 /**
@@ -138,34 +138,6 @@ export function build_state_enum(states) {
   build_state_reducer(states);
 
   return states_enum;
-}
-
-/**
- *
- * @param {{updateHistory: function(*=): *, [p: string]: *}} history Contains deep history and shallow history for all
- * control states, except the INIT_STATE (not that the concept has no value for atomic state). The function
- * `updateHistory` allows to update the history as transitions occur in the state machine.
- * @param {Object.<ControlState, *>} control_states
- * @returns {{updateHistory: function(*=): *, [p: string]: *}}
- */
-export function updateHistory(history, stateAncestors, state_from_name) {
-  // Edge case, we start with INIT_STATE but that is not kept in the history (no transition to it!!)
-
-  if (state_from_name === INIT_STATE) {
-    return history
-  }
-  else {
-    [SHALLOW, DEEP].forEach(historyType => {
-      // ancestors for the state which is exited
-      const ancestors = stateAncestors[historyType][state_from_name] || [];
-      ancestors.forEach(ancestor => {
-        // set the exited state in the history of all ancestors
-        history[historyType][ancestor] = state_from_name
-      });
-    });
-
-    return history
-  }
 }
 
 /**

@@ -1,7 +1,6 @@
 // Ramda fns
 import { DEEP, HISTORY_PREFIX, HISTORY_STATE_NAME, INIT_EVENT, INIT_STATE, NO_OUTPUT, SHALLOW } from "./properties"
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
-import { updateHistory } from "./synchronous_fsm"
 
 /**
  * Returns the name of the function as taken from its source definition.
@@ -331,6 +330,43 @@ export function initHistoryDataStructure(stateList) {
   return { [DEEP]: initHistory(), [SHALLOW]: initHistory() };
 }
 
+export function isCompoundState(analyzedStates, controlState) {
+  const {statesAdjacencyList} = analyzedStates;
+  return statesAdjacencyList[controlState] && statesAdjacencyList[controlState].length !== 0
+}
+
+export function isAtomicState(analyzedStates, controlState) {
+return !isCompoundState(analyzedStates, controlState)
+}
+
+/**
+ *
+ * @param {{updateHistory: function(*=): *, [p: string]: *}} history Contains deep history and shallow history for all
+ * control states, except the INIT_STATE (not that the concept has no value for atomic state). The function
+ * `updateHistory` allows to update the history as transitions occur in the state machine.
+ * @param {Object.<ControlState, *>} control_states
+ * @returns {{updateHistory: function(*=): *, [p: string]: *}}
+ */
+export function updateHistory(history, stateAncestors, state_from_name) {
+  // Edge case, we start with INIT_STATE but that is not kept in the history (no transition to it!!)
+
+  if (state_from_name === INIT_STATE) {
+    return history
+  }
+  else {
+    [SHALLOW, DEEP].forEach(historyType => {
+      // ancestors for the state which is exited
+      const ancestors = stateAncestors[historyType][state_from_name] || [];
+      ancestors.forEach(ancestor => {
+        // set the exited state in the history of all ancestors
+        history[historyType][ancestor] = state_from_name
+      });
+    });
+
+    return history
+  }
+}
+
 export function computeHistoryState(states, controlStateSequence, historyType, historyParentState) {
   // NOTE : we compute the whole story every time. This is inefficient, but for now sufficient
   const { stateList, stateAncestors } = computeHistoryMaps(states);
@@ -339,13 +375,4 @@ export function computeHistoryState(states, controlStateSequence, historyType, h
                                          controlState) => updateHistory(history, stateAncestors, controlState), history);
 
   return history[historyType][historyParentState]
-}
-
-export function isCompoundState(analyzedStates, controlState) {
-  const {statesAdjacencyList} = analyzedStates;
-  return statesAdjacencyList[controlState] && statesAdjacencyList[controlState].length !== 0
-}
-
-export function isAtomicState(analyzedStates, controlState) {
-return !isCompoundState(analyzedStates, controlState)
 }
