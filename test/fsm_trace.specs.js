@@ -3,7 +3,7 @@ import * as Rx from "rx"
 import { clone, F, merge, T } from "ramda"
 import { ACTION_IDENTITY, create_state_machine, INIT_EVENT, INIT_STATE, traceFSM } from "../src"
 import { formatResult } from "./helpers"
-import { assertContract, isArrayUpdateOperations } from "../src/helpers"
+import { assertContract, isArrayUpdateOperations } from "../test/helpers"
 import { applyPatch } from "json-patch-es6/lib/duplex"
 import { CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE } from "../src/properties"
 

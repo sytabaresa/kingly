@@ -58,3 +58,11 @@ export function assertContract(contractFn, contractArgs, errorMessage) {
 }
 
 export function isBoolean(obj) {return typeof(obj) === 'boolean'}
+export function isUpdateOperation(obj) {
+  return (typeof(obj) === 'object' && Object.keys(obj).length === 0) ||
+    (
+      ['add', 'replace', 'move', 'test', 'remove', 'copy'].some(op => obj.op === op) &&
+      typeof(obj.path) === 'string'
+    )
+}
+

@@ -2,7 +2,6 @@
 import { DEEP, HISTORY_PREFIX, HISTORY_STATE_NAME, INIT_EVENT, INIT_STATE, NO_OUTPUT, SHALLOW } from "./properties"
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
 import { updateHistory } from "./synchronous_fsm"
-import { analyzeStateTree } from "./test_generator"
 
 /**
  * Returns the name of the function as taken from its source definition.
@@ -32,14 +31,6 @@ export function merge(a, b) {
 }
 
 // Contracts
-
-export function isUpdateOperation(obj) {
-  return (typeof(obj) === 'object' && Object.keys(obj).length === 0) ||
-    (
-      ['add', 'replace', 'move', 'test', 'remove', 'copy'].some(op => obj.op === op) &&
-      typeof(obj.path) === 'string'
-    )
-}
 
 export function is_history_transition(transition) {
   return transition.to.startsWith(HISTORY_PREFIX)

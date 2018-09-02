@@ -4,7 +4,7 @@ import {
 import { formatResult } from "./helpers"
 import * as QUnit from "qunitjs"
 import * as Rx from "rx"
-import { assertContract, isArrayUpdateOperations } from "../src/helpers"
+import { assertContract, isArrayUpdateOperations } from "../test/helpers"
 import { applyPatch } from "json-patch-es6/lib/duplex"
 import { CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE } from "../src/properties"
 

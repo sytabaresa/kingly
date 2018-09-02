@@ -6,7 +6,7 @@ import {
   create_state_machine, INIT_EVENT, INIT_STATE, NO_OUTPUT
 } from "../src"
 import {applyPatch} from "json-patch-es6"
-import { assertContract, isArrayUpdateOperations } from "../src/helpers"
+import { assertContract, isArrayUpdateOperations } from "../test/helpers"
 import { CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE } from "../src/properties"
 const $ = Rx.Observable;
 

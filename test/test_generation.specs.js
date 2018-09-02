@@ -5,7 +5,7 @@ import {
   ACTION_IDENTITY, computeTimesCircledOn, generateTestsFromFSM, INIT_EVENT, INIT_STATE, makeHistoryStates, NO_OUTPUT
 } from "../src"
 import { formatResult } from "./helpers"
-import { assertContract, isArrayUpdateOperations } from "../src/helpers"
+import { assertContract, isArrayUpdateOperations } from "../test/helpers"
 import { applyPatch } from "json-patch-es6/lib/duplex"
 import { CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE } from "../src/properties"
 
