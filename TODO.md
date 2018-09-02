@@ -3,26 +3,20 @@
   - update doc and README
 - add edge cases for test generation: 
   - history transitions
-    - in path state, add the list of control states, including the state when input sequence is 
-    run (not the state for the new input)
-    - compute the history set for each state
-      - will be the origin vertex for each exiting transition 
-    - when a transition to S.H add all the edges from S.H to the history set for S as eventless 
-    transitions
-    - will be S.H -null> X and a if (edge.event == null && edge.from is history) isTraversable will
-     depend, no change in input, and output (already output when Z -> S.H)
-    - not that if (edge.event == INIT) then edge.from is not history (contract)
-    - isTraversable depends :
-      - get the history state for S from the state sequence
-      - if the edge.target corresponds to history(S) then isTraversable YES else NO
+    - comment well the code, the second part with input generation
+  - compound state
+    - add compound to compound transitions test for fsm2graph
 - write all contracts
   - cannot have non-determinstic transitions
     - A -ev> B and A < OUTER_A with OUTER_A -ev>C !!, the fsm might work in a deterministic way, 
     but the input generation won't!!
-    
   - TODO add contract for test gen : apply only to FSM for which init event sets the initial state
    in the machine
-
+- types : update DOC
+  - best will be to put a link to it??
+- input generation
+  - write DOC
+  
 // TODO DOC : document initial state is NOK, and event init automatically fired on starting the fsm
 // no hierarchy : TODO : add tests for when event passed in not in state machine
 
