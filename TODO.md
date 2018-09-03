@@ -1,16 +1,60 @@
 # Now
+! WRITE ALL CONTRACTS
+  - TODO add contract for test gen : apply only to FSM for which init event sets the initial state
+   in the machine
+     - could ignore event data from gen corresponding to INIT_STATE??
+- CONTRACT : actually disallow having several guards from INIT_STATE!!
+- CONTRACT : for guards associated to (from, event), only one guard can be fulfilled!!
+  - for now priority works : first guard fulfilled
+  - but that kills generative testing, it could follow a branch that is impossible by following 
+  the path given by the second guard fulfilled
+  - so write defensively the guards : no else concept
+  - review the demo, and replace all the T for else
+- CONTRACT : for guards associated to (from1, event) and (from2, event) where from1 and from2 are
+ in a hierarchy relation, for instance from2 < from1
+   - for now REJECT
+   - in the future could allow if guard1 and guard2 are never true together
+     - if that is the case, the test input generation will work
+     - but not the implementation which does not forward event!! 
+   - note this is a generalization of from1 = from 2 mentioned previously
+- ROADMAP : allow event forwarding : THAT IS A REWRITE, good thing tests are already there
+  - that requires getting rid of prototypes and make a list of transitions for each (from, event)
+  - when done, graph transformation does not change 
+  - BUT edge traversal changes : do not take a edge (from1, event) if from2 < from1 and 
+  (from2, event) generates an input
+    - but even that is shaky as we generate only one input, there is no guarantee that for 
+    another input, we would not have the guard passing. But it is correct for that case, so 
+    useful for that case, but we loose generality!! We have only tested for a portion of the test
+     space linked to this choice of event data. Obviously that is always the case, but ideally we
+      want to choose our guards and fsm and gen so that the eventData can be variabalized and 
+      fuzzied over for fuller testing. We want to test the model with specific event data, and if
+       true, we want to generalize to all possible eventData! can't do it if we propagate events
+    - will work always if both guards related to from1 and from2 can never be true together
+  - NOTE that this can be worked around by adding guards to from1
+    - from1.final guard = !from2.guard && from1.guard (in general all ancestor of from2 on the 
+    path to from1)
+    - could be important in that case to memoize the guard, as we might repeat them often. 
+    Extended state is immutable so should be practical. Impose settings immutable, and eventData 
+    immutable and we are good
 - add edge cases for test generation: 
   - history transitions
     - comment well the code, the second part with input generation
-- write all contracts
-  - TODO add contract for test gen : apply only to FSM for which init event sets the initial state
-   in the machine
 - input generation
   - write DOC
 - visualization
   - try the visualizer with the examples in tests
 - add the super test from quantum leaps for hierarchy specs
 - make visualizer work for history states too!!
+- understand why when a guard is not fulfilled the trace returns just null and not the full array
+  - is that good or bad? could be interesting to have the information that no guard were fulfilled!
+- refactor model_update in `updates` (extendedStateUpdate is too long)
+- refactor `updateModel` to `updateFn`
+  - in types too!!
+- README : put links for tests everywhere I put cf. tests!!
+- refactor : replace all model by extendedState!! 
+- ROADMAP : targetless events
+      // NOTE : we implemented it here by repeating the self-loop corresponding to the targetless event in all substates
+- TEST : The computed outputs will be aggregated in an array of outputs.
 
 // TODO DOC : document initial state is NOK, and event init automatically fired on starting the fsm
 // no hierarchy : TODO : add tests for when event passed in not in state machine

@@ -1,7 +1,5 @@
 import {
-  ACTION_IDENTITY, computeTimesCircledOn, create_state_machine, generateTestsFromFSM, INIT_EVENT, INIT_STATE,
-  makeHistoryStates, NO_OUTPUT,
-  traceFSM
+  ACTION_IDENTITY, create_state_machine, INIT_EVENT, INIT_STATE, makeHistoryStates, NO_OUTPUT, traceFSM
 } from "../src"
 import { formatResult } from "./helpers"
 import * as QUnit from "qunitjs"
@@ -9,7 +7,6 @@ import * as Rx from "rx"
 import { assertContract, isArrayUpdateOperations } from "../test/helpers"
 import { applyPatch } from "json-patch-es6/lib/duplex"
 import { CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE } from "../src/properties"
-import { merge } from "ramda"
 
 const $ = Rx.Observable;
 
@@ -1412,4 +1409,3 @@ QUnit.test("deep history transitions FROM INSIDE, INIT event CASCADING transitio
     [0]
   ], `eventless transitions are correctly taken`);
 });
-

@@ -1,7 +1,7 @@
 import * as QUnit from "qunitjs"
 import * as Rx from "rx"
 import { clone, F, merge, T } from "ramda"
-import { ACTION_IDENTITY, create_state_machine, INIT_EVENT, INIT_STATE, traceFSM } from "../src"
+import { ACTION_IDENTITY, create_state_machine, INIT_EVENT, INIT_STATE, NO_OUTPUT, traceFSM } from "../src"
 import { formatResult } from "./helpers"
 import { assertContract, isArrayUpdateOperations } from "../test/helpers"
 import { applyPatch } from "json-patch-es6/lib/duplex"
@@ -293,4 +293,302 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
         "transitionIndex": 1
       }]
     ], `trace is correct`);
+});
+
+QUnit.test("all transitions topologies up to 4 levels of state nesting", function exec_test(assert) {
+  // NOTE : cf. graph in test assets
+  // States
+  const s = 's';
+  const s1 = 's1';
+  const s11 = 's11';
+  const s2 = 's2';
+  const s21 = 's21';
+  const s211 = 's211';
+  const states = {
+    [s]: {
+      [s1]: { [s11]: '' },
+      [s2]: { [s21]: { [s211]: '' } }
+    }
+  };
+
+  // Events
+  const A = 'eventA';
+  const B = 'eventB';
+  const C = 'eventC';
+  const D = 'eventD';
+  const E = 'eventE';
+  const F = 'eventF';
+  const G = 'eventG';
+  const H = 'eventH';
+  const I = 'eventI';
+
+  // Guards
+  function isFoo0(extS, evD) {
+    debugger
+    return extS.foo === 0
+  }
+
+  function isFoo1(extS, evD) {
+    return extS.foo === 1
+  }
+
+  // Actions
+  function updateFooTo0(extS, evD) {
+    return {
+      model_update: [{ op: 'add', path: '/foo', value: 0 }],
+      outputs: NO_OUTPUT
+    }
+  }
+
+  function updateFooTo1(extS, evD) {
+    return {
+      model_update: [{ op: 'add', path: '/foo', value: 1 }],
+      outputs: NO_OUTPUT
+    }
+  }
+
+  const fsmDef = {
+    states,
+    events: [A, B, C, D, E, F, G, H, I],
+    initial_extended_state: {},
+    transitions: [
+      { from: INIT_STATE, event: INIT_EVENT, to: s2, action: updateFooTo0 },
+      { from: s2, event: INIT_EVENT, to: s211, action: ACTION_IDENTITY },
+      { from: s2, event: I, guards: [{ to: s2, predicate: isFoo0, action: updateFooTo1 }] },
+      { from: s21, event: I, guards: [{ to: s21, predicate: isFoo0, action: updateFooTo1 }] },
+      { from: s211, event: I, guards: [{ to: s211, predicate: isFoo0, action: updateFooTo1 }] },
+      { from: s2, event: C, to: s1, action: ACTION_IDENTITY },
+      { from: s2, event: F, to: s11, action: ACTION_IDENTITY },
+      { from: s21, event: INIT_EVENT, to: s211, action: ACTION_IDENTITY },
+      { from: s21, event: G, to: s1, action: ACTION_IDENTITY },
+      { from: s21, event: B, to: s211, action: ACTION_IDENTITY },
+      { from: s21, event: A, to: s21, action: ACTION_IDENTITY },
+      { from: s211, event: D, to: s21, action: ACTION_IDENTITY },
+      { from: s211, event: H, to: s, action: ACTION_IDENTITY },
+      { from: s, event: INIT_EVENT, to: s11, action: ACTION_IDENTITY },
+      { from: s, event: I, guards: [{ to: s, predicate: isFoo1, action: updateFooTo0 }] },
+      { from: s, event: E, to: s11, action: ACTION_IDENTITY },
+      { from: s1, event: INIT_EVENT, to: s11, action: ACTION_IDENTITY },
+      { from: s1, event: I, to: s1, action: ACTION_IDENTITY },
+      { from: s11, event: I, to: s11, action: ACTION_IDENTITY },
+      { from: s1, event: D, guards: [{ to: s, predicate: isFoo0, action: updateFooTo1 }] },
+      { from: s1, event: B, to: s11, action: ACTION_IDENTITY },
+      { from: s1, event: A, to: s1, action: ACTION_IDENTITY },
+      { from: s1, event: C, to: s2, action: ACTION_IDENTITY },
+      { from: s1, event: F, to: s211, action: ACTION_IDENTITY },
+      { from: s11, event: D, guards: [{ to: s1, predicate: isFoo1, action: updateFooTo0 }] },
+      { from: s11, event: H, to: s, action: ACTION_IDENTITY },
+      { from: s11, event: G, to: s211, action: ACTION_IDENTITY },
+    ],
+  };
+  const settings = default_settings;
+  const eventSequence = [INIT_EVENT, G, I, A, D, D, C, E, E, G, I, I];
+  const inputSequence = eventSequence.map(x => ({ [x]: null }));
+  const decoratedFsmDef = traceFSM(settings, fsmDef);
+  const decoratedFSM = create_state_machine(decoratedFsmDef, settings);
+  const outputSequence = inputSequence.map(decoratedFSM.yield);
+  const formattedResults = outputSequence.map(output => output && output.map(formatResult));
+  // TODO : this bugs for input D for now : foo is 0, guard isFoo0 should work, and action be executed
+  // problem is that from: s1, event: D,  is not found!! aaa true we have no pasing up the event if no guards is found..
+  // TODO : see if I change it.. should be easy?? DOC it if I do it but think about impact on test generation!!
+  // TODO : use this fsm to test input generation (from INIT to TERMINAL state)!!
+  // see how many paths? how to reduce per criteria? compare to the test we have here which tests important topology
+  // transition : are they covered too in our automatically chosen test??
+  assert.deepEqual(formattedResults,
+    [
+      [
+        {
+          "actionFactory": "updateFooTo0",
+          "controlState": "nok",
+          "event": {
+            "eventData": null,
+            "eventLabel": "init"
+          },
+          "extendedState": {},
+          "guardIndex": 0,
+          "model_update": [
+            {
+              "op": "add",
+              "path": "/foo",
+              "value": 0
+            }
+          ],
+          "newExtendedState": {
+            "foo": 0
+          },
+          "outputs": null,
+          "predicate": undefined,
+          "settings": {
+            "merge": "merge",
+            "of": "anonymous",
+            "subject_factory": "subject_factory",
+            "updateModel": "applyJSONpatch"
+          },
+          "targetControlState": "s2",
+          "transitionIndex": 0
+        },
+        {
+          "actionFactory": "ACTION_IDENTITY",
+          "controlState": "s2",
+          "event": {
+            "eventData": null,
+            "eventLabel": "init"
+          },
+          "extendedState": {
+            "foo": 0
+          },
+          "guardIndex": 0,
+          "model_update": [],
+          "newExtendedState": {
+            "foo": 0
+          },
+          "outputs": null,
+          "predicate": undefined,
+          "settings": {
+            "merge": "merge",
+            "of": "anonymous",
+            "subject_factory": "subject_factory",
+            "updateModel": "applyJSONpatch"
+          },
+          "targetControlState": "s211",
+          "transitionIndex": 1
+        }
+      ],
+      [
+        {
+          "actionFactory": "ACTION_IDENTITY",
+          "controlState": "s21",
+          "event": {
+            "eventData": null,
+            "eventLabel": "eventG"
+          },
+          "extendedState": {
+            "foo": 0
+          },
+          "guardIndex": 0,
+          "model_update": [],
+          "newExtendedState": {
+            "foo": 0
+          },
+          "outputs": null,
+          "predicate": undefined,
+          "settings": {
+            "merge": "merge",
+            "of": "anonymous",
+            "subject_factory": "subject_factory",
+            "updateModel": "applyJSONpatch"
+          },
+          "targetControlState": "s1",
+          "transitionIndex": 8
+        },
+        {
+          "actionFactory": "ACTION_IDENTITY",
+          "controlState": "s1",
+          "event": {
+            "eventData": null,
+            "eventLabel": "init"
+          },
+          "extendedState": {
+            "foo": 0
+          },
+          "guardIndex": 0,
+          "model_update": [],
+          "newExtendedState": {
+            "foo": 0
+          },
+          "outputs": null,
+          "predicate": undefined,
+          "settings": {
+            "merge": "merge",
+            "of": "anonymous",
+            "subject_factory": "subject_factory",
+            "updateModel": "applyJSONpatch"
+          },
+          "targetControlState": "s11",
+          "transitionIndex": 16
+        }
+      ],
+      [
+        {
+          "actionFactory": "ACTION_IDENTITY",
+          "controlState": "s11",
+          "event": {
+            "eventData": null,
+            "eventLabel": "eventI"
+          },
+          "extendedState": {
+            "foo": 0
+          },
+          "guardIndex": 0,
+          "model_update": [],
+          "newExtendedState": {
+            "foo": 0
+          },
+          "outputs": null,
+          "predicate": undefined,
+          "settings": {
+            "merge": "merge",
+            "of": "anonymous",
+            "subject_factory": "subject_factory",
+            "updateModel": "applyJSONpatch"
+          },
+          "targetControlState": "s11",
+          "transitionIndex": 18
+        }
+      ],
+      [
+        {
+          "actionFactory": "ACTION_IDENTITY",
+          "controlState": "s1",
+          "event": {
+            "eventData": null,
+            "eventLabel": "eventA"
+          },
+          "extendedState": {
+            "foo": 0
+          },
+          "guardIndex": 0,
+          "model_update": [],
+          "newExtendedState": {
+            "foo": 0
+          },
+          "outputs": null,
+          "predicate": undefined,
+          "settings": {
+            "merge": "merge",
+            "of": "anonymous",
+            "subject_factory": "subject_factory",
+            "updateModel": "applyJSONpatch"
+          },
+          "targetControlState": "s1",
+          "transitionIndex": 21
+        },
+        {
+          "actionFactory": "ACTION_IDENTITY",
+          "controlState": "s1",
+          "event": {
+            "eventData": null,
+            "eventLabel": "init"
+          },
+          "extendedState": {
+            "foo": 0
+          },
+          "guardIndex": 0,
+          "model_update": [],
+          "newExtendedState": {
+            "foo": 0
+          },
+          "outputs": null,
+          "predicate": undefined,
+          "settings": {
+            "merge": "merge",
+            "of": "anonymous",
+            "subject_factory": "subject_factory",
+            "updateModel": "applyJSONpatch"
+          },
+          "targetControlState": "s11",
+          "transitionIndex": 16
+        }
+      ],
+    ], `...`);
 });

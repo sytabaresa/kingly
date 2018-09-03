@@ -41,7 +41,6 @@
 /** @typedef {function (ExtendedState, EventData) : Boolean} FSM_Predicate */
 /** @typedef {{updateModel :: Function(ExtendedState, ExtendedStateUpdate) : ExtendedState, ...}} FSM_Settings */
 /** @typedef {{merge: MergeObsFn, from: FromObsFn, filter: FilterObsFn, map: MapObsFn, share:ShareObsFn, ...}} FSM$_Settings */
-/** @typedef {String} EventLabel */
 /**
  * @typedef {function (Array<Observable>) : Observable} MergeObsFn Similar to Rxjs v4's `Rx.Observable.merge`. Takes
  * an array of observables and return an observable which passes on all outputs emitted by the observables in the array.
@@ -88,6 +87,7 @@
  * @typedef {DEEP | SHALLOW} HistoryType
  */
 /** @typedef {String} ControlState Name of the control state */
+/** @typedef {String} EventLabel */
 /**
  * @typedef {*} EventData
  */

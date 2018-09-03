@@ -497,11 +497,10 @@ machine out of the initial control state towards the relevant user-configured co
 
 A few interesting points : 
 
-- a machine always transition towards an atomic state at the end of event processing
+- a machine always transitions towards an atomic state at the end of event processing
 - on that path towards an atomic target state, all intermediary extended state updates are 
 performed. Guards and action factories on that path are thus receiving a possibly evolving extended 
-state. However, the computed outputs will be that one computed by the last action factory for the 
-last transition evaluated.
+state. The computed outputs will be aggregated in an array of outputs.
  
 The aforedescribed behaviour is summarized here :
 
@@ -594,6 +593,7 @@ state machine
   - A -ev> B and A < OUTER_A with OUTER_A -ev>C !! : there are two valid transitions triggered by
    `ev`. While it is possible to decide deterministically which transition should proceed, this 
    unduely complicated the input testing generation so we forbid non-deterministic transitions
+  - NOTE TO SELF: absolutely write that contract
 - `updateModel :: ExtendedState -> ExtendedStateUpdates -> ExtendedState` must be a pure function
  (this is important in particular for the tracing mechanism which triggers two execution of this 
  function with the same parameters)
@@ -777,8 +777,12 @@ control state, triggered by an event
 specifications for the machine's transition
 
 Note that the trace functionality is obtained by wrapping over the action factories in `A`. As 
-such, all action factories will see their output wrapped. This means that transitions which do 
-not lead to the execution of action factories are not traced.
+such, all action factories will see their output wrapped. This means :
+
+- transitions which do not lead to the execution of action factories are not traced
+- when the machine cannot find any transition for an event, hence any action to execute, 
+the traced machine will simply return `null`.
+
 
 Note also that `env` is not used for now, and could be used to parameterize the tracing.
 
