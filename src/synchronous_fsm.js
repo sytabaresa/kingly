@@ -641,5 +641,3 @@ export function makeHistoryStates(states) {
 }
 
 // TODO DOC: beware not to modify settings, it is passed by reference and not cloned!!
-// TODO DOC: explain hierarchy, initial events, auto events, and other contracts
-// TODO DOC: document the obs merge settings (+filter necessary on prototype)

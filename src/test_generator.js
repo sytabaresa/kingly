@@ -2,8 +2,8 @@
 import { constructGraph, depthFirstTraverseGraphEdges } from '../../graph-adt/src'
 import { INIT_STATE } from "./properties"
 import {
-  computeHistoryState, getFsmStateList, getHistoryParentState, getHistoryType, isCompoundState, isDeepHistory,
-  isEventless, isHistoryControlState, isHistoryStateEdge, isInitEvent, isInitState, isShallowHistory, lastOf, merge,
+  computeHistoryState, getFsmStateList, getHistoryParentState, getHistoryType, isCompoundState, isEventless,
+  isHistoryControlState, isHistoryStateEdge, isInitEvent, isInitState, isShallowHistory, lastOf, merge,
   reduceTransitions
 } from "./helpers"
 import { create_state_machine, traceFSM } from "./synchronous_fsm"
@@ -37,13 +37,12 @@ export function generateTestsFromFSM(fsm, generators, settings) {
   const fsmStates = tracedFSM.states;
   const analyzedStates = analyzeStateTree(fsmStates);
   const initialExtendedState = tracedFSM.initialExtendedState;
+  const { strategy: { isGoalReached, isTraversableEdge } } = settings;
 
-  // associate a gen to from, event, guard index = the transition it is mapped
-  // Note that we need to deal specially with edge case when edge is starting edge
+  // Associate a gen to (from, event, guard index) = the transition it is mapped
   const genMap = getGeneratorMapFromGeneratorMachine(generators);
 
-  const { strategy: { isGoalReached, isTraversableEdge } } = settings;
-  // build a graph from the tracedFSM
+  // Build a graph from the tracedFSM, and the state machine triggering logic
   const fsmGraph = convertFSMtoGraph(tracedFSM);
   // search that graph with the right parameters
   const search = {
@@ -84,17 +83,18 @@ export function generateTestsFromFSM(fsm, generators, settings) {
       const extendedState = inputSequence.length === 0
         // Edge case : we are in INIT_STATE, the init event has the initial extended state as event data
         ? initialExtendedState
-        // Main case : we run the sequence of inpus and
+        // Main case : we run the sequence of inputs and
         // we take the extended state of the machine at the end of the run
         // NOTE : fsm is a traced fsm, the output returned will always be an array of length 1
         : lastOf(inputSequence.map(fsm.yield))[0].newExtendedState;
-      // Then get and run the generator matching the control state, and the edge transition
-      // to get the input and output sequences
-      // TODO: now I have to reconstruct the edge back to compound origin to find the gen!!
-      // if edge is compoound then edge = {same, from <-compound}
+
+      // The generator is mapped to the original edge from the state machine transitions, so we use trueEdge
       const gen = getGeneratorMappedTransitionFromEdge(genMap, trueEdge);
       const generatedInput = gen ? gen(extendedState) : { input: null, hasGeneratedInput: false };
+      // The traversability of an edge is based on the original edge from the state machine
+      // transitions, so we use trueEdge
       const _isTraversableEdge = isTraversableEdge(trueEdge, graph, pathTraversalState, graphTraversalState);
+      // Visit the edge
       const { newPathTraversalState, newIsTraversableEdge } =
         computeNewPathTraversalState(fsm, fsmStates, analyzedStates, edge, generatedInput, pathTraversalState, _isTraversableEdge);
 
@@ -113,37 +113,41 @@ function computeNewPathTraversalState(fsm, fsmStates, analyzedStates, edge, genI
                                       isTraversableEdge) {
   const { event: eventLabel, from: controlState, to: targetControlState, history } = edge;
 
+  // Then get and run the generator matching the control state, and the edge transition
+  // to get the input and output sequences
+
   // TODO : restructure the if, with comments first then code
   // Case 1 : control state is INIT_STATE and event is INIT_EVENT
   // Reminder : in INIT_STATE, the only event admissible is INIT_EVENT
   if (isInitState(controlState) && !isInitEvent(eventLabel)) {
     throw `computeNewPathTraversalState : cannot be in INIT_STATE and receive another event than INIT_EVENT! Check your fsm configuration!`
   }
+  // Case 2. the init event is manually sent : we have to generate the corresponding input
   else if (isInitState(controlState) && isInitEvent(eventLabel)) {
-    // In this case, the init event is manually sent
-    // we have to generate the corresponding input
     return computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, genInput, pathTraversalState)
   }
+  // Case 3 : the init event is automatically and internally sent by the state machine : no need to generate inputs!
   else if (!isInitState(controlState) && isInitEvent(eventLabel)) {
-    // In this case, the init event is automatically and internally sent by the state machine
-    // no need to generate inputs!
     return computeGeneratedInfoDoNothingCase(fsm, edge, isTraversableEdge, genInput, pathTraversalState)
   }
-  // Case X : control state is not INIT_STATE and event is not INIT_EVENT
+  // Case 4 : main case
   else if (!isInitState(controlState) && !isInitEvent(eventLabel)) {
-    // Edge case : controlState is a compound state : there can be no transition from a compound state, except INIT!
-    // transitions otherwise always happen from an atomic state
+    // Edge case 4.0: controlState is a compound state -> this cannot happen per the way the graph is constructed :
+    // Origin compound states A = [A1, A2, A3], with A -ev> X are broken down in [A1 -ev> X, A2 -ev>X...], if ev != INIT
     if (isCompoundState(analyzedStates, controlState)) {
       return computeRejectCase(fsm, edge, isTraversableEdge, genInput, pathTraversalState)
     }
+    // Case 4.1 : if eventless transition, the machine progress automatically,
+    // so we have no input to generate to trigger a transition!
     else if (isEventless(eventLabel)) {
       return computeGeneratedInfoDoNothingCase(fsm, edge, isTraversableEdge, genInput, pathTraversalState)
     }
+    // Case 4.2 : if history transition, input generation is depending on the actual history so far
     else if (isHistoryStateEdge(edge)) {
       return computeGeneratedInfoHistoryStateCase(fsm, fsmStates, edge, isTraversableEdge, genInput, pathTraversalState)
     }
+    // general case 4,3 : not init state, not init event, not eventless, not history transition
     else {
-      // General case : not init state, not init event, not eventless, not history transition
       return computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, genInput, pathTraversalState)
     }
   }
@@ -157,14 +161,14 @@ function computeRejectCase(fsm, edge, isTraversableEdge, genInput, pathTraversal
 }
 
 function computeGeneratedInfoDoNothingCase(fsm, edge, isTraversableEdge, genInput, pathTraversalState) {
-  const { event: eventLabel, from: controlState, to: targetControlState } = edge;
+  const { to: targetControlState } = edge;
   const { path, inputSequence, outputSequence, controlStateSequence } = pathTraversalState;
 
   return {
     newIsTraversableEdge: true,
     newPathTraversalState: {
       inputSequence,
-      // NOTE: reminder : intermediary states do not output!
+      // NOTE: reminder : intermediary states do not output! so no output to aggregate here
       outputSequence,
       controlStateSequence: controlStateSequence.concat([targetControlState]),
       path: path.concat([edge])
@@ -178,6 +182,8 @@ function computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, genInput, pa
   const { input: newInputData, hasGeneratedInput } = genInput;
   let noMoreInput, newInputSequence, newOutputSequence, newControlStateSequence, newPath;
 
+  // There is no way to generate an input for that transition : invalid transition
+  // This could be the case when the extended state generated by the input sequence invalidates the transition guard
   if (!hasGeneratedInput) {
     noMoreInput = true;
     newInputSequence = inputSequence;
@@ -185,6 +191,7 @@ function computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, genInput, pa
     newControlStateSequence = controlStateSequence;
     newPath = path;
   }
+  // We generated an input for that transition : add that to the generated input sequence
   else {
     const newInput = { [eventLabel]: newInputData };
     newInputSequence = inputSequence.concat([newInput]);
@@ -211,31 +218,26 @@ function computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, genInput, pa
 }
 
 function computeGeneratedInfoHistoryStateCase(fsm, fsmStates, edge, isTraversableEdge, genInput, pathTraversalState) {
-  // TODO
-  // edge comes from the graph, so history prop will be set in edge
-  // here we set the gen ourself, basically isTraversable as normal only if the history <- inputSequence is the `to`
-  // might have to recompute the analyzeStates, or rather compute the history myself from inputSequence
-  // beware of edge cases, transition must exit a state to be counted as history
-  const { event: eventLabel, from: controlState, to: targetControlState, history } = edge;
-  const { path, inputSequence, outputSequence, controlStateSequence } = pathTraversalState;
-  const { input: newInputData, hasGeneratedInput } = genInput;
-  let noMoreInput, newInputSequence, newOutputSequence, newControlStateSequence, newPath;
+  const { to: targetControlState, history } = edge;
+  const { controlStateSequence } = pathTraversalState;
 
   const historyParentState = getHistoryParentState(history);
   const historyType = getHistoryType(history);
-  // We must compute the history state assusming edge.from is exited!
+  // We must compute the history state assuming edge.from is exited!
   // As edge.from is already in the control state sequence, we are good to call computeHistoryState
   const historyStateForParentState = computeHistoryState(fsmStates, controlStateSequence, historyType, historyParentState);
 
+  // We have an history edge to evaluate, and the history target for that edge
+  // does not correspond to the actual history state generated by the input sequence
+  // No need to traverse that edge nor generate any inputs : this transition never happens
   if (historyStateForParentState !== targetControlState) {
-    // We have an history edge for a parent state with a potential target state
-    // However the input sequence gives an history state for that parent state that
-    // is different from the potential target state! We invalidate the traversal of that edge
     return {
       newIsTraversableEdge: false,
       newPathTraversalState: pathTraversalState
     }
   }
+  // We have an history edge to evaluate, and the history target for that edge match the history
+  // generated by the input sequence
   else {
     return computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, genInput, pathTraversalState)
   }
@@ -253,13 +255,16 @@ export function getGeneratorMapFromGeneratorMachine(generators) {
 }
 
 /**
- * Returns the graph structure associated to the FSM
+ * Returns the graph structure associated to the FSM. The graph is constructed from the state machines transitions,
+ * with a reduction mechanism applied to transitions with origin a compound state which are flattened
  * @param {FSM_Def} tracedFSM
  * @returns Graph
  */
 export function convertFSMtoGraph(tracedFSM) {
   const { transitions, states } = tracedFSM;
   const vertices = Object.keys(getFsmStateList(states)).concat(INIT_STATE);
+  // The trace set of H(A) are the direct children of A, i.e. statesAdjacencyList
+  // The trace set of H*(A) are the descendents of A which are leaves, i.e. statesLeafChildrenList
   const { statesAdjacencyList, statesLeafChildrenList } = analyzeStateTree(states);
   const edges = reduceTransitions((acc, transition, guardIndex, transitionIndex) => {
     const { from, event, to, action, predicate } = transition;
@@ -270,26 +275,29 @@ export function convertFSMtoGraph(tracedFSM) {
     const isTargetStateAtomic = !isTargetStateCompound;
     const isHistoryState = isHistoryControlState(to);
 
+    // We have cyclomatic complexity = 11 branches??!!!
+
+    // Terminology :
+    // - Trace set of f : set of all possible values that can be taken by f (i.e. f image)
     // Reminder : history states are always atomic target states
-    // We have 14 (+2) cases??!!!
-    // An origin compound state A -> B requires to create every leaf child(A) -> B edges
-    // init transition only apply to compound states and are left as is
-    // History state requires to distinguish between deep and shallow, then create
-    // edges to every possible target state for the history.
-    // If shallow history, those target states are the direct children of the containing state
-    // If deep history, any leaf substate for the containing state is a possible history target.
+    // Algorithm :
+    // 1. If A = [A1,A2,A3] is a compound state, A -INIT> X is created as per the configured transitions
+    // 2. If A = [A1,A2,A3] is a compound state, and X is such that A -ev> X, with ev != INIT
+    // then the edges will be created : A1 -ev> X, A2 -ev> X, A3 -ev> X
+    // 3. If A -ev> H | H*, then the trace set of H | H* is computed, and this is dealt with as
+    //   If A -ev> trace(H) | trace(H*)
+    // Otherwise edges are created as per the configured transitions
+    // NOTE : because 1, 2, and 3 may intersect, for better maintainability and safety,
+    // we structure the code by the disjoint `if` branches from the `origin x target` space,
+    // with origin and target taking values in [atomic, compound] and identifiy cases 1,2,3 each time
     if (isOriginStateAtomic && isTargetStateAtomic) {
       if (isHistoryState) {
         const historyParentState = getHistoryParentState(to);
-        if (isShallowHistory(to)) {
-          return acc.concat(statesAdjacencyList[historyParentState].map(
-            state => merge(transitionRecord, { to: state, history: to })))
-        }
-        else if (isDeepHistory(to)) {
-          return acc.concat(statesLeafChildrenList[historyParentState].map(
-            state => merge(transitionRecord, { to: state, history: to })))
-        }
-        else throw `convertFSMtoGraph : found unrecognizable history control state!`
+        const traceHistorySet = isShallowHistory(to)
+          ? statesAdjacencyList[historyParentState]
+          : statesLeafChildrenList[historyParentState];
+
+        return acc.concat(traceHistorySet.map(state => merge(transitionRecord, { to: state, history: to })))
       }
       else {
         return acc.concat(transitionRecord)
@@ -307,25 +315,16 @@ export function convertFSMtoGraph(tracedFSM) {
       }
       else if (isHistoryState) {
         const historyParentState = getHistoryParentState(to);
-        if (isShallowHistory(to)) {
-          const transitions = statesAdjacencyList[historyParentState].reduce((acc, possibleHistState) => {
-            return origins.reduce((acc2, origin) => {
-              return acc2.concat(merge(origin, { to: possibleHistState, history: to }))
-            }, acc)
-          }, []);
+        const traceHistorySet = isShallowHistory(to)
+          ? statesAdjacencyList[historyParentState]
+          : statesLeafChildrenList[historyParentState];
+        const transitions = traceHistorySet.reduce((acc, possibleHistState) => {
+          return origins.reduce((acc2, origin) => {
+            return acc2.concat(merge(origin, { to: possibleHistState, history: to }))
+          }, acc)
+        }, []);
 
-          return acc.concat(transitions)
-        }
-        else if (isDeepHistory(to)) {
-          const transitions = statesLeafChildrenList[historyParentState].reduce((acc, possibleHistState) => {
-            return origins.reduce((acc2, origin) => {
-              return acc2.concat(merge(origin, { to: possibleHistState, history: to }))
-            }, acc)
-          }, []);
-
-          return acc.concat(transitions)
-        }
-        else throw `convertFSMtoGraph : found unrecognizable history control state!`
+        return acc.concat(transitions)
       }
       else {
         return acc.concat(origins);

@@ -3,6 +3,9 @@
   - TODO add contract for test gen : apply only to FSM for which init event sets the initial state
    in the machine
      - could ignore event data from gen corresponding to INIT_STATE??
+- CONTRACT : INIT transition cannot go to history states (because there is no history at that 
+time... and I do not want to add another if branching in my code)
+- CONTRACT : INIT transition only from compound states
 - CONTRACT : actually disallow having several guards from INIT_STATE!!
 - CONTRACT : for guards associated to (from, event), only one guard can be fulfilled!!
   - for now priority works : first guard fulfilled
@@ -36,19 +39,13 @@
     - could be important in that case to memoize the guard, as we might repeat them often. 
     Extended state is immutable so should be practical. Impose settings immutable, and eventData 
     immutable and we are good
-- add edge cases for test generation: 
-  - history transitions
-    - comment well the code, the second part with input generation
 - input generation
   - write DOC
 - visualization
   - try the visualizer with the examples in tests
 - add the super test from quantum leaps for hierarchy specs
 - make visualizer work for history states too!!
-- understand why when a guard is not fulfilled the trace returns just null and not the full array
-  - is that good or bad? could be interesting to have the information that no guard were fulfilled!
 - README : put links for tests everywhere I put cf. tests!!
-- refactor DEMO!! extended state instead of model
 - ROADMAP : targetless events
       // NOTE : we implemented it here by repeating the self-loop corresponding to the targetless event in all substates
 - TEST : The computed outputs will be aggregated in an array of outputs.
