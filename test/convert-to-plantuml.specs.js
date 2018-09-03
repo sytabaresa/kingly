@@ -19,11 +19,11 @@ const model_initial = {
   another_key: another_value
 };
 const dummy_action_result = {
-  model_update: [],
+  updates: [],
   outputs: an_output
 };
 const another_dummy_action_result = {
-  model_update: [],
+  updates: [],
   outputs: another_output
 };
 

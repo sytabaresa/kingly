@@ -41,11 +41,11 @@ const model_initial = {
   another_key: another_value
 };
 const dummy_action_result = {
-  model_update: [],
+  updates: [],
   outputs: an_output
 };
 const another_dummy_action_result = {
-  model_update: [],
+  updates: [],
   outputs: another_output
 };
 const replaced_model_property = {
@@ -60,11 +60,11 @@ const update_model_ops_2 = [
   { op: "add", path: '/new_model_key_2', value: 'new_model_value_2' },
 ];
 const dummy_action_result_with_update = {
-  model_update: update_model_ops_1,
+  updates: update_model_ops_1,
   outputs: an_output
 };
 const another_dummy_action_result_with_update = {
-  model_update: update_model_ops_2,
+  updates: update_model_ops_2,
   outputs: another_output
 };
 

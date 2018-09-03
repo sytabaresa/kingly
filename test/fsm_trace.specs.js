@@ -36,11 +36,11 @@ const model_initial = {
   another_key: another_value
 };
 const dummy_action_result = {
-  model_update: [],
+  updates: [],
   outputs: an_output
 };
 const another_dummy_action_result = {
-  model_update: [],
+  updates: [],
   outputs: another_output
 };
 const replaced_model_property = {
@@ -55,11 +55,11 @@ const update_model_ops_2 = [
   { op: "add", path: '/new_model_key_2', value: 'new_model_value_2' },
 ];
 const dummy_action_result_with_update = {
-  model_update: update_model_ops_1,
+  updates: update_model_ops_1,
   outputs: an_output
 };
 const another_dummy_action_result_with_update = {
-  model_update: update_model_ops_2,
+  updates: update_model_ops_2,
   outputs: another_output
 };
 
@@ -141,7 +141,7 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
       "another_key": "another value"
     },
     "guardIndex": 0,
-    "model_update": [],
+    "updates": [],
     "newExtendedState": {
       "a_key": "some value",
       "another_key": "another value"
@@ -195,7 +195,7 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
           "another_key": "another value"
         },
         "guardIndex": 0,
-        "model_update": [
+        "updates": [
           {
             "op": "add",
             "path": "/new_model_key_1",
@@ -256,7 +256,7 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
           "new_model_key_1": "new_model_value_1"
         },
         "guardIndex": 0,
-        "model_update": [
+        "updates": [
           {
             "op": "add",
             "path": "/new_model_key_2",
@@ -335,14 +335,14 @@ QUnit.test("all transitions topologies up to 4 levels of state nesting", functio
   // Actions
   function updateFooTo0(extS, evD) {
     return {
-      model_update: [{ op: 'add', path: '/foo', value: 0 }],
+      updates: [{ op: 'add', path: '/foo', value: 0 }],
       outputs: NO_OUTPUT
     }
   }
 
   function updateFooTo1(extS, evD) {
     return {
-      model_update: [{ op: 'add', path: '/foo', value: 1 }],
+      updates: [{ op: 'add', path: '/foo', value: 1 }],
       outputs: NO_OUTPUT
     }
   }
@@ -406,7 +406,7 @@ QUnit.test("all transitions topologies up to 4 levels of state nesting", functio
           },
           "extendedState": {},
           "guardIndex": 0,
-          "model_update": [
+          "updates": [
             {
               "op": "add",
               "path": "/foo",
@@ -438,7 +438,7 @@ QUnit.test("all transitions topologies up to 4 levels of state nesting", functio
             "foo": 0
           },
           "guardIndex": 0,
-          "model_update": [],
+          "updates": [],
           "newExtendedState": {
             "foo": 0
           },
@@ -466,7 +466,7 @@ QUnit.test("all transitions topologies up to 4 levels of state nesting", functio
             "foo": 0
           },
           "guardIndex": 0,
-          "model_update": [],
+          "updates": [],
           "newExtendedState": {
             "foo": 0
           },
@@ -492,7 +492,7 @@ QUnit.test("all transitions topologies up to 4 levels of state nesting", functio
             "foo": 0
           },
           "guardIndex": 0,
-          "model_update": [],
+          "updates": [],
           "newExtendedState": {
             "foo": 0
           },
@@ -520,7 +520,7 @@ QUnit.test("all transitions topologies up to 4 levels of state nesting", functio
             "foo": 0
           },
           "guardIndex": 0,
-          "model_update": [],
+          "updates": [],
           "newExtendedState": {
             "foo": 0
           },
@@ -548,7 +548,7 @@ QUnit.test("all transitions topologies up to 4 levels of state nesting", functio
             "foo": 0
           },
           "guardIndex": 0,
-          "model_update": [],
+          "updates": [],
           "newExtendedState": {
             "foo": 0
           },
@@ -574,7 +574,7 @@ QUnit.test("all transitions topologies up to 4 levels of state nesting", functio
             "foo": 0
           },
           "guardIndex": 0,
-          "model_update": [],
+          "updates": [],
           "newExtendedState": {
             "foo": 0
           },

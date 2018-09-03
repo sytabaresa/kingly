@@ -251,14 +251,14 @@ export function create_state_machine(fsmDef, settings) {
               leave_state(from, model_, hash_states);
 
               // Update the model before entering the next state
-              model = updateModel(model_, actionResult.model_update);
+              model = updateModel(model_, actionResult.updates);
               // Emit the new model event
               // new_model_event_emitter.onNext(model);
               console.info("RESULTING IN UPDATED MODEL : ", model);
               console.info("RESULTING IN OUTPUT : ", actionResult.outputs);
 
               // ...and enter the next state (can be different from to if we have nesting state group)
-              const next_state = enter_next_state(to, actionResult.model_update, hash_states);
+              const next_state = enter_next_state(to, actionResult.updates, hash_states);
               console.info("ENTERING NEXT STATE : ", next_state);
 
               return { stop: true, outputs: actionResult.outputs }; // allows for chaining and stop
@@ -527,7 +527,7 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
   const decoratedAction = function (model, eventData, settings) {
     const { updateModel } = settings;
     const actionResult = action(model, eventData, settings);
-    const actionUpdate = actionResult.model_update;
+    const actionUpdate = actionResult.updates;
     const updatedModel = updateModel(model, actionUpdate);
     const exitActionResult = entryAction(updatedModel, eventData, settings);
 
@@ -540,9 +540,9 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
     //        visualization. We choose however to not forbid the overwrite by contract. But beware.
     // ROADMAP : the best is, according to semantics, to actually send both separately
     return {
-      model_update: [].concat(
+      updates: [].concat(
         actionUpdate || [],
-        exitActionResult.model_update || []
+        exitActionResult.updates || []
       ),
       outputs: mergeOutputFn([actionResult.outputs, exitActionResult.outputs])
     };
@@ -556,7 +556,7 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
  * This function converts a state machine `A` into a traced state machine `T(A)`. The traced state machine, on
  * receiving an input `I` outputs the following information :
  * - `outputs` : the outputs `A.yield(I)`
- * - `model_update` : the update of the extended state of `A` to be performed as a consequence of receiving the
+ * - `updates` : the update of the extended state of `A` to be performed as a consequence of receiving the
  * input `I`
  * - `extendedState` : the extended state of `A` prior to receiving the input `I`
  * - `controlState` : the control state in which the machine is when receiving the input `I`
@@ -584,17 +584,17 @@ export function traceFSM(env, fsm) {
       return function (model, eventData, settings) {
         const { from: controlState, event: eventLabel, to: targetControlState, predicate } = transition;
         const actionResult = action(model, eventData, settings);
-        const { outputs, model_update } = actionResult;
+        const { outputs, updates } = actionResult;
         const { updateModel } = settings;
 
         return {
-          model_update,
+          updates,
           outputs: {
             outputs,
-            model_update,
+            updates,
             extendedState: model,
             // NOTE : I can do this because pure function!! This is the extended state after taking the transition
-            newExtendedState: updateModel(model, model_update || []),
+            newExtendedState: updateModel(model, updates || []),
             controlState,
             event: { eventLabel, eventData },
             settings: settings,

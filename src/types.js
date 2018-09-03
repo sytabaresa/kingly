@@ -33,8 +33,8 @@
  * @typedef {function(ExtendedState, EventData, FSM_Settings) : Actions} ActionFactory
  */
 /**
- * @typedef {{model_update: ExtendedStateUpdate, outputs: Array<MachineOutput> | NO_OUTPUT}} Actions The actions
- * to be performed by the state machine in response to a transition. `model_update` represents the state update for
+ * @typedef {{updates: ExtendedStateUpdate, outputs: Array<MachineOutput> | NO_OUTPUT}} Actions The actions
+ * to be performed by the state machine in response to a transition. `updates` represents the state update for
  * the variables of the extended state machine. `output` represents the output of the state machine passed to the
  * API caller.
  */
@@ -70,7 +70,7 @@
  * @property {{EventLabel, EventData}} eventLabel
  * @property {ControlState} targetControlState
  * @property {FSM_Predicate} predicate
- * @property {ExtendedStateUpdate} model_update
+ * @property {ExtendedStateUpdate} updates
  * @property {ExtendedState} extendedState
  * @property {ActionFactory} actionFactory
  * @property {Number} guardIndex

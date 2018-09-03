@@ -50,7 +50,7 @@ function incCounter(extS, eventData) {
   const { counter } = extS;
 
   return {
-    model_update: [{ op: 'add', path: '/counter', value: counter + 1 }],
+    updates: [{ op: 'add', path: '/counter', value: counter + 1 }],
     outputs: counter
   }
 }
@@ -59,14 +59,14 @@ function incCounterTwice(extS, eventData) {
   const { counter } = extS;
 
   return {
-    model_update: [{ op: 'add', path: '/counter', value: counter + 2 }],
+    updates: [{ op: 'add', path: '/counter', value: counter + 2 }],
     outputs: counter
   }
 }
 
 function setBdata(extendedState, eventData) {
   return {
-    model_update: [
+    updates: [
       { op: 'add', path: '/b', value: eventData }
     ],
     outputs: NO_OUTPUT
@@ -75,7 +75,7 @@ function setBdata(extendedState, eventData) {
 
 function setCinvalidData(extendedState, eventData) {
   return {
-    model_update: [
+    updates: [
       { op: 'add', path: '/c', value: { error: eventData.error, data: eventData.data } },
       { op: 'add', path: '/switch', value: false },
     ]
@@ -84,7 +84,7 @@ function setCinvalidData(extendedState, eventData) {
 
 function setCvalidData(extendedState, eventData) {
   return {
-    model_update: [
+    updates: [
       { op: 'add', path: '/c', value: { error: null, data: eventData.data } },
       { op: 'add', path: '/switch', value: true },
     ],
@@ -94,7 +94,7 @@ function setCvalidData(extendedState, eventData) {
 
 function setReviewed(extendedState, eventData) {
   return {
-    model_update: [
+    updates: [
       { op: 'add', path: '/reviewed', value: true },
     ],
     outputs: NO_OUTPUT
@@ -103,7 +103,7 @@ function setReviewed(extendedState, eventData) {
 
 function setReviewedAndOuput(extendedState, eventData) {
   return {
-    model_update: [
+    updates: [
       { op: 'add', path: '/reviewed', value: true },
     ],
     outputs: extendedState
@@ -170,7 +170,7 @@ QUnit.test("INIT event multi transitions, CASCADING inner INIT event transitions
         "switch": false
       },
       "guardIndex": 1,
-      "model_update": [],
+      "updates": [],
       "newExtendedState": {
         "reviewed": false,
         "switch": false
@@ -195,7 +195,7 @@ QUnit.test("INIT event multi transitions, CASCADING inner INIT event transitions
         "switch": false
       },
       "guardIndex": 0,
-      "model_update": [
+      "updates": [
         {
           "op": "add",
           "path": "/b",
@@ -234,7 +234,7 @@ QUnit.test("INIT event multi transitions, CASCADING inner INIT event transitions
           "switch": false
         },
         "guardIndex": 0,
-        "model_update": [
+        "updates": [
           {
             "op": "add",
             "path": "/c",
@@ -288,7 +288,7 @@ QUnit.test("INIT event multi transitions, CASCADING inner INIT event transitions
           "switch": true
         },
         "guardIndex": 0,
-        "model_update": [],
+        "updates": [],
         "newExtendedState": {
           "b": {
             "keyB": "valueB"
@@ -373,7 +373,7 @@ QUnit.test("eventless transition, INIT event multi transitions, CASCADING inner 
           "switch": false
         },
         "guardIndex": 1,
-        "model_update": [],
+        "updates": [],
         "newExtendedState": {
           "reviewed": false,
           "switch": false
@@ -404,7 +404,7 @@ QUnit.test("eventless transition, INIT event multi transitions, CASCADING inner 
           "switch": false
         },
         "guardIndex": 0,
-        "model_update": [],
+        "updates": [],
         "newExtendedState": {
           "reviewed": false,
           "switch": false
@@ -436,7 +436,7 @@ QUnit.test("eventless transition, INIT event multi transitions, CASCADING inner 
           "switch": false
         },
         "guardIndex": 0,
-        "model_update": [
+        "updates": [
           {
             "op": "add",
             "path": "/b",
@@ -483,7 +483,7 @@ QUnit.test("eventless transition, INIT event multi transitions, CASCADING inner 
           "switch": false
         },
         "guardIndex": 0,
-        "model_update": [
+        "updates": [
           {
             "op": "add",
             "path": "/c",
@@ -542,7 +542,7 @@ QUnit.test("eventless transition, INIT event multi transitions, CASCADING inner 
           "switch": true
         },
         "guardIndex": 0,
-        "model_update": [],
+        "updates": [],
         "newExtendedState": {
           "b": {
             "keyB": "valueB"
@@ -755,7 +755,7 @@ QUnit.test("with trace : shallow history transitions, INIT event CASCADING trans
             "history": "shallow"
           },
           "guardIndex": 0,
-          "model_update": [],
+          "updates": [],
           "newExtendedState": {
             "counter": 0,
             "history": "shallow"
@@ -786,7 +786,7 @@ QUnit.test("with trace : shallow history transitions, INIT event CASCADING trans
             "history": "shallow"
           },
           "guardIndex": 0,
-          "model_update": [],
+          "updates": [],
           "newExtendedState": {
             "counter": 0,
             "history": "shallow"
@@ -816,7 +816,7 @@ QUnit.test("with trace : shallow history transitions, INIT event CASCADING trans
             "history": "shallow"
           },
           "guardIndex": 0,
-          "model_update": [],
+          "updates": [],
           "newExtendedState": {
             "counter": 0,
             "history": "shallow"
@@ -844,7 +844,7 @@ QUnit.test("with trace : shallow history transitions, INIT event CASCADING trans
             "history": "shallow"
           },
           "guardIndex": 0,
-          "model_update": [],
+          "updates": [],
           "newExtendedState": {
             "counter": 0,
             "history": "shallow"
@@ -874,7 +874,7 @@ QUnit.test("with trace : shallow history transitions, INIT event CASCADING trans
             "history": "shallow"
           },
           "guardIndex": 0,
-          "model_update": [],
+          "updates": [],
           "newExtendedState": {
             "counter": 0,
             "history": "shallow"
@@ -904,7 +904,7 @@ QUnit.test("with trace : shallow history transitions, INIT event CASCADING trans
             "history": "shallow"
           },
           "guardIndex": 0,
-          "model_update": [],
+          "updates": [],
           "newExtendedState": {
             "counter": 0,
             "history": "shallow"
@@ -934,7 +934,7 @@ QUnit.test("with trace : shallow history transitions, INIT event CASCADING trans
             "history": "shallow"
           },
           "guardIndex": 1,
-          "model_update": [
+          "updates": [
             {
               "op": "add",
               "path": "/counter",
@@ -971,7 +971,7 @@ QUnit.test("with trace : shallow history transitions, INIT event CASCADING trans
             "history": "shallow"
           },
           "guardIndex": 0,
-          "model_update": [],
+          "updates": [],
           "newExtendedState": {
             "counter": 1,
             "history": "shallow"
@@ -1059,7 +1059,7 @@ QUnit.test("with trace : deep history transitions, INIT event CASCADING transiti
             "history": "deep"
           },
           "guardIndex": 0,
-          "model_update": [],
+          "updates": [],
           "newExtendedState": {
             "counter": 0,
             "history": "deep"
@@ -1090,7 +1090,7 @@ QUnit.test("with trace : deep history transitions, INIT event CASCADING transiti
             "history": "deep"
           },
           "guardIndex": 0,
-          "model_update": [],
+          "updates": [],
           "newExtendedState": {
             "counter": 0,
             "history": "deep"
@@ -1120,7 +1120,7 @@ QUnit.test("with trace : deep history transitions, INIT event CASCADING transiti
             "history": "deep"
           },
           "guardIndex": 0,
-          "model_update": [],
+          "updates": [],
           "newExtendedState": {
             "counter": 0,
             "history": "deep"
@@ -1148,7 +1148,7 @@ QUnit.test("with trace : deep history transitions, INIT event CASCADING transiti
             "history": "deep"
           },
           "guardIndex": 0,
-          "model_update": [],
+          "updates": [],
           "newExtendedState": {
             "counter": 0,
             "history": "deep"
@@ -1178,7 +1178,7 @@ QUnit.test("with trace : deep history transitions, INIT event CASCADING transiti
             "history": "deep"
           },
           "guardIndex": 0,
-          "model_update": [],
+          "updates": [],
           "newExtendedState": {
             "counter": 0,
             "history": "deep"
@@ -1208,7 +1208,7 @@ QUnit.test("with trace : deep history transitions, INIT event CASCADING transiti
             "history": "deep"
           },
           "guardIndex": 0,
-          "model_update": [],
+          "updates": [],
           "newExtendedState": {
             "counter": 0,
             "history": "deep"
@@ -1238,7 +1238,7 @@ QUnit.test("with trace : deep history transitions, INIT event CASCADING transiti
             "history": "deep"
           },
           "guardIndex": 0,
-          "model_update": [
+          "updates": [
             {
               "op": "add",
               "path": "/counter",

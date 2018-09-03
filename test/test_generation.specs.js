@@ -56,7 +56,7 @@ function incCounter(extS, eventData) {
   const { counter } = extS;
 
   return {
-    model_update: [{ op: 'add', path: '/counter', value: counter + 1 }],
+    updates: [{ op: 'add', path: '/counter', value: counter + 1 }],
     outputs: counter
   }
 }
@@ -65,7 +65,7 @@ function incCounterTwice(extS, eventData) {
   const { counter } = extS;
 
   return {
-    model_update: [{ op: 'add', path: '/counter', value: counter + 2 }],
+    updates: [{ op: 'add', path: '/counter', value: counter + 2 }],
     outputs: counter
   }
 }
@@ -301,7 +301,7 @@ QUnit.test("INIT event, 2 actions, 2 conditions", function exec_test(assert) {
 
 function setBdata(extendedState, eventData) {
   return {
-    model_update: [
+    updates: [
       { op: 'add', path: '/b', value: eventData }
     ],
     outputs: NO_OUTPUT
@@ -310,7 +310,7 @@ function setBdata(extendedState, eventData) {
 
 function setCinvalidData(extendedState, eventData) {
   return {
-    model_update: [
+    updates: [
       { op: 'add', path: '/c', value: { error: eventData.error, data: eventData.data } },
       { op: 'add', path: '/switch', value: false },
     ],
@@ -320,7 +320,7 @@ function setCinvalidData(extendedState, eventData) {
 
 function setCvalidData(extendedState, eventData) {
   return {
-    model_update: [
+    updates: [
       { op: 'add', path: '/c', value: { error: null, data: eventData.data } },
       { op: 'add', path: '/switch', value: true },
     ],
@@ -330,7 +330,7 @@ function setCvalidData(extendedState, eventData) {
 
 function setReviewed(extendedState, eventData) {
   return {
-    model_update: [
+    updates: [
       { op: 'add', path: '/reviewed', value: true },
     ],
     outputs: NO_OUTPUT
@@ -339,7 +339,7 @@ function setReviewed(extendedState, eventData) {
 
 function setReviewedAndOuput(extendedState, eventData) {
   return {
-    model_update: [
+    updates: [
       { op: 'add', path: '/reviewed', value: true },
     ],
     outputs: extendedState

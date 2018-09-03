@@ -91,14 +91,14 @@ export function getDisplayName(str) {
  * This function MERGES model updates. That means that given two model updates, the resulting model update will be
  * the concatenation of the two, in the order in which they are passed
  * @param {function[]}  arrayUpdateFns
- * @returns {function(*=, *=, *=): {model_update: *}}
+ * @returns {function(*=, *=, *=): {updates: *}}
  */
 export function mergeModelUpdates(arrayUpdateFns) {
-  // TODO write just like [].concat(...arrayModelUpdates), array..Updates = arrayActions.map(x => x.model_update || []);
+  // TODO write just like [].concat(...arrayModelUpdates), array..Updates = arrayActions.map(x => x.updates || []);
   return function (model, eventData, settings) {
     return {
-      model_update: arrayUpdateFns.reduce((acc, updateFn) => {
-        const update = updateFn(model, eventData, settings).model_update;
+      updates: arrayUpdateFns.reduce((acc, updateFn) => {
+        const update = updateFn(model, eventData, settings).updates;
         if (update) {
           return acc.concat(update)
         }
@@ -120,15 +120,15 @@ export function chainModelUpdates(arrayUpdateFns) {
   return function (model, eventData, settings) {
     const { updateModel } = settings;
     return {
-      model_update: arrayUpdateFns
+      updates: arrayUpdateFns
         .reduce((acc, updateFn) => {
-          const { model, model_update } = acc;
-          const update = updateFn(model, eventData, settings).model_update;
-          const updatedModel = updateModel(model, model_update)
+          const { model, updates } = acc;
+          const update = updateFn(model, eventData, settings).updates;
+          const updatedModel = updateModel(model, updates)
 
-          return { model: updatedModel, model_update: update }
-        }, { model, model_update: [] })
-        .model_update || [],
+          return { model: updatedModel, updates: update }
+        }, { model, updates: [] })
+        .updates || [],
       outputs: NO_OUTPUT
     }
   }
@@ -138,16 +138,16 @@ export function chainModelUpdates(arrayUpdateFns) {
  *
  * @param {function (Array<Array<MachineOutput>>) : Array<MachineOutput>} mergeOutputFn
  * @param {Array<ActionFactory>} arrayActionFactory
- * @returns {function(*=, *=, *=): {model_update: *[], outputs: *|null}}
+ * @returns {function(*=, *=, *=): {updates: *[], outputs: *|null}}
  */
 export function mergeActionFactories(mergeOutputFn, arrayActionFactory) {
   return function (model, eventData, settings) {
     const arrayActions = arrayActionFactory.map(factory => factory(model, eventData, settings));
-    const arrayModelUpdates = arrayActions.map(x => x.model_update || []);
+    const arrayModelUpdates = arrayActions.map(x => x.updates || []);
     const arrayOutputs = arrayActions.map(x => x.outputs || {});
 
     return {
-      model_update: [].concat(...arrayModelUpdates),
+      updates: [].concat(...arrayModelUpdates),
       // for instance, mergeFn = R.mergeAll or some variations around R.mergeDeepLeft
       outputs: mergeOutputFn(arrayOutputs)
     }
@@ -157,7 +157,7 @@ export function mergeActionFactories(mergeOutputFn, arrayActionFactory) {
 /** @type ActionFactory*/
 export function identity(model, eventData, settings) {
   return {
-    model_update: [],
+    updates: [],
     outputs: NO_OUTPUT
   }
 }

@@ -17,7 +17,7 @@ export const NO_OUTPUT = null;
 export const ACTION_IDENTITY = function ACTION_IDENTITY(){
   return {
     outputs : NO_OUTPUT,
-    model_update : NO_MODEL_UPDATE
+    updates : NO_MODEL_UPDATE
   }
 }
 export const history_symbol = {};

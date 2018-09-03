@@ -10,7 +10,7 @@ function incCounter(extS, eventData) {
   const { counter } = extS;
 
   return {
-    model_update: [{ op: 'add', path: '/counter', value: counter + 1 }],
+    updates: [{ op: 'add', path: '/counter', value: counter + 1 }],
     outputs: counter
   }
 }
@@ -19,7 +19,7 @@ function incCounterTwice(extS, eventData) {
   const { counter } = extS;
 
   return {
-    model_update: [{ op: 'add', path: '/counter', value: counter + 2 }],
+    updates: [{ op: 'add', path: '/counter', value: counter + 2 }],
     outputs: counter
   }
 }
