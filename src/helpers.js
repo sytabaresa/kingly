@@ -88,17 +88,17 @@ export function getDisplayName(str) {
 }
 
 /**
- * This function MERGES model updates. That means that given two model updates, the resulting model update will be
- * the concatenation of the two, in the order in which they are passed
+ * This function MERGES extended state updates. That means that given two state updates, the resulting state update
+ * will be the concatenation of the two, in the order in which they are passed
  * @param {function[]}  arrayUpdateActions
  * @returns {function(*=, *=, *=): {updates: *}}
  */
 export function mergeModelUpdates(arrayUpdateActions) {
   // TODO write just like [].concat(...arrayModelUpdates), array..Updates = arrayActions.map(x => x.updates || []);
-  return function (model, eventData, settings) {
+  return function (extendedState, eventData, settings) {
     return {
       updates: arrayUpdateActions.reduce((acc, updateAction) => {
-        const update = updateAction(model, eventData, settings).updates;
+        const update = updateAction(extendedState, eventData, settings).updates;
         if (update) {
           return acc.concat(update)
         }
@@ -112,22 +112,22 @@ export function mergeModelUpdates(arrayUpdateActions) {
 }
 
 /**
- * This function CHAINS model updates, in the order in which they are passed. It is thus similar to a pipe.
- * The second update function receives the model updated by the first update function.
+ * This function CHAINS extended state updates, in the order in which they are passed. It is thus similar to a pipe.
+ * The second update function receives the state updated by the first update function.
  * @param {function[]}  arrayUpdateActions
  */
 export function chainModelUpdates(arrayUpdateActions) {
-  return function (model, eventData, settings) {
+  return function (extendedState, eventData, settings) {
     const { updateState } = settings;
     return {
       updates: arrayUpdateActions
         .reduce((acc, updateAction) => {
-          const { model, updates } = acc;
-          const update = updateAction(model, eventData, settings).updates;
-          const updatedModel = updateState(model, updates)
+          const { extendedState, updates } = acc;
+          const update = updateAction(extendedState, eventData, settings).updates;
+          const updatedState = updateState(extendedState, updates)
 
-          return { model: updatedModel, updates: update }
-        }, { model, updates: [] })
+          return { extendedState: updatedState, updates: update }
+        }, { extendedState, updates: [] })
         .updates || [],
       outputs: NO_OUTPUT
     }
@@ -141,13 +141,13 @@ export function chainModelUpdates(arrayUpdateActions) {
  * @returns {function(*=, *=, *=): {updates: *[], outputs: *|null}}
  */
 export function mergeActionFactories(mergeOutputFn, arrayActionFactory) {
-  return function (model, eventData, settings) {
-    const arrayActions = arrayActionFactory.map(factory => factory(model, eventData, settings));
-    const arrayModelUpdates = arrayActions.map(x => x.updates || []);
+  return function (extendedState, eventData, settings) {
+    const arrayActions = arrayActionFactory.map(factory => factory(extendedState, eventData, settings));
+    const arrayStateUpdates = arrayActions.map(x => x.updates || []);
     const arrayOutputs = arrayActions.map(x => x.outputs || {});
 
     return {
-      updates: [].concat(...arrayModelUpdates),
+      updates: [].concat(...arrayStateUpdates),
       // for instance, mergeFn = R.mergeAll or some variations around R.mergeDeepLeft
       outputs: mergeOutputFn(arrayOutputs)
     }
@@ -155,7 +155,7 @@ export function mergeActionFactories(mergeOutputFn, arrayActionFactory) {
 }
 
 /** @type ActionFactory*/
-export function identity(model, eventData, settings) {
+export function identity(extendedState, eventData, settings) {
   return {
     updates: [],
     outputs: NO_OUTPUT

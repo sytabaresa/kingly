@@ -20,17 +20,17 @@ function spy_on_args(fn, spy_fn) {
 
 /**
  *
- * @param {FSM_Model} model
- * @param {Operation[]} modelUpdateOperations
- * @returns {FSM_Model}
+ * @param {ExtendedState} extendedState
+ * @param {Operation[]} extendedStateUpdateOperations
+ * @returns {ExtendedState}
  */
-export function applyJSONpatch(model, modelUpdateOperations) {
-  assertContract(isArrayUpdateOperations, [modelUpdateOperations],
+export function applyJSONpatch(extendedState, extendedStateUpdateOperations) {
+  assertContract(isArrayUpdateOperations, [extendedStateUpdateOperations],
     `applyUpdateOperations : ${CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE}`);
 
   // NOTE : we don't validate operations, to avoid throwing errors when for instance the value property for an
   // `add` JSON operation is `undefined` ; and of course we don't mutate the document in place
-  return applyPatch(model, modelUpdateOperations, false, false).newDocument;
+  return applyPatch(extendedState, extendedStateUpdateOperations, false, false).newDocument;
 }
 
 const default_settings = {
@@ -59,7 +59,7 @@ const an_output = {
 const another_output = {
   anotherOutputKey1: 'anotherOutputValue1'
 };
-const model_initial = {
+const initialExtendedState = {
   a_key: a_value,
   another_key: another_value
 };
@@ -91,27 +91,27 @@ const another_dummy_action_result_with_update = {
   outputs: another_output
 };
 
-function dummy_action(model, event_data, settings) {
+function dummy_action(extendedState, event_data, settings) {
   return dummy_action_result
 }
-function another_dummy_action(model, event_data, settings) {
+function another_dummy_action(extendedState, event_data, settings) {
   return another_dummy_action_result
 }
-function dummy_action_with_update(model, event_data, settings) {
+function dummy_action_with_update(extendedState, event_data, settings) {
   return merge(dummy_action_result_with_update, {
     outputs: {
-      // NOTE : ! this is the model before update!!
-      model: clone(model),
+      // NOTE : ! this is the extendedState before update!!
+      extendedState: clone(extendedState),
       event_data: clone(event_data),
       settings: JSON.parse(JSON.stringify(settings))
     }
   })
 }
-function another_dummy_action_with_update(model, event_data, settings) {
+function another_dummy_action_with_update(extendedState, event_data, settings) {
   return merge(another_dummy_action_result_with_update, {
       outputs: {
-        // NOTE : ! this is the model before update!!
-        model: clone(model),
+        // NOTE : ! this is the extendedState before update!!
+        extendedState: clone(extendedState),
         event_data: clone(event_data),
         settings: JSON.parse(JSON.stringify(settings))
       }
@@ -130,7 +130,7 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
     transitions: [
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY }
     ],
-    initial_extended_state: model_initial
+    initial_extended_state: initialExtendedState
   };
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
@@ -148,7 +148,7 @@ QUnit.test("INIT event, no action, false guard", function exec_test(assert) {
     transitions: [
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, guards: FALSE_GUARD(ACTION_IDENTITY, 'A')}
     ],
-    initial_extended_state: model_initial
+    initial_extended_state: initialExtendedState
   };
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
@@ -164,7 +164,7 @@ QUnit.test("INIT event, no action, true guard", function exec_test(assert) {
     transitions: [
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, guards: TRUE_GUARD('A', ACTION_IDENTITY)}
     ],
-    initial_extended_state: model_initial
+    initial_extended_state: initialExtendedState
   };
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
@@ -175,7 +175,7 @@ QUnit.test("INIT event, no action, true guard", function exec_test(assert) {
 // NOK -init> A, action, false guard, it is init -> action called right params, outputs as expected
 QUnit.test("INIT event, action, false guard", function exec_test(assert) {
   const fail_if_called = spy_on_args(dummy_action,
-    (model, event_data, settings) => {
+    (extendedState, event_data, settings) => {
       assert.ok(true, false, `Guard is false, this action should not be called!`)
     });
   const fsmDef = {
@@ -184,7 +184,7 @@ QUnit.test("INIT event, action, false guard", function exec_test(assert) {
     transitions: [
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, conditions: FALSE_GUARD(fail_if_called) }
     ],
-    initial_extended_state: model_initial
+    initial_extended_state: initialExtendedState
   };
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
@@ -195,9 +195,9 @@ QUnit.test("INIT event, action, false guard", function exec_test(assert) {
 // NOK -init> A, action, true guard, it is init -> action called right params, outputs as expected
 QUnit.test("INIT event, action, true guard", function exec_test(assert) {
   const spied_on_dummy_action = spy_on_args(dummy_action,
-    (model, event_data, settings) => {
-      assert.deepEqual(model, model_initial, `action called with model as first parameter`);
-      assert.deepEqual(event_data, model_initial, `action called with event_data as second parameter`);
+    (extendedState, event_data, settings) => {
+      assert.deepEqual(extendedState, initialExtendedState, `action called with extendedState as first parameter`);
+      assert.deepEqual(event_data, initialExtendedState, `action called with event_data as second parameter`);
       assert.deepEqual(settings, default_settings, `action called with settings as third parameter`);
     });
   const fsmDef = {
@@ -210,7 +210,7 @@ QUnit.test("INIT event, action, true guard", function exec_test(assert) {
         guards: TRUE_GUARD('A', spied_on_dummy_action),
       }
     ],
-    initial_extended_state: model_initial
+    initial_extended_state: initialExtendedState
   };
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
@@ -222,13 +222,13 @@ QUnit.test("INIT event, action, true guard", function exec_test(assert) {
 // NOK -init> A, 2 actions, [{T,F}x{T,F}] guards
 QUnit.test("INIT event, 2 actions, [T,T] conditions, 1st action executed", function exec_test(assert) {
   const spied_on_dummy_action = spy_on_args(dummy_action,
-    (model, event_data, settings) => {
-      assert.deepEqual(model, model_initial, `action called with model as first parameter`);
-      assert.deepEqual(event_data, model_initial, `action called with event_data as second parameter`);
+    (extendedState, event_data, settings) => {
+      assert.deepEqual(extendedState, initialExtendedState, `action called with extendedState as first parameter`);
+      assert.deepEqual(event_data, initialExtendedState, `action called with event_data as second parameter`);
       assert.deepEqual(settings, default_settings, `action called with settings as third parameter`);
     });
   const fail_if_called = spy_on_args(dummy_action,
-    (model, event_data, settings) => {
+    (extendedState, event_data, settings) => {
       assert.ok(true, false, `This true guard comes second, this action should not be called!`)
     });
   const fsmDef = {
@@ -242,7 +242,7 @@ QUnit.test("INIT event, 2 actions, [T,T] conditions, 1st action executed", funct
         ]
       }
     ],
-    initial_extended_state: model_initial
+    initial_extended_state: initialExtendedState
   };
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
@@ -253,13 +253,13 @@ QUnit.test("INIT event, 2 actions, [T,T] conditions, 1st action executed", funct
 
 QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", function exec_test(assert) {
   const spied_on_dummy_action = spy_on_args(dummy_action,
-    (model, event_data, settings) => {
-      assert.deepEqual(model, model_initial, `action called with model as first parameter`);
-      assert.deepEqual(event_data, model_initial, `action called with event_data as second parameter`);
+    (extendedState, event_data, settings) => {
+      assert.deepEqual(extendedState, initialExtendedState, `action called with extendedState as first parameter`);
+      assert.deepEqual(event_data, initialExtendedState, `action called with event_data as second parameter`);
       assert.deepEqual(settings, default_settings, `action called with settings as third parameter`);
     });
   const fail_if_called = spy_on_args(dummy_action,
-    (model, event_data, settings) => {
+    (extendedState, event_data, settings) => {
       assert.ok(true, false, `This true guard comes second, this action should not be called!`)
     });
   const fsmDef = {
@@ -273,7 +273,7 @@ QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", funct
         ]
       }
     ],
-    initial_extended_state: model_initial
+    initial_extended_state: initialExtendedState
   };
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
@@ -284,13 +284,13 @@ QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", funct
 
 QUnit.test("INIT event, 2 actions, [T,F] conditions, 1st action executed", function exec_test(assert) {
   const spied_on_dummy_action = spy_on_args(dummy_action,
-    (model, event_data, settings) => {
-      assert.deepEqual(model, model_initial, `action called with model as first parameter`);
-      assert.deepEqual(event_data, model_initial, `action called with event_data as second parameter`);
+    (extendedState, event_data, settings) => {
+      assert.deepEqual(extendedState, initialExtendedState, `action called with extendedState as first parameter`);
+      assert.deepEqual(event_data, initialExtendedState, `action called with event_data as second parameter`);
       assert.deepEqual(settings, default_settings, `action called with settings as third parameter`);
     });
   const fail_if_called = spy_on_args(dummy_action,
-    (model, event_data, settings) => {
+    (extendedState, event_data, settings) => {
       assert.ok(true, false, `This true guard comes second, this action should not be called!`)
     });
   const fsmDef = {
@@ -304,7 +304,7 @@ QUnit.test("INIT event, 2 actions, [T,F] conditions, 1st action executed", funct
         ]
       }
     ],
-    initial_extended_state: model_initial
+    initial_extended_state: initialExtendedState
   };
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
@@ -315,13 +315,13 @@ QUnit.test("INIT event, 2 actions, [T,F] conditions, 1st action executed", funct
 
 QUnit.test("INIT event, 2 actions, [F,F] conditions, no action executed", function exec_test(assert) {
   const spied_on_dummy_action = spy_on_args(dummy_action,
-    (model, event_data, settings) => {
-      assert.deepEqual(model, model_initial, `action called with model as first parameter`);
-      assert.deepEqual(event_data, model_initial, `action called with event_data as second parameter`);
+    (extendedState, event_data, settings) => {
+      assert.deepEqual(extendedState, initialExtendedState, `action called with extendedState as first parameter`);
+      assert.deepEqual(event_data, initialExtendedState, `action called with event_data as second parameter`);
       assert.deepEqual(settings, default_settings, `action called with settings as third parameter`);
     });
   const fail_if_called = spy_on_args(dummy_action,
-    (model, event_data, settings) => {
+    (extendedState, event_data, settings) => {
       assert.ok(true, false, `This true guard comes second, this action should not be called!`)
     });
   const fsmDef = {
@@ -335,7 +335,7 @@ QUnit.test("INIT event, 2 actions, [F,F] conditions, no action executed", functi
         ]
       }
     ],
-    initial_extended_state: model_initial
+    initial_extended_state: initialExtendedState
   };
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
@@ -346,7 +346,7 @@ QUnit.test("INIT event, 2 actions, [F,F] conditions, no action executed", functi
 
 // NOK -init> A, no guards, dummy action
 // A -ev1> B, no guards, another dummy action
-QUnit.test("INIT event, 2 actions with no model update, NOK -> A -> B, no guards", function exec_test(assert) {
+QUnit.test("INIT event, 2 actions with no extendedState update, NOK -> A -> B, no guards", function exec_test(assert) {
   const fsmDef = {
     states: { A: '', B: '' },
     events: [EVENT1],
@@ -354,7 +354,7 @@ QUnit.test("INIT event, 2 actions with no model update, NOK -> A -> B, no guards
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: dummy_action },
       { from: 'A', to: 'B', event: EVENT1, action: another_dummy_action },
     ],
-    initial_extended_state: model_initial
+    initial_extended_state: initialExtendedState
   };
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
@@ -365,8 +365,8 @@ QUnit.test("INIT event, 2 actions with no model update, NOK -> A -> B, no guards
 
 // NOK -init> A, no guards, dummy action
 // A -ev1> B, no guards, another dummy action
-// WITH MODEL UPDATE and test of model update, settings and event passing : except last model update
-QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", function exec_test(assert) {
+// WITH extendedState UPDATE and test of extendedState update, settings and event passing : except last extendedState update
+QUnit.test("INIT event, 2 actions with extendedState update, NOK -> A -> B, no guards", function exec_test(assert) {
   const fsmDef = {
     states: { A: '', B: '' },
     events: [EVENT1],
@@ -374,25 +374,24 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: dummy_action_with_update },
       { from: 'A', to: 'B', event: EVENT1, action: another_dummy_action_with_update },
     ],
-    initial_extended_state: model_initial
+    initial_extended_state: initialExtendedState
   };
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
   const result1 = fsm.start();
   const result2 = fsm.yield({ [EVENT1]: EVENT1_DATA });
-  const cloned_model_initial = clone(model_initial);
+  const cloned_model_initial = clone(initialExtendedState);
   assert.deepEqual([result1, result2],[
     [{
-      "event_data": model_initial,
-      "model": model_initial,
+      "event_data": initialExtendedState,
+      "extendedState": initialExtendedState,
       // settings has its function and regexp removed by JSON.parse(JSON.stringify...
       "settings": {}
     }],
     [{
       "event_data": EVENT1_DATA,
-      "model": applyPatch(cloned_model_initial, update_model_ops_1, true, false).newDocument,
+      "extendedState": applyPatch(cloned_model_initial, update_model_ops_1, true, false).newDocument,
       "settings": {}
     }]
   ], `event triggers correct transition`);
 });
-

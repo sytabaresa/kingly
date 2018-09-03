@@ -47,10 +47,9 @@
 - make visualizer work for history states too!!
 - understand why when a guard is not fulfilled the trace returns just null and not the full array
   - is that good or bad? could be interesting to have the information that no guard were fulfilled!
-- refactor `updateModel` to `updateFn`
-  - in types too!!
 - README : put links for tests everywhere I put cf. tests!!
-- refactor : replace all model by extendedState!! 
+- refactor demo!! extended state instead of model
+- refactor initial ented state to initialExtendedState  
 - ROADMAP : targetless events
       // NOTE : we implemented it here by repeating the self-loop corresponding to the targetless event in all substates
 - TEST : The computed outputs will be aggregated in an array of outputs.

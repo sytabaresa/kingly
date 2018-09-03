@@ -162,12 +162,12 @@ export function create_state_machine(fsmDef, settings) {
   // Create the nested hierarchical
   const hash_states_struct = build_nested_state_structure(control_states);
 
-  // This will be the model object which will be updated by all actions and on which conditions
+  // This will be the extended state object which will be updated by all actions and on which conditions
   // will be evaluated It is safely contained in a closure so it cannot be accessed in any way
   // outside the state machine.
-  // Note the model is modified by the `settings.updateState` function, which should not modify
-  // the model. There is hence no need to do any cloning.
-  let model = initial_extended_state;
+  // Note the extended state is modified by the `settings.updateState` function, which should not modify
+  // the extended state object. There is hence no need to do any cloning.
+  let extendedState = initial_extended_state;
   // history maps
 
   const { stateList, stateAncestors } = computeHistoryMaps(control_states);
@@ -226,7 +226,7 @@ export function create_state_machine(fsmDef, settings) {
           // field here This is the case for instance when we are in a substate, but through
           // prototypal inheritance it is the handler of the prototype which is called
           const condition_checking_fn = function (
-            model_,
+            extendedState_,
             event_data,
             current_state
           ) {
@@ -234,25 +234,23 @@ export function create_state_machine(fsmDef, settings) {
             const { predicate, to } = guard;
             condition_suffix = predicate ? "_checking_condition_" + index : "";
 
-            if (!predicate || predicate(model_, event_data, settings)) {
+            if (!predicate || predicate(extendedState_, event_data, settings)) {
               // CASE : guard for transition is fulfilled so we can execute the actions...
               console.info("IN STATE ", from);
-              console.info("WITH model, event data, settings BEING ", model_, event_data, settings);
+              console.info("WITH extendedState, event data, settings BEING ", extendedState_, event_data, settings);
               console.info("CASE : " + (predicate ? "guard " + predicate.name + "for transition is fulfilled" : "automatic transition"));
               // CASE : we do have some actions to execute
               console.info("THEN : we execute the action " + action.name);
               // NOTE : in a further extension, passing the fsm and the events object could help
               // in implementing asynchronous fsm
-              const actionResult = action(model_, event_data, settings);
+              const actionResult = action(extendedState_, event_data, settings);
 
               // Leave the current state
-              leave_state(from, model_, hash_states);
+              leave_state(from, extendedState_, hash_states);
 
-              // Update the model before entering the next state
-              model = updateState(model_, actionResult.updates);
-              // Emit the new model event
-              // new_model_event_emitter.onNext(model);
-              console.info("RESULTING IN UPDATED MODEL : ", model);
+              // Update the extendedState before entering the next state
+              extendedState = updateState(extendedState_, actionResult.updates);
+              console.info("RESULTING IN UPDATED MODEL : ", extendedState);
               console.info("RESULTING IN OUTPUT : ", actionResult.outputs);
 
               // ...and enter the next state (can be different from to if we have nesting state group)
@@ -272,14 +270,14 @@ export function create_state_machine(fsmDef, settings) {
         })(guard, settings);
 
         return function arr_predicate_reduce_fn(
-          model_,
+          extendedState_,
           event_data,
           current_state
         ) {
-          const condition_checked = acc(model_, event_data, current_state);
+          const condition_checked = acc(extendedState_, event_data, current_state);
           return condition_checked.stop
             ? condition_checked
-            : condition_checking_fn(model_, event_data, current_state);
+            : condition_checking_fn(extendedState_, event_data, current_state);
         };
       },
       function dummy() {
@@ -297,11 +295,11 @@ export function create_state_machine(fsmDef, settings) {
       hash_states_struct.hash_states,
       event_name,
       event_data,
-      model
+      extendedState
     );
   }
 
-  function process_event(hash_states, event, event_data, model) {
+  function process_event(hash_states, event, event_data, extendedState) {
     console.log("Processing event ", event, event_data);
     const current_state = hash_states[INIT_STATE].current_state_name;
     const event_handler = hash_states[current_state][event];
@@ -310,8 +308,8 @@ export function create_state_machine(fsmDef, settings) {
       // CASE : There is a transition associated to that event
       console.log("found event handler!");
       console.info("WHEN EVENT ", event);
-      /* OUT : this event handler modifies the model and possibly other data structures */
-      const outputs = arrayizeOutput(event_handler(model, event_data, current_state).outputs);
+      /* OUT : this event handler modifies the extendedState and possibly other data structures */
+      const outputs = arrayizeOutput(event_handler(extendedState, event_data, current_state).outputs);
 
       // we read it anew as the execution of the event handler may have changed it
       const new_current_state = hash_states[INIT_STATE].current_state_name;
@@ -321,7 +319,7 @@ export function create_state_machine(fsmDef, settings) {
       // This allows for sequence of init events in various state levels
       // For instance, L1: init -> L2:init -> L3:init -> L4: stateX
       // In this case event_data will carry on the data passed on from the last event (else we loose
-      // the model?)
+      // the extendedState?)
       // 2. transitions with no events associated, only conditions (i.e. transient states)
       // In this case, there is no need for event data
       // NOTE : the guard is to defend against loops occuring when an AUTO transition fails to advance and stays
@@ -342,8 +340,8 @@ export function create_state_machine(fsmDef, settings) {
     }
   }
 
-  function leave_state(from, model, hash_states) {
-    // NOTE : model is passed as a parameter for symetry reasons, no real use for it so far
+  function leave_state(from, extendedState, hash_states) {
+    // NOTE : extendedState is passed as a parameter for symetry reasons, no real use for it so far
     const state_from = hash_states[from];
     const state_from_name = state_from.name;
 
@@ -352,12 +350,11 @@ export function create_state_machine(fsmDef, settings) {
     console.log("left state", wrap(from));
   }
 
-  function enter_next_state(to, model_prime, hash_states) {
+  function enter_next_state(to, updatedExtendedState, hash_states) {
     let state_to;
     let state_to_name;
     // CASE : history state (H)
     if (typeof to === "object" && to.type === history_symbol) {
-      debugger
       const history_type = to.deep ? DEEP : to.shallow ? SHALLOW : void 0;
       const history_target = to[history_type];
       // Edge case : history state (H) && no history (i.e. first time state is entered), target state
@@ -522,12 +519,12 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
   // accurate.
   // DOC : entry actions for a control state will apply before any automatic event related to that state! In fact before
   // anything. That means the automatic event should logically receive the state updated by the entry action
-  const decoratedAction = function (model, eventData, settings) {
+  const decoratedAction = function (extendedState, eventData, settings) {
     const { updateState } = settings;
-    const actionResult = action(model, eventData, settings);
+    const actionResult = action(extendedState, eventData, settings);
     const actionUpdate = actionResult.updates;
-    const updatedModel = updateState(model, actionUpdate);
-    const exitActionResult = entryAction(updatedModel, eventData, settings);
+    const updatedExtendedState = updateState(extendedState, actionUpdate);
+    const exitActionResult = entryAction(updatedExtendedState, eventData, settings);
 
     // NOTE : exitActionResult comes last as we want it to have priority over other actions.
     // As a matter of fact, it is an exit action, so it must always happen on exiting, no matter what
@@ -579,9 +576,9 @@ export function traceFSM(env, fsm) {
     events,
     states,
     transitions: mapOverTransitionsActions((action, transition, guardIndex, transitionIndex) => {
-      return function (model, eventData, settings) {
+      return function (extendedState, eventData, settings) {
         const { from: controlState, event: eventLabel, to: targetControlState, predicate } = transition;
-        const actionResult = action(model, eventData, settings);
+        const actionResult = action(extendedState, eventData, settings);
         const { outputs, updates } = actionResult;
         const { updateState } = settings;
 
@@ -590,9 +587,9 @@ export function traceFSM(env, fsm) {
           outputs: {
             outputs,
             updates,
-            extendedState: model,
+            extendedState: extendedState,
             // NOTE : I can do this because pure function!! This is the extended state after taking the transition
-            newExtendedState: updateState(model, updates || []),
+            newExtendedState: updateState(extendedState, updates || []),
             controlState,
             event: { eventLabel, eventData },
             settings: settings,

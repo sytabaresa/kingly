@@ -14,7 +14,7 @@ const an_output = {
 const another_output = {
   anotherOutputKey1: 'anotherOutputValue1'
 };
-const model_initial = {
+const initialExtendedState = {
   a_key: a_value,
   another_key: another_value
 };
@@ -27,11 +27,11 @@ const another_dummy_action_result = {
   outputs: another_output
 };
 
-function dummy_action(model, event_data, settings) {
+function dummy_action(extendedState, event_data, settings) {
   return dummy_action_result
 }
 
-function another_dummy_action(model, event_data, settings) {
+function another_dummy_action(extendedState, event_data, settings) {
   return another_dummy_action_result
 }
 
@@ -49,7 +49,7 @@ QUnit.test("transition labelling with guards and actions, but no events", functi
         ]
       }
     ],
-    initial_extended_state: model_initial
+    initial_extended_state: initialExtendedState
   };
   const translation = toPlantUml(fsmDef, {});
   assert.deepEqual(translation, `state "nok" as nok <<NoContent>> {
@@ -69,7 +69,7 @@ QUnit.test("2 states", function exec_test(assert) {
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: dummy_action },
       { from: 'A', to: 'B', event: EVENT1, action: another_dummy_action },
     ],
-    initial_extended_state: model_initial
+    initial_extended_state: initialExtendedState
   };
   const translation = toPlantUml(fsmDef, {});
   assert.deepEqual(

@@ -31,17 +31,9 @@ const an_output = {
 const another_output = {
   anotherOutputKey1: 'anotherOutputValue1'
 };
-const model_initial = {
+const initialExtendedState = {
   a_key: a_value,
   another_key: another_value
-};
-const dummy_action_result = {
-  updates: [],
-  outputs: an_output
-};
-const another_dummy_action_result = {
-  updates: [],
-  outputs: another_output
 };
 const replaced_model_property = {
   new_model_key: 'new_model_value'
@@ -65,43 +57,35 @@ const another_dummy_action_result_with_update = {
 
 /**
  *
- * @param {FSM_Model} model
- * @param {Operation[]} modelUpdateOperations
- * @returns {FSM_Model}
+ * @param {ExtendedState} extendedState
+ * @param {Operation[]} extendedStateUpdateOperations
+ * @returns {ExtendedState}
  */
-function applyJSONpatch(model, modelUpdateOperations) {
-  assertContract(isArrayUpdateOperations, [modelUpdateOperations],
+export function applyJSONpatch(extendedState, extendedStateUpdateOperations) {
+  assertContract(isArrayUpdateOperations, [extendedStateUpdateOperations],
     `applyUpdateOperations : ${CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE}`);
 
   // NOTE : we don't validate operations, to avoid throwing errors when for instance the value property for an
   // `add` JSON operation is `undefined` ; and of course we don't mutate the document in place
-  return applyPatch(model, modelUpdateOperations, false, false).newDocument;
+  return applyPatch(extendedState, extendedStateUpdateOperations, false, false).newDocument;
 }
 
-function dummy_action(model, event_data, settings) {
-  return dummy_action_result
-}
-
-function another_dummy_action(model, event_data, settings) {
-  return another_dummy_action_result
-}
-
-function dummy_action_with_update(model, event_data, settings) {
+function dummy_action_with_update(extendedState, event_data, settings) {
   return merge(dummy_action_result_with_update, {
     outputs: {
-      // NOTE : ! this is the model before update!!
-      model: clone(model),
+      // NOTE : ! this is the extendedState before update!!
+      model: clone(extendedState),
       event_data: clone(event_data),
       settings: JSON.parse(JSON.stringify(settings))
     }
   })
 }
 
-function another_dummy_action_with_update(model, event_data, settings) {
+function another_dummy_action_with_update(extendedState, event_data, settings) {
   return merge(another_dummy_action_result_with_update, {
       outputs: {
-        // NOTE : ! this is the model before update!!
-        model: clone(model),
+        // NOTE : ! this is the extendedState before update!!
+        model: clone(extendedState),
         event_data: clone(event_data),
         settings: JSON.parse(JSON.stringify(settings))
       }
@@ -118,7 +102,7 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
     transitions: [
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY }
     ],
-    initial_extended_state: model_initial
+    initial_extended_state: initialExtendedState
   };
   const settings = default_settings;
   const decoratedFsmDef = traceFSM(settings, fsmDef);
@@ -159,7 +143,7 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
   }], `trace is correct`);
 });
 
-QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", function exec_test(assert) {
+QUnit.test("INIT event, 2 actions with extended state update, NOK -> A -> B, no guards", function exec_test(assert) {
   const fsmDef = {
     states: { A: '', B: '' },
     events: [EVENT1],
@@ -167,7 +151,7 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: dummy_action_with_update },
       { from: 'A', to: 'B', event: EVENT1, action: another_dummy_action_with_update },
     ],
-    initial_extended_state: model_initial
+    initial_extended_state: initialExtendedState
   };
   const settings = default_settings;
   const decoratedFsmDef = traceFSM(settings, fsmDef);
@@ -176,7 +160,6 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
   const result2 = decoratedFSM.yield({ [EVENT1]: EVENT1_DATA });
   const formattedResult1 = result1.map(formatResult);
   const formattedResult2 = result2.map(formatResult);
-  const cloned_model_initial = clone(model_initial);
 
   assert.deepEqual([formattedResult1, formattedResult2],
     [
