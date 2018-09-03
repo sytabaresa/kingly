@@ -34,7 +34,7 @@ export function applyJSONpatch(model, modelUpdateOperations) {
 }
 
 const default_settings = {
-  updateModel : applyJSONpatch,
+  updateState : applyJSONpatch,
   subject_factory: () => {
     const subject = new Rx.Subject();
     // NOTE : this is intended for Rxjs v4-5!! but should work for most also

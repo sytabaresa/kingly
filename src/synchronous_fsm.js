@@ -144,10 +144,8 @@ export function build_state_enum(states) {
  * Creates an instance of state machine from a set of states, transitions, and accepted events. The initial
  * extended state for the machine is included in the machine definition.
  * @param {FSM_Def} fsmDef
- * @param {{updateModel : (function (FSM_Model, *) : FSM_Model), ...}} settings Contains the subject factory as
- * mandatory settings,
- * and any other. The `merge` settings is mandatory only when using the streaming state machine functionality
- * extra settings the API user wants to make available in state machine's scope
+ * @param {FSM_Settings} settings contains mandatory settings, and any extra settings the API user wants to make
+ * available in state machine's scope
  * @returns {{yield : Function, start: Function}}
  */
 export function create_state_machine(fsmDef, settings) {
@@ -157,7 +155,7 @@ export function create_state_machine(fsmDef, settings) {
     transitions,
     initial_extended_state
   } = fsmDef;
-  const { updateModel } = settings;
+  const { updateState } = settings;
 
   const _events = build_event_enum(events);
 
@@ -167,7 +165,7 @@ export function create_state_machine(fsmDef, settings) {
   // This will be the model object which will be updated by all actions and on which conditions
   // will be evaluated It is safely contained in a closure so it cannot be accessed in any way
   // outside the state machine.
-  // Note the model is modified by the `settings.updateModel` function, which should not modify
+  // Note the model is modified by the `settings.updateState` function, which should not modify
   // the model. There is hence no need to do any cloning.
   let model = initial_extended_state;
   // history maps
@@ -251,7 +249,7 @@ export function create_state_machine(fsmDef, settings) {
               leave_state(from, model_, hash_states);
 
               // Update the model before entering the next state
-              model = updateModel(model_, actionResult.updates);
+              model = updateState(model_, actionResult.updates);
               // Emit the new model event
               // new_model_event_emitter.onNext(model);
               console.info("RESULTING IN UPDATED MODEL : ", model);
@@ -525,10 +523,10 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
   // DOC : entry actions for a control state will apply before any automatic event related to that state! In fact before
   // anything. That means the automatic event should logically receive the state updated by the entry action
   const decoratedAction = function (model, eventData, settings) {
-    const { updateModel } = settings;
+    const { updateState } = settings;
     const actionResult = action(model, eventData, settings);
     const actionUpdate = actionResult.updates;
-    const updatedModel = updateModel(model, actionUpdate);
+    const updatedModel = updateState(model, actionUpdate);
     const exitActionResult = entryAction(updatedModel, eventData, settings);
 
     // NOTE : exitActionResult comes last as we want it to have priority over other actions.
@@ -585,7 +583,7 @@ export function traceFSM(env, fsm) {
         const { from: controlState, event: eventLabel, to: targetControlState, predicate } = transition;
         const actionResult = action(model, eventData, settings);
         const { outputs, updates } = actionResult;
-        const { updateModel } = settings;
+        const { updateState } = settings;
 
         return {
           updates,
@@ -594,7 +592,7 @@ export function traceFSM(env, fsm) {
             updates,
             extendedState: model,
             // NOTE : I can do this because pure function!! This is the extended state after taking the transition
-            newExtendedState: updateModel(model, updates || []),
+            newExtendedState: updateState(model, updates || []),
             controlState,
             event: { eventLabel, eventData },
             settings: settings,

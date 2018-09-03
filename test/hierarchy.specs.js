@@ -11,7 +11,7 @@ import { CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE } from "../src/properties"
 const $ = Rx.Observable;
 
 const default_settings = {
-  updateModel: applyJSONpatch,
+  updateState: applyJSONpatch,
   subject_factory: () => {
     const subject = new Rx.Subject();
     // NOTE : this is intended for Rxjs v4-5!! but should work for most also
@@ -384,7 +384,7 @@ QUnit.test("eventless transition, INIT event multi transitions, CASCADING inner 
           "merge": "merge",
           "of": "anonymous",
           "subject_factory": "subject_factory",
-          "updateModel": "applyJSONpatch"
+          "updateState": "applyJSONpatch"
         },
         "targetControlState": "EVENTLESS",
         "transitionIndex": 0
@@ -415,7 +415,7 @@ QUnit.test("eventless transition, INIT event multi transitions, CASCADING inner 
           "merge": "merge",
           "of": "anonymous",
           "subject_factory": "subject_factory",
-          "updateModel": "applyJSONpatch"
+          "updateState": "applyJSONpatch"
         },
         "targetControlState": "B",
         "transitionIndex": 2
@@ -458,7 +458,7 @@ QUnit.test("eventless transition, INIT event multi transitions, CASCADING inner 
           "merge": "merge",
           "of": "anonymous",
           "subject_factory": "subject_factory",
-          "updateModel": "applyJSONpatch"
+          "updateState": "applyJSONpatch"
         },
         "targetControlState": "C",
         "transitionIndex": 3
@@ -515,7 +515,7 @@ QUnit.test("eventless transition, INIT event multi transitions, CASCADING inner 
           "merge": "merge",
           "of": "anonymous",
           "subject_factory": "subject_factory",
-          "updateModel": "applyJSONpatch"
+          "updateState": "applyJSONpatch"
         },
         "targetControlState": "INNER_GROUP_D",
         "transitionIndex": 4
@@ -560,7 +560,7 @@ QUnit.test("eventless transition, INIT event multi transitions, CASCADING inner 
           "merge": "merge",
           "of": "anonymous",
           "subject_factory": "subject_factory",
-          "updateModel": "applyJSONpatch"
+          "updateState": "applyJSONpatch"
         },
         "targetControlState": "D",
         "transitionIndex": 9
@@ -766,7 +766,7 @@ QUnit.test("with trace : shallow history transitions, INIT event CASCADING trans
             "merge": "merge",
             "of": "anonymous",
             "subject_factory": "subject_factory",
-            "updateModel": "applyJSONpatch"
+            "updateState": "applyJSONpatch"
           },
           "targetControlState": "OUTER",
           "transitionIndex": 0
@@ -797,7 +797,7 @@ QUnit.test("with trace : shallow history transitions, INIT event CASCADING trans
             "merge": "merge",
             "of": "anonymous",
             "subject_factory": "subject_factory",
-            "updateModel": "applyJSONpatch"
+            "updateState": "applyJSONpatch"
           },
           "targetControlState": "outer_a",
           "transitionIndex": 1
@@ -827,7 +827,7 @@ QUnit.test("with trace : shallow history transitions, INIT event CASCADING trans
             "merge": "merge",
             "of": "anonymous",
             "subject_factory": "subject_factory",
-            "updateModel": "applyJSONpatch"
+            "updateState": "applyJSONpatch"
           },
           "targetControlState": "INNER",
           "transitionIndex": 2
@@ -855,7 +855,7 @@ QUnit.test("with trace : shallow history transitions, INIT event CASCADING trans
             "merge": "merge",
             "of": "anonymous",
             "subject_factory": "subject_factory",
-            "updateModel": "applyJSONpatch"
+            "updateState": "applyJSONpatch"
           },
           "targetControlState": "inner_s",
           "transitionIndex": 3
@@ -885,7 +885,7 @@ QUnit.test("with trace : shallow history transitions, INIT event CASCADING trans
             "merge": "merge",
             "of": "anonymous",
             "subject_factory": "subject_factory",
-            "updateModel": "applyJSONpatch"
+            "updateState": "applyJSONpatch"
           },
           "targetControlState": "inner_t",
           "transitionIndex": 4
@@ -915,7 +915,7 @@ QUnit.test("with trace : shallow history transitions, INIT event CASCADING trans
             "merge": "merge",
             "of": "anonymous",
             "subject_factory": "subject_factory",
-            "updateModel": "applyJSONpatch"
+            "updateState": "applyJSONpatch"
           },
           "targetControlState": "z",
           "transitionIndex": 7
@@ -951,7 +951,7 @@ QUnit.test("with trace : shallow history transitions, INIT event CASCADING trans
             "merge": "merge",
             "of": "anonymous",
             "subject_factory": "subject_factory",
-            "updateModel": "applyJSONpatch"
+            "updateState": "applyJSONpatch"
           },
           "targetControlState": {
             "shallow": "OUTER",
@@ -982,7 +982,7 @@ QUnit.test("with trace : shallow history transitions, INIT event CASCADING trans
             "merge": "merge",
             "of": "anonymous",
             "subject_factory": "subject_factory",
-            "updateModel": "applyJSONpatch"
+            "updateState": "applyJSONpatch"
           },
           "targetControlState": "inner_s",
           "transitionIndex": 3
@@ -1070,7 +1070,7 @@ QUnit.test("with trace : deep history transitions, INIT event CASCADING transiti
             "merge": "merge",
             "of": "anonymous",
             "subject_factory": "subject_factory",
-            "updateModel": "applyJSONpatch"
+            "updateState": "applyJSONpatch"
           },
           "targetControlState": "OUTER",
           "transitionIndex": 0
@@ -1101,7 +1101,7 @@ QUnit.test("with trace : deep history transitions, INIT event CASCADING transiti
             "merge": "merge",
             "of": "anonymous",
             "subject_factory": "subject_factory",
-            "updateModel": "applyJSONpatch"
+            "updateState": "applyJSONpatch"
           },
           "targetControlState": "outer_a",
           "transitionIndex": 1
@@ -1131,7 +1131,7 @@ QUnit.test("with trace : deep history transitions, INIT event CASCADING transiti
             "merge": "merge",
             "of": "anonymous",
             "subject_factory": "subject_factory",
-            "updateModel": "applyJSONpatch"
+            "updateState": "applyJSONpatch"
           },
           "targetControlState": "INNER",
           "transitionIndex": 2
@@ -1159,7 +1159,7 @@ QUnit.test("with trace : deep history transitions, INIT event CASCADING transiti
             "merge": "merge",
             "of": "anonymous",
             "subject_factory": "subject_factory",
-            "updateModel": "applyJSONpatch"
+            "updateState": "applyJSONpatch"
           },
           "targetControlState": "inner_s",
           "transitionIndex": 3
@@ -1189,7 +1189,7 @@ QUnit.test("with trace : deep history transitions, INIT event CASCADING transiti
             "merge": "merge",
             "of": "anonymous",
             "subject_factory": "subject_factory",
-            "updateModel": "applyJSONpatch"
+            "updateState": "applyJSONpatch"
           },
           "targetControlState": "inner_t",
           "transitionIndex": 4
@@ -1219,7 +1219,7 @@ QUnit.test("with trace : deep history transitions, INIT event CASCADING transiti
             "merge": "merge",
             "of": "anonymous",
             "subject_factory": "subject_factory",
-            "updateModel": "applyJSONpatch"
+            "updateState": "applyJSONpatch"
           },
           "targetControlState": "z",
           "transitionIndex": 7
@@ -1255,7 +1255,7 @@ QUnit.test("with trace : deep history transitions, INIT event CASCADING transiti
             "merge": "merge",
             "of": "anonymous",
             "subject_factory": "subject_factory",
-            "updateModel": "applyJSONpatch"
+            "updateState": "applyJSONpatch"
           },
           "targetControlState": {
             "deep": "OUTER",

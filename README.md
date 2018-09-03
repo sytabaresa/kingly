@@ -594,7 +594,7 @@ state machine
    `ev`. While it is possible to decide deterministically which transition should proceed, this 
    unduely complicated the input testing generation so we forbid non-deterministic transitions
   - NOTE TO SELF: absolutely write that contract
-- `updateModel :: ExtendedState -> ExtendedStateUpdates -> ExtendedState` must be a pure function
+- `updateState :: ExtendedState -> ExtendedStateUpdates -> ExtendedState` must be a pure function
  (this is important in particular for the tracing mechanism which triggers two execution of this 
  function with the same parameters)
 - all action factories must fill in the `updates` and `outputs` property (no syntax sugar)
@@ -617,15 +617,15 @@ the syntatic sugar `.start()` to do so.
 The machine additionnally can carry over environment variables, which are accessible in guards, 
 and action factories. This helps maintaining such functions pure and testable. 
 
-The `settings.updateModel` property is mandatory, and specify how to update a model from the `
+The `settings.updateState` property is mandatory, and specify how to update a model from the `
 .updates` produced by an action factory. We used successfully JSON patch operations for 
 model updates, but you can choose to use the inmutable library of your choice or else. The 
-important point is that the extended state should not be modified in place, i.e. `updateModel` is
+important point is that the extended state should not be modified in place, i.e. `updateState` is
  a pure function. 
 
 ### Contracts
 All [previously mentioned](https://github.com/brucou/state-transducer#contracts) contracts apply.
-  The `settings.updateModel` property is mandatory. 
+  The `settings.updateState` property is mandatory. 
 
 The [key types](https://github.com/brucou/state-transducer/blob/master/src/types.js) contracts are summarized here :
 
@@ -671,7 +671,7 @@ The [key types](https://github.com/brucou/state-transducer/blob/master/src/types
  * API caller.
  */
 /** @typedef {function (ExtendedState, EventData) : Boolean} FSM_Predicate */
-/** @typedef {{updateModel :: Function(ExtendedState, ExtendedStateUpdate) : ExtendedState, ...}} FSM_Settings */
+/** @typedef {{updateState :: Function(ExtendedState, ExtendedStateUpdate) : ExtendedState, ...}} FSM_Settings */
 /** @typedef {{merge: MergeObsFn, from: FromObsFn, filter: FilterObsFn, map: MapObsFn, share:ShareObsFn, ...}} FSM$_Settings */
 /** @typedef {String} EventLabel */
 /**

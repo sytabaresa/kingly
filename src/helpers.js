@@ -90,15 +90,15 @@ export function getDisplayName(str) {
 /**
  * This function MERGES model updates. That means that given two model updates, the resulting model update will be
  * the concatenation of the two, in the order in which they are passed
- * @param {function[]}  arrayUpdateFns
+ * @param {function[]}  arrayUpdateActions
  * @returns {function(*=, *=, *=): {updates: *}}
  */
-export function mergeModelUpdates(arrayUpdateFns) {
+export function mergeModelUpdates(arrayUpdateActions) {
   // TODO write just like [].concat(...arrayModelUpdates), array..Updates = arrayActions.map(x => x.updates || []);
   return function (model, eventData, settings) {
     return {
-      updates: arrayUpdateFns.reduce((acc, updateFn) => {
-        const update = updateFn(model, eventData, settings).updates;
+      updates: arrayUpdateActions.reduce((acc, updateAction) => {
+        const update = updateAction(model, eventData, settings).updates;
         if (update) {
           return acc.concat(update)
         }
@@ -114,17 +114,17 @@ export function mergeModelUpdates(arrayUpdateFns) {
 /**
  * This function CHAINS model updates, in the order in which they are passed. It is thus similar to a pipe.
  * The second update function receives the model updated by the first update function.
- * @param {function[]}  arrayUpdateFns
+ * @param {function[]}  arrayUpdateActions
  */
-export function chainModelUpdates(arrayUpdateFns) {
+export function chainModelUpdates(arrayUpdateActions) {
   return function (model, eventData, settings) {
-    const { updateModel } = settings;
+    const { updateState } = settings;
     return {
-      updates: arrayUpdateFns
-        .reduce((acc, updateFn) => {
+      updates: arrayUpdateActions
+        .reduce((acc, updateAction) => {
           const { model, updates } = acc;
-          const update = updateFn(model, eventData, settings).updates;
-          const updatedModel = updateModel(model, updates)
+          const update = updateAction(model, eventData, settings).updates;
+          const updatedModel = updateState(model, updates)
 
           return { model: updatedModel, updates: update }
         }, { model, updates: [] })
