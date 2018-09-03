@@ -490,7 +490,7 @@ machine out of the initial control state towards the relevant user-configured co
   - if the target control state is an history state, replace it by the control state it 
   references (i.e. the last seen nested state for that compound state)
   - **update the extended state** (with the updates produced by the action factory)
-  - memorize the output (produced by the action factory)
+  - memorize the outputs (produced by the action factory)
   - update the control state to the target state
   - update the history for the control state (applies only if control state is compound state)
 - return to **1**
@@ -500,7 +500,7 @@ A few interesting points :
 - a machine always transition towards an atomic state at the end of event processing
 - on that path towards an atomic target state, all intermediary extended state updates are 
 performed. Guards and action factories on that path are thus receiving a possibly evolving extended 
-state. However, the computed output will be that one computed by the last action factory for the 
+state. However, the computed outputs will be that one computed by the last action factory for the 
 last transition evaluated.
  
 The aforedescribed behaviour is summarized here :
@@ -514,7 +514,7 @@ picture being worth more than words, thereafter follows an illustration of both 
 
 ![deep and shallow history](test/assets/history%20transitions,%20INIT%20event%20CASCADING%20transitions.png)
 
-Assuming the corresponding machine has had the following run `[INIT, EVENT1, EVENT3, EVENT1, 
+Assuming the corresponding machine has had the following run `[INIT, EVENT1, EVENT3, EVENT5, 
 EVENT4]`:
  
 - the configurations for the `OUTER` control state will have been `[OUTER.A, INNER, INNER.S, INNER.T]`
@@ -590,6 +590,10 @@ transition must be configured and be executed between the initial control state 
   - they must be the only transition defined for a given origin control state and triggering event
 - to a (from, event) couple, there can only correspond one row in the `transitions` array of the 
 state machine
+- cannot have non-determinstic transitions
+  - A -ev> B and A < OUTER_A with OUTER_A -ev>C !! : there are two valid transitions triggered by
+   `ev`. While it is possible to decide deterministically which transition should proceed, this 
+   unduely complicated the input testing generation so we forbid non-deterministic transitions
 - `updateModel :: ExtendedState -> ExtendedStateUpdates -> ExtendedState` must be a pure function
  (this is important in particular for the tracing mechanism which triggers two execution of this 
  function with the same parameters)
@@ -597,7 +601,8 @@ state machine
   - NO_OUTPUT must be used to indicate the absence of outputs
 - there cannot be two transitions with the same `(from, event, predicate)` - sameness defined for
  predicate by referential equality
-  
+ 
+ 
 ## `create_state_machine :: FSM_Def -> Settings -> FSM`
 ### Description
 This FSM factory function takes the parameters defining the behaviour of the state transducer, 
@@ -622,17 +627,20 @@ important point is that the extended state should not be modified in place, i.e.
 All [previously mentioned](https://github.com/brucou/state-transducer#contracts) contracts apply.
   The `settings.updateModel` property is mandatory. 
 
-The key types contracts are summarized here :
+The [key types](https://github.com/brucou/state-transducer/blob/master/src/types.js) contracts are summarized here :
 
 ```javascript
 /**
  * @typedef {Object} FSM_Def
- * @property {Object.<ControlState, *>} states Object whose every key is a control state admitted by the
+ * @property {FSM_States} states Object whose every key is a control state admitted by the
  * specified state machine. The value associated to that key is unused in the present version of the library. The
  * hierarchy of the states correspond to property nesting in the `states` object
  * @property {Array<EventLabel>} events A list of event monikers the machine is configured to react to
  * @property {Array<Transition>} transitions An array of transitions the machine is allowed to take
  * @property {*} initial_extended_state The initial value for the machine's extended state
+ */
+/**
+ * @typedef {Object.<ControlState, *>} FSM_States
  */
 /**
  * @typedef {InconditionalTransition | ConditionalTransition} Transition
@@ -654,20 +662,18 @@ The key types contracts are summarized here :
  * extended state machine and possibly an output to the state machine client.
  */
 /**
- * @typedef {function(model: ExtendedState, event_data: *, settings: FSM_Settings) : Actions} ActionFactory
+ * @typedef {function(ExtendedState, EventData, FSM_Settings) : Actions} ActionFactory
  */
 /**
- * @typedef {{model_update: *, outputs: Array<MachineOutput> | NO_OUTPUT}} Actions The actions
+ * @typedef {{model_update: ExtendedStateUpdate, outputs: Array<MachineOutput> | NO_OUTPUT}} Actions The actions
  * to be performed by the state machine in response to a transition. `model_update` represents the state update for
  * the variables of the extended state machine. `output` represents the output of the state machine passed to the
  * API caller.
  */
 /** @typedef {function (ExtendedState, EventData) : Boolean} FSM_Predicate */
-/** @typedef {{updateModel :: Function(ExtendedState, *) : ExtendedState, ...}} FSM_Settings */
+/** @typedef {{updateModel :: Function(ExtendedState, ExtendedStateUpdate) : ExtendedState, ...}} FSM_Settings */
 /** @typedef {{merge: MergeObsFn, from: FromObsFn, filter: FilterObsFn, map: MapObsFn, share:ShareObsFn, ...}} FSM$_Settings */
-/** @typedef {*} MachineOutput well it is preferrable that that be an object instead of a primitive */
 /** @typedef {String} EventLabel */
-/** @typedef {String} ControlState Name of the control state */
 /**
  * @typedef {function (Array<Observable>) : Observable} MergeObsFn Similar to Rxjs v4's `Rx.Observable.merge`. Takes
  * an array of observables and return an observable which passes on all outputs emitted by the observables in the array.
@@ -692,23 +698,38 @@ The key types contracts are summarized here :
  * @typedef {Object.<EventLabel, EventData>} LabelledEvent extended state for a given state machine
  */
 /**
+ * @typedef {Object} FsmTraceData
+ * @property {ControlState} controlState
+ * @property {{EventLabel, EventData}} eventLabel
+ * @property {ControlState} targetControlState
+ * @property {FSM_Predicate} predicate
+ * @property {ExtendedStateUpdate} model_update
+ * @property {ExtendedState} extendedState
+ * @property {ActionFactory} actionFactory
+ * @property {Number} guardIndex
+ * @property {Number} transitionIndex
+ */
+/**
+ * @typedef {Object.<HistoryType, HistoryDict>} History history object containing deeep and shallow history states
+ * for all relevant control states
+ */
+/**
+ * @typedef {Object.<ControlState, ControlState>} HistoryDict Maps a compound control state to its history state
+ */
+/**
+ * @typedef {DEEP | SHALLOW} HistoryType
+ */
+/** @typedef {String} ControlState Name of the control state */
+/**
  * @typedef {*} EventData
  */
 /**
  * @typedef {*} ExtendedState extended state for a given state machine
  */
 /**
- * @typedef {Object} FsmTraceData
- * @property {ControlState} controlState
- * @property {{EventLabel, EventData}} eventLabel
- * @property {ControlState} targetControlState
- * @property {FSM_Predicate} predicate
- * @property {*} model_update
- * @property {ExtendedState} extendedState
- * @property {ActionFactory} actionFactory
- * @property {Number} guardIndex
- * @property {Number} transitionIndex
+ * @typedef {*} ExtendedStateUpdate
  */
+/** @typedef {*} MachineOutput well it is preferrable that that be an object instead of a primitive */
 ```
 
 ### Implementation example

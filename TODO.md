@@ -1,19 +1,10 @@
 # Now
-! output now should be array
-  - update doc and README
 - add edge cases for test generation: 
   - history transitions
     - comment well the code, the second part with input generation
-  - compound state
-    - add compound to compound transitions test for fsm2graph
 - write all contracts
-  - cannot have non-determinstic transitions
-    - A -ev> B and A < OUTER_A with OUTER_A -ev>C !!, the fsm might work in a deterministic way, 
-    but the input generation won't!!
   - TODO add contract for test gen : apply only to FSM for which init event sets the initial state
    in the machine
-- types : update DOC
-  - best will be to put a link to it??
 - input generation
   - write DOC
 - visualization

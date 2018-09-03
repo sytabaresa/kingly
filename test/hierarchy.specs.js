@@ -1,5 +1,7 @@
 import {
-  ACTION_IDENTITY, create_state_machine, INIT_EVENT, INIT_STATE, makeHistoryStates, NO_OUTPUT, traceFSM
+  ACTION_IDENTITY, computeTimesCircledOn, create_state_machine, generateTestsFromFSM, INIT_EVENT, INIT_STATE,
+  makeHistoryStates, NO_OUTPUT,
+  traceFSM
 } from "../src"
 import { formatResult } from "./helpers"
 import * as QUnit from "qunitjs"
@@ -7,6 +9,7 @@ import * as Rx from "rx"
 import { assertContract, isArrayUpdateOperations } from "../test/helpers"
 import { applyPatch } from "json-patch-es6/lib/duplex"
 import { CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE } from "../src/properties"
+import { merge } from "ramda"
 
 const $ = Rx.Observable;
 
@@ -26,6 +29,7 @@ const EVENT1 = 'event1';
 const EVENT2 = 'event2';
 const EVENT3 = 'event3';
 const EVENT4 = 'event4';
+const EVENT5 = 'event5';
 // constant for switching between deep history and shallow history
 const DEEP = 'deep';
 const SHALLOW = 'shallow';

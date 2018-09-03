@@ -1759,3 +1759,236 @@ QUnit.test("deep history transitions, INIT event CASCADING transitions", functio
     [null, null, 0, null, null, 1, null]
   ], `...`);
 });
+
+QUnit.test("shallow history transitions, INIT event CASCADING transitions, compound to compound case", function exec_test(assert) {
+  const OUTER = 'OUTER';
+  const INNER = 'INNER';
+  const OTHER = 'OTHER';
+  const OUTER_A = 'outer_a';
+  const OUTER_B = 'outer_b';
+  const INNER_S = 'inner_s';
+  const INNER_T = 'inner_t';
+  const Z = 'z';
+  const states = {
+    [OUTER]: {
+      [INNER]: { [INNER_S]: '', [INNER_T]: '' },
+      [OUTER_A]: '',
+      [OTHER]: { [OUTER_B]: '' }
+    },
+    [Z]: ''
+  };
+  const hs = makeHistoryStates(states);
+  const fsmDef = {
+    states,
+    events: [EVENT1, EVENT2, EVENT3, EVENT4, EVENT5],
+    initial_extended_state: { history: SHALLOW, counter: 0 },
+    transitions: [
+      { from: INIT_STATE, event: INIT_EVENT, to: OUTER, action: ACTION_IDENTITY },
+      { from: OUTER, event: INIT_EVENT, to: OUTER_A, action: ACTION_IDENTITY },
+      { from: OUTER_A, event: EVENT1, to: INNER, action: ACTION_IDENTITY },
+      { from: INNER, event: INIT_EVENT, to: INNER_S, action: ACTION_IDENTITY },
+      { from: INNER_S, event: EVENT3, to: INNER_T, action: ACTION_IDENTITY },
+      { from: INNER_T, event: EVENT3, to: INNER_S, action: ACTION_IDENTITY },
+      { from: INNER, event: EVENT2, to: OTHER, action: ACTION_IDENTITY },
+      { from: OTHER, event: INIT_EVENT, to: OUTER_B, action: ACTION_IDENTITY },
+      { from: OUTER, event: EVENT5, to: Z, action: ACTION_IDENTITY },
+      {
+        from: Z, event: EVENT4, guards: [
+          {
+            predicate: function isDeep(x, e) {return x.history === DEEP},
+            to: hs.deep(OUTER),
+            action: incCounter
+          },
+          {
+            predicate: function isShallow(x, e) {return x.history !== DEEP},
+            to: hs.shallow(OUTER),
+            action: incCounter
+          }
+        ]
+      },
+    ],
+  };
+  const genFsmDef = {
+    transitions: [
+      {
+        from: INIT_STATE,
+        event: INIT_EVENT,
+        to: OUTER,
+        gen: function genINITtoOUTER(extS) {return { input: extS, hasGeneratedInput: true }}
+      },
+      { from: OUTER, event: INIT_EVENT, to: OUTER_A },
+      {
+        from: OUTER_A,
+        event: EVENT1,
+        to: INNER,
+        gen: function genOUTER_AtoINNER(extS) {return { input: null, hasGeneratedInput: true }}
+      },
+      { from: INNER, event: INIT_EVENT, to: INNER_S },
+      {
+        from: INNER_S,
+        event: EVENT3,
+        to: INNER_T,
+        gen: function genINNER_StoINNER_T(extS) {return { input: null, hasGeneratedInput: true }}
+      },
+      {
+        from: INNER_T,
+        event: EVENT3,
+        to: INNER_S,
+        gen: function genINNER_TtoINNER_S(extS) {return { input: null, hasGeneratedInput: true }}
+      },
+      {
+        from: INNER,
+        event: EVENT2,
+        to: OTHER,
+        gen: function genINNERtoOUTER_B(extS) {return { input: null, hasGeneratedInput: true }}
+      },
+      {
+        from: OUTER,
+        event: EVENT5,
+        to: Z,
+        gen: function genOUTERtoZ(extS) {return { input: null, hasGeneratedInput: true }}
+      },
+      {
+        from: Z, event: EVENT4, guards: [
+          {
+            predicate: function isDeep(x, e) {return x.history === DEEP},
+            to: hs.deep(OUTER),
+            gen: function genZtoOUTER_DEEP_H(extS) {return { input: DEEP, hasGeneratedInput: extS.history === DEEP }},
+          },
+          {
+            predicate: function isShallow(x, e) {return x.history !== DEEP},
+            to: hs.shallow(OUTER),
+            gen: function genZtoOUTER_SHALLOW_H(extS) {
+              return {
+                input: SHALLOW,
+                hasGeneratedInput: extS.history !== DEEP
+              }
+            },
+          }
+        ]
+      },
+    ],
+  };
+  const generators = genFsmDef.transitions;
+  const maxNumberOfTraversals = 1;
+  const target = OUTER_B;
+  /** @type SearchSpecs*/
+  const strategy = {
+    isTraversableEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
+      return computeTimesCircledOn(pathTraversalState.path, edge) < (maxNumberOfTraversals || 1)
+    },
+    isGoalReached: (edge, graph, pathTraversalState, graphTraversalState) => {
+      const { getEdgeTarget, getEdgeOrigin } = graph;
+      const lastPathVertex = getEdgeTarget(edge);
+      // Edge case : accounting for initial vertex
+      const vertexOrigin = getEdgeOrigin(edge);
+
+      const isGoalReached = vertexOrigin ? lastPathVertex === target : false;
+      return isGoalReached
+    },
+  };
+  const settings = merge(default_settings, { strategy });
+  const results = generateTestsFromFSM(fsmDef, generators, settings);
+  const formattedResults = results.map(formatResult);
+  assert.deepEqual(formattedResults.map(x => x.controlStateSequence), [
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "inner_t", "inner_s", "OTHER", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "inner_t", "inner_s", "z", "INNER", "inner_s", "OTHER", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "inner_t", "OTHER", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "inner_t", "z", "INNER", "inner_s", "OTHER", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "OTHER", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "z", "INNER", "inner_s", "inner_t", "inner_s", "OTHER", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "z", "INNER", "inner_s", "inner_t", "OTHER", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "z", "INNER", "inner_s", "OTHER", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "inner_t", "inner_s", "OTHER", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "inner_t", "inner_s", "z", "INNER", "inner_s", "OTHER", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "inner_t", "OTHER", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "inner_t", "z", "INNER", "inner_s", "OTHER", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "OTHER", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "z", "INNER", "inner_s", "inner_t", "inner_s", "OTHER", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "z", "INNER", "inner_s", "inner_t", "OTHER", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "z", "INNER", "inner_s", "OTHER", "outer_b"]
+  ], `...`);
+  assert.deepEqual(formattedResults.map(x => x.inputSequence), [
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event1": null }, { "event3": null }, { "event3": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event1": null }, { "event3": null }, { "event3": null }, { "event5": null }, { "event4": "shallow" }, { "event2": null }],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event1": null }, { "event3": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "shallow" }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event1": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event1": null }, { "event5": null }, { "event4": "shallow" }, { "event3": null }, { "event3": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event1": null }, { "event5": null }, { "event4": "shallow" }, { "event3": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event1": null }, { "event5": null }, { "event4": "shallow" }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event3": null }, { "event3": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event3": null }, { "event3": null }, { "event5": null }, { "event4": "shallow" }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event3": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "shallow" }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event5": null }, { "event4": "shallow" }, { "event3": null }, { "event3": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event5": null }, { "event4": "shallow" }, { "event3": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "shallow" } },
+      { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event5": null }, { "event4": "shallow" }, { "event2": null }
+    ]
+  ], `...`);
+  assert.deepEqual(formattedResults.map(x => x.outputSequence), [
+    [null, null, null, null, null],
+    [null, null, null, null, null, 0, null],
+    [null, null, null, null],
+    [null, null, null, null, 0, null],
+    [null, null, null],
+    [null, null, null, 0, null, null, null],
+    [null, null, null, 0, null, null],
+    [null, null, null, 0, null],
+    [null, null, 0, null, null, null, null],
+    [null, null, 0, null, null, null, null, 1, null],
+    [null, null, 0, null, null, null],
+    [null, null, 0, null, null, null, 1, null],
+    [null, null, 0, null, null],
+    [null, null, 0, null, null, 1, null, null, null],
+    [null, null, 0, null, null, 1, null, null],
+    [null, null, 0, null, null, 1, null]
+  ], `...`);
+});
