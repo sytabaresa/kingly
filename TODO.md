@@ -47,7 +47,6 @@
 - make visualizer work for history states too!!
 - understand why when a guard is not fulfilled the trace returns just null and not the full array
   - is that good or bad? could be interesting to have the information that no guard were fulfilled!
-- refactor model_update in `updates` (extendedStateUpdate is too long)
 - refactor `updateModel` to `updateFn`
   - in types too!!
 - README : put links for tests everywhere I put cf. tests!!

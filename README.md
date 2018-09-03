@@ -597,7 +597,7 @@ state machine
 - `updateModel :: ExtendedState -> ExtendedStateUpdates -> ExtendedState` must be a pure function
  (this is important in particular for the tracing mechanism which triggers two execution of this 
  function with the same parameters)
-- all action factories must fill in the `model_update` and `outputs` property (no syntax sugar)
+- all action factories must fill in the `updates` and `outputs` property (no syntax sugar)
   - NO_OUTPUT must be used to indicate the absence of outputs
 - there cannot be two transitions with the same `(from, event, predicate)` - sameness defined for
  predicate by referential equality
@@ -618,7 +618,7 @@ The machine additionnally can carry over environment variables, which are access
 and action factories. This helps maintaining such functions pure and testable. 
 
 The `settings.updateModel` property is mandatory, and specify how to update a model from the `
-.model_update` produced by an action factory. We used successfully JSON patch operations for 
+.updates` produced by an action factory. We used successfully JSON patch operations for 
 model updates, but you can choose to use the inmutable library of your choice or else. The 
 important point is that the extended state should not be modified in place, i.e. `updateModel` is
  a pure function. 
@@ -665,8 +665,8 @@ The [key types](https://github.com/brucou/state-transducer/blob/master/src/types
  * @typedef {function(ExtendedState, EventData, FSM_Settings) : Actions} ActionFactory
  */
 /**
- * @typedef {{model_update: ExtendedStateUpdate, outputs: Array<MachineOutput> | NO_OUTPUT}} Actions The actions
- * to be performed by the state machine in response to a transition. `model_update` represents the state update for
+ * @typedef {{updates: ExtendedStateUpdate, outputs: Array<MachineOutput> | NO_OUTPUT}} Actions The actions
+ * to be performed by the state machine in response to a transition. `updates` represents the state update for
  * the variables of the extended state machine. `output` represents the output of the state machine passed to the
  * API caller.
  */
@@ -703,7 +703,7 @@ The [key types](https://github.com/brucou/state-transducer/blob/master/src/types
  * @property {{EventLabel, EventData}} eventLabel
  * @property {ControlState} targetControlState
  * @property {FSM_Predicate} predicate
- * @property {ExtendedStateUpdate} model_update
+ * @property {ExtendedStateUpdate} updates
  * @property {ExtendedState} extendedState
  * @property {ActionFactory} actionFactory
  * @property {Number} guardIndex
@@ -761,7 +761,7 @@ This function converts a state machine `A` into a traced state machine `T(A)`. T
 machine, on receiving an input `I` outputs the following information :
 
 - `outputs` : the output `A.yield(I)` 
-- `model_update` : the update of the extended state of `A` to be performed as a consequence of receiving the input `I` 
+- `updates` : the update of the extended state of `A` to be performed as a consequence of receiving the input `I` 
 - `extendedState` : the extended state of `A` prior to receiving the input `I`
 - `controlState` : the control state in which the machine is when receiving the input `I`
 - `event::{eventLabel, eventData}` : the event label and event data corresponding to `I` 
