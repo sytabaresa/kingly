@@ -49,7 +49,7 @@ QUnit.test("transition labelling with guards and actions, but no events", functi
         ]
       }
     ],
-    initial_extended_state: initialExtendedState
+    initialExtendedState: initialExtendedState
   };
   const translation = toPlantUml(fsmDef, {});
   assert.deepEqual(translation, `state "nok" as nok <<NoContent>> {
@@ -69,7 +69,7 @@ QUnit.test("2 states", function exec_test(assert) {
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: dummy_action },
       { from: 'A', to: 'B', event: EVENT1, action: another_dummy_action },
     ],
-    initial_extended_state: initialExtendedState
+    initialExtendedState: initialExtendedState
   };
   const translation = toPlantUml(fsmDef, {});
   assert.deepEqual(

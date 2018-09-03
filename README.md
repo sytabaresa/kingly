@@ -637,7 +637,7 @@ The [key types](https://github.com/brucou/state-transducer/blob/master/src/types
  * hierarchy of the states correspond to property nesting in the `states` object
  * @property {Array<EventLabel>} events A list of event monikers the machine is configured to react to
  * @property {Array<Transition>} transitions An array of transitions the machine is allowed to take
- * @property {*} initial_extended_state The initial value for the machine's extended state
+ * @property {*} initialExtendedState The initial value for the machine's extended state
  */
 /**
  * @typedef {Object.<ControlState, *>} FSM_States

@@ -301,7 +301,7 @@ QUnit.test("test shallow history transitions, INIT event CASCADING transitions",
   const states = { [OUTER]: { [INNER]: { [INNER_S]: '', [INNER_T]: '' }, [OUTER_A]: '', [OUTER_B]: '' }, [Z]: '' };
   const fsmDef = {
     states,
-    initial_extended_state: { history: SHALLOW, counter: 0 },
+    initialExtendedState: { history: SHALLOW, counter: 0 },
     transitions: [
       { from: INIT_STATE, event: INIT_EVENT, to: OUTER, action: ACTION_IDENTITY },
       { from: OUTER, event: INIT_EVENT, to: OUTER_A, action: ACTION_IDENTITY },

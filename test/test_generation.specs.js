@@ -39,7 +39,7 @@ const default_settings = {
 
 const a_value = "some value";
 const another_value = "another value";
-const model_initial = {
+const initialExtendedState = {
   a_key: a_value,
   another_key: another_value
 };
@@ -81,7 +81,7 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
         from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY
       }
     ],
-    initial_extended_state: model_initial
+    initialExtendedState: initialExtendedState
   };
   const genFsmDef = {
     transitions: [
@@ -146,7 +146,7 @@ QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", funct
         ]
       }
     ],
-    initial_extended_state: model_initial
+    initialExtendedState: initialExtendedState
   };
   const genFsmDef = {
     states: { A: '' },
@@ -163,7 +163,7 @@ QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", funct
         ]
       }
     ],
-    initial_extended_state: model_initial
+    initialExtendedState: initialExtendedState
   };
   const generators = genFsmDef.transitions;
   const maxNumberOfTraversals = 1;
@@ -219,7 +219,7 @@ QUnit.test("INIT event, 2 actions, 2 conditions", function exec_test(assert) {
         ]
       }
     ],
-    initial_extended_state: { branch: 'Y' }
+    initialExtendedState: { branch: 'Y' }
   };
   const genFsmDef = {
     states: { A: '' },
@@ -240,7 +240,7 @@ QUnit.test("INIT event, 2 actions, 2 conditions", function exec_test(assert) {
         ]
       }
     ],
-    initial_extended_state: model_initial
+    initialExtendedState: initialExtendedState
   };
   const generators = genFsmDef.transitions;
   const maxNumberOfTraversals = 1;
@@ -359,7 +359,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
   const fsmDef = {
     states: { A: '', B: '', C: '', D: '', E: '' },
     events: [CLICK, REVIEW_A, REVIEW_B, SAVE],
-    initial_extended_state: { switch: false, reviewed: false },
+    initialExtendedState: { switch: false, reviewed: false },
     transitions: [
       {
         from: INIT_STATE, event: INIT_EVENT, guards: [
@@ -697,7 +697,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
   const fsmDef = {
     states: { A: '', B: '', C: '', D: '', E: '' },
     events: [CLICK, REVIEW_A, REVIEW_B, SAVE],
-    initial_extended_state: { switch: true, reviewed: false },
+    initialExtendedState: { switch: true, reviewed: false },
     transitions: [
       {
         from: INIT_STATE, event: INIT_EVENT, guards: [
@@ -869,7 +869,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
   const fsmDef = {
     states: { A: '', B: '', C: '', OUTER_GROUP_D: { INNER_GROUP_D: { D: '' }, E: '' } },
     events: [CLICK, REVIEW_A, REVIEW_B, SAVE],
-    initial_extended_state: { switch: false, reviewed: false },
+    initialExtendedState: { switch: false, reviewed: false },
     transitions: [
       {
         from: INIT_STATE, event: INIT_EVENT, guards: [
@@ -996,7 +996,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
   ], `...`);
   assert.deepEqual(formattedResults.map(x => x.inputSequence), [
     [
-      { "init": fsmDef.initial_extended_state },
+      { "init": fsmDef.initialExtendedState },
       { "click": { "keyB": "valueB" } },
       { "click": { "data": "valueC", "valid": true } },
       { "reviewA": null },
@@ -1004,12 +1004,12 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
       { "save": null }
     ],
     [
-      { "init": fsmDef.initial_extended_state },
+      { "init": fsmDef.initialExtendedState },
       { "click": { "keyB": "valueB" } },
       { "click": { "data": "valueC", "valid": true } },
       { "save": null }],
     [
-      { "init": fsmDef.initial_extended_state },
+      { "init": fsmDef.initialExtendedState },
       { "click": { "keyB": "valueB" } },
       { "click": { "data": "invalid key for C", "valid": false } },
       { "click": { "data": "valueC", "valid": true } },
@@ -1018,7 +1018,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
       { "save": null }
     ],
     [
-      { "init": fsmDef.initial_extended_state },
+      { "init": fsmDef.initialExtendedState },
       { "click": { "keyB": "valueB" } },
       { "click": { "data": "invalid key for C", "valid": false } },
       { "click": { "data": "valueC", "valid": true } },
@@ -1072,7 +1072,7 @@ QUnit.test("eventless transitions, inner INIT event transitions, loops", functio
   const fsmDef = {
     states: { EVENTLESS: '', A: '', B: '', C: '', OUTER_GROUP_D: { INNER_GROUP_D: { D: '' } }, E: '' },
     events: [CLICK, REVIEW_A, REVIEW_B, SAVE],
-    initial_extended_state: { switch: false, reviewed: false },
+    initialExtendedState: { switch: false, reviewed: false },
     transitions: [
       {
         from: INIT_STATE, event: INIT_EVENT, guards: [
@@ -1281,7 +1281,7 @@ QUnit.test("shallow history transitions, INIT event CASCADING transitions", func
   const fsmDef = {
     states,
     events: [EVENT1, EVENT2, EVENT3, EVENT4, EVENT5],
-    initial_extended_state: { history: SHALLOW, counter: 0 },
+    initialExtendedState: { history: SHALLOW, counter: 0 },
     transitions: [
       { from: INIT_STATE, event: INIT_EVENT, to: OUTER, action: ACTION_IDENTITY },
       { from: OUTER, event: INIT_EVENT, to: OUTER_A, action: ACTION_IDENTITY },
@@ -1505,7 +1505,7 @@ QUnit.test("deep history transitions, INIT event CASCADING transitions", functio
   const fsmDef = {
     states,
     events: [EVENT1, EVENT2, EVENT3, EVENT4, EVENT5],
-    initial_extended_state: { history: DEEP, counter: 0 },
+    initialExtendedState: { history: DEEP, counter: 0 },
     transitions: [
       { from: INIT_STATE, event: INIT_EVENT, to: OUTER, action: ACTION_IDENTITY },
       { from: OUTER, event: INIT_EVENT, to: OUTER_A, action: ACTION_IDENTITY },
@@ -1781,7 +1781,7 @@ QUnit.test("shallow history transitions, INIT event CASCADING transitions, compo
   const fsmDef = {
     states,
     events: [EVENT1, EVENT2, EVENT3, EVENT4, EVENT5],
-    initial_extended_state: { history: SHALLOW, counter: 0 },
+    initialExtendedState: { history: SHALLOW, counter: 0 },
     transitions: [
       { from: INIT_STATE, event: INIT_EVENT, to: OUTER, action: ACTION_IDENTITY },
       { from: OUTER, event: INIT_EVENT, to: OUTER_A, action: ACTION_IDENTITY },

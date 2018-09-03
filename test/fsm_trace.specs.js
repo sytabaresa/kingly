@@ -102,7 +102,7 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
     transitions: [
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY }
     ],
-    initial_extended_state: initialExtendedState
+    initialExtendedState: initialExtendedState
   };
   const settings = default_settings;
   const decoratedFsmDef = traceFSM(settings, fsmDef);
@@ -151,7 +151,7 @@ QUnit.test("INIT event, 2 actions with extended state update, NOK -> A -> B, no 
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: dummy_action_with_update },
       { from: 'A', to: 'B', event: EVENT1, action: another_dummy_action_with_update },
     ],
-    initial_extended_state: initialExtendedState
+    initialExtendedState: initialExtendedState
   };
   const settings = default_settings;
   const decoratedFsmDef = traceFSM(settings, fsmDef);
@@ -333,7 +333,7 @@ QUnit.skip("all transitions topologies up to 4 levels of state nesting", functio
   const fsmDef = {
     states,
     events: [A, B, C, D, E, F, G, H, I],
-    initial_extended_state: {},
+    initialExtendedState: {},
     transitions: [
       { from: INIT_STATE, event: INIT_EVENT, to: s2, action: updateFooTo0 },
       { from: s2, event: INIT_EVENT, to: s211, action: ACTION_IDENTITY },

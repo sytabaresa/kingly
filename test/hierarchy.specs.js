@@ -120,7 +120,7 @@ QUnit.test("INIT event multi transitions, CASCADING inner INIT event transitions
   const fsmDef = {
     states: { A: '', B: '', C: '', OUTER_GROUP_D: { INNER_GROUP_D: { D: '' } }, E: '' },
     events: [CLICK, REVIEW_A, REVIEW_B, SAVE],
-    initial_extended_state: { switch: false, reviewed: false },
+    initialExtendedState: { switch: false, reviewed: false },
     transitions: [
       {
         from: INIT_STATE, event: INIT_EVENT, guards: [
@@ -150,7 +150,7 @@ QUnit.test("INIT event multi transitions, CASCADING inner INIT event transitions
   };
   const settings = default_settings;
   const inputSequence = [
-    { "init": fsmDef.initial_extended_state },
+    { "init": fsmDef.initialExtendedState },
     { "click": { "keyB": "valueB" } },
     { "click": { "valid": true, "data": "valueC" } }
   ];
@@ -162,7 +162,7 @@ QUnit.test("INIT event multi transitions, CASCADING inner INIT event transitions
       "actionFactory": "ACTION_IDENTITY",
       "controlState": "nok",
       "event": {
-        "eventData": fsmDef.initial_extended_state,
+        "eventData": fsmDef.initialExtendedState,
         "eventLabel": "init"
       },
       "extendedState": {
@@ -318,7 +318,7 @@ QUnit.test("eventless transition, INIT event multi transitions, CASCADING inner 
   const fsmDef = {
     states: { EVENTLESS: '', A: '', B: '', C: '', OUTER_GROUP_D: { INNER_GROUP_D: { D: '' } }, E: '' },
     events: [CLICK, REVIEW_A, REVIEW_B, SAVE],
-    initial_extended_state: { switch: false, reviewed: false },
+    initialExtendedState: { switch: false, reviewed: false },
     transitions: [
       {
         from: INIT_STATE, event: INIT_EVENT, guards: [
@@ -349,7 +349,7 @@ QUnit.test("eventless transition, INIT event multi transitions, CASCADING inner 
   };
   const settings = default_settings;
   const inputSequence = [
-    { "init": fsmDef.initial_extended_state },
+    { "init": fsmDef.initialExtendedState },
     { "click": { "keyB": "valueB" } },
     { "click": { "valid": true, "data": "valueC" } }
   ];
@@ -582,7 +582,7 @@ QUnit.test("shallow history transitions, INIT event CASCADING transitions", func
   const fsmDef = {
     states,
     events: [EVENT1, EVENT2, EVENT3, EVENT4],
-    initial_extended_state: { history: SHALLOW, counter: 0 },
+    initialExtendedState: { history: SHALLOW, counter: 0 },
     transitions: [
       { from: INIT_STATE, event: INIT_EVENT, to: OUTER, action: ACTION_IDENTITY },
       { from: OUTER, event: INIT_EVENT, to: OUTER_A, action: ACTION_IDENTITY },
@@ -610,7 +610,7 @@ QUnit.test("shallow history transitions, INIT event CASCADING transitions", func
   };
   const settings = default_settings;
   const inputSequence = [
-    { "init": fsmDef.initial_extended_state },
+    { "init": fsmDef.initialExtendedState },
     { [EVENT1]: {} },
     { [EVENT3]: {} },
     { [EVENT1]: {} },
@@ -641,7 +641,7 @@ QUnit.test("deep history transitions, INIT event CASCADING transitions", functio
   const fsmDef = {
     states,
     events: [EVENT1, EVENT2, EVENT3, EVENT4],
-    initial_extended_state: { history: DEEP, counter: 0 },
+    initialExtendedState: { history: DEEP, counter: 0 },
     transitions: [
       { from: INIT_STATE, event: INIT_EVENT, to: OUTER, action: ACTION_IDENTITY },
       { from: OUTER, event: INIT_EVENT, to: OUTER_A, action: ACTION_IDENTITY },
@@ -669,7 +669,7 @@ QUnit.test("deep history transitions, INIT event CASCADING transitions", functio
   };
   const settings = default_settings;
   const inputSequence = [
-    { "init": fsmDef.initial_extended_state },
+    { "init": fsmDef.initialExtendedState },
     { [EVENT1]: {} },
     { [EVENT3]: {} },
     { [EVENT1]: {} },
@@ -700,7 +700,7 @@ QUnit.test("with trace : shallow history transitions, INIT event CASCADING trans
   const fsmDef = {
     states,
     events: [EVENT1, EVENT2, EVENT3, EVENT4],
-    initial_extended_state: { history: SHALLOW, counter: 0 },
+    initialExtendedState: { history: SHALLOW, counter: 0 },
     transitions: [
       { from: INIT_STATE, event: INIT_EVENT, to: OUTER, action: ACTION_IDENTITY },
       { from: OUTER, event: INIT_EVENT, to: OUTER_A, action: ACTION_IDENTITY },
@@ -728,7 +728,7 @@ QUnit.test("with trace : shallow history transitions, INIT event CASCADING trans
   };
   const settings = default_settings;
   const inputSequence = [
-    { "init": fsmDef.initial_extended_state },
+    { "init": fsmDef.initialExtendedState },
     { [EVENT1]: {} },
     { [EVENT3]: {} },
     { [EVENT1]: {} },
@@ -1004,7 +1004,7 @@ QUnit.test("with trace : deep history transitions, INIT event CASCADING transiti
   const fsmDef = {
     states,
     events: [EVENT1, EVENT2, EVENT3, EVENT4],
-    initial_extended_state: { history: DEEP, counter: 0 },
+    initialExtendedState: { history: DEEP, counter: 0 },
     transitions: [
       { from: INIT_STATE, event: INIT_EVENT, to: OUTER, action: ACTION_IDENTITY },
       { from: OUTER, event: INIT_EVENT, to: OUTER_A, action: ACTION_IDENTITY },
@@ -1032,7 +1032,7 @@ QUnit.test("with trace : deep history transitions, INIT event CASCADING transiti
   };
   const settings = default_settings;
   const inputSequence = [
-    { "init": fsmDef.initial_extended_state },
+    { "init": fsmDef.initialExtendedState },
     { [EVENT1]: {} },
     { [EVENT3]: {} },
     { [EVENT1]: {} },
@@ -1280,7 +1280,7 @@ QUnit.test("shallow history transitions FROM INSIDE, INIT event CASCADING transi
   const fsmDef = {
     states,
     events: [EVENT1, EVENT2, EVENT3, EVENT4],
-    initial_extended_state: { history: SHALLOW, counter: 0 },
+    initialExtendedState: { history: SHALLOW, counter: 0 },
     transitions: [
       { from: INIT_STATE, event: INIT_EVENT, to: OUTER, action: ACTION_IDENTITY },
       { from: OUTER, event: INIT_EVENT, to: OUTER_A, action: ACTION_IDENTITY },
@@ -1322,7 +1322,7 @@ QUnit.test("shallow history transitions FROM INSIDE, INIT event CASCADING transi
   };
   const settings = default_settings;
   const inputSequence = [
-    { "init": fsmDef.initial_extended_state },
+    { "init": fsmDef.initialExtendedState },
     { [EVENT1]: {} },
     { [EVENT3]: {} },
     { [EVENT4]: {} },
@@ -1352,7 +1352,7 @@ QUnit.test("deep history transitions FROM INSIDE, INIT event CASCADING transitio
   const fsmDef = {
     states,
     events: [EVENT1, EVENT2, EVENT3, EVENT4],
-    initial_extended_state: { history: DEEP, counter: 0 },
+    initialExtendedState: { history: DEEP, counter: 0 },
     transitions: [
       { from: INIT_STATE, event: INIT_EVENT, to: OUTER, action: ACTION_IDENTITY },
       { from: OUTER, event: INIT_EVENT, to: OUTER_A, action: ACTION_IDENTITY },
@@ -1394,7 +1394,7 @@ QUnit.test("deep history transitions FROM INSIDE, INIT event CASCADING transitio
   };
   const settings = default_settings;
   const inputSequence = [
-    { "init": fsmDef.initial_extended_state },
+    { "init": fsmDef.initialExtendedState },
     { [EVENT1]: {} },
     { [EVENT3]: {} },
     { [EVENT4]: {} },

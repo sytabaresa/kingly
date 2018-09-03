@@ -130,7 +130,7 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
     transitions: [
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY }
     ],
-    initial_extended_state: initialExtendedState
+    initialExtendedState: initialExtendedState
   };
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
@@ -148,7 +148,7 @@ QUnit.test("INIT event, no action, false guard", function exec_test(assert) {
     transitions: [
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, guards: FALSE_GUARD(ACTION_IDENTITY, 'A')}
     ],
-    initial_extended_state: initialExtendedState
+    initialExtendedState: initialExtendedState
   };
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
@@ -164,7 +164,7 @@ QUnit.test("INIT event, no action, true guard", function exec_test(assert) {
     transitions: [
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, guards: TRUE_GUARD('A', ACTION_IDENTITY)}
     ],
-    initial_extended_state: initialExtendedState
+    initialExtendedState: initialExtendedState
   };
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
@@ -184,7 +184,7 @@ QUnit.test("INIT event, action, false guard", function exec_test(assert) {
     transitions: [
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, conditions: FALSE_GUARD(fail_if_called) }
     ],
-    initial_extended_state: initialExtendedState
+    initialExtendedState: initialExtendedState
   };
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
@@ -210,7 +210,7 @@ QUnit.test("INIT event, action, true guard", function exec_test(assert) {
         guards: TRUE_GUARD('A', spied_on_dummy_action),
       }
     ],
-    initial_extended_state: initialExtendedState
+    initialExtendedState: initialExtendedState
   };
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
@@ -242,7 +242,7 @@ QUnit.test("INIT event, 2 actions, [T,T] conditions, 1st action executed", funct
         ]
       }
     ],
-    initial_extended_state: initialExtendedState
+    initialExtendedState: initialExtendedState
   };
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
@@ -273,7 +273,7 @@ QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", funct
         ]
       }
     ],
-    initial_extended_state: initialExtendedState
+    initialExtendedState: initialExtendedState
   };
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
@@ -304,7 +304,7 @@ QUnit.test("INIT event, 2 actions, [T,F] conditions, 1st action executed", funct
         ]
       }
     ],
-    initial_extended_state: initialExtendedState
+    initialExtendedState: initialExtendedState
   };
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
@@ -335,7 +335,7 @@ QUnit.test("INIT event, 2 actions, [F,F] conditions, no action executed", functi
         ]
       }
     ],
-    initial_extended_state: initialExtendedState
+    initialExtendedState: initialExtendedState
   };
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
@@ -354,7 +354,7 @@ QUnit.test("INIT event, 2 actions with no extendedState update, NOK -> A -> B, n
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: dummy_action },
       { from: 'A', to: 'B', event: EVENT1, action: another_dummy_action },
     ],
-    initial_extended_state: initialExtendedState
+    initialExtendedState: initialExtendedState
   };
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
@@ -374,7 +374,7 @@ QUnit.test("INIT event, 2 actions with extendedState update, NOK -> A -> B, no g
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: dummy_action_with_update },
       { from: 'A', to: 'B', event: EVENT1, action: another_dummy_action_with_update },
     ],
-    initial_extended_state: initialExtendedState
+    initialExtendedState: initialExtendedState
   };
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);

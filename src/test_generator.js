@@ -36,7 +36,7 @@ export function generateTestsFromFSM(fsm, generators, settings) {
   const tracedFSM = traceFSM({}, fsm);
   const fsmStates = tracedFSM.states;
   const analyzedStates = analyzeStateTree(fsmStates);
-  const initial_extended_state = tracedFSM.initial_extended_state;
+  const initialExtendedState = tracedFSM.initialExtendedState;
 
   // associate a gen to from, event, guard index = the transition it is mapped
   // Note that we need to deal specially with edge case when edge is starting edge
@@ -83,7 +83,7 @@ export function generateTestsFromFSM(fsm, generators, settings) {
       const fsm = create_state_machine(tracedFSM, settings);
       const extendedState = inputSequence.length === 0
         // Edge case : we are in INIT_STATE, the init event has the initial extended state as event data
-        ? initial_extended_state
+        ? initialExtendedState
         // Main case : we run the sequence of inpus and
         // we take the extended state of the machine at the end of the run
         // NOTE : fsm is a traced fsm, the output returned will always be an array of length 1

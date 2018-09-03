@@ -125,7 +125,7 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
     transitions: [
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY }
     ],
-    initial_extended_state: model_initial
+    initialExtendedState: model_initial
   };
   const result = reduceTransitions(reduceFn, [], fsmDef.transitions).map(formatResult);
   assert.deepEqual(result, [
@@ -155,7 +155,7 @@ QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", funct
         ]
       }
     ],
-    initial_extended_state: model_initial
+    initialExtendedState: model_initial
   };
   const settings = default_settings;
   const result = reduceTransitions(reduceFn, [], fsmDef.transitions).map(formatResult);
@@ -194,7 +194,7 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: dummy_action_with_update },
       { from: 'A', to: 'B', event: EVENT1, action: another_dummy_action_with_update },
     ],
-    initial_extended_state: model_initial
+    initialExtendedState: model_initial
   };
   const result = reduceTransitions(reduceFn, [], fsmDef.transitions).map(formatResult);
   assert.deepEqual(result, [
@@ -232,7 +232,7 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
     transitions: [
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY }
     ],
-    initial_extended_state: model_initial
+    initialExtendedState: model_initial
   };
   const result = mapOverTransitionsActions(mapFn, fsmDef.transitions).map(formatResult);
   assert.deepEqual(result, [
@@ -257,7 +257,7 @@ QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", funct
         ]
       }
     ],
-    initial_extended_state: model_initial
+    initialExtendedState: model_initial
   };
   const result = mapOverTransitionsActions(mapFn, fsmDef.transitions)
     .map(({ event, from, guards }) => ({ event, from, guards: guards.map(formatResult) }));
@@ -291,7 +291,7 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: dummy_action_with_update },
       { from: 'A', to: 'B', event: EVENT1, action: another_dummy_action_with_update },
     ],
-    initial_extended_state: model_initial
+    initialExtendedState: model_initial
   };
   const result = mapOverTransitionsActions(mapFn, fsmDef.transitions).map(formatResult);
   assert.deepEqual(result,
@@ -320,7 +320,7 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
     transitions: [
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY }
     ],
-    initial_extended_state: model_initial
+    initialExtendedState: model_initial
   };
   const result = formatResult(convertFSMtoGraph(fsmDef));
   assert.deepEqual(result, {
@@ -361,7 +361,7 @@ QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", funct
         ]
       }
     ],
-    initial_extended_state: model_initial
+    initialExtendedState: model_initial
   };
   const result = formatResult(convertFSMtoGraph(fsmDef));
   assert.deepEqual(result, {
@@ -408,7 +408,7 @@ QUnit.test("INIT event, 2 actions with model update, NOK -> A -> B, no guards", 
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: dummy_action_with_update },
       { from: 'A', to: 'B', event: EVENT1, action: another_dummy_action_with_update },
     ],
-    initial_extended_state: model_initial
+    initialExtendedState: model_initial
   };
   const result = formatResult(convertFSMtoGraph(fsmDef));
   assert.deepEqual(result, {
@@ -461,7 +461,7 @@ QUnit.test("whth history states deep and shallow", function exec_test(assert) {
   const fsmDef = {
     states,
     events: [EVENT1, EVENT2, EVENT3, EVENT4, EVENT5],
-    initial_extended_state: { history: SHALLOW, counter: 0 },
+    initialExtendedState: { history: SHALLOW, counter: 0 },
     transitions: [
       { from: INIT_STATE, event: INIT_EVENT, to: OUTER, action: ACTION_IDENTITY },
       { from: OUTER, event: INIT_EVENT, to: OUTER_A, action: ACTION_IDENTITY },
@@ -835,7 +835,7 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
         }
       }
     ],
-    initial_extended_state: model_initial
+    initialExtendedState: model_initial
   };
   const generators = fsmDef.transitions;
   const result = formatMap(getGeneratorMapFromGeneratorMachine(generators));

@@ -153,7 +153,7 @@ export function create_state_machine(fsmDef, settings) {
     states: control_states,
     events,
     transitions,
-    initial_extended_state
+    initialExtendedState
   } = fsmDef;
   const { updateState } = settings;
 
@@ -167,7 +167,7 @@ export function create_state_machine(fsmDef, settings) {
   // outside the state machine.
   // Note the extended state is modified by the `settings.updateState` function, which should not modify
   // the extended state object. There is hence no need to do any cloning.
-  let extendedState = initial_extended_state;
+  let extendedState = initialExtendedState;
   // history maps
 
   const { stateList, stateAncestors } = computeHistoryMaps(control_states);
@@ -376,7 +376,7 @@ export function create_state_machine(fsmDef, settings) {
   }
 
   function start() {
-    return send_event({ [INIT_EVENT]: initial_extended_state });
+    return send_event({ [INIT_EVENT]: initialExtendedState });
   }
 
   return {
@@ -418,7 +418,7 @@ export function makeStreamingStateMachine(settings, fsmDef) {
     const events$ = merge(
       // Contract : the `merge` function must subscribe to its source parameters in order of appearance
       // This ensures that the init event is indeed processed always before the other events
-      [from([{ [INIT_EVENT]: fsmDef.initial_extended_state }])].concat(
+      [from([{ [INIT_EVENT]: fsmDef.initialExtendedState }])].concat(
         keys(events).map(eventLabel => {
           const eventSource$ = events[eventLabel];
 
@@ -464,7 +464,7 @@ export function makeNamedActionsFactory(namedActionSpecs) {
  * and application in question
  */
 export function decorateWithEntryActions(fsm, entryActions, mergeOutputFn) {
-  const { transitions, states, initial_extended_state, events } = fsm;
+  const { transitions, states, initialExtendedState, events } = fsm;
   const stateHashMap = getFsmStateList(states);
   const isValidEntryActions = Object.keys(entryActions).every(controlState => {
     return stateHashMap[controlState] != null;
@@ -496,7 +496,7 @@ export function decorateWithEntryActions(fsm, entryActions, mergeOutputFn) {
     });
 
     return {
-      initial_extended_state,
+      initialExtendedState,
       states,
       events,
       transitions: decoratedTransitions
@@ -569,10 +569,10 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
  * @param {FSM_Def} fsm
  */
 export function traceFSM(env, fsm) {
-  const { initial_extended_state, events, states, transitions } = fsm;
+  const { initialExtendedState, events, states, transitions } = fsm;
 
   return {
-    initial_extended_state,
+    initialExtendedState,
     events,
     states,
     transitions: mapOverTransitionsActions((action, transition, guardIndex, transitionIndex) => {
