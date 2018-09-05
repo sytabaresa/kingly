@@ -1,4 +1,4 @@
-import { constructGraph, depthFirstTraverseGraphEdges } from 'graph-adt'
+import { constructGraph, depthFirstTraverseGraphEdges } from "graph-adt"
 import { INIT_STATE } from "./properties"
 import {
   computeHistoryState, getFsmStateList, getHistoryParentState, getHistoryType, isCompoundState, isEventless,

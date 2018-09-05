@@ -46,6 +46,7 @@ export default {
       only: [
         /^fp-rosetree$/,
         /^json-patch-es6/,
+        /^graph-adt/,
       ], // Default: null
 
       // If true, inspect resolved files to check that they are
