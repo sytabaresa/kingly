@@ -1,11 +1,11 @@
 # Now
+- ROADMAP : implement iterator symbol, async iterator probably to emulate stream without stream 
+library
+! test gen for eventless transitions!!
 ! WRITE ALL CONTRACTS
   - TODO add contract for test gen : apply only to FSM for which init event sets the initial state
    in the machine
      - could ignore event data from gen corresponding to INIT_STATE??
-- CONTRACT : INIT transition cannot go to history states (because there is no history at that 
-time... and I do not want to add another if branching in my code)
-- CONTRACT : INIT transition only from compound states
 - CONTRACT : actually disallow having several guards from INIT_STATE!!
 - CONTRACT : for guards associated to (from, event), only one guard can be fulfilled!!
   - for now priority works : first guard fulfilled
@@ -48,6 +48,9 @@ time... and I do not want to add another if branching in my code)
 - README : put links for tests everywhere I put cf. tests!!
 - ROADMAP : targetless events
       // NOTE : we implemented it here by repeating the self-loop corresponding to the targetless event in all substates
+- ROADMAP : // T9. A transition to a history state must transition to the history state containing parent, if there is no history
+            // ENFORCE, NOT IMPLEMENTED TODO in ROADMAP!!! impact on test generation 
+
 - TEST : The computed outputs will be aggregated in an array of outputs.
 
 // TODO DOC : document initial state is NOK, and event init automatically fired on starting the fsm

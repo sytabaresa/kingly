@@ -1,5 +1,4 @@
-// TODO import {depthFirstTraverseGraphEdges} from 'graph-adt' uncomment whn finished
-import { constructGraph, depthFirstTraverseGraphEdges } from '../../graph-adt/src'
+import { constructGraph, depthFirstTraverseGraphEdges } from 'graph-adt'
 import { INIT_STATE } from "./properties"
 import {
   computeHistoryState, getFsmStateList, getHistoryParentState, getHistoryType, isCompoundState, isEventless,
@@ -69,7 +68,8 @@ export function generateTestsFromFSM(fsm, generators, settings) {
       controlStateSequence: [INIT_STATE],
       inputSequence: [],
       outputSequence: [],
-      noMoreInput: false
+      noMoreInput: false,
+      outputIndex: 0
     },
     visitEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
       const trueEdge = edge.compound
@@ -80,13 +80,15 @@ export function generateTestsFromFSM(fsm, generators, settings) {
       // Execute the state machine with the input sequence to get it in the matching control state
       // Note that the machine has to be recreated each time, as it is a stateful object
       const fsm = create_state_machine(tracedFSM, settings);
+      const tracedOutputs = lastOf(inputSequence.map(fsm.yield));
+      // We want the final extended state after miscellaneous updates on the transition path
       const extendedState = inputSequence.length === 0
         // Edge case : we are in INIT_STATE, the init event has the initial extended state as event data
         ? initialExtendedState
         // Main case : we run the sequence of inputs and
         // we take the extended state of the machine at the end of the run
-        // NOTE : fsm is a traced fsm, the output returned will always be an array of length 1
-        : lastOf(inputSequence.map(fsm.yield))[0].newExtendedState;
+        // lastOf(tracedOutputs) will have the result for execution of last input
+        : lastOf(tracedOutputs).newExtendedState;
 
       // The generator is mapped to the original edge from the state machine transitions, so we use trueEdge
       const gen = getGeneratorMappedTransitionFromEdge(genMap, trueEdge);
@@ -96,7 +98,7 @@ export function generateTestsFromFSM(fsm, generators, settings) {
       const _isTraversableEdge = isTraversableEdge(trueEdge, graph, pathTraversalState, graphTraversalState);
       // Visit the edge
       const { newPathTraversalState, newIsTraversableEdge } =
-        computeNewPathTraversalState(fsm, fsmStates, analyzedStates, edge, generatedInput, pathTraversalState, _isTraversableEdge);
+        computeNewPathTraversalState(fsm, fsmStates, analyzedStates, edge, generatedInput, tracedOutputs, pathTraversalState, _isTraversableEdge);
 
       return {
         pathTraversalState: newPathTraversalState,
@@ -109,15 +111,24 @@ export function generateTestsFromFSM(fsm, generators, settings) {
   return testCases
 }
 
-function computeNewPathTraversalState(fsm, fsmStates, analyzedStates, edge, genInput, pathTraversalState,
+function computeNewPathTraversalState(fsm, fsmStates, analyzedStates, edge, genInput, tracedOutputs, pathTraversalState,
                                       isTraversableEdge) {
-  const { event: eventLabel, from: controlState, to: targetControlState, history } = edge;
+  const { event: eventLabel, from: controlState } = edge;
 
-  // Then get and run the generator matching the control state, and the edge transition
-  // to get the input and output sequences
+  // .The state space to traverse is : origin state x event x target with
+  // - origin in {init state, compound, atomic}
+  // - event in {init event, eventless, eventful}
+  // - target in {history, compound, atomic}
+  // 3 x 3 x 3 cases theoretically but in fact :
+  // - 3 x 3 x 2 because targt compound = target atomic
+  // - 2 + 3 x 2 + 3 x 2 because only (init state, init event, compound) and (init state, init event, atomic)
+  // - 2 + 0 + 3 x 2 because origin compound is not possible due to previously made graph transformation
+  // - 2 + 0 + 2 x 2 because (atomic, init event, X) is not possible
+  // So actually the case space is reduced from the theoretical 27 to 6 !!
+  // .Get and run the input generator matching transition (origin state x event x target )
+  // and update input and output sequences
 
-  // TODO : restructure the if, with comments first then code
-  // Case 1 : control state is INIT_STATE and event is INIT_EVENT
+  // Case 1 : origin control state is INIT_STATE and event is INIT_EVENT
   // Reminder : in INIT_STATE, the only event admissible is INIT_EVENT
   if (isInitState(controlState) && !isInitEvent(eventLabel)) {
     throw `computeNewPathTraversalState : cannot be in INIT_STATE and receive another event than INIT_EVENT! Check your fsm configuration!`
@@ -128,41 +139,32 @@ function computeNewPathTraversalState(fsm, fsmStates, analyzedStates, edge, genI
   }
   // Case 3 : the init event is automatically and internally sent by the state machine : no need to generate inputs!
   else if (!isInitState(controlState) && isInitEvent(eventLabel)) {
-    return computeGeneratedInfoDoNothingCase(fsm, edge, isTraversableEdge, genInput, pathTraversalState)
+    return computeGeneratedInfoDoNothingCase(edge, pathTraversalState)
   }
-  // Case 4 : main case
   else if (!isInitState(controlState) && !isInitEvent(eventLabel)) {
-    // Edge case 4.0: controlState is a compound state -> this cannot happen per the way the graph is constructed :
-    // Origin compound states A = [A1, A2, A3], with A -ev> X are broken down in [A1 -ev> X, A2 -ev>X...], if ev != INIT
-    if (isCompoundState(analyzedStates, controlState)) {
-      return computeRejectCase(fsm, edge, isTraversableEdge, genInput, pathTraversalState)
-    }
-    // Case 4.1 : if eventless transition, the machine progress automatically,
+    // Case 4 : if eventless transition, the machine progress automatically,
     // so we have no input to generate to trigger a transition!
-    else if (isEventless(eventLabel)) {
-      return computeGeneratedInfoDoNothingCase(fsm, edge, isTraversableEdge, genInput, pathTraversalState)
+    if (isEventless(eventLabel)) {
+      return computeGeneratedInfoEventlessCase(edge, tracedOutputs, isTraversableEdge, pathTraversalState)
     }
-    // Case 4.2 : if history transition, input generation is depending on the actual history so far
+    // Case 5 : if history transition, input generation is depending on the actual history so far
     else if (isHistoryStateEdge(edge)) {
       return computeGeneratedInfoHistoryStateCase(fsm, fsmStates, edge, isTraversableEdge, genInput, pathTraversalState)
     }
-    // general case 4,3 : not init state, not init event, not eventless, not history transition
+    // general case 6 : not init state, not init event, not eventless, not history transition
+    // i.e. normal state, normal event, normal transition (a compound or atomic target state are similar vs. test
+    // generation)
+    // So origin in {init, compound, atomic} x event in {init, eventless, eventful} x target in {history,
+    // compound, atomic}
     else {
       return computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, genInput, pathTraversalState)
     }
   }
 }
 
-function computeRejectCase(fsm, edge, isTraversableEdge, genInput, pathTraversalState) {
-  return {
-    newIsTraversableEdge: false,
-    newPathTraversalState: pathTraversalState
-  }
-}
-
-function computeGeneratedInfoDoNothingCase(fsm, edge, isTraversableEdge, genInput, pathTraversalState) {
+function computeGeneratedInfoDoNothingCase(edge, pathTraversalState) {
   const { to: targetControlState } = edge;
-  const { path, inputSequence, outputSequence, controlStateSequence } = pathTraversalState;
+  const { path, inputSequence, outputSequence, controlStateSequence, outputIndex } = pathTraversalState;
 
   return {
     newIsTraversableEdge: true,
@@ -171,7 +173,35 @@ function computeGeneratedInfoDoNothingCase(fsm, edge, isTraversableEdge, genInpu
       // NOTE: reminder : intermediary states do not output! so no output to aggregate here
       outputSequence,
       controlStateSequence: controlStateSequence.concat([targetControlState]),
-      path: path.concat([edge])
+      path: path.concat([edge]),
+      outputIndex
+    }
+  }
+}
+
+function computeGeneratedInfoEventlessCase(edge, tracedOutputs, isTraversableEdge, pathTraversalState) {
+  const { to: targetControlState, predicate } = edge;
+  const { path, inputSequence, outputSequence, controlStateSequence, outputIndex } = pathTraversalState;
+  // We want the updated extended state, and the resulting output, so +1
+  const { extendedState, outputs } = tracedOutputs[outputIndex+1];
+  const isGuardFulfilled = !predicate || predicate(extendedState);
+
+  if (!isGuardFulfilled) {
+    return {
+      newIsTraversableEdge: false,
+      newPathTraversalState: pathTraversalState
+    }
+  }
+  else {
+    return {
+      newIsTraversableEdge: isTraversableEdge,
+      newPathTraversalState: {
+        inputSequence,
+        outputSequence: outputSequence.concat(outputs),
+        controlStateSequence: controlStateSequence.concat([targetControlState]),
+        path: path.concat([edge]),
+        outputIndex : outputIndex + 1
+      }
     }
   }
 }
@@ -195,7 +225,7 @@ function computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, genInput, pa
   else {
     const newInput = { [eventLabel]: newInputData };
     newInputSequence = inputSequence.concat([newInput]);
-    // NOTE : the fsm is a traced one. That means it will always return as output an array with exactly one item!
+    // NOTE : fsm will always return as output an array with exactly one item in the base case!
     const newOutput = fsm.yield(newInput)[0];
     // NOTE : finalControlState is the control state at the end of the associated automatic transitions, if any
     // A -INIT> B -INIT> C ; edge : [A -INIT> B] => finalControlState = C, targetControlState = B
@@ -212,7 +242,8 @@ function computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, genInput, pa
       inputSequence: newInputSequence,
       outputSequence: newOutputSequence,
       controlStateSequence: newControlStateSequence,
-      path: newPath
+      path: newPath,
+      outputIndex :0
     }
   }
 }

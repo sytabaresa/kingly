@@ -43,6 +43,11 @@ const initialExtendedState = {
   a_key: a_value,
   another_key: another_value
 };
+const A = 'A';
+const B = 'B';
+const C = 'C';
+const D = 'D';
+const E = 'E';
 const EVENT1 = 'event1';
 const EVENT2 = 'event2';
 const EVENT3 = 'event3';
@@ -346,9 +351,55 @@ function setReviewedAndOuput(extendedState, eventData) {
   }
 }
 
+
 const dummyB = { keyB: 'valueB' };
 const dummyCv = { valid: true, data: 'valueC' };
 const dummyCi = { valid: false, data: 'invalid key for C' };
+
+function setSwitch() {
+  return {
+    updates: [{ op: 'add', path: '/switch', value: true }],
+    outputs: NO_OUTPUT
+  }
+}
+
+function unsetSwitch() {
+  return {
+    updates: [{ op: 'add', path: '/switch', value: false }],
+    outputs: NO_OUTPUT
+  }
+}
+
+function incC(extS) {
+  const c = extS.c;
+  return {
+    updates: [{ op: 'add', path: '/c', value: c + 1 }],
+    outputs: NO_OUTPUT
+  }
+}
+
+function incB(extS) {
+  const b = extS.b;
+  return {
+    updates: [{ op: 'add', path: '/b', value: b + 1 }],
+    outputs: NO_OUTPUT
+  }
+}
+
+function outputState(extS) {
+  return {
+    updates: [],
+    outputs: [extS]
+  }
+}
+
+function isSetSwitch(extS) {
+  return extS.switch
+}
+
+function isNotSetSwitch(extS) {
+  return !extS.switch
+}
 
 // NOTE : graph for fsm is in /test/assets
 QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions", function exec_test(assert) {
@@ -1064,7 +1115,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
 
 // NOTE : this is a state machine with the same semantics as the first test, only that we have extra eventless
 // transition
-QUnit.test("eventless transitions, inner INIT event transitions, loops", function exec_test(assert) {
+QUnit.test("eventless transitions no guards, inner INIT event transitions, loops", function exec_test(assert) {
   const CLICK = 'click';
   const REVIEW_A = 'reviewA';
   const REVIEW_B = 'reviewB';
@@ -1234,36 +1285,78 @@ QUnit.test("eventless transitions, inner INIT event transitions, loops", functio
   ], `...`);
   assert.deepEqual(formattedResults.map(x => x.outputSequence), [
     [
-      NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, {
-      "b": { "keyB": "valueB" },
-      "c": { "data": "valueC", "error": null },
-      "reviewed": true,
-      "switch": true
-    }
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      {
+        "b": {
+          "keyB": "valueB"
+        },
+        "c": {
+          "data": "valueC",
+          "error": null
+        },
+        "reviewed": true,
+        "switch": true
+      }
     ],
     [
-      NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, {
-      "b": { "keyB": "valueB" },
-      "c": { "data": "valueC", "error": null },
-      "reviewed": false,
-      "switch": true
-    }
+      null,
+      null,
+      null,
+      null,
+      {
+        "b": {
+          "keyB": "valueB"
+        },
+        "c": {
+          "data": "valueC",
+          "error": null
+        },
+        "reviewed": false,
+        "switch": true
+      }
     ],
     [
-      NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, {
-      "b": { "keyB": "valueB" },
-      "c": { "data": "valueC", "error": null },
-      "reviewed": true,
-      "switch": true
-    }
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      {
+        "b": {
+          "keyB": "valueB"
+        },
+        "c": {
+          "data": "valueC",
+          "error": null
+        },
+        "reviewed": true,
+        "switch": true
+      }
     ],
     [
-      NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, {
-      "b": { "keyB": "valueB" },
-      "c": { "data": "valueC", "error": null },
-      "reviewed": false,
-      "switch": true
-    }
+      null,
+      null,
+      null,
+      null,
+      null,
+      {
+        "b": {
+          "keyB": "valueB"
+        },
+        "c": {
+          "data": "valueC",
+          "error": null
+        },
+        "reviewed": false,
+        "switch": true
+      }
     ]
   ], `...`);
 });
@@ -1990,5 +2083,101 @@ QUnit.test("shallow history transitions, INIT event CASCADING transitions, compo
     [null, null, 0, null, null, 1, null, null, null],
     [null, null, 0, null, null, 1, null, null],
     [null, null, 0, null, null, 1, null]
+  ], `...`);
+});
+
+QUnit.test("eventless x atomic transitions", function exec_test(assert) {
+  const states = { [A]: '', [B]: '', [C]: '', [D]: '', [E]: '' };
+  const fsmDef = {
+    states,
+    events: [EVENT1, EVENT2],
+    initialExtendedState: { switch: false, b: 0, c: 0 },
+    transitions: [
+      { from: INIT_STATE, event: INIT_EVENT, to: A, action: setSwitch },
+      {
+        from: A, guards: [
+          { predicate: isSetSwitch, to: C, action: incC },
+          { predicate: isNotSetSwitch, to: B, action: incB },
+        ]
+      },
+      { from: C, event: EVENT1, to: D, action: ACTION_IDENTITY },
+      { from: B, event: EVENT2, to: D, action: ACTION_IDENTITY },
+      {
+        from: D, guards: [
+          { predicate: isSetSwitch, to: A, action: unsetSwitch },
+          { predicate: isNotSetSwitch, to: E, action: outputState },
+        ]
+      },
+    ],
+  };
+  const genFsmDef = {
+    transitions: [
+      {
+        from: INIT_STATE,
+        event: INIT_EVENT,
+        to: A,
+        gen: function genINITtoA(extS) {return { input: extS, hasGeneratedInput: true } }
+      },
+      {
+        from: A, guards: [
+          { predicate: isSetSwitch, to: C },
+          { predicate: isNotSetSwitch, to: B },
+        ]
+      },
+      { from: C, event: EVENT1, to: D, gen: function genCtoD(extS) {return { input: null, hasGeneratedInput: true } } },
+      { from: B, event: EVENT2, to: D, gen: function genBtoD(extS) {return { input: null, hasGeneratedInput: true } } },
+      {
+        from: D, guards: [
+          { predicate: isSetSwitch, to: A },
+          { predicate: isNotSetSwitch, to: E },
+        ]
+      },
+    ],
+  };
+  const generators = genFsmDef.transitions;
+  const maxNumberOfTraversals = 1;
+  const target = E;
+  /** @type SearchSpecs*/
+  const strategy = {
+    isTraversableEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
+      return computeTimesCircledOn(pathTraversalState.path, edge) < (maxNumberOfTraversals || 1)
+    },
+    isGoalReached: (edge, graph, pathTraversalState, graphTraversalState) => {
+      const { getEdgeTarget, getEdgeOrigin } = graph;
+      const lastPathVertex = getEdgeTarget(edge);
+      // Edge case : accounting for initial vertex
+      const vertexOrigin = getEdgeOrigin(edge);
+
+      const isGoalReached = vertexOrigin ? lastPathVertex === target : false;
+      return isGoalReached
+    },
+  };
+  const settings = merge(default_settings, { strategy });
+  const results = generateTestsFromFSM(fsmDef, generators, settings);
+  const formattedResults = results.map(formatResult);
+  assert.deepEqual(formattedResults.map(x => x.controlStateSequence), [
+    ["nok", "A", "C", "D", "A", "B", "D", "E"]
+  ], `...`);
+  assert.deepEqual(formattedResults.map(x => x.inputSequence), [
+    [
+      { "init": { "b": 0, "c": 0, "switch": false } },
+      { "event1": null },
+      { "event2": null }
+    ]
+  ], `...`);
+  assert.deepEqual(formattedResults.map(x => x.outputSequence), [
+    [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      {
+        "b": 1,
+        "c": 1,
+        "switch": false
+      }
+    ]
   ], `...`);
 });

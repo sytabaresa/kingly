@@ -22,6 +22,11 @@ const default_settings = {
   of: $.of,
 };
 
+const A = 'A';
+const B = 'B';
+const C = 'C';
+const D = 'D';
+const E = 'E';
 const EVENT1 = 'event1';
 const EVENT2 = 'event2';
 const EVENT3 = 'event3';
@@ -33,17 +38,17 @@ const SHALLOW = 'shallow';
 
 /**
  *
- * @param {FSM_Model} model
- * @param {Operation[]} modelUpdateOperations
+ * @param {FSM_Model} extendedState
+ * @param {Operation[]} operations
  * @returns {FSM_Model}
  */
-function applyJSONpatch(model, modelUpdateOperations) {
-  assertContract(isArrayUpdateOperations, [modelUpdateOperations],
+function applyJSONpatch(extendedState, operations) {
+  assertContract(isArrayUpdateOperations, [operations],
     `applyUpdateOperations : ${CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE}`);
 
   // NOTE : we don't validate operations, to avoid throwing errors when for instance the value property for an
   // `add` JSON operation is `undefined` ; and of course we don't mutate the document in place
-  return applyPatch(model, modelUpdateOperations, false, false).newDocument;
+  return applyPatch(extendedState, operations, false, false).newDocument;
 }
 
 function incCounter(extS, eventData) {
@@ -108,6 +113,51 @@ function setReviewedAndOuput(extendedState, eventData) {
     ],
     outputs: extendedState
   }
+}
+
+function setSwitch() {
+  return {
+    updates: [{ op: 'add', path: '/switch', value: true }],
+    outputs: NO_OUTPUT
+  }
+}
+
+function unsetSwitch() {
+  return {
+    updates: [{ op: 'add', path: '/switch', value: false }],
+    outputs: NO_OUTPUT
+  }
+}
+
+function incC(extS) {
+  const c = extS.c;
+  return {
+    updates: [{ op: 'add', path: '/c', value: c + 1 }],
+    outputs: NO_OUTPUT
+  }
+}
+
+function incB(extS) {
+  const b = extS.b;
+  return {
+    updates: [{ op: 'add', path: '/b', value: b + 1 }],
+    outputs: NO_OUTPUT
+  }
+}
+
+function outputState(extS){
+return {
+  updates : [],
+  outputs : [extS]
+}
+}
+
+function isSetSwitch(extS) {
+  return extS.switch
+}
+
+function isNotSetSwitch(extS) {
+  return !extS.switch
 }
 
 QUnit.module("Testing hierarchy features", {});
@@ -1407,5 +1457,59 @@ QUnit.test("deep history transitions FROM INSIDE, INIT event CASCADING transitio
     [NO_OUTPUT, NO_OUTPUT],
     NO_OUTPUT,
     [0]
+  ], `eventless transitions are correctly taken`);
+});
+
+QUnit.test("eventless x atomic transitions", function exec_test(assert) {
+  const states = { [A]: '', [B]: '', [C]: '', [D]: '', [E]: '' };
+  const fsmDef = {
+    states,
+    events: [EVENT1, EVENT2],
+    initialExtendedState: { switch: false, b: 0, c: 0 },
+    transitions: [
+      { from: INIT_STATE, event: INIT_EVENT, to: A, action: setSwitch },
+      {
+        from: A, guards: [
+          { predicate: isSetSwitch, to: C, action: incC },
+          { predicate: isNotSetSwitch, to: B, action: incB },
+        ]
+      },
+      { from: C, event: EVENT1, to: D, action: ACTION_IDENTITY },
+      { from: B, event: EVENT2, to: D, action: ACTION_IDENTITY },
+      {
+        from: D, guards: [
+          { predicate: isSetSwitch, to: A, action: unsetSwitch},
+          { predicate: isNotSetSwitch, to: E, action: outputState},
+        ]
+      },
+    ],
+  };
+  const settings = default_settings;
+  const inputSequence = [
+    { "init": fsmDef.initialExtendedState },
+    { [EVENT1]: {} },
+    { [EVENT2]: {} },
+  ];
+  const fsm = create_state_machine(fsmDef, settings);
+  const outputSequence = inputSequence.map(fsm.yield);
+  const formattedResults = outputSequence.map(output => output && output.map(formatResult));
+  assert.deepEqual(formattedResults, [
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      {
+        "b": 1,
+        "c": 1,
+        "switch": false
+      }
+    ]
   ], `eventless transitions are correctly taken`);
 });
