@@ -1,7 +1,6 @@
 # Now
 - ROADMAP : implement iterator symbol, async iterator probably to emulate stream without stream 
 library
-! test gen for eventless transitions!!
 ! WRITE ALL CONTRACTS
   - TODO add contract for test gen : apply only to FSM for which init event sets the initial state
    in the machine
