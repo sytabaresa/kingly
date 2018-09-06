@@ -50,8 +50,6 @@ library
 - ROADMAP : // T9. A transition to a history state must transition to the history state containing parent, if there is no history
             // ENFORCE, NOT IMPLEMENTED TODO in ROADMAP!!! impact on test generation 
 
-- TEST : The computed outputs will be aggregated in an array of outputs.
-
 // TODO DOC : document initial state is NOK, and event init automatically fired on starting the fsm
 // no hierarchy : TODO : add tests for when event passed in not in state machine
 

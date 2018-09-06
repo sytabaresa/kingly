@@ -473,27 +473,21 @@ export function decorateWithEntryActions(fsm, entryActions, mergeOutputFn) {
   if (!isValidEntryActions) {
     throw `decorateWithEntryActions : found control states for which entry actions are defined, and yet do not exist in the state machine!`;
   } else {
-    // TODO : use mapOverActionTransition helper
-    const decoratedTransitions = transitions.map(transitionRecord => {
-      const { from, event, guards } = transitionRecord;
+    const decoratedTransitions = mapOverTransitionsActions((action, transition, guardIndex, transitionIndex)=>{
+      const { from, event, to, predicate } = transition;
+      const entryAction = entryActions[to];
+      const decoratedAction = entryAction
+        ? decorateWithExitAction(action, entryAction, mergeOutputFn)
+        : action;
 
       return {
         from,
         event,
-        guards: guards.map(transitionGuard => {
-          const { predicate, to, action } = transitionGuard;
-          const entryAction = entryActions[to];
-
-          return {
-            predicate,
-            to,
-            action: entryAction
-              ? decorateWithExitAction(action, entryAction, mergeOutputFn)
-              : action
-          };
-        })
-      };
-    });
+        predicate,
+        to,
+        action : decoratedAction
+      }
+    },transitions);
 
     return {
       initialExtendedState,
