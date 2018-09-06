@@ -474,19 +474,13 @@ export function decorateWithEntryActions(fsm, entryActions, mergeOutputFn) {
     throw `decorateWithEntryActions : found control states for which entry actions are defined, and yet do not exist in the state machine!`;
   } else {
     const decoratedTransitions = mapOverTransitionsActions((action, transition, guardIndex, transitionIndex)=>{
-      const { from, event, to, predicate } = transition;
+      const { to } = transition;
       const entryAction = entryActions[to];
       const decoratedAction = entryAction
         ? decorateWithExitAction(action, entryAction, mergeOutputFn)
         : action;
 
-      return {
-        from,
-        event,
-        predicate,
-        to,
-        action : decoratedAction
-      }
+      return decoratedAction
     },transitions);
 
     return {
