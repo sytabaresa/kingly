@@ -56,7 +56,7 @@ export function generateTestsFromFSM(fsm, generators, settings) {
         : results;
       const newGraphTraversalState = { results: newResults };
 
-      onResult(newResults);
+      if (bIsGoalReached) onResult(newResults);
 
       return {
         isGoalReached: bIsGoalReached,
@@ -185,7 +185,7 @@ function computeGeneratedInfoEventlessCase(edge, tracedOutputs, isTraversableEdg
   const { to: targetControlState, predicate } = edge;
   const { path, inputSequence, outputSequence, controlStateSequence, outputIndex } = pathTraversalState;
   // We want the updated extended state, and the resulting output, so +1
-  const { extendedState, outputs } = tracedOutputs[outputIndex+1];
+  const { extendedState, outputs } = tracedOutputs[outputIndex + 1];
   const isGuardFulfilled = !predicate || predicate(extendedState);
 
   if (!isGuardFulfilled) {
@@ -202,7 +202,7 @@ function computeGeneratedInfoEventlessCase(edge, tracedOutputs, isTraversableEdg
         outputSequence: outputSequence.concat(outputs),
         controlStateSequence: controlStateSequence.concat([targetControlState]),
         path: path.concat([edge]),
-        outputIndex : outputIndex + 1
+        outputIndex: outputIndex + 1
       }
     }
   }
@@ -245,7 +245,7 @@ function computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, genInput, pa
       outputSequence: newOutputSequence,
       controlStateSequence: newControlStateSequence,
       path: newPath,
-      outputIndex :0
+      outputIndex: 0
     }
   }
 }
