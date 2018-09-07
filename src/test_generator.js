@@ -36,7 +36,7 @@ export function generateTestsFromFSM(fsm, generators, settings) {
   const fsmStates = tracedFSM.states;
   const analyzedStates = analyzeStateTree(fsmStates);
   const initialExtendedState = tracedFSM.initialExtendedState;
-  const { strategy: { isGoalReached, isTraversableEdge } } = settings;
+  const { strategy: { isGoalReached, isTraversableEdge }, onResult } = settings;
 
   // Associate a gen to (from, event, guard index) = the transition it is mapped
   const genMap = getGeneratorMapFromGeneratorMachine(generators);
@@ -55,6 +55,8 @@ export function generateTestsFromFSM(fsm, generators, settings) {
         ? results.concat([{ inputSequence, outputSequence, controlStateSequence }])
         : results;
       const newGraphTraversalState = { results: newResults };
+
+      onResult(newResults);
 
       return {
         isGoalReached: bIsGoalReached,
