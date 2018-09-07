@@ -211,7 +211,6 @@ export function create_state_machine(fsmDef, settings) {
     }
 
     console.log("This is transition for event:", event);
-    console.log("Predicates:", arr_predicate);
 
     from_proto[event] = arr_predicate.reduce(
       function (acc, guard, index) {
@@ -219,7 +218,6 @@ export function create_state_machine(fsmDef, settings) {
         if (!action) {
           action = ACTION_IDENTITY
         }
-        console.log("Guard:", guard);
         const condition_checking_fn = (function (guard, settings) {
           let condition_suffix = "";
           // We add the `current_state` because the current state might be different from the `from`
@@ -237,7 +235,6 @@ export function create_state_machine(fsmDef, settings) {
             if (!predicate || predicate(extendedState_, event_data, settings)) {
               // CASE : guard for transition is fulfilled so we can execute the actions...
               console.info("IN STATE ", from);
-              console.info("WITH extendedState, event data, settings BEING ", extendedState_, event_data, settings);
               console.info("CASE : " + (predicate ? "guard " + predicate.name + "for transition is fulfilled" : "automatic transition"));
               // CASE : we do have some actions to execute
               console.info("THEN : we execute the action " + action.name);
@@ -250,8 +247,6 @@ export function create_state_machine(fsmDef, settings) {
 
               // Update the extendedState before entering the next state
               extendedState = updateState(extendedState_, actionResult.updates);
-              console.info("RESULTING IN UPDATED MODEL : ", extendedState);
-              console.info("RESULTING IN OUTPUT : ", actionResult.outputs);
 
               // ...and enter the next state (can be different from to if we have nesting state group)
               const next_state = enter_next_state(to, actionResult.updates, hash_states);
@@ -261,7 +256,6 @@ export function create_state_machine(fsmDef, settings) {
               // chaining guard
             } else {
               // CASE : guard for transition is not fulfilled
-              console.log("CASE : " + (predicate ? "guard " + predicate.name + " for transition NOT fulfilled..." : "no predicate"));
               return { stop: false, outputs: NO_OUTPUT };
             }
           };
@@ -300,7 +294,6 @@ export function create_state_machine(fsmDef, settings) {
   }
 
   function process_event(hash_states, event, event_data, extendedState) {
-    console.log("Processing event ", event, event_data);
     const current_state = hash_states[INIT_STATE].current_state_name;
     const event_handler = hash_states[current_state][event];
 
