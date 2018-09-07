@@ -1,4 +1,10 @@
 # Now
+- README.md state-transducer add simple example to show FSM_Def, for now only the types are there, 
+not enough!!
+- there can be error when generating the inputs!! typically when it is done wrong, and th 
+emachine is not in sync with the gen. Should identify that early and return a warning? Generally 
+error is ...[0] is undefined. That means an event was sent and could not be handleed by the state
+ machine 
 - ROADMAP : implement iterator symbol, async iterator probably to emulate stream without stream 
 library
 ! WRITE ALL CONTRACTS

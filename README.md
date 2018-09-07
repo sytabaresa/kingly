@@ -846,7 +846,7 @@ Automated visualization works well with simple graphs, but seems to encounter tr
 # Roadmap
 - [x] add entry actions
 - [x] [online visualizer](https://github.com/brucou/state-transducer-visualizer)
-- [ ] remove dependency on json patch and allow customization of the state update library
+- [x] remove dependency on json patch and allow customization of the state update library
 - [ ] add exit actions
 - [x] add tracing/debugging support
-- [~] support [model-based testing, and test input generation](https://pdfs.semanticscholar.org/f8e6/b3019c0d5422f35d2d98c242f149184992a3.pdf) 
+- [x] support [model-based testing, and test input generation](https://pdfs.semanticscholar.org/f8e6/b3019c0d5422f35d2d98c242f149184992a3.pdf) 

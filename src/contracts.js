@@ -194,6 +194,12 @@ const noDuplicatedStates = {
 // TODO : I am here, and later complete with contracts in TODO
 // TODO : impl. have a select function per section which will pass preprocessed parameters (for instance
 // preprocessed sate object, so I don't recompute everytime
+// B7. There is only one 'dead' state, the final state. Any other state should feature transitions which progress
+// the state machine.
+// NOT ENFORCED
+// B8. It is possible to reach any states
+// NOT ENFORCED
+
 
 // Settings
 // S1. `settings.updateState` must be a pure function
