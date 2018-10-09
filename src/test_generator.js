@@ -25,10 +25,9 @@ const graphSettings = {
  * @param {FSM_Def} fsm Machine modelizing the system under test
  * @param {FSM_Gen_Def} generators
  * @param {{ strategy: { isGoalReached : SearchPredicate, isTraversableEdge : SearchPredicate} }} settings
- * `isTraversableEdge` tells us
- * whether to
- * continue the graph exploration. `isGoalReached` tells us when to aggregate results
- * @returns {*}
+ * `isTraversableEdge` tells us whether to continue the graph exploration. `isGoalReached` tells us when to
+ * aggregate results
+ * @returns {Array<{inputSequence, outputSequence, controlStateSequence}>}
  */
 export function generateTestsFromFSM(fsm, generators, settings) {
   const startingVertex = INIT_STATE;
