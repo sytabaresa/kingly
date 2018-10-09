@@ -1,12 +1,15 @@
 # Now
+- ROADMAP : DSL with parser (check my gmail) like http://blog.efftinge
+.de/2012/05/implementing-fowlers-state-machine-dsl.html so I can convert to it and back for 
+drawing and debugging?
 - README.md state-transducer add simple example to show FSM_Def, for now only the types are there, 
 not enough!!
 - there can be error when generating the inputs!! typically when it is done wrong, and th 
 emachine is not in sync with the gen. Should identify that early and return a warning? Generally 
 error is ...[0] is undefined. That means an event was sent and could not be handleed by the state
  machine 
-- ROADMAP : implement iterator symbol, async iterator probably to emulate stream without stream 
-library
+- input generation
+  - write DOC
 ! WRITE ALL CONTRACTS
   - TODO add contract for test gen : apply only to FSM for which init event sets the initial state
    in the machine
@@ -25,6 +28,11 @@ library
      - if that is the case, the test input generation will work
      - but not the implementation which does not forward event!! 
    - note this is a generalization of from1 = from 2 mentioned previously
+- visualization
+  - try the visualizer with the examples in tests
+- make visualizer work for history states too!!
+- README : put links for tests everywhere I put cf. tests!!
+- ROADMAP : add the super test from quantum leaps for hierarchy specs
 - ROADMAP : allow event forwarding : THAT IS A REWRITE, good thing tests are already there
   - that requires getting rid of prototypes and make a list of transitions for each (from, event)
   - when done, graph transformation does not change 
@@ -44,20 +52,15 @@ library
     - could be important in that case to memoize the guard, as we might repeat them often. 
     Extended state is immutable so should be practical. Impose settings immutable, and eventData 
     immutable and we are good
-- input generation
-  - write DOC
-- visualization
-  - try the visualizer with the examples in tests
-- add the super test from quantum leaps for hierarchy specs
-- make visualizer work for history states too!!
-- README : put links for tests everywhere I put cf. tests!!
+- ROADMAP : implement iterator symbol, async iterator probably to emulate stream without stream 
+library
 - ROADMAP : targetless events
       // NOTE : we implemented it here by repeating the self-loop corresponding to the targetless event in all substates
 - ROADMAP : // T9. A transition to a history state must transition to the history state containing parent, if there is no history
             // ENFORCE, NOT IMPLEMENTED TODO in ROADMAP!!! impact on test generation 
 
-// TODO DOC : document initial state is NOK, and event init automatically fired on starting the fsm
-// no hierarchy : TODO : add tests for when event passed in not in state machine
+- TODO DOC : document initial state is NOK, and event init automatically fired on starting the fsm
+- no hierarchy : TODO : add tests for when event passed in not in state machine
 
 - would be great to have a query language to select input sequences from the generated set
   - for instance includes a cycle

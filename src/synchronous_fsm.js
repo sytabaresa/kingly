@@ -237,7 +237,7 @@ export function create_state_machine(fsmDef, settings) {
               console.info("IN STATE ", from);
               console.info("CASE : " + (predicate ? "guard " + predicate.name + "for transition is fulfilled" : "automatic transition"));
               // CASE : we do have some actions to execute
-              console.info("THEN : we execute the action " + action.name);
+              console.info("THEN : we execute the action " + (action.name || action.displayName) );
               // NOTE : in a further extension, passing the fsm and the events object could help
               // in implementing asynchronous fsm
               const actionResult = action(extendedState_, event_data, settings);

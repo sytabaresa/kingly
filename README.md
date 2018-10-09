@@ -477,6 +477,7 @@ the transducer by call of the exposed `yield` method
 
 - Starting the machine (`.start()`) triggers the reserved `INIT` event which advances the state 
 machine out of the initial control state towards the relevant user-configured control state
+  - note that the `INIT` event carries the initial extended state as data
 - **1**
 - Search for a feasible transition in the configured transitions
 - If there is no feasible transition :
@@ -561,12 +562,14 @@ must be one)
 
 - state names must be unique and conform to the same nomenclature than javascript variable 
 identifiers (cannot be empty strings, cannot start with a number, etc.)
-- the first event processed by the state machine must be the init event
-- the state machine starts in the initial state
 - all transitions must be valid :
   - all states referenced in the `transitions` data structure must be defined in the `states` data 
   structure
   - the transition syntax must be followed (cf. types)
+- the first event processed by the state machine must be the init event
+- the init event has the initial extended state as event data
+- the state machine starts in the initial state
+- there are no incoming transitions to the initial state
 - The machine cannot stay blocked in the initial control state. This means that at least one 
 transition must be configured and be executed between the initial control state and another state
 .   This is turn means :
@@ -601,7 +604,7 @@ state machine
   - NO_OUTPUT must be used to indicate the absence of outputs
 - there cannot be two transitions with the same `(from, event, predicate)` - sameness defined for
  predicate by referential equality
- 
+
  
 ## `create_state_machine :: FSM_Def -> Settings -> FSM`
 ### Description
@@ -799,25 +802,29 @@ modifying the state chart library (open/closed principle):
 - entry and exit actions
   - decorating action factories (cf. the [multi-step workflow demo repo](https://github.com/brucou/cycle-state-machine-demo))
 - logging/tracing/monitoring
-  - decorating guards and action factories can allow
+  - achieved through decorating both guards and action factories
 - contract checking (preconditions, postconditions and probably invariants - to be investigated) 
 for both states and transitions
-  - can be done by inserting in first position extra guards which are always failed and 
+  - can be done by inserting in first position extra guards which either fail or throw, and 
   decorating exising guards
-  
-Note that these extensions more often than not would perform effects (logs, ...), meaning that the 
-order of application becomes significant in general. This is to be investigated further at a later point. 
+- starting with a specific control state and extended state
+  - can be achieved by modifying the `INIT` transition (by contract there is exactly one such 
+  transition) and the `initial_extended_state`; and leaving everything else intact
 
-Equipped with a history of inputs and the corresponding outputs, it is also possible to do 
-property-based testing (for instance checking that a pattern in a sequence of outputs occurs only 
+Note that these extensions more often than not would perform effects (logs, ...), meaning that the 
+order of application becomes significant in general. The practical consequences of this are to be 
+investigated further at a later point. 
+
+Equipped with a history of inputs and the corresponding history of outputs, it is also possible to
+ do property-based testing (for instance checking that a pattern in a sequence of outputs occurs only 
 when a pattern occurs in the matching sequence of inputs).
 
 These extensions are useful to check/test the **design** of the automata, i.e. checking that the 
-automata which acts as modelization of requirements indeed satisfy the requirements. When 
+automata which acts as modelization of requirements indeed satisfies the requirements. When 
 sufficient confidence is acquired, those extensions can be safely removed.
 
 # Tests
-Automated tests are close to completion. Most tests have been run manually. To run the 
+Automated tests are close to completion. Contracts are so far not enforced. To run the 
 current automated tests, type in a terminal : `npm run test`
 
 # Visualization tools
@@ -844,9 +851,12 @@ Automated visualization works well with simple graphs, but seems to encounter tr
 - [A method for testing and validating executable statechart models](https://link.springer.com/article/10.1007/s10270-018-0676-3)
 
 # Roadmap
-- [x] add entry actions
 - [x] [online visualizer](https://github.com/brucou/state-transducer-visualizer)
 - [x] remove dependency on json patch and allow customization of the state update library
-- [ ] add exit actions
 - [x] add tracing/debugging support
+- [x] add entry actions
+- [ ] add exit actions
 - [x] support [model-based testing, and test input generation](https://pdfs.semanticscholar.org/f8e6/b3019c0d5422f35d2d98c242f149184992a3.pdf) 
+- [ ] include initial history state as a part of initial extended state (this allows to recreate 
+a state machine from its full state : control state, extended state, history state), which opens 
+the way to serialization/de-serialization )

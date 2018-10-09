@@ -77,6 +77,8 @@ export function generateTestsFromFSM(fsm, generators, settings) {
       const trueEdge = edge.compound
         ? merge(edge, { from: edge.compound })
         : edge;
+      // TODO : performance improvement : put extendedState computation inside each case, so I always compute it
+      // only if necessary
       // NOTE : edge is a transition of the state machine
       const { inputSequence } = pathTraversalState;
       // Execute the state machine with the input sequence to get it in the matching control state
@@ -209,6 +211,7 @@ function computeGeneratedInfoEventlessCase(edge, tracedOutputs, isTraversableEdg
 }
 
 function computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, genInput, pathTraversalState) {
+  // TODO : performance improvment : if !isTraversableEdge then return immediately, no need to compute stuff
   const { event: eventLabel, from: controlState, to: targetControlState } = edge;
   const { path, inputSequence, outputSequence, controlStateSequence } = pathTraversalState;
   const { input: newInputData, hasGeneratedInput } = genInput;
