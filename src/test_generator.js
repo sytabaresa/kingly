@@ -55,7 +55,7 @@ export function generateTestsFromFSM(fsm, generators, settings) {
         : results;
       const newGraphTraversalState = { results: newResults };
 
-      if (bIsGoalReached) onResult(newResults);
+      if (bIsGoalReached && onResult) onResult(newResults);
 
       return {
         isGoalReached: bIsGoalReached,
