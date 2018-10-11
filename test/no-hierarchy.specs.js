@@ -395,3 +395,30 @@ QUnit.test("INIT event, 2 actions with extendedState update, NOK -> A -> B, no g
     }]
   ], `event triggers correct transition`);
 });
+
+// NOK -init-> A, no guards, dummy action
+// A -init-> A, + warning : reserved init event can only be sent once
+QUnit.test("2 INIT event", function exec_test(assert) {
+  const fsmDef = {
+    states: { A: '', B: '' },
+    events: [EVENT1],
+    transitions: [
+      { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: dummy_action_with_update },
+      { from: 'A', to: 'B', event: EVENT1, action: another_dummy_action_with_update },
+    ],
+    initialExtendedState: initialExtendedState
+  };
+  const settings = default_settings;
+  const fsm = create_state_machine(fsmDef, settings);
+  const result1 = fsm.start();
+  const result2 = fsm.yield({ [INIT_EVENT]: EVENT1_DATA });
+  assert.deepEqual([result1, result2],[
+    [{
+      "event_data": initialExtendedState,
+      "extendedState": initialExtendedState,
+      // settings has its function and regexp removed by JSON.parse(JSON.stringify...
+      "settings": {}
+    }],
+    null
+  ], `event triggers correct transition`);
+});

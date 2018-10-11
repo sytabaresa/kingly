@@ -280,10 +280,21 @@ export function create_state_machine(fsmDef, settings) {
     );
   });
 
-  function send_event(event_struct) {
+  function send_event(event_struct, isExternalEvent) {
     console.log("send event", event_struct);
     const event_name = keys(event_struct)[0];
     const event_data = event_struct[event_name];
+    const current_state = hash_states[INIT_STATE].current_state_name;
+
+    // Edge case : INIT_EVENT sent and the current state is not the initial state
+    // We have to do this separately, as by construction the INIT_STATE is a
+    // super state of all states in the machine. Hence sending an INIT_EVENT
+    // would always execute the INIT transition by prototypal delegation
+    if (isExternalEvent && event_name === INIT_EVENT && current_state !== INIT_STATE){
+      console.warn(`The external event INIT_EVENT can only be sent when starting the machine!`)
+
+      return NO_OUTPUT
+    }
 
     return process_event(
       hash_states_struct.hash_states,
@@ -323,7 +334,7 @@ export function create_state_machine(fsmDef, settings) {
         const auto_event = is_init_state[new_current_state]
           ? INIT_EVENT
           : AUTO_EVENT;
-        return [].concat(outputs).concat(send_event({ [auto_event]: event_data }));
+        return [].concat(outputs).concat(send_event({ [auto_event]: event_data }, false));
       } else return outputs;
     } else {
       // CASE : There is no transition associated to that event from that state
@@ -369,11 +380,11 @@ export function create_state_machine(fsmDef, settings) {
   }
 
   function start() {
-    return send_event({ [INIT_EVENT]: initialExtendedState });
+    return send_event({ [INIT_EVENT]: initialExtendedState }, true);
   }
 
   return {
-    yield: send_event,
+    yield: x => send_event(x, true),
     start: start
   };
 }

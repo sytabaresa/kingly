@@ -568,6 +568,8 @@ identifiers (cannot be empty strings, cannot start with a number, etc.)
   - the transition syntax must be followed (cf. types)
 - the first event processed by the state machine must be the init event
 - the init event has the initial extended state as event data
+- the init event can only be sent once (further init events will be ignored, and the machine will
+ return `NO_OUTPUT`)
 - the state machine starts in the initial state
 - there are no incoming transitions to the initial state
 - The machine cannot stay blocked in the initial control state. This means that at least one 
