@@ -61,6 +61,6 @@
   "dependencies": {
     "json-patch-es6": "^2.0.6",
     "fp-rosetree": "^0.6.1",
-    "graph-adt": "^0.5.1"
+    "graph-adt": "^0.7.0"
   }
 }

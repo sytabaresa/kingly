@@ -1,4 +1,5 @@
 # Now
+- DOC for test_generators
 - ROADMAP : DSL with parser (check my gmail) like http://blog.efftinge
 .de/2012/05/implementing-fowlers-state-machine-dsl.html so I can convert to it and back for 
 drawing and debugging?

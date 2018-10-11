@@ -94,7 +94,6 @@ export function getDisplayName(str) {
  * @returns {function(*=, *=, *=): {updates: *}}
  */
 export function mergeModelUpdates(arrayUpdateActions) {
-  // TODO write just like [].concat(...arrayModelUpdates), array..Updates = arrayActions.map(x => x.updates || []);
   return function (extendedState, eventData, settings) {
     return {
       updates: arrayUpdateActions.reduce((acc, updateAction) => {

@@ -566,6 +566,8 @@ identifiers (cannot be empty strings, cannot start with a number, etc.)
   - all states referenced in the `transitions` data structure must be defined in the `states` data 
   structure
   - the transition syntax must be followed (cf. types)
+  - all transitions must define an action (even if that action does not modify the extended state
+   or returns `NO_OUTPUT`)
 - the first event processed by the state machine must be the init event
 - the init event has the initial extended state as event data
 - the init event can only be sent once (further init events will be ignored, and the machine will
@@ -579,17 +581,25 @@ transition must be configured and be executed between the initial control state 
   - at least one transition out of the initial control state must be configured
   - of all guards for such transitions, if any, at least one must be fulfilled to enable a 
   transition away from the initial control state
+- no transitions from the history state (history state is only a target state)
 - A transition evaluation must end in an atomic state
-  - Initial states must be defined on every state hierarchy and must have exactly one outgoing 
-  transition going down exactly one level in the hierarchy (i.e. no hierarchy crossing, no fast 
-  stepping down the hierarchy)
-    - (the previous conditions ensure that there is always a way down the hierarchy for compound 
+  - Initial states must be defined for every compound state 
+  - Every compound state must have eactly one INIT transition, i.e. a transition whose 
+  triggering event is `INIT_EVENT`. That transition must have a target state which is a substate 
+  of the compound state (no hierarchy crossing)
+  - Compound states must not have eventless transitions defined on them (would introduce 
+  ambiguity with the INIT transition)
+  - (the previous conditions ensure that there is always a way down the hierarchy for compound 
   states, and that way is always taken when entering the compound state, and the descent 
   process always terminate)
 - guards, action factories are pure functions
   - as such exceptions while running those functions are fatal, and will not be caught
 - eventless transitions must progress the state machine
   - at least one guard must be fulfilled, otherwise we would remain forever in the same state
+- eventless self-transitions must modify the extended state
+  - lest we loop forever (a real blocking infinite loop)
+  - note that there is not really a strong rationale for eventless self-transition, I recommend 
+  just staying away from it.
 - eventless transitions must not be contradicted by event-ful transitions
   - they must be the only transition defined for a given origin control state and triggering event
 - to a (from, event) couple, there can only correspond one row in the `transitions` array of the 
@@ -629,10 +639,12 @@ important point is that the extended state should not be modified in place, i.e.
  a pure function. 
 
 ### Contracts
-All [previously mentioned](https://github.com/brucou/state-transducer#contracts) contracts apply.
-  The `settings.updateState` property is mandatory. 
-
-The [key types](https://github.com/brucou/state-transducer/blob/master/src/types.js) contracts are summarized here :
+- All [previously mentioned](https://github.com/brucou/state-transducer#contracts) contracts apply.
+- The `settings.updateState` property is mandatory. 
+- The `settings` property should not be modified after being passed as parameter (i.e. should be 
+a constant): it is not cloned and is passed to all relevant functions (guards, etc.)
+- The [key types](https://github.com/brucou/state-transducer/blob/master/src/types.js) contracts 
+are summarized here :
 
 ```javascript
 /**
@@ -756,6 +768,8 @@ available, with the same semantics.
 - events have the shape `HashMap<EventLabel, EventData>`, i.e. an object whose keys are event 
 identifiers, and values are the data carried with the event. 
 - `EventLabel` follow the same rules than identifier for javascript function
+- `FSM$_Settings.from` should emit **synchronously and recursively**
+
 
 ### Implementation example
 Cf. [multi-step workflow demo repo](https://github.com/brucou/cycle-state-machine-demo)

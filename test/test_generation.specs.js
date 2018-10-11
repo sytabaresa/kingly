@@ -8,6 +8,7 @@ import { formatResult } from "./helpers"
 import { assertContract, isArrayUpdateOperations } from "../test/helpers"
 import { applyPatch } from "json-patch-es6/lib/duplex"
 import { CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE } from "../src/properties"
+import {ALL_TRANSITIONS} from "graph-adt"
 
 /**
  *
@@ -504,23 +505,8 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
     ],
   };
   const generators = genFsmDef.transitions;
-  const maxNumberOfTraversals = 1;
-  const target = 'E';
   /** @type SearchSpecs*/
-  const strategy = {
-    isTraversableEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
-      return computeTimesCircledOn(pathTraversalState.path, edge) < (maxNumberOfTraversals || 1)
-    },
-    isGoalReached: (edge, graph, pathTraversalState, graphTraversalState) => {
-      const { getEdgeTarget, getEdgeOrigin } = graph;
-      const lastPathVertex = getEdgeTarget(edge);
-      // Edge case : accounting for initial vertex
-      const vertexOrigin = getEdgeOrigin(edge);
-
-      const isGoalReached = vertexOrigin ? lastPathVertex === target : false;
-      return isGoalReached
-    },
-  };
+  const strategy = ALL_TRANSITIONS({ targetVertex: target });
   const settings = merge(default_settings, { strategy });
   const results = generateTestsFromFSM(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);
@@ -1110,7 +1096,6 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
     }
     ]
   ], `...`);
-
 });
 
 // NOTE : this is a state machine with the same semantics as the first test, only that we have extra eventless

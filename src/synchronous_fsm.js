@@ -1,17 +1,3 @@
-// DOC
-// CONTRACT : no transition from the history state (history state is only a target state)
-// CONTRACT : init events only acceptable in nesting state (aka grouping state)
-// NOTE : enforced via in_auto_state only true for grouping state
-// CONTRACT : Automatic actions with no events and only conditions are not allowed in nesting state
-// (aka grouping state)
-// NOTE : That would lead to non-determinism if A < B < C and both A and B
-// have such automatic actions CONTRACT : There MUST be an action in each transition
-// NOTE : Dead states: - Possible if automatic actions (no events) with conditions always true.
-// If there is not another condition which at some point is set to false, we have an infinite
-// loop (a very real one which could monopolize the CPU if all actions are synchronous) - To
-// break out of it, maybe put a guard that if we remain in the same state for X steps,
-// transition automatically (to error or else)
-
 import {
   ACTION_IDENTITY, AUTO_EVENT, DEEP, history_symbol, INIT_EVENT, INIT_STATE, NO_OUTPUT, SHALLOW, STATE_PROTOTYPE_NAME
 } from "./properties";
@@ -398,7 +384,7 @@ export function create_state_machine(fsmDef, settings) {
  * Otherwise can also hold extra settings the API user wants to make available in state machine's scope
  * @returns {function(Object<String, Rx.Observable>): *}
  */
-// DOC : settings.from should emit synchronously and recursively
+// `settings.from` should emit synchronously and recursively
 // NOTE : Rxjs : https://github.com/ReactiveX/rxjs/blob/master/doc/scheduler.md
 // By not passing any scheduler, notifications are delivered synchronously and recursively.
 export function makeStreamingStateMachine(settings, fsmDef) {
@@ -631,5 +617,3 @@ export function makeHistoryStates(states) {
     }
   }
 }
-
-// TODO DOC: beware not to modify settings, it is passed by reference and not cloned!!

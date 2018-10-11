@@ -278,6 +278,9 @@ QUnit.test("INIT event, 2 actions with extended state update, NOK -> A -> B, no 
     ], `trace is correct`);
 });
 
+// NOTE : we skip this test as the corresponding state machine violates our contract. We do not allow transitions
+// for the same triggering event on two states in the same hierarchy (to avoid ambiguity : behaviour would depend on
+// evaluation order). Contract is violated here for input D
 QUnit.skip("all transitions topologies up to 4 levels of state nesting", function exec_test(assert) {
   // NOTE : cf. graph in test assets
   // States
@@ -371,12 +374,6 @@ QUnit.skip("all transitions topologies up to 4 levels of state nesting", functio
   const decoratedFSM = create_state_machine(decoratedFsmDef, settings);
   const outputSequence = inputSequence.map(decoratedFSM.yield);
   const formattedResults = outputSequence.map(output => output && output.map(formatResult));
-  // TODO : this bugs for input D for now : foo is 0, guard isFoo0 should work, and action be executed
-  // problem is that from: s1, event: D,  is not found!! aaa true we have no pasing up the event if no guards is found..
-  // TODO : see if I change it.. should be easy?? DOC it if I do it but think about impact on test generation!!
-  // TODO : use this fsm to test input generation (from INIT to TERMINAL state)!!
-  // see how many paths? how to reduce per criteria? compare to the test we have here which tests important topology
-  // transition : are they covered too in our automatically chosen test??
   assert.deepEqual(formattedResults,
     [
       [
