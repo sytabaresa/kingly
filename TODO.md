@@ -1,4 +1,14 @@
 # Now
+- ROADMAP : the test generator could a predicate (input, output, controlSeq) which validate the 
+machine correct behaviour (property-basd testing, the predicate is a property)
+  - so typically the predicate/property is generateExpectedOutput(input) = output
+- ROADMAP: have a rranking function which takes a series of paths, and pick up one to continue 
+exploration (e.g. in store, pick up one overload) but according to some criteria :
+  - could have probability associated to transitions to have some paths occuring more 
+    often than others
+  - including have 100% and 0% to exclude some paths from the search
+- ROADMAP : have the generation work as a transducer, i.e. I should be able to act on each 
+generated test case one by one (already have onResult but that is a hack) 
 - DOC for test_generators
 - ROADMAP : DSL with parser (check my gmail) like http://blog.efftinge
 .de/2012/05/implementing-fowlers-state-machine-dsl.html so I can convert to it and back for 

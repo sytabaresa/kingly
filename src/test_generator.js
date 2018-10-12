@@ -27,7 +27,7 @@ const graphSettings = {
  * @param {{ strategy: { isGoalReached : SearchPredicate, isTraversableEdge : SearchPredicate} }} settings
  * `isTraversableEdge` tells us whether to continue the graph exploration. `isGoalReached` tells us when to
  * aggregate results
- * @returns {Array<{inputSequence, outputSequence, controlStateSequence}>}
+ * @returns {Array<TestCase>}
  */
 export function generateTestsFromFSM(fsm, generators, settings) {
   const startingVertex = INIT_STATE;
@@ -474,13 +474,16 @@ function getGeneratorMappedTransitionFromEdge(genMap, edge) {
  * @typedef {*} NoInput any object which unequivocally signifies an absence of input.
  */
 /**
- * @typedef {{input :: InputSequence, actual :: OutputSequence}} TestCase
+ * @typedef {{inputSequence: InputSequence, outputSequence:OutputSequence, controlStateSequence:ControlStateSequence}} TestCase
  */
 /**
  * @typedef {Array<LabelledEvent>} InputSequence
  */
 /**
  * @typedef {Array<MachineOutput>} OutputSequence
+ */
+/**
+ * @typedef {Array<ControlState>} ControlStateSequence
  */
 /**
  * @typedef {function (Edge, Graph, PathTraversalState, GraphTraversalState) : Boolean} SearchPredicate Computes a

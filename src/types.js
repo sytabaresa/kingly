@@ -97,4 +97,4 @@
 /**
  * @typedef {*} ExtendedStateUpdate
  */
-/** @typedef {*} MachineOutput well it is preferrable that that be an object instead of a primitive */
+/** @typedef {* | NO_OUTPUT} MachineOutput well it is preferrable that that be an object instead of a primitive */

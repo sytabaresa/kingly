@@ -8,7 +8,7 @@ import { formatResult } from "./helpers"
 import { assertContract, isArrayUpdateOperations } from "../test/helpers"
 import { applyPatch } from "json-patch-es6/lib/duplex"
 import { CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE } from "../src/properties"
-import {ALL_TRANSITIONS} from "graph-adt"
+import { ALL_TRANSITIONS } from "graph-adt"
 
 /**
  *
@@ -1612,41 +1612,29 @@ QUnit.test("deep history transitions, INIT event CASCADING transitions", functio
   const genFsmDef = {
     transitions: [
       {
-        from: INIT_STATE,
-        event: INIT_EVENT,
-        to: OUTER,
+        from: INIT_STATE, event: INIT_EVENT, to: OUTER,
         gen: function genINITtoOUTER(extS) {return { input: extS, hasGeneratedInput: true }}
       },
       { from: OUTER, event: INIT_EVENT, to: OUTER_A },
       {
-        from: OUTER_A,
-        event: EVENT1,
-        to: INNER,
+        from: OUTER_A, event: EVENT1, to: INNER,
         gen: function genOUTER_AtoINNER(extS) {return { input: null, hasGeneratedInput: true }}
       },
       { from: INNER, event: INIT_EVENT, to: INNER_S },
       {
-        from: INNER_S,
-        event: EVENT3,
-        to: INNER_T,
+        from: INNER_S, event: EVENT3, to: INNER_T,
         gen: function genINNER_StoINNER_T(extS) {return { input: null, hasGeneratedInput: true }}
       },
       {
-        from: INNER_T,
-        event: EVENT3,
-        to: INNER_S,
+        from: INNER_T, event: EVENT3, to: INNER_S,
         gen: function genINNER_TtoINNER_S(extS) {return { input: null, hasGeneratedInput: true }}
       },
       {
-        from: INNER,
-        event: EVENT2,
-        to: OUTER_B,
+        from: INNER, event: EVENT2, to: OUTER_B,
         gen: function genINNERtoOUTER_B(extS) {return { input: null, hasGeneratedInput: true }}
       },
       {
-        from: OUTER,
-        event: EVENT5,
-        to: Z,
+        from: OUTER, event: EVENT5, to: Z,
         gen: function genOUTERtoZ(extS) {return { input: null, hasGeneratedInput: true }}
       },
       {
@@ -1740,76 +1728,62 @@ QUnit.test("deep history transitions, INIT event CASCADING transitions", functio
     ],
     [
       { "init": { "counter": 0, "history": "deep" } },
-      { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }], [{
-      "init": {
-        "counter": 0,
-        "history": "deep"
-      }
-    }, { "event1": null }, { "event2": null }], [{
-      "init": {
-        "counter": 0,
-        "history": "deep"
-      }
-    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event3": null }, { "event2": null }], [{
-      "init": {
-        "counter": 0,
-        "history": "deep"
-      }
-    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }], [{
-      "init": {
-        "counter": 0,
-        "history": "deep"
-      }
-    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }], [{
-      "init": {
-        "counter": 0,
-        "history": "deep"
-      }
-    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }], [{
-      "init": {
-        "counter": 0,
-        "history": "deep"
-      }
-    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }], [{
-      "init": {
-        "counter": 0,
-        "history": "deep"
-      }
-    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event3": null }, { "event2": null }], [{
-      "init": {
-        "counter": 0,
-        "history": "deep"
-      }
-    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }], [{
-      "init": {
-        "counter": 0,
-        "history": "deep"
-      }
-    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event2": null }], [{
+      { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
+    [{
       "init": { "counter": 0, "history": "deep" }
-    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }], [{
+    }, { "event1": null }, { "event2": null }],
+    [{
       "init": { "counter": 0, "history": "deep" }
-    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }], [{
+    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event3": null }, { "event2": null }],
+    [{
       "init": { "counter": 0, "history": "deep" }
-    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }], [{
+    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }],
+    [{
       "init": { "counter": 0, "history": "deep" }
-    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event2": null }], [{
+    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }],
+    [{
       "init": { "counter": 0, "history": "deep" }
-    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event3": null }, { "event2": null }], [{
+    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
+    [{
       "init": { "counter": 0, "history": "deep" }
-    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }], [{
+    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
+    [{
       "init": { "counter": 0, "history": "deep" }
-    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }], [{
-      "init": {
-        "counter": 0,
-        "history": "deep"
-      }
-    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }], [{
-      "init": {
-        "counter": 0,
-        "history": "deep"
-      }
-    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }]], `...`);
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event3": null }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event3": null }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }]
+  ], `...`);
   assert.deepEqual(formattedResults.map(x => x.outputSequence), [
     [null, null, null, null, null],
     [null, null, null, null, null, 0, null],

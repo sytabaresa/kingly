@@ -617,7 +617,7 @@ state machine
 - there cannot be two transitions with the same `(from, event, predicate)` - sameness defined for
  predicate by referential equality
 
- 
+
 ## `create_state_machine :: FSM_Def -> Settings -> FSM`
 ### Description
 This FSM factory function takes the parameters defining the behaviour of the state transducer, 
@@ -810,6 +810,365 @@ Types contracts, nothing special.
 
 ### Implementation example
 Cf. tests
+
+## `generateTestsFromFSM :: FSM_Def -> Generators -> GenSettings -> Array<TestCase>`
+### Description
+The `generateTestsFromFSM` method produce test cases from a state machine definition, and input 
+generators associated to each transition defined in the machine. The test generation strategy is 
+specified in `genSettings.strategy` (two common strategies are already defined in `graph-adt` 
+library and can be reused). Additionally the `genSettings` parameter can contain any relevant 
+parameter to be passed to the machine when it is created. 
+
+Input generators (`Generators`) are coupled to a given state machine for which they generate an 
+input sequence. The structure of `Generators` hence replicates the structure of the transitions of
+ the state machine under test. Typically we recommend copy pasting transitions from `FSM_Def`,  
+ and add a `gen` property for each transition definition. That `gen` property is a 
+ function, which will either generate an input which progresses the state machine to the 
+ transition's target state, or declare itself incapable of doing so. That function will receive 
+ the extended state for the state machine, and must generate event data for the event defined in 
+ the embedding transition, or signal impossibility of such generation. If the input generate does
+  generate event data, then we have a candidate input for inclusion in the test input sequence.
+
+The generation strategy is determined by two predicates :  `isGoalReached`, `isTraversableEdge` 
+with the same signature. `isGoalReached` answers the question of whether an input sequence is 
+finalized, and should be wrapped as a test case; or if alternatively the search should continue, 
+possibly increasing the input sequence or possibly failing to generate an input sequence. 
+Commonly, this function will test if a target control state is reached, as we often seek to 
+generate input sequences driving the machine to a given state. `isTraversableEdge` answers the 
+question of whether a transition (edge of the graph corresponding to the machine) should be taken, 
+adding the generated input to the current input sequence. `isTraversableEdge` is commonly used to
+ fulfill a coverage criteria, for instance *All-transition* (No test case can lead to a 
+ transition to be taken twice). As a matter of fact, the input generation is an exhaustive 
+ enumeration of edge paths in the state machine graph, which `isTraversableEdge` filters down 
+ through its criteria.
+
+Any generated test case fulfills the goal specified by `isGoalReached`, and fulfills the conditions
+ imposed by `isTraversableEdge`. The test case gathers information about the input sequence for 
+ the test case, the output and control state sequence (the latter for reporting purposes) 
+ corresponding to running that input sequence through the state machine.
+ 
+### Semantics
+- the state machine is turned into a graph
+  - the machine is flattened : all outgoing transitions from a compound state are replaced by 
+  the equivalent set of transitions whose origin state is an atomic substate... well, except for 
+  the outgoing INIT transition, which remains identical
+    - `[A < B < C, A < B < D]`, and `A -ev-> B`, is replaced by `C -ev-> B, D -ev-> B`     
+  - a transition to a history state will be translated in a transition to any possible history 
+  target, with an attached guard which only allows the transition if the history state is indeed 
+  the attached control state
+- the graph is searched starting with the initial state with the view to generate all possible 
+paths of the state machine, starting from the initial state
+  - if the graph is A -> B, B-> C, B -> D, then the graph search generates `[A,B,C]` and `[A,B,D]`
+- At any point, the state of the search is the array of test cases already generated, and the 
+test case in process, starting from an initial state with empty test cases
+- a test case is generated iteratively as follows :
+  - the machine starts in the initial state.
+  - the test case is initially empty
+  - the graph search produces a candidate edge (transition)
+  - if the edge is not traversable (`isTraversableEdge`) then the search branch is abandoned, no 
+  input case is generated, the search backtracks and continues with investigating another path 
+  sequence
+  - otherwise, the input generator generates an input exercising that transition or signals there is
+   no such input
+    - if no satisfying input can be generated, the search branch is abandoned, no input case is 
+    generated, the search backtracks and continues with investigating another path sequence
+      - for instance, for the previous graph, if `[A,B,C]` fails to generate a case, then `[A,B,D]` 
+      is tried next
+    - if an input trigerring the transition is generated, it is added to the test case in 
+    progress, together with the corresponding outputs of the machine, and the resulting control 
+    state
+  - the candidate transition may result in a cascade of transitions, due to special 
+  transitions (eventless, automatic transitions (for instance entering a compound state, 
+  transition involving history states). The  test case is adjusted accordingly.
+  - if the goal is reached (`isGoalReached`) with the updated test case, then that test case is 
+  considered finalized and added to the current list of generated test case. the search 
+  backtracks and continues with investigating another path sequence
+- in summary, there are two reductions processes and two accumulators involved:
+  - the `PathTraversalState`, which gathers the path sequence and associated data (input 
+  sequence, output sequence, control state sequence)
+  - the `GraphTraversalState`, which gathers the generated test cases
+- when the search finished, the array of generated test cases is returned
+
+TODO : add in machine def the history states hs
+
+```javascript
+const hs = makeHistoryStates(states); 
+{
+        from: Z, event: EVENT4, guards: [
+          {
+            predicate: function isDeep(x, e) {return x.history === DEEP},
+            to: hs.deep(OUTER),
+            action: incCounter
+          },
+          {
+            predicate: function isShallow(x, e) {return x.history !== DEEP},
+            to: hs.shallow(OUTER),
+            action: incCounter
+          }
+        ]
+      },
+```
+      
+
+### Contracts
+Type contracts apply.
+
+### Implementation example
+We are going to reuse here a former example :
+
+![state machine under test](test/assets/history%20transitions,%20INIT%20event%20CASCADING%20transitions.png)
+
+This gives the following machine definition: 
+
+```javascript
+  const states = { [OUTER]: { [INNER]: { [INNER_S]: '', [INNER_T]: '' }, [OUTER_A]: '', [OUTER_B]: '' }, [Z]: '' };
+  const hs = makeHistoryStates(states);
+  const fsmDef = {
+    states,
+    events: [EVENT1, EVENT2, EVENT3, EVENT4, EVENT5],
+    initialExtendedState: { history: DEEP, counter: 0 },
+    transitions: [
+      { from: INIT_STATE, event: INIT_EVENT, to: OUTER, action: ACTION_IDENTITY },
+      { from: OUTER, event: INIT_EVENT, to: OUTER_A, action: ACTION_IDENTITY },
+      { from: OUTER_A, event: EVENT1, to: INNER, action: ACTION_IDENTITY },
+      { from: INNER, event: INIT_EVENT, to: INNER_S, action: ACTION_IDENTITY },
+      { from: INNER_S, event: EVENT3, to: INNER_T, action: ACTION_IDENTITY },
+      { from: INNER_T, event: EVENT3, to: INNER_S, action: ACTION_IDENTITY },
+      { from: INNER, event: EVENT2, to: OUTER_B, action: ACTION_IDENTITY },
+      { from: OUTER, event: EVENT5, to: Z, action: ACTION_IDENTITY },
+      {
+        from: Z, event: EVENT4, guards: [
+          {
+            predicate: function isDeep(x, e) {return x.history === DEEP},
+            to: hs.deep(OUTER),
+            action: incCounter
+          },
+          {
+            predicate: function isShallow(x, e) {return x.history !== DEEP},
+            to: hs.shallow(OUTER),
+            action: incCounter
+          }
+        ]
+      },
+    ],
+  };
+```
+
+We are seeking to generate test cases which end with the machine in the state `OUTER_B`.
+
+We are configuring our input generators by copy pasting the state machineu under test and adding 
+the generators definition for each control state ; 
+
+```javascript
+  const genFsmDef = {
+    transitions: [
+      {
+        from: INIT_STATE, event: INIT_EVENT, to: OUTER,
+        gen: function genINITtoOUTER(extS) {return { input: extS, hasGeneratedInput: true }}
+      },
+      { from: OUTER, event: INIT_EVENT, to: OUTER_A },
+      {
+        from: OUTER_A, event: EVENT1, to: INNER,
+        gen: function genOUTER_AtoINNER(extS) {return { input: null, hasGeneratedInput: true }}
+      },
+      { from: INNER, event: INIT_EVENT, to: INNER_S },
+      {
+        from: INNER_S, event: EVENT3, to: INNER_T,
+        gen: function genINNER_StoINNER_T(extS) {return { input: null, hasGeneratedInput: true }}
+      },
+      {
+        from: INNER_T, event: EVENT3, to: INNER_S,
+        gen: function genINNER_TtoINNER_S(extS) {return { input: null, hasGeneratedInput: true }}
+      },
+      {
+        from: INNER, event: EVENT2, to: OUTER_B,
+        gen: function genINNERtoOUTER_B(extS) {return { input: null, hasGeneratedInput: true }}
+      },
+      {
+        from: OUTER, event: EVENT5, to: Z,
+        gen: function genOUTERtoZ(extS) {return { input: null, hasGeneratedInput: true }}
+      },
+      {
+        from: Z, event: EVENT4, guards: [
+          {
+            predicate: function isDeep(x, e) {return x.history === DEEP},
+            to: hs.deep(OUTER),
+            gen: function genZtoOUTER_DEEP_H(extS) {return { input: DEEP, hasGeneratedInput: extS.history === DEEP }},
+          },
+          {
+            predicate: function isShallow(x, e) {return x.history !== DEEP},
+            to: hs.shallow(OUTER),
+            gen: function genZtoOUTER_SHALLOW_H(extS) {
+              return {
+                input: SHALLOW,
+                hasGeneratedInput: extS.history !== DEEP
+              }
+            },
+          }
+        ]
+      },
+    ],
+  };
+```
+
+We then define our extended state update method, our search strategy (*All-transitions* coverage) : 
+
+  const default_settings = { updateState: applyJSONpatch };
+  const strategy = ALL_TRANSITIONS({ targetVertex: target });
+  const settings = merge(default_settings, { strategy });
+  const results = generateTestsFromFSM(fsmDef, generators, settings);
+
+We then get the results back :
+
+**Test case inputs**
+```javascript
+[
+    [
+      { "init": { "counter": 0, "history": "deep" } },
+      { "event1": null }, { "event3": null }, { "event3": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "deep" } },
+      { "event1": null }, { "event3": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "deep" } },
+      { "event1": null }, { "event3": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "deep" } },
+      { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "deep" } },
+      { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }
+    ],
+    [
+      { "init": { "counter": 0, "history": "deep" } },
+      { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event1": null }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event3": null }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event3": null }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event3": null }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
+    [{
+      "init": { "counter": 0, "history": "deep" }
+    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }]
+]
+
+
+```
+
+**Test case outputs**
+
+```javascript
+
+[
+    [null, null, null, null, null],
+    [null, null, null, null, null, 0, null],
+    [null, null, null, null],
+    [null, null, null, null, 0, null, null],
+    [null, null, null, null, 0, null, null, 1, null],
+    [null, null, null, null, 0, null],
+    [null, null, null],
+    [null, null, null, 0, null, null, null],
+    [null, null, null, 0, null, null],
+    [null, null, null, 0, null, null, 1, null, null],
+    [null, null, null, 0, null, null, 1, null],
+    [null, null, null, 0, null],
+    [null, null, 0, null, null, null, null],
+    [null, null, 0, null, null, null, null, 1, null],
+    [null, null, 0, null, null, null],
+    [null, null, 0, null, null, null, 1, null, null],
+    [null, null, 0, null, null, null, 1, null, null, 2, null],
+    [null, null, 0, null, null, null, 1, null],
+    [null, null, 0, null, null],
+    [null, null, 0, null, null, 1, null, null, null],
+    [null, null, 0, null, null, 1, null, null],
+    [null, null, 0, null, null, 1, null, null, 2, null, null],
+    [null, null, 0, null, null, 1, null, null, 2, null],
+    [null, null, 0, null, null, 1, null]
+  ]
+```
+ 
+The corresponding sequence of control states is as follows :
+
+```javascript
+[
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "inner_t", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "inner_t", "inner_s", "z", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "inner_t", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "inner_t", "z", "inner_t", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "inner_t", "z", "inner_t", "inner_s", "z", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "inner_t", "z", "inner_t", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "z", "inner_s", "inner_t", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "z", "inner_s", "inner_t", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "z", "inner_s", "inner_t", "z", "inner_t", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "z", "inner_s", "inner_t", "z", "inner_t", "outer_b"],
+    ["nok", "OUTER", "outer_a", "INNER", "inner_s", "z", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "inner_t", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "inner_t", "inner_s", "z", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "inner_t", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "inner_t", "z", "inner_t", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "inner_t", "z", "inner_t", "inner_s", "z", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "inner_t", "z", "inner_t", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "z", "inner_s", "inner_t", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "z", "inner_s", "inner_t", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "z", "inner_s", "inner_t", "z", "inner_t", "inner_s", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "z", "inner_s", "inner_t", "z", "inner_t", "outer_b"],
+    ["nok", "OUTER", "outer_a", "z", "outer_a", "INNER", "inner_s", "z", "inner_s", "outer_b"]
+]
+```
+
+There are ample tests which can serve as example in the [test directory](https://github.com/brucou/state-transducer/blob/master/test/test_generation.specs.js).
 
 # Possible API extensions
 Because of the API design choices, it is possible to realize the possible extensions without 
