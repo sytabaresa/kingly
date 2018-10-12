@@ -1015,8 +1015,8 @@ We then define our extended state update method, our search strategy (*All-trans
 
 ```javascript
   const generators = genFsmDef.transitions;
-  const settings = merge({ updateState: applyJSONpatch, strategy: ALL_TRANSITIONS({ targetVertex: 
-  OUTER_B }) });
+  const settings = { updateState: applyJSONpatch, strategy: ALL_TRANSITIONS({ targetVertex: 
+  OUTER_B }) };
   const results = generateTestsFromFSM(fsmDef, generators, settings);
 ```
 
