@@ -1014,6 +1014,7 @@ the generators definition for each control state ;
 We then define our extended state update method, our search strategy (*All-transitions* coverage) : 
 
 ```javascript
+  const generators = genFsmDef.transitions;
   const settings = merge({ updateState: applyJSONpatch, strategy: ALL_TRANSITIONS({ targetVertex: 
   OUTER_B }) });
   const results = generateTestsFromFSM(fsmDef, generators, settings);
