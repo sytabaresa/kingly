@@ -956,7 +956,7 @@ This gives the following machine definition:
 
 We are seeking to generate test cases which end with the machine in the state `OUTER_B`.
 
-We are configuring our input generators by copy pasting the state machineu under test and adding 
+We are configuring our input generators by copy pasting the state machine under test and adding 
 the generators definition for each control state ; 
 
 ```javascript
@@ -1013,10 +1013,13 @@ the generators definition for each control state ;
 
 We then define our extended state update method, our search strategy (*All-transitions* coverage) : 
 
+```javascript
+  const target = OUTER_B;
   const default_settings = { updateState: applyJSONpatch };
   const strategy = ALL_TRANSITIONS({ targetVertex: target });
   const settings = merge(default_settings, { strategy });
   const results = generateTestsFromFSM(fsmDef, generators, settings);
+```
 
 We then get the results back :
 
