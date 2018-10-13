@@ -3,7 +3,7 @@ import * as Rx from "rx"
 import { clone, F, merge, T } from "ramda"
 import {
   ACTION_IDENTITY, analyzeStateTree, computeHistoryMaps, INIT_EVENT, INIT_STATE, isShallowHistory, makeHistoryStates,
-  mapOverTransitionsActions, reduceTransitions
+  mapOverTransitionsActions, reduceTransitions, SHALLOW, DEEP
 } from "../src"
 import { formatMap, formatResult } from "./helpers"
 import { convertFSMtoGraph, getGeneratorMapFromGeneratorMachine } from "../src/test_generator"
@@ -64,9 +64,6 @@ const EVENT2 = 'event2';
 const EVENT3 = 'event3';
 const EVENT4 = 'event4';
 const EVENT5 = 'event5';
-// constant for switching between deep history and shallow history
-const DEEP = 'deep';
-const SHALLOW = 'shallow';
 
 function incCounter(extS, eventData) {
   const { counter } = extS;
@@ -473,12 +470,12 @@ QUnit.test("whth history states deep and shallow", function exec_test(assert) {
         from: INNER_T, event: EVENT4, guards: [
           {
             predicate: function isDeep(x, e) {return x.history === DEEP},
-            to: hs.deep(OUTER),
+            to: hs(DEEP, OUTER),
             action: incCounterTwice
           },
           {
             predicate: function isShallow(x, e) {return x.history !== DEEP},
-            to: hs.shallow(OUTER),
+            to: hs(SHALLOW, OUTER),
             action: incCounterTwice
           }
         ]
@@ -489,12 +486,12 @@ QUnit.test("whth history states deep and shallow", function exec_test(assert) {
         from: Z, event: EVENT4, guards: [
           {
             predicate: function isDeep(x, e) {return x.history === DEEP},
-            to: hs.deep(OUTER),
+            to: hs(DEEP, OUTER),
             action: incCounter
           },
           {
             predicate: function isShallow(x, e) {return x.history !== DEEP},
-            to: hs.shallow(OUTER),
+            to: hs(SHALLOW, OUTER),
             action: incCounter
           }
         ]

@@ -14,7 +14,7 @@
  * @typedef {InconditionalTransition | ConditionalTransition} Transition
  */
 /**
- * @typedef {{from: ControlState, to: ControlState, event: EventLabel, action: ActionFactory}} InconditionalTransition
+ * @typedef {{from: ControlState, to: ControlState|HistoryState, event: EventLabel, action: ActionFactory}} InconditionalTransition
  *   Inconditional_Transition encodes transition with no guards attached. Every time the specified event occurs, and
  *   the machine is in the specified state, it will transition to the target control state, and invoke the action
  *   returned by the action factory
@@ -24,7 +24,7 @@
  * specified state is contingent to some guards being passed. Those guards are defined as an array.
  */
 /**
- * @typedef {{predicate: FSM_Predicate, to: ControlState, action: ActionFactory}} Condition On satisfying the
+ * @typedef {{predicate: FSM_Predicate, to: ControlState|HistoryState, action: ActionFactory}} Condition On satisfying the
  * specified predicate, the received event data will trigger the transition to the specified target control state
  * and invoke the action created by the specified action factory, leading to an update of the internal state of the
  * extended state machine and possibly an output to the state machine client.
@@ -75,6 +75,12 @@
  * @property {ActionFactory} actionFactory
  * @property {Number} guardIndex
  * @property {Number} transitionIndex
+ */
+/**
+ * @typedef {function(historyType: HistoryType, controlState: ControlState): HistoryState} HistoryStateFactory
+ */
+/**
+ * @typedef {{type:{}, [HistoryType]: ControlState}} HistoryState
  */
 /**
  * @typedef {Object.<HistoryType, HistoryDict>} History history object containing deeep and shallow history states

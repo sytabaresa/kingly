@@ -2,13 +2,14 @@ import * as QUnit from "qunitjs"
 import * as Rx from "rx"
 import { F, merge, T } from "ramda"
 import {
-  ACTION_IDENTITY, computeTimesCircledOn, generateTestsFromFSM, INIT_EVENT, INIT_STATE, makeHistoryStates, NO_OUTPUT
+  ACTION_IDENTITY, computeTimesCircledOn, generateTestsFromFSM, INIT_EVENT, INIT_STATE, makeHistoryStates, NO_OUTPUT,
+  SHALLOW, DEEP
 } from "../src"
 import { formatResult } from "./helpers"
 import { assertContract, isArrayUpdateOperations } from "../test/helpers"
 import { applyPatch } from "json-patch-es6/lib/duplex"
 import { CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE } from "../src/properties"
-import { ALL_TRANSITIONS } from "graph-adt"
+import { ALL_TRANSITIONS, ALL_n_TRANSITIONS } from "graph-adt"
 
 /**
  *
@@ -54,9 +55,6 @@ const EVENT2 = 'event2';
 const EVENT3 = 'event3';
 const EVENT4 = 'event4';
 const EVENT5 = 'event5';
-// constant for switching between deep history and shallow history
-const DEEP = 'deep';
-const SHALLOW = 'shallow';
 
 function incCounter(extS, eventData) {
   const { counter } = extS;
@@ -101,7 +99,6 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
   const generators = genFsmDef.transitions;
   const maxNumberOfTraversals = 1;
   const target = 'A';
-  /** @type SearchSpecs*/
   const strategy = {
     isTraversableEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
       return computeTimesCircledOn(pathTraversalState.path, edge) < (maxNumberOfTraversals || 1)
@@ -174,7 +171,7 @@ QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", funct
   const generators = genFsmDef.transitions;
   const maxNumberOfTraversals = 1;
   const target = 'A';
-  /** @type SearchSpecs*/
+
   const strategy = {
     isTraversableEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
       return computeTimesCircledOn(pathTraversalState.path, edge) < (maxNumberOfTraversals || 1)
@@ -251,7 +248,7 @@ QUnit.test("INIT event, 2 actions, 2 conditions", function exec_test(assert) {
   const generators = genFsmDef.transitions;
   const maxNumberOfTraversals = 1;
   const target = 'A';
-  /** @type SearchSpecs*/
+
   const strategy = {
     isTraversableEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
       return computeTimesCircledOn(pathTraversalState.path, edge) < (maxNumberOfTraversals || 1)
@@ -505,8 +502,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
     ],
   };
   const generators = genFsmDef.transitions;
-  /** @type SearchSpecs*/
-  const strategy = ALL_TRANSITIONS({ targetVertex: target });
+  const strategy = ALL_TRANSITIONS({ targetVertex: 'E' });
   const settings = merge(default_settings, { strategy });
   const results = generateTestsFromFSM(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);
@@ -828,23 +824,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
     ],
   };
   const generators = genFsmDef.transitions;
-  const maxNumberOfTraversals = 2;
-  const target = 'E';
-  /** @type SearchSpecs*/
-  const strategy = {
-    isTraversableEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
-      return computeTimesCircledOn(pathTraversalState.path, edge) < (maxNumberOfTraversals || 1)
-    },
-    isGoalReached: (edge, graph, pathTraversalState, graphTraversalState) => {
-      const { getEdgeTarget, getEdgeOrigin } = graph;
-      const lastPathVertex = getEdgeTarget(edge);
-      // Edge case : accounting for initial vertex
-      const vertexOrigin = getEdgeOrigin(edge);
-
-      const isGoalReached = vertexOrigin ? lastPathVertex === target : false;
-      return isGoalReached
-    },
-  };
+  const strategy = ALL_n_TRANSITIONS({targetVertex: 'E', maxNumberOfTraversals: 2});
   const settings = merge(default_settings, { strategy });
   const results = generateTestsFromFSM(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);
@@ -1005,23 +985,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
     ],
   };
   const generators = genFsmDef.transitions;
-  const maxNumberOfTraversals = 1;
-  const target = 'E';
-  /** @type SearchSpecs*/
-  const strategy = {
-    isTraversableEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
-      return computeTimesCircledOn(pathTraversalState.path, edge) < (maxNumberOfTraversals || 1)
-    },
-    isGoalReached: (edge, graph, pathTraversalState, graphTraversalState) => {
-      const { getEdgeTarget, getEdgeOrigin } = graph;
-      const lastPathVertex = getEdgeTarget(edge);
-      // Edge case : accounting for initial vertex
-      const vertexOrigin = getEdgeOrigin(edge);
-
-      const isGoalReached = vertexOrigin ? lastPathVertex === target : false;
-      return isGoalReached
-    },
-  };
+  const strategy = ALL_TRANSITIONS({ targetVertex: 'E' });
   const settings = merge(default_settings, { strategy });
   const results = generateTestsFromFSM(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);
@@ -1211,23 +1175,7 @@ QUnit.test("eventless transitions no guards, inner INIT event transitions, loops
     ],
   };
   const generators = genFsmDef.transitions;
-  const maxNumberOfTraversals = 1;
-  const target = 'E';
-  /** @type SearchSpecs*/
-  const strategy = {
-    isTraversableEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
-      return computeTimesCircledOn(pathTraversalState.path, edge) < (maxNumberOfTraversals || 1)
-    },
-    isGoalReached: (edge, graph, pathTraversalState, graphTraversalState) => {
-      const { getEdgeTarget, getEdgeOrigin } = graph;
-      const lastPathVertex = getEdgeTarget(edge);
-      // Edge case : accounting for initial vertex
-      const vertexOrigin = getEdgeOrigin(edge);
-
-      const isGoalReached = vertexOrigin ? lastPathVertex === target : false;
-      return isGoalReached
-    },
-  };
+  const strategy = ALL_TRANSITIONS({ targetVertex: 'E' });
   const settings = merge(default_settings, { strategy });
   const results = generateTestsFromFSM(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);
@@ -1373,12 +1321,12 @@ QUnit.test("shallow history transitions, INIT event CASCADING transitions", func
         from: Z, event: EVENT4, guards: [
           {
             predicate: function isDeep(x, e) {return x.history === DEEP},
-            to: hs.deep(OUTER),
+            to: hs(DEEP, OUTER),
             action: incCounter
           },
           {
             predicate: function isShallow(x, e) {return x.history !== DEEP},
-            to: hs.shallow(OUTER),
+            to: hs(SHALLOW, OUTER),
             action: incCounter
           }
         ]
@@ -1429,12 +1377,12 @@ QUnit.test("shallow history transitions, INIT event CASCADING transitions", func
         from: Z, event: EVENT4, guards: [
           {
             predicate: function isDeep(x, e) {return x.history === DEEP},
-            to: hs.deep(OUTER),
+            to: hs(DEEP, OUTER),
             gen: function genZtoOUTER_DEEP_H(extS) {return { input: DEEP, hasGeneratedInput: extS.history === DEEP }},
           },
           {
             predicate: function isShallow(x, e) {return x.history !== DEEP},
-            to: hs.shallow(OUTER),
+            to: hs(SHALLOW, OUTER),
             gen: function genZtoOUTER_SHALLOW_H(extS) {
               return {
                 input: SHALLOW,
@@ -1447,23 +1395,7 @@ QUnit.test("shallow history transitions, INIT event CASCADING transitions", func
     ],
   };
   const generators = genFsmDef.transitions;
-  const maxNumberOfTraversals = 1;
-  const target = OUTER_B;
-  /** @type SearchSpecs*/
-  const strategy = {
-    isTraversableEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
-      return computeTimesCircledOn(pathTraversalState.path, edge) < (maxNumberOfTraversals || 1)
-    },
-    isGoalReached: (edge, graph, pathTraversalState, graphTraversalState) => {
-      const { getEdgeTarget, getEdgeOrigin } = graph;
-      const lastPathVertex = getEdgeTarget(edge);
-      // Edge case : accounting for initial vertex
-      const vertexOrigin = getEdgeOrigin(edge);
-
-      const isGoalReached = vertexOrigin ? lastPathVertex === target : false;
-      return isGoalReached
-    },
-  };
+  const strategy = ALL_TRANSITIONS({ targetVertex: OUTER_B });
   const settings = merge(default_settings, { strategy });
   const results = generateTestsFromFSM(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);
@@ -1597,12 +1529,12 @@ QUnit.test("deep history transitions, INIT event CASCADING transitions", functio
         from: Z, event: EVENT4, guards: [
           {
             predicate: function isDeep(x, e) {return x.history === DEEP},
-            to: hs.deep(OUTER),
+            to: hs(DEEP, OUTER),
             action: incCounter
           },
           {
             predicate: function isShallow(x, e) {return x.history !== DEEP},
-            to: hs.shallow(OUTER),
+            to: hs(SHALLOW, OUTER),
             action: incCounter
           }
         ]
@@ -1641,12 +1573,12 @@ QUnit.test("deep history transitions, INIT event CASCADING transitions", functio
         from: Z, event: EVENT4, guards: [
           {
             predicate: function isDeep(x, e) {return x.history === DEEP},
-            to: hs.deep(OUTER),
+            to: hs(DEEP, OUTER),
             gen: function genZtoOUTER_DEEP_H(extS) {return { input: DEEP, hasGeneratedInput: extS.history === DEEP }},
           },
           {
             predicate: function isShallow(x, e) {return x.history !== DEEP},
-            to: hs.shallow(OUTER),
+            to: hs(SHALLOW, OUTER),
             gen: function genZtoOUTER_SHALLOW_H(extS) {
               return {
                 input: SHALLOW,
@@ -1659,23 +1591,7 @@ QUnit.test("deep history transitions, INIT event CASCADING transitions", functio
     ],
   };
   const generators = genFsmDef.transitions;
-  const maxNumberOfTraversals = 1;
-  const target = OUTER_B;
-  /** @type SearchSpecs*/
-  const strategy = {
-    isTraversableEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
-      return computeTimesCircledOn(pathTraversalState.path, edge) < (maxNumberOfTraversals || 1)
-    },
-    isGoalReached: (edge, graph, pathTraversalState, graphTraversalState) => {
-      const { getEdgeTarget, getEdgeOrigin } = graph;
-      const lastPathVertex = getEdgeTarget(edge);
-      // Edge case : accounting for initial vertex
-      const vertexOrigin = getEdgeOrigin(edge);
-
-      const isGoalReached = vertexOrigin ? lastPathVertex === target : false;
-      return isGoalReached
-    },
-  };
+  const strategy = ALL_TRANSITIONS({ targetVertex: OUTER_B });
   const settings = merge(default_settings, { strategy });
   const results = generateTestsFromFSM(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);
@@ -1848,12 +1764,12 @@ QUnit.test("shallow history transitions, INIT event CASCADING transitions, compo
         from: Z, event: EVENT4, guards: [
           {
             predicate: function isDeep(x, e) {return x.history === DEEP},
-            to: hs.deep(OUTER),
+            to: hs(DEEP, OUTER),
             action: incCounter
           },
           {
             predicate: function isShallow(x, e) {return x.history !== DEEP},
-            to: hs.shallow(OUTER),
+            to: hs(SHALLOW, OUTER),
             action: incCounter
           }
         ]
@@ -1904,12 +1820,12 @@ QUnit.test("shallow history transitions, INIT event CASCADING transitions, compo
         from: Z, event: EVENT4, guards: [
           {
             predicate: function isDeep(x, e) {return x.history === DEEP},
-            to: hs.deep(OUTER),
+            to: hs(DEEP, OUTER),
             gen: function genZtoOUTER_DEEP_H(extS) {return { input: DEEP, hasGeneratedInput: extS.history === DEEP }},
           },
           {
             predicate: function isShallow(x, e) {return x.history !== DEEP},
-            to: hs.shallow(OUTER),
+            to: hs(SHALLOW, OUTER),
             gen: function genZtoOUTER_SHALLOW_H(extS) {
               return {
                 input: SHALLOW,
@@ -1922,23 +1838,7 @@ QUnit.test("shallow history transitions, INIT event CASCADING transitions, compo
     ],
   };
   const generators = genFsmDef.transitions;
-  const maxNumberOfTraversals = 1;
-  const target = OUTER_B;
-  /** @type SearchSpecs*/
-  const strategy = {
-    isTraversableEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
-      return computeTimesCircledOn(pathTraversalState.path, edge) < (maxNumberOfTraversals || 1)
-    },
-    isGoalReached: (edge, graph, pathTraversalState, graphTraversalState) => {
-      const { getEdgeTarget, getEdgeOrigin } = graph;
-      const lastPathVertex = getEdgeTarget(edge);
-      // Edge case : accounting for initial vertex
-      const vertexOrigin = getEdgeOrigin(edge);
-
-      const isGoalReached = vertexOrigin ? lastPathVertex === target : false;
-      return isGoalReached
-    },
-  };
+  const strategy = ALL_TRANSITIONS({ targetVertex: OUTER_B });
   const settings = merge(default_settings, { strategy });
   const results = generateTestsFromFSM(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);
@@ -2094,23 +1994,7 @@ QUnit.test("eventless x atomic transitions", function exec_test(assert) {
     ],
   };
   const generators = genFsmDef.transitions;
-  const maxNumberOfTraversals = 1;
-  const target = E;
-  /** @type SearchSpecs*/
-  const strategy = {
-    isTraversableEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
-      return computeTimesCircledOn(pathTraversalState.path, edge) < (maxNumberOfTraversals || 1)
-    },
-    isGoalReached: (edge, graph, pathTraversalState, graphTraversalState) => {
-      const { getEdgeTarget, getEdgeOrigin } = graph;
-      const lastPathVertex = getEdgeTarget(edge);
-      // Edge case : accounting for initial vertex
-      const vertexOrigin = getEdgeOrigin(edge);
-
-      const isGoalReached = vertexOrigin ? lastPathVertex === target : false;
-      return isGoalReached
-    },
-  };
+  const strategy = ALL_TRANSITIONS({ targetVertex: 'E' });
   const settings = merge(default_settings, { strategy });
   const results = generateTestsFromFSM(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);

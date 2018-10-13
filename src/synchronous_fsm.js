@@ -588,32 +588,21 @@ export function traceFSM(env, fsm) {
  * state can then be referenced as follows :
  * - `hs.shallow(state)` will be the shallow history state associated to the `state`
  * - `hs.deep(state)` will be the deep history state associated to the `state`
- * @param {Object.<ControlState, *>} states
+ * @param {FSM_States} states
+ * @return {HistoryStateFactory}
  */
 export function makeHistoryStates(states) {
   const stateList = Object.keys(getFsmStateList(states));
   // used for referential equality comparison to discriminate history type
 
-  return {
-    shallow: state => {
-      if (!stateList.includes(state)) {
+  return (historyType, controlState) => {
+      if (!stateList.includes(controlState)) {
         throw `makeHistoryStates: the state for which a history state must be constructed is not a configured state for the state machine under implementation!!`
       }
 
       return {
-        [SHALLOW]: state,
-        type: history_symbol
-      }
-    },
-    deep: state => {
-      if (!stateList.includes(state)) {
-        throw `makeHistoryStates: the state for which a history state must be constructed is not a configured state for the state machine under implementation!!`
-      }
-
-      return {
-        [DEEP]: state,
+        [historyType]: controlState,
         type: history_symbol
       }
     }
-  }
 }
