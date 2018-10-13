@@ -1289,6 +1289,19 @@ The corresponding sequence of control states is as follows :
 ]
 ```
 
+Note that:
+- we have exercised all possible transitions in our state machine. 
+- The somewhat tricky part here is to understand that, for instance, the transition `INNER 
+-EVENT2-> OUTER.B` in fact is a factorisation of 2 transitions : `INNER.S -EVENT2-> OUTER.B`, 
+`INNER.T-EVENT2-> OUTER.B`!
+- An even trickier part is to realize that transitions to history states are 
+factorizations for transitions to any of the relevant substates of the nesting compound state. Hence
+ `z -EVENT4-> H` is factorization for `z -EVENT4-> OUTER.A`, `z -EVENT4-> OUTER.B`, `z -EVENT4-> 
+ INNER`, and `z -EVENT4-> H*` is factorization for `z -EVENT4-> OUTER.A`, `z -EVENT4-> OUTER.B`, 
+ `z -EVENT4-> INNER.S` , `z -EVENT4-> INNER.T`!
+- we had 5 non-trivial control states, 8 non-trivial transitions, and we ended up with 24 
+input sequences to test all paths on which no transitions is repeated (loop-free paths)! 
+
 There are ample tests which can serve as example in the [test directory](https://github.com/brucou/state-transducer/blob/master/test/test_generation.specs.js).
 
 # Possible API extensions
