@@ -1099,6 +1099,19 @@ the generators definition for each control state ;
   };
 ```
 
+Note that :
+- some events carry no event data (`EVENT_1` for instance). The generator hence sets 
+`null` as generated event data.
+- some events have no guards. The corresponding generators hence always have `hasGeneratedInput =
+ true`, as those events are always triggering a transition when they occur
+- some events have guards. The corresponding generator will set `hasGeneratedInput` to false when
+ the guard cannot be satisfied. A guard is a function of the extended state `extS` and the event 
+ data. The generator is passed the event data. According to the guard at end, the generator must 
+ resolve the equation `find extS so that for all eventData, guard(extS, eventData) = false`. For 
+ those `extS`, the `hasGeneratedInput` will be set to false : no matter the event, the guard can 
+ never be satisfied. For the rest of the cases, the generator will pick an `EventData` which 
+ satisfies the guard, if any.
+
 We then define our extended state update method, our search strategy (*All-transitions* coverage) : 
 
 ```javascript
