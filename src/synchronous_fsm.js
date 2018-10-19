@@ -3,7 +3,7 @@ import {
 } from "./properties";
 import {
   arrayizeOutput, computeHistoryMaps, get_fn_name, getFsmStateList, initHistoryDataStructure, keys,
-  mapOverTransitionsActions, wrap, updateHistory
+  mapOverTransitionsActions, updateHistory, wrap
 } from "./helpers";
 
 /**
@@ -223,7 +223,7 @@ export function create_state_machine(fsmDef, settings) {
               console.info("IN STATE ", from);
               console.info("CASE : " + (predicate ? "guard " + predicate.name + "for transition is fulfilled" : "automatic transition"));
               // CASE : we do have some actions to execute
-              console.info("THEN : we execute the action " + (action.name || action.displayName) );
+              console.info("THEN : we execute the action " + (action.name || action.displayName));
               // NOTE : in a further extension, passing the fsm and the events object could help
               // in implementing asynchronous fsm
               const actionResult = action(extendedState_, event_data, settings);
@@ -276,7 +276,7 @@ export function create_state_machine(fsmDef, settings) {
     // We have to do this separately, as by construction the INIT_STATE is a
     // super state of all states in the machine. Hence sending an INIT_EVENT
     // would always execute the INIT transition by prototypal delegation
-    if (isExternalEvent && event_name === INIT_EVENT && current_state !== INIT_STATE){
+    if (isExternalEvent && event_name === INIT_EVENT && current_state !== INIT_STATE) {
       console.warn(`The external event INIT_EVENT can only be sent when starting the machine!`)
 
       return NO_OUTPUT
@@ -445,25 +445,41 @@ export function makeNamedActionsFactory(namedActionSpecs) {
 }
 
 /**
+ * This function works to merge outputs by simple concatenation and flattening
+ * Every action return T or [T], and we want in output [T] always
+ * mergeOutputsFn([a, [b]) = mergeOutputsFn([a,b]) = mergeOutputsFn([[a],b) = mergeOutputsFn([[a],[b]]) = [a,b]
+ * If we wanted to pass [a] as value we would have to do mergeOutputsFn([[[a]],[b]]) to get [[a],b]
+ * TODO : DOC it
+ * @param arrayOutputs
+ * @returns {*}
+ */
+export function mergeOutputsFn(arrayOutputs) {
+  // NOTE : here, this array of outputs could be array x non-array ^n
+  // The algorithm is to concat all elements
+  return arrayOutputs.reduce((acc, element) => acc.concat(element), [])
+}
+
+/**
  * @param  {FSM_Def} fsm
- * @param  {Object.<string, function>} entryActions Adds an action to be processed when entering a given state
- * @param {function (Array<MachineOutput>) : MachineOutput} mergeOutputFn monoidal merge (pure) function
+ * @param  {Object.<ControlState, function>} entryActions Adds an action to be processed when entering a given state
+ * @param {function (Array<MachineOutput>) : MachineOutput} mergeOutputs monoidal merge (pure) function
  * to be provided to instruct how to combine machine outputs. Beware that the second output corresponds to the entry
  * action output which must logically correspond to a processing as if it were posterior to the first output. In
  * many cases, that will mean that the second machine output has to be 'last', whatever that means for the monoid
  * and application in question
  */
-export function decorateWithEntryActions(fsm, entryActions, mergeOutputFn) {
+export function decorateWithEntryActions(fsm, entryActions, mergeOutputs) {
   const { transitions, states, initialExtendedState, events } = fsm;
   const stateHashMap = getFsmStateList(states);
   const isValidEntryActions = Object.keys(entryActions).every(controlState => {
     return stateHashMap[controlState] != null;
   });
+  const mergeOutputFn = mergeOutputs || mergeOutputsFn
 
   if (!isValidEntryActions) {
     throw `decorateWithEntryActions : found control states for which entry actions are defined, and yet do not exist in the state machine!`;
   } else {
-    const decoratedTransitions = mapOverTransitionsActions((action, transition, guardIndex, transitionIndex)=>{
+    const decoratedTransitions = mapOverTransitionsActions((action, transition, guardIndex, transitionIndex) => {
       const { to } = transition;
       const entryAction = entryActions[to];
       const decoratedAction = entryAction
@@ -471,7 +487,7 @@ export function decorateWithEntryActions(fsm, entryActions, mergeOutputFn) {
         : action;
 
       return decoratedAction
-    },transitions);
+    }, transitions);
 
     return {
       initialExtendedState,
@@ -596,13 +612,13 @@ export function makeHistoryStates(states) {
   // used for referential equality comparison to discriminate history type
 
   return (historyType, controlState) => {
-      if (!stateList.includes(controlState)) {
-        throw `makeHistoryStates: the state for which a history state must be constructed is not a configured state for the state machine under implementation!!`
-      }
-
-      return {
-        [historyType]: controlState,
-        type: history_symbol
-      }
+    if (!stateList.includes(controlState)) {
+      throw `makeHistoryStates: the state for which a history state must be constructed is not a configured state for the state machine under implementation!!`
     }
+
+    return {
+      [historyType]: controlState,
+      type: history_symbol
+    }
+  }
 }

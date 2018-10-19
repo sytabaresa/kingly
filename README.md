@@ -1367,15 +1367,23 @@ Automated visualization works well with simple graphs, but seems to encounter tr
 - [x] support [model-based testing, and test input generation](https://pdfs.semanticscholar.org/f8e6/b3019c0d5422f35d2d98c242f149184992a3.pdf) 
 
 # Roadmap v0.9
-- [ ] turn the test generation into an iterator(generator) : this allows it to be composed with 
+- [ ] document entry actions
+- [ ] turn the test generation into an iterator(ES5 generator) : this allows it to be composed with 
 transducers and manipulate the test cases one by one as soon as they are produced. Will be useful
  for both example-based and property-based testing. When the generators runs through thousands of
   test cases, we often have to wait a long time before seeing any result, which is pretty 
-  damageable when a failure is located toward the ends of the generated input sequences. 
+  damageable when a failure is located toward the ends of the generated input sequences.
+  - by doing so we have integration with transducer and IxJS for free 
 - [ ] add other searches that DFS, BFS (add probability to transitions, exclude some transitions,
  etc.). HINT : `store.pickOne` can be used to select the next transition
+   - pick a random transition
+   - pick next transition according to ranking (probability-based, prefix-based or else) 
+- [ ] showcase property-baesd testing with the iterator (no need to have jsverify, just predicates)
+- [ ] !write proper state machine tracer
+- [ ] !show example of integration with react (same demo example?)
+- [ ] write a minimal *all-transitions* coverage test case generator
 - [ ] add exit actions
-- [ ] document entry and exit actions
+- [ ] document exit actions
 - [ ] include initial history state as a part of initial extended state (this allows to recreate 
 a state machine from its full state : control state, extended state, history state), which opens 
 the way to serialization/de-serialization )

@@ -1,13 +1,32 @@
 # Now
-- ROADMAP: have a rranking function which takes a series of paths, and pick up one to continue 
-exploration (e.g. in store, pick up one overload) but according to some criteria :
-  - could have probability associated to transitions to have some paths occuring more 
-    often than others
-  - including have 100% and 0% to exclude some paths from the search
-- ROADMAP : the generator could be adapted to be used for property-based testing (similar to 
-previous tranduscer proposal). Client can ask for a sequence. The algorithm would provide that 
-sequence. Best implementation-wise is to use a generator (yield) to turn it into an iterator. 
-Once I have an iterator, there are libraries who can integrate it with transudcers!
+- DOC if outputs wants to output an array as outputs how to do it : [Array]! DOC it
+- could use transducer in streaming state machine to avoid using operators?? 2K gzipped
+  - that replaces operators by one : transduce
+  - question! do transducer flatMap?? yes we can, but is it in the common libraries..mmm
+- test new version with iterator of graph-adt 0.8.1!
+- think about how to sell the test stuff and the finished 1st iteration fix
+- think about debugger for state machine - basically a UI around traceFSM
+  - that is the best way to explain the state machine behavior!!
+  - review the format for the visualizer
+  - need to find a way to outline the current control state
+- think about using the test generator for proprty-based testing
+  - for instance any valid test case must respect invariant : no invalid input
+    - that might have found the bug we found
+  - if no review, all ABOUT inputs in the last domain action must be found in the last ABOUT
+    continue event data
+  - if no review, all QUESTION inputs in the last domain action must be found in the last ABOUT 
+    continue event data
+  - if review, all reviewed ABOUT inputs in the last domain action must be found in the last 
+    ABOUT continue event data
+  - if review, all reviewed QUESTION inputs in the last domain action must be found in the last 
+    ABOUT continue event data
+  - must be as many domain action as continue button click
+  - etc.
+- think about how to integrate with React...
+  - state transducer
+  - the tests too!!
+- !! all-transitions is all-path-with-no-repeated-transitions which is a all-transition but 
+bigger, call it all-transitions* ?? to avoid changing everything
 - DOC for test_generators
 - ROADMAP : DSL with parser (check my gmail) like http://blog.efftinge
 .de/2012/05/implementing-fowlers-state-machine-dsl.html so I can convert to it and back for 
