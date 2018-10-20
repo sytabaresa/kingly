@@ -469,6 +469,8 @@ export function mergeOutputsFn(arrayOutputs) {
  * and application in question
  */
 export function decorateWithEntryActions(fsm, entryActions, mergeOutputs) {
+  if (!entryActions) return fsm
+
   const { transitions, states, initialExtendedState, events } = fsm;
   const stateHashMap = getFsmStateList(states);
   const isValidEntryActions = Object.keys(entryActions).every(controlState => {
