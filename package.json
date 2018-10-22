@@ -1,6 +1,6 @@
 {
   "name": "state-transducer",
-  "version": "0.8.4",
+  "version": "0.8.5",
   "description": "Extended Hierarchical State Transducer library",
   "repository": {
     "type": "git",
