@@ -227,6 +227,7 @@ export function create_state_machine(fsmDef, settings) {
               // NOTE : in a further extension, passing the fsm and the events object could help
               // in implementing asynchronous fsm
               const actionResult = action(extendedState_, event_data, settings);
+              if (Object.keys(actionResult).length !== 2) throw new Error(`An action factory produced actions with wrong format. Actions are specified with two properties, one for extended state update, and one for the outputs of the machine! Check that both properties are present on the action, even if they are falsy!`);
 
               // Leave the current state
               leave_state(from, extendedState_, hash_states);
