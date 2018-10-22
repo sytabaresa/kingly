@@ -519,9 +519,12 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
   const decoratedAction = function (extendedState, eventData, settings) {
     const { updateState } = settings;
     const actionResult = action(extendedState, eventData, settings);
+    if (Object.keys(actionResult).length !== 2) throw new Error(`An action factory has produced actions with wrong format. Actions are specified with two properties, one for extended state update, and one for the outputs of the machine! Check that both properties are present on the action, even if they are falsy!`);
+
     const actionUpdate = actionResult.updates;
     const updatedExtendedState = updateState(extendedState, actionUpdate);
     const exitActionResult = entryAction(updatedExtendedState, eventData, settings);
+    if (Object.keys(exitActionResult).length !== 2) throw new Error(`An enyry action factory has produced actions with wrong format. Actions are specified with two properties, one for extended state update, and one for the outputs of the machine! Check that both properties are present on the action, even if they are falsy!`);
 
     // NOTE : exitActionResult comes last as we want it to have priority over other actions.
     // As a matter of fact, it is an exit action, so it must always happen on exiting, no matter what
