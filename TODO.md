@@ -120,3 +120,7 @@ do the design on spare time but work rather on the dev tool!!! that is the killi
 - modelling tool for visual DSL!! https://github.com/webgme/webgme
 - already one exists for state machines. Complex but already exists. Would be good to have a 
 plugin to exchange format between the two!! That way I don't have to do a tracer myself!.!.!
+
+# NOTE
+you can remove some guards by giving them different event names and generating those. That is if 
+you can access the data which serve to compute the guard at event triggering time!!

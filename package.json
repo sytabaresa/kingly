@@ -14,7 +14,7 @@
     "automata"
   ],
   "module": "src/index.js",
-  "main": "dist/transducer.umd.js",
+  "main": "dist/transducer.umd.min.js",
   "files": [
     "src/",
     "dist/"
