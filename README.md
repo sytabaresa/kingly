@@ -580,7 +580,7 @@ identifiers (cannot be empty strings, cannot start with a number, etc.)
   - all transitions must define an action (even if that action does not modify the extended state
    or returns `NO_OUTPUT`)
 - the first event processed by the state machine must be the init event
-- ~the init event has the initial extended state as event data~
+- ~~the init event has the initial extended state as event data~~
 - the init event can only be sent once (further init events will be ignored, and the machine will
  return `NO_OUTPUT`)
 - the state machine starts in the initial state
