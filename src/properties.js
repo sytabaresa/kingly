@@ -11,13 +11,13 @@ export const INIT_EVENT = 'init';
 export const AUTO_EVENT = 'auto';
 export const STATE_PROTOTYPE_NAME = 'State'; // !!must be the function name for the constructor State,
 // i.e. State
-export const NO_MODEL_UPDATE = [];
+export const NO_STATE_UPDATE = [];
 // NOTE : this really cannot be anything else than a falsy value, beware
 export const NO_OUTPUT = null;
 export const ACTION_IDENTITY = function ACTION_IDENTITY(){
   return {
     outputs : NO_OUTPUT,
-    updates : NO_MODEL_UPDATE
+    updates : NO_STATE_UPDATE
   }
 }
 export const history_symbol = {};

@@ -1,5 +1,5 @@
 import { constructGraph, depthFirstTraverseGraphEdges } from "graph-adt"
-import { INIT_STATE } from "./properties"
+import { ACTION_IDENTITY, INIT_STATE } from "./properties"
 import {
   computeHistoryState, getFsmStateList, getHistoryParentState, getHistoryType, isCompoundState, isEventless,
   isHistoryControlState, isHistoryStateEdge, isInitEvent, isInitState, isShallowHistory, lastOf, merge,
@@ -24,7 +24,7 @@ const graphSettings = {
  *
  * @param {FSM_Def} fsm Machine modelizing the system under test
  * @param {Generators} generators
- * @param {{ strategy: SearchStrategy }} settings
+ * @param {{ strategy: SearchStrategy, ubiquitous }} settings
  * `isTraversableEdge` tells us whether to continue the path construction. `isGoalReached` tells us when to
  * stop path accumulation and aggregate the current path to current results
  * @returns {Array<TestCase>}
@@ -35,13 +35,22 @@ export function generateTestsFromFSM(fsm, generators, settings) {
   const fsmStates = tracedFSM.states;
   const analyzedStates = analyzeStateTree(fsmStates);
   const initialExtendedState = tracedFSM.initialExtendedState;
-  const { strategy: { isGoalReached, isTraversableEdge }, onResult } = settings;
+  // DOC : anywhere :: Array<EventNames> those events which must have an explicit transition in every control state
+  const { strategy: { isGoalReached, isTraversableEdge }, onResult, ubiquitous: ubiquitousEvents } = settings;
 
   // Associate a gen to (from, event, guard index) = the transition it is mapped
-  const genMap = getGeneratorMapFromGeneratorMachine(generators);
+  const _genMap = getGeneratorMapFromGeneratorMachine(generators);
+
+  // TODO:  I have to apply the transformation to both genMap and fsmGraph and it is coupled!!
+  // TODO : but for now I have no need for a transform... I can gen without it
 
   // Build a graph from the tracedFSM, and the state machine triggering logic
   const fsmGraph = convertFSMtoGraph(tracedFSM);
+  // const transforms = computeImplicitTransitions(ubiquitousEvents) || []; // TODO
+  const transforms = [];
+  const { edges, vertices, genMap } = (transforms || [])
+    .reduce((acc, transform) => transform(acc), { graphADT: graphSettings, edges, vertices, genMap: _genMap });
+
   // search that graph with the right parameters
   const search = {
     initialGoalEvalState: { results: [] },
@@ -70,7 +79,8 @@ export function generateTestsFromFSM(fsm, generators, settings) {
       inputSequence: [],
       outputSequence: [],
       noMoreInput: false,
-      outputIndex: 0
+      outputIndex: 0,
+      generatorState : null
     },
     visitEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
       const trueEdge = edge.compound
@@ -79,7 +89,7 @@ export function generateTestsFromFSM(fsm, generators, settings) {
       // TODO : performance improvement : put extendedState computation inside each case, so I always compute it
       // only if necessary
       // NOTE : edge is a transition of the state machine
-      const { inputSequence } = pathTraversalState;
+      const { inputSequence, generatorState } = pathTraversalState;
       // Execute the state machine with the input sequence to get it in the matching control state
       // Note that the machine has to be recreated each time, as it is a stateful object
       const fsm = create_state_machine(tracedFSM, settings);
@@ -95,7 +105,9 @@ export function generateTestsFromFSM(fsm, generators, settings) {
 
       // The generator is mapped to the original edge from the state machine transitions, so we use trueEdge
       const gen = getGeneratorMappedTransitionFromEdge(genMap, trueEdge);
-      const generatedInput = gen ? gen(extendedState) : { input: null, hasGeneratedInput: false };
+      const generatedInput = gen
+        ? gen(extendedState, generatorState)
+        : { input: null, hasGeneratedInput: false, generatorState };
       // The traversability of an edge is based on the original edge from the state machine
       // transitions, so we use trueEdge
       const _isTraversableEdge = isTraversableEdge(trueEdge, graph, pathTraversalState, graphTraversalState);
@@ -167,7 +179,7 @@ function computeNewPathTraversalState(fsm, fsmStates, analyzedStates, edge, genI
 
 function computeGeneratedInfoDoNothingCase(edge, pathTraversalState) {
   const { to: targetControlState } = edge;
-  const { path, inputSequence, outputSequence, controlStateSequence, outputIndex } = pathTraversalState;
+  const { path, inputSequence, outputSequence, controlStateSequence, outputIndex, generatorState } = pathTraversalState;
 
   return {
     newIsTraversableEdge: true,
@@ -177,14 +189,15 @@ function computeGeneratedInfoDoNothingCase(edge, pathTraversalState) {
       outputSequence,
       controlStateSequence: controlStateSequence.concat([targetControlState]),
       path: path.concat([edge]),
-      outputIndex
+      outputIndex,
+      generatorState
     }
   }
 }
 
 function computeGeneratedInfoEventlessCase(edge, tracedOutputs, isTraversableEdge, pathTraversalState) {
   const { to: targetControlState, predicate } = edge;
-  const { path, inputSequence, outputSequence, controlStateSequence, outputIndex } = pathTraversalState;
+  const { path, inputSequence, outputSequence, controlStateSequence, outputIndex, generatorState } = pathTraversalState;
   // We want the updated extended state, and the resulting output, so +1
   const { extendedState, outputs } = tracedOutputs[outputIndex + 1];
   const isGuardFulfilled = !predicate || predicate(extendedState);
@@ -203,7 +216,8 @@ function computeGeneratedInfoEventlessCase(edge, tracedOutputs, isTraversableEdg
         outputSequence: outputSequence.concat(outputs),
         controlStateSequence: controlStateSequence.concat([targetControlState]),
         path: path.concat([edge]),
-        outputIndex: outputIndex + 1
+        outputIndex: outputIndex + 1,
+        generatorState
       }
     }
   }
@@ -238,8 +252,8 @@ function computeGeneratedInfoHistoryStateCase(fsm, fsmStates, edge, isTraversabl
 function computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, genInput, pathTraversalState) {
   // TODO : performance improvment : if !isTraversableEdge then return immediately, no need to compute stuff
   const { event: eventLabel, from: controlState, to: targetControlState } = edge;
-  const { path, inputSequence, outputSequence, controlStateSequence } = pathTraversalState;
-  const { input: newInputData, hasGeneratedInput } = genInput;
+  const { path, inputSequence, outputSequence, controlStateSequence, generatorState} = pathTraversalState;
+  const { input: newInputData, hasGeneratedInput, generatorState: newGeneratorState } = genInput;
   let noMoreInput, newInputSequence, newOutputSequence, newControlStateSequence, newPath;
 
   // There is no way to generate an input for that transition : invalid transition
@@ -263,7 +277,7 @@ function computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, genInput, pa
     // TODO : decide outputSequence.concat(untracedOutput) vs. outputSequence.concat([untracedOutput])!
     // this would allow to have outputSequence[index] = fsm(inputSequence[index]) kind of, easier to reason about
     // of course if we only keep the last output, then that is not necessary
-    newOutputSequence = outputSequence.concat(untracedOutput);
+    newOutputSequence = outputSequence.concat([untracedOutput]);
     newControlStateSequence = controlStateSequence.concat([targetControlState]);
     newPath = path.concat([edge]);
     noMoreInput = false;
@@ -276,7 +290,9 @@ function computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, genInput, pa
       outputSequence: newOutputSequence,
       controlStateSequence: newControlStateSequence,
       path: newPath,
-      outputIndex: 0
+      outputIndex: 0,
+      // DOC : !!! undefined value for generator state means that we keep the same generator state. Use null if cancel
+      generatorState : newGeneratorState !== undefined ? newGeneratorState : generatorState
     }
   }
 }
@@ -384,6 +400,79 @@ export function convertFSMtoGraph(tracedFSM) {
   return constructGraph(graphSettings, edges, vertices)
 }
 
+function computeStateEventTransitionMap(transitionRecords) {
+  return transitionRecords.reduce((acc, transitionRecord) => {
+    const { from, event, to } = transitionRecord;
+    acc[from] = acc[from] || {};
+    acc[from][event] = true;
+
+    return acc
+  }, {})
+}
+
+function computeNextTransitionIndex(transitionRecords) {
+  return transitionRecords.reduce((acc, transitionRecord) => {
+    const { transitionIndex } = transitionRecord;
+    if (transitionIndex > acc) {
+      acc = transitionIndex
+    }
+
+    return acc
+  }, 0)
+}
+
+function computeImplicitTransitions(freeEvents) {
+  if (!freeEvents) return void 0
+
+  // TODO: genMap transform!!!
+// TODO : transform to add S -E-> S for any S where there is no (E,S') transition such that S -E-> S'
+// Assumptions are : any preexisting S -E-> S' is complete, i.e. the possible guards cover the whole space
+// If that would not be the case, then the missing branch does not lead to any input generation
+// i.e. it is left unexplored
+// TODO : supposing I do that, I need to write the guards, though they are always true...
+
+  // return function transformTestGenerationGraphs({ graphADT, edges, vertices, genMap }) {
+  //   // TODO : to test
+  //   // Vertices do not change
+  //   // Edge is a flattened transition record
+  //   const stateEventTransitionMap = computeStateEventTransitionMap(edges);
+  //   const { edges: finalEdges, genMap } = edges.reduce((acc, edge) => {
+  //     const { from } = edge;
+  //
+  //     const { newEdges, newTransitionIndex } = freeEvents.reduce((acc, freeEvent) => {
+  //       const { newEdges, newTransitionIndex, newGenMap } = acc;
+  //       if (stateEventTransitionMap[from][freeEvent]) {
+  //         return acc
+  //       }
+  //       else {
+  //         // Add a always true input generation
+  //         newGenMap.set(JSON.stringify({ from, event: freeEvent, guardIndex: 0 }), extS => ({
+  //           input: null,// TODO: I need to put the free event data here but it could be a dummy value as it does not
+  //           // matter... mmm think about it
+  //           hasGeneratedInput: true
+  //         })); //TODO gen
+  //         return {
+  //           newEdges: newEdges.concat({
+  //             from, event: freeEvent, to: from, action: ACTION_IDENTITY,
+  //             // NOTE : this works because by construction, we have no other guards on that (from, event) transition,
+  //             // so telescoping of preexisting guards
+  //             predicate: function alwaysTrue(x) {return true},
+  //             guardIndex: 0,
+  //             transitionIndex: newTransitionIndex
+  //           }),
+  //           newTransitionIndex: newTransitionIndex + 1,
+  //           genMap: void 0 //TODO
+  //         }
+  //       }
+  //     }, { newEdges: [], newTransitionIndex: acc.transitionIndex, newGenMap: acc.genMap });
+  //
+  //     return { edges: acc.edges.concat(newEdges), transitionIndex: newTransitionIndex }
+  //   }, { edges, transitionIndex: computeNextTransitionIndex(edges), genMap });
+  //
+  //   return { graphADT, edges: finalEdges, vertices, genMap }
+  // }
+}
+
 /**
  * For a given state hierarchy, return a map associating, for every control state, its direct substates, and its
  * children which are atomic states
@@ -463,7 +552,8 @@ function getGeneratorMappedTransitionFromEdge(genMap, edge) {
  * state machine, the generator sets the returned property `hasGeneratedInput` to `false`.
  */
 /**
- * @typedef {{inputSequence: InputSequence, outputSequence:OutputSequence, controlStateSequence:ControlStateSequence}} TestCase
+ * @typedef {{inputSequence: InputSequence, outputSequence:OutputSequence, controlStateSequence:ControlStateSequence}}
+ *   TestCase
  */
 /**
  * @typedef {Array<LabelledEvent>} InputSequence

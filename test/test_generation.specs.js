@@ -2,14 +2,14 @@ import * as QUnit from "qunitjs"
 import * as Rx from "rx"
 import { F, merge, T } from "ramda"
 import {
-  ACTION_IDENTITY, computeTimesCircledOn, generateTestsFromFSM, INIT_EVENT, INIT_STATE, makeHistoryStates, NO_OUTPUT,
-  SHALLOW, DEEP
+  ACTION_IDENTITY, computeTimesCircledOn, DEEP, generateTestsFromFSM, INIT_EVENT, INIT_STATE,
+  makeHistoryStates, NO_OUTPUT, SHALLOW
 } from "../src"
 import { formatResult } from "./helpers"
 import { assertContract, isArrayUpdateOperations } from "../test/helpers"
 import { applyPatch } from "json-patch-es6/lib/duplex"
 import { CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE } from "../src/properties"
-import { ALL_TRANSITIONS, ALL_n_TRANSITIONS } from "graph-adt"
+import { ALL_n_TRANSITIONS, ALL_TRANSITIONS } from "graph-adt"
 
 /**
  *
@@ -824,7 +824,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
     ],
   };
   const generators = genFsmDef.transitions;
-  const strategy = ALL_n_TRANSITIONS({targetVertex: 'E', maxNumberOfTraversals: 2});
+  const strategy = ALL_n_TRANSITIONS({ targetVertex: 'E', maxNumberOfTraversals: 2 });
   const settings = merge(default_settings, { strategy });
   const results = generateTestsFromFSM(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);
