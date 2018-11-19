@@ -1,9 +1,6 @@
 # Now
+- why in the first input in input sequence I do not get a {init : undefined} input?? 
 2 move image gallery specs to react state driven and add the section on tests there too
-1     // TODO : decide outputSequence.concat(untracedOutput) vs. outputSequence.concat
-  - this changes test in all dependent so :
-  - react-state-driven, xstate-interpreter, state-machine-demo
-3 before changing state-machine-demo, change the API for streaming to rxjs 6
 - DOC the generator state in the testing generator
 - test new version with iterator of graph-adt 0.8.1!
 - DOC if outputs wants to output an array as outputs how to do it : [Array]! DOC it

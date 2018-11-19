@@ -11,6 +11,8 @@ import { CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE } from "../src/properties"
 import { imageGallerySwitchMap, searchFixtures } from "./fixtures"
 
 // import {ALL_n_TRANSITIONS_WITH_REPEATED_TARGET} from "graph-adt"
+// TODO : I must not only keep the props but also the name of the react component displayed!!!!
+// TODO : should also take care of case : fragment, not react component? no name?
 
 /**
  *
@@ -179,6 +181,7 @@ QUnit.test("image search gallery with switchMap", function exec_test(assert) {
 
   const settings = merge({ updateState: applyJSONpatch }, { strategy });
   const results = generateTestsFromFSM(fsmDef, generators, settings);
+  console.log(`results`,results);
   const inputSequences = results.map(result => result.inputSequence);
   const outputsSequences = results.map(x => x.outputSequence);
   const spyTrigger = function spyTrigger(eventName) {

@@ -250,7 +250,7 @@ function computeGeneratedInfoHistoryStateCase(fsm, fsmStates, edge, isTraversabl
 }
 
 function computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, genInput, pathTraversalState) {
-  // TODO : performance improvment : if !isTraversableEdge then return immediately, no need to compute stuff
+  // TODO : performance improvement : if !isTraversableEdge then return immediately, no need to compute stuff
   const { event: eventLabel, from: controlState, to: targetControlState } = edge;
   const { path, inputSequence, outputSequence, controlStateSequence, generatorState} = pathTraversalState;
   const { input: newInputData, hasGeneratedInput, generatorState: newGeneratorState } = genInput;
