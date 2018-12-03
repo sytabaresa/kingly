@@ -9,5 +9,4 @@ import "./fsm_trace.specs"
 import "./utils.specs"
 import "./test_generation.specs"
 import './hierarchy.specs'
-import './image_gallery.specs'
 QUnit.dump.maxDepth = 50;
