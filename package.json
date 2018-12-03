@@ -20,6 +20,7 @@
     "dist/"
   ],
   "scripts": {
+    "prepublish": "npm run umd",
     "serve": "nodemon index.js --exec babel-node",
     "start": "watchify -d --transform babelify dist-node -o src/bundle.js -v",
     "build": "babel src --source-maps --out-dir dist-node",
