@@ -1,5 +1,6 @@
 # Now
-- why in the first input in input sequence I do not get a {init : undefined} input?? 
+- do an angular2 demo (like ng-state-machine or something)
+- do a svelte-state-machine demo (will be useful for template-based libraries)
 2 move image gallery specs to react state driven and add the section on tests there too
 - DOC the generator state in the testing generator
 - test new version with iterator of graph-adt 0.8.1!

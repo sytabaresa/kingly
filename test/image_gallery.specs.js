@@ -1,4 +1,5 @@
 import * as QUnit from "qunitjs"
+import ReactDOMServer from "react-dom/server"
 import * as Rx from "rx"
 import { merge } from "ramda"
 import {
@@ -10,9 +11,32 @@ import { applyPatch } from "json-patch-es6/lib/duplex"
 import { CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE } from "../src/properties"
 import { imageGallerySwitchMap, searchFixtures } from "./fixtures"
 
-// import {ALL_n_TRANSITIONS_WITH_REPEATED_TARGET} from "graph-adt"
 // TODO : I must not only keep the props but also the name of the react component displayed!!!!
-// TODO : should also take care of case : fragment, not react component? no name?
+// NTH : should also take care of case : fragment, not react component? no name?
+
+export function formatOutputSequence(results){
+  const fakeTrigger = eventName => function fakeEventHandler(){};
+
+  return results.map(result => {
+    const {inputSequence, outputSequence, controlStateSequence} = result;
+    return {
+      inputSequence,
+      controlStateSequence,
+      outputSequence : outputSequence.map(outputs => {
+        return outputs.map(output => {
+          if (output === null) return output
+          const {command, params} = output;
+          if (command !== 'render') return output
+
+          return {
+            command,
+            params : ReactDOMServer.renderToStaticMarkup(params(fakeTrigger))
+          }
+        })
+      })
+    }
+  })
+}
 
 /**
  *
@@ -46,16 +70,8 @@ QUnit.module("Testing image gallery machine", {});
 
 QUnit.test("image search gallery with switchMap", function exec_test(assert) {
   const searchQueries = Object.keys(searchFixtures);
-  // TODO : two problems
-  // TODO : have different queries executed so review gen state this is shit right now
-  // TODO : I need to get more than anonymous for render, so pass a spy trigger to that particular action
-  // can be done by running a postprocessor before formatting the results
-  // TODO : modify state transducer API so it uses rxjs v6 style of reactive stuff, and then change the default
-  // settings in tests everywhere...
-  // TODO : later!! only needs that for the makeStreamingMachine, and it seems to be already ok but more like for most?
   // TODO : move the test generation specs to a stackblitz
   const fsmDef = decorateWithEntryActions(imageGallerySwitchMap, imageGallerySwitchMap.entryActions, null);
-  // DOC how switchmap simplifies my testing!! thought forces to do component real testing
   const genFsmDef = {
     transitions: [
       {
@@ -174,14 +190,11 @@ QUnit.test("image search gallery with switchMap", function exec_test(assert) {
     }
   });
   const strategy = ALL_n_TRANSITIONS_WITH_REPEATED_TARGET({ maxNumberOfTraversals: 2, targetVertex: 'gallery' });
-  // TODO : don't snapshot, just get the name of the react element, and the props
-  // DOC : this means there is a separate testing of the react component!!
-  // DOC : but that will only work if we render a react component. If we render html does not work
-  // DOC  : works only if function component renders the same result given the same props
-
   const settings = merge({ updateState: applyJSONpatch }, { strategy });
   const results = generateTestsFromFSM(fsmDef, generators, settings);
-  console.log(`results`,results);
+
+  console.log(`results`,formatOutputSequence(results));
+
   const inputSequences = results.map(result => result.inputSequence);
   const outputsSequences = results.map(x => x.outputSequence);
   const spyTrigger = function spyTrigger(eventName) {
@@ -333,3 +346,4 @@ QUnit.test("image search gallery with switchMap", function exec_test(assert) {
     );
   })
 });
+

@@ -39,7 +39,8 @@ export function generateTestsFromFSM(fsm, generators, settings) {
   const { strategy: { isGoalReached, isTraversableEdge }, onResult, ubiquitous: ubiquitousEvents } = settings;
 
   // Associate a gen to (from, event, guard index) = the transition it is mapped
-  const _genMap = getGeneratorMapFromGeneratorMachine(generators);
+  // const _genMap = getGeneratorMapFromGeneratorMachine(generators);
+  const genMap = getGeneratorMapFromGeneratorMachine(generators);
 
   // TODO:  I have to apply the transformation to both genMap and fsmGraph and it is coupled!!
   // TODO : but for now I have no need for a transform... I can gen without it
@@ -47,9 +48,9 @@ export function generateTestsFromFSM(fsm, generators, settings) {
   // Build a graph from the tracedFSM, and the state machine triggering logic
   const fsmGraph = convertFSMtoGraph(tracedFSM);
   // const transforms = computeImplicitTransitions(ubiquitousEvents) || []; // TODO
-  const transforms = [];
-  const { edges, vertices, genMap } = (transforms || [])
-    .reduce((acc, transform) => transform(acc), { graphADT: graphSettings, edges, vertices, genMap: _genMap });
+  // const transforms = [];
+  // const { edges, vertices, genMap } = (transforms || [])
+  //   .reduce((acc, transform) => transform(acc), { graphADT: graphSettings, edges, vertices, genMap: _genMap });
 
   // search that graph with the right parameters
   const search = {
@@ -559,7 +560,7 @@ function getGeneratorMappedTransitionFromEdge(genMap, edge) {
  * @typedef {Array<LabelledEvent>} InputSequence
  */
 /**
- * @typedef {Array<MachineOutput>} OutputSequence
+ * @typedef {Array<Array<MachineOutput>>} OutputSequence
  */
 /**
  * @typedef {Array<ControlState>} ControlStateSequence

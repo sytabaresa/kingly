@@ -82,10 +82,10 @@ const linksForCat = [
   "https://www.flickr.com/photos/139230693@N02/28991566559/"
 ];
 const imgSrcForCat = [
-  "https://farm2.staticflickr.com/1811/28991566557_7373bf3b87_m.jpg",
-  "https://farm1.staticflickr.com/838/43264055412_0758887829_m.jpg",
-  "https://farm2.staticflickr.com/1760/28041185847_16008b600a_m.jpg",
-  "https://farm2.staticflickr.com/1744/41656558545_d4e0eec5d3_m.jpg"
+  "https://farm5.staticflickr.com/4818/45983626382_b3b758282f_m.jpg",
+  "https://farm5.staticflickr.com/4842/31094302557_25a9fcbe3d_m.jpg",
+  "https://farm5.staticflickr.com/4818/31094358517_55544cfcc6_m.jpg",
+  "https://farm5.staticflickr.com/4808/45121437725_3d5c8249d7_m.jpg"
 ];
 const resultSearchForCat = [0, 1, 2, 3].map(index => ({
   link: linksForCat[index],

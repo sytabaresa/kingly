@@ -20,6 +20,12 @@ export const KEY_ENTER = `Enter`;
 export const NO_INTENT = null;
 export const COMMAND_SEARCH = 'command_search';
 export const COMMAND_RENDER = 'render';
+export const SEARCH = "SEARCH";
+export const CANCEL_SEARCH= "CANCEL_SEARCH";
+export const PHOTO= "PHOTO";
+export const SEARCH_ERROR = "SEARCH_ERROR";
+export const PHOTO_DETAIL= "PHOTO_DETAIL";
+
 
 export class Form extends React.Component {
   constructor(props) {
@@ -39,7 +45,7 @@ export class Form extends React.Component {
     const isLoading = galleryState === 'loading';
 
     return (
-      form(".ui-form", { onSubmit: ev => onSubmit(ev, this.formRef) }, [
+      form(".ui-form", { onSubmit: ev => onSubmit(ev, this.formRef), "data-testid": SEARCH  }, [
         input(".ui-input", {
           ref: this.formRef,
           type: "search",
@@ -48,10 +54,7 @@ export class Form extends React.Component {
         }),
         div(".ui-buttons", [
           button(".ui-button", { disabled: isLoading, 'data-flip-key': "search" }, searchText),
-          isLoading && button(".ui-button", {
-            type: "button",
-            onClick: onClick
-          }, 'Cancel')
+          isLoading && button(".ui-button", { type: "button", onClick: onClick, "data-testid": CANCEL_SEARCH }, "Cancel")
         ])
       ])
     )
@@ -70,12 +73,13 @@ export class Gallery extends React.Component {
     return (
       section(".ui-items", { 'data-state': galleryState }, [
         isError
-          ? span(".ui-error", `Uh oh, search failed.`)
+          ? span(".ui-error", {"data-testid": SEARCH_ERROR}, `Uh oh, search failed.`)
           : items.map((item, i) => img(".ui-item", {
             src: item.media.m,
             style: { '--i': i },
             key: item.link,
-            onClick: ev => onClick(item)
+            onClick: ev => onClick(item),
+            "data-testid": PHOTO
           }))
       ])
     );
@@ -94,7 +98,7 @@ export class Photo extends React.Component {
     if (galleryState !== 'photo') return null;
 
     return (
-      section(".ui-photo-detail", { onClick }, [
+      section(".ui-photo-detail", { onClick,  "data-testid": PHOTO_DETAIL }, [
         img(".ui-photo", { src: photo.media.m })
       ])
     )
@@ -285,3 +289,7 @@ export function constGen(input, generatorState){
     return { hasGeneratedInput:true,       input,        generatorState      }
   }
 }
+
+// to get string version without loosing undefined through JSON conversion
+// JSON.stringify(hash, (k, v) => (v === undefined) ? '__undefined' : v)
+//   .replace('"__undefined"', 'undefined')
