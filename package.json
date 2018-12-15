@@ -1,5 +1,6 @@
 {
   "name": "state-transducer",
+  "sideEffects": false,
   "version": "0.9.2",
   "description": "Extended Hierarchical State Transducer library",
   "repository": {
@@ -72,7 +73,6 @@
     "watchify": "^3.8.0"
   },
   "dependencies": {
-    "json-patch-es6": "^2.0.6",
     "fp-rosetree": "^0.6.2",
     "graph-adt": "^0.7.0"
   }

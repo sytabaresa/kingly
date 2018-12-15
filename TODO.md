@@ -1,7 +1,23 @@
 # Now
+- I could have a debug property in the object I return and set that property to true or false (or
+ a setter if that works better), cf penpal
+ ```javascript
+var log = function log() {
+  for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+    args[_key] = arguments[_key];
+  }
+
+  if (Penpal.debug) {
+    var _console;
+
+    (_console = console).log.apply(_console, ['[Penpal]'].concat(args)); // eslint-disable-line no-console
+  }
+};
+
+```
+- change subject API to next instead of `emit`, this is observable standard
 - do an angular2 demo (like ng-state-machine or something)
 - do a svelte-state-machine demo (will be useful for template-based libraries)
-2 move image gallery specs to react state driven and add the section on tests there too
 - DOC the generator state in the testing generator
 - test new version with iterator of graph-adt 0.8.1!
 - DOC if outputs wants to output an array as outputs how to do it : [Array]! DOC it
@@ -29,9 +45,6 @@
     ABOUT continue event data
   - must be as many domain action as continue button click
   - etc.
-- think about how to integrate with React...
-  - state transducer
-  - the tests too!!
 - !! all-transitions is all-path-with-no-repeated-transitions which is a all-transition but
 bigger, call it all-transitions* ?? to avoid changing everything
 - DOC for test_generators

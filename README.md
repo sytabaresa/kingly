@@ -1359,14 +1359,15 @@ Automated visualization works well with simple graphs, but seems to encounter tr
 - [artificial intelligence - state machines](http://aiwisdom.com/ai_fsm.html)
 - [A method for testing and validating executable statechart models](https://link.springer.com/article/10.1007/s10270-018-0676-3)
 
-# Roadmap v0.8
+# Roadmap v0.9
 - [x] [online visualizer](https://github.com/brucou/state-transducer-visualizer)
 - [x] remove dependency on json patch and allow customization of the state update library
 - [x] add tracing/debugging support
 - [x] add entry actions
 - [x] support [model-based testing, and test input generation](https://pdfs.semanticscholar.org/f8e6/b3019c0d5422f35d2d98c242f149184992a3.pdf) 
 
-# Roadmap v0.9
+# Roadmap v0.10
+- [ ] support for live, interactive debugging
 - [ ] document entry actions
 - [ ] turn the test generation into an iterator(ES5 generator) : this allows it to be composed with 
 transducers and manipulate the test cases one by one as soon as they are produced. Will be useful
