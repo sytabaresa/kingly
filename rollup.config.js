@@ -55,9 +55,9 @@ export default {
 
       // Any additional options that should be passed through
       // to node-resolve
-      customResolveOptions: {
-        moduleDirectory: 'mode_modules'
-      }
+      // customResolveOptions: {
+      //   moduleDirectory: 'mode_modules'
+      // }
     }),
     commonjs({
       include: ['node_modules/**', "node_modules/deep-equal/**"],
