@@ -43,11 +43,11 @@ export default {
       // Set to an array of strings and/or regexps to lock the module search
       // to modules that match at least one entry. Modules not matching any
       // entry will be marked as external
-      // only: [
-      //   /^fp-rosetree$/,
-      //   /^json-patch-es6/,
-      //   /^graph-adt/,
-      // ], // Default: null
+      only: [
+        /^fp-rosetree$/,
+        /^json-patch-es6/,
+        /^graph-adt/,
+      ], // Default: null
 
       // If true, inspect resolved files to check that they are
       // ES2015 modules
