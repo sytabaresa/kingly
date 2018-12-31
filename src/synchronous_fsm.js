@@ -370,9 +370,11 @@ export function create_state_machine(fsmDef, settings) {
     return send_event({ [INIT_EVENT]: initialExtendedState }, true);
   }
 
+  start();
+
   return {
     yield: x => send_event(x, true),
-    start: start
+    // start: start
   };
 }
 

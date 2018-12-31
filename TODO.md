@@ -1,4 +1,9 @@
 # Now
+- review tests for no-hierarchy because no start... change comments, see what I miss as cases
+- rewrite trace fsm tests
+- rewrite test_generation.specs
+- send the init event before returning the machine!! How does that impact test?? maybe best is 
+not to pass extended state in the init event!! and force in test the same
 - I could have a debug property in the object I return and set that property to true or false (or
  a setter if that works better), cf penpal
  ```javascript
@@ -140,7 +145,11 @@ do the design on spare time but work rather on the dev tool!!! that is the killi
 - modelling tool for visual DSL!! https://github.com/webgme/webgme
 - already one exists for state machines. Complex but already exists. Would be good to have a
 plugin to exchange format between the two!! That way I don't have to do a tracer myself!.!.!
+- compiler to js : spec -> js code
 
 # NOTE
 you can remove some guards by giving them different event names and generating those. That is if
 you can access the data which serve to compute the guard at event triggering time!!
+
+# Trivia
+- example of game state machine (tetris) : https://www.colinfahey.com/tetris/tetris.html?utm_source=ponyfoo+weekly&utm_medium=email&utm_campaign=146
