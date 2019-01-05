@@ -1,4 +1,6 @@
 # Now
+- maybe write a generator like with jsverify. cf. https://github.com/jsverify/jsverify#types 
+  - seems like shrinking in our case is easy, just remove one input from the failing sequence
 - review tests for no-hierarchy because no start... change comments, see what I miss as cases
 - rewrite trace fsm tests
 - rewrite test_generation.specs

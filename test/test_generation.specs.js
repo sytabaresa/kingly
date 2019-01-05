@@ -122,30 +122,22 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
         "nok",
         "A"
       ],
-      "inputSequence": [
-        {
-          "init": {
-            "a_key": "some value",
-            "another_key": "another value"
-          }
-        }
-      ],
-      "outputSequence": [
-        null
-      ]
+      "inputSequence": [],
+      "outputSequence": []
     }
   ], `...`);
 });
 
 QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", function exec_test(assert) {
   const fsmDef = {
-    states: { A: '' },
-    events: [],
+    states: { A: '', B: '' },
+    events: ['ev'],
     transitions: [
+      { from: INIT_STATE, event: INIT_EVENT, to: 'A', action: ACTION_IDENTITY },
       {
-        from: INIT_STATE, event: INIT_EVENT, guards: [
-          { predicate: F, to: 'A', action: ACTION_IDENTITY },
-          { predicate: T, to: 'A', action: ACTION_IDENTITY }
+        from: 'A', event: 'ev', guards: [
+          { predicate: F, to: 'B', action: ACTION_IDENTITY },
+          { predicate: T, to: 'B', action: ACTION_IDENTITY }
         ]
       }
     ],
@@ -153,24 +145,30 @@ QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", funct
   };
   const genFsmDef = {
     states: { A: '' },
-    events: [],
+    events: ['ev'],
     transitions: [
       {
-        from: INIT_STATE, event: INIT_EVENT, guards: [
-          { predicate: F, to: 'A', gen: extendedState => ({ input: null, hasGeneratedInput: false }) },
+        from: INIT_STATE,
+        event: INIT_EVENT,
+        to: 'A',
+        gen: extendedState => ({ input: extendedState, hasGeneratedInput: true })
+      },
+      {
+        from: 'A', event: 'ev', guards: [
+          { predicate: F, to: 'B', gen: extendedState => ({ input: null, hasGeneratedInput: false }) },
           {
             predicate: T,
-            to: 'A',
+            to: 'B',
             gen: function genFnF(extendedState) {return { input: extendedState, hasGeneratedInput: true }}
           },
         ]
-      }
+      },
     ],
     initialExtendedState: initialExtendedState
   };
   const generators = genFsmDef.transitions;
   const maxNumberOfTraversals = 1;
-  const target = 'A';
+  const target = 'B';
 
   const strategy = {
     isTraversableEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
@@ -193,11 +191,12 @@ QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", funct
     {
       "controlStateSequence": [
         "nok",
-        "A"
+        "A",
+        "B"
       ],
       "inputSequence": [
         {
-          "init": {
+          "ev": {
             "a_key": "some value",
             "another_key": "another value"
           }
@@ -211,43 +210,48 @@ QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", funct
 });
 
 QUnit.test("INIT event, 2 actions, 2 conditions", function exec_test(assert) {
+  // TODO : copy from above
   const fsmDef = {
-    states: { A: '' },
-    events: [],
+    states: { A: '', B: '' },
+    events: ['ev'],
     transitions: [
+      { from: INIT_STATE, event: INIT_EVENT, to: 'A', action: ACTION_IDENTITY },
       {
-        from: INIT_STATE, event: INIT_EVENT, guards: [
-          { predicate: function yes({ branch }) {return branch === 'Y'}, to: 'A', action: ACTION_IDENTITY },
-          { predicate: T, to: 'A', action: ACTION_IDENTITY }
+        from: 'A', event: 'ev', guards: [
+          { predicate: function yes({ branch }) {return branch === 'Y'}, to: 'B', action: ACTION_IDENTITY },
+          { predicate: T, to: 'B', action: ACTION_IDENTITY }
         ]
       }
     ],
     initialExtendedState: { branch: 'Y' }
   };
   const genFsmDef = {
-    states: { A: '' },
-    events: [],
     transitions: [
       {
-        from: INIT_STATE, event: INIT_EVENT, guards: [
+        from: INIT_STATE,
+        event: INIT_EVENT,
+        to: 'A',
+        gen: extendedState => ({ input: extendedState, hasGeneratedInput: true })
+      },
+      {
+        from: 'A', event: 'ev', guards: [
           {
             predicate: function yes(x) {return x === 'Y'},
-            to: 'A',
+            to: 'B',
             gen: extendedState => ({ input: { branch: 'Y' }, hasGeneratedInput: true })
           },
           {
             predicate: T,
-            to: 'A',
+            to: 'B',
             gen: function genFnF(extendedState) {return { input: { branch: 'N' }, hasGeneratedInput: true }}
           },
         ]
       }
     ],
-    initialExtendedState: initialExtendedState
   };
   const generators = genFsmDef.transitions;
   const maxNumberOfTraversals = 1;
-  const target = 'A';
+  const target = 'B';
 
   const strategy = {
     isTraversableEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
@@ -270,11 +274,12 @@ QUnit.test("INIT event, 2 actions, 2 conditions", function exec_test(assert) {
     {
       "controlStateSequence": [
         "nok",
-        "A"
+        "A",
+        "B"
       ],
       "inputSequence": [
         {
-          "init": {
+          "ev": {
             "branch": "Y"
           }
         }
@@ -286,11 +291,12 @@ QUnit.test("INIT event, 2 actions, 2 conditions", function exec_test(assert) {
     {
       "controlStateSequence": [
         "nok",
-        "A"
+        "A",
+        "B"
       ],
       "inputSequence": [
         {
-          "init": {
+          "ev": {
             "branch": "N"
           }
         }
@@ -411,10 +417,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
     initialExtendedState: { switch: false, reviewed: false },
     transitions: [
       {
-        from: INIT_STATE, event: INIT_EVENT, guards: [
-          { predicate: function isSwitchOn(x, e) {return x.switch}, to: 'A', action: ACTION_IDENTITY },
-          { predicate: function isSwitchOff(x, e) {return !x.switch}, to: 'B', action: ACTION_IDENTITY }
-        ]
+        from: INIT_STATE, event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY
       },
       {
         from: 'A', event: CLICK, guards: [
@@ -519,9 +522,6 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
       ],
       "inputSequence": [
         {
-          "init": null
-        },
-        {
           "click": {
             "keyB": "valueB"
           }
@@ -543,7 +543,6 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
         }
       ],
       "outputSequence": [
-        NO_OUTPUT,
         NO_OUTPUT,
         NO_OUTPUT,
         NO_OUTPUT,
@@ -571,9 +570,6 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
       ],
       "inputSequence": [
         {
-          "init": null
-        },
-        {
           "click": {
             "keyB": "valueB"
           }
@@ -589,7 +585,6 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
         }
       ],
       "outputSequence": [
-        NO_OUTPUT,
         NO_OUTPUT,
         NO_OUTPUT,
         {
@@ -618,9 +613,6 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
       ],
       "inputSequence": [
         {
-          "init": null
-        },
-        {
           "click": {
             "keyB": "valueB"
           }
@@ -653,7 +645,6 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
         NO_OUTPUT,
         NO_OUTPUT,
         NO_OUTPUT,
-        NO_OUTPUT,
         {
           "b": {
             "keyB": "valueB"
@@ -678,9 +669,6 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
       ],
       "inputSequence": [
         {
-          "init": null
-        },
-        {
           "click": {
             "keyB": "valueB"
           }
@@ -702,7 +690,6 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
         }
       ],
       "outputSequence": [
-        NO_OUTPUT,
         NO_OUTPUT,
         NO_OUTPUT,
         NO_OUTPUT,
@@ -733,10 +720,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
     initialExtendedState: { switch: true, reviewed: false },
     transitions: [
       {
-        from: INIT_STATE, event: INIT_EVENT, guards: [
-          { predicate: function isSwitchOn(x, e) {return x.switch}, to: 'A', action: ACTION_IDENTITY },
-          { predicate: function isSwitchOff(x, e) {return !x.switch}, to: 'B', action: ACTION_IDENTITY }
-        ]
+        from: INIT_STATE, event: INIT_EVENT, to: 'A', action: ACTION_IDENTITY,
       },
       {
         from: 'A', event: CLICK, guards: [
@@ -889,10 +873,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
     initialExtendedState: { switch: false, reviewed: false },
     transitions: [
       {
-        from: INIT_STATE, event: INIT_EVENT, guards: [
-          { predicate: function isSwitchOn(x, e) {return x.switch}, to: 'A', action: ACTION_IDENTITY },
-          { predicate: function isSwitchOff(x, e) {return !x.switch}, to: 'B', action: ACTION_IDENTITY }
-        ]
+        from: INIT_STATE, event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY
       },
       {
         from: 'A', event: CLICK, guards: [
@@ -997,7 +978,6 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
   ], `...`);
   assert.deepEqual(formattedResults.map(x => x.inputSequence), [
     [
-      { "init": fsmDef.initialExtendedState },
       { "click": { "keyB": "valueB" } },
       { "click": { "data": "valueC", "valid": true } },
       { "reviewA": null },
@@ -1005,12 +985,10 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
       { "save": null }
     ],
     [
-      { "init": fsmDef.initialExtendedState },
       { "click": { "keyB": "valueB" } },
       { "click": { "data": "valueC", "valid": true } },
       { "save": null }],
     [
-      { "init": fsmDef.initialExtendedState },
       { "click": { "keyB": "valueB" } },
       { "click": { "data": "invalid key for C", "valid": false } },
       { "click": { "data": "valueC", "valid": true } },
@@ -1019,7 +997,6 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
       { "save": null }
     ],
     [
-      { "init": fsmDef.initialExtendedState },
       { "click": { "keyB": "valueB" } },
       { "click": { "data": "invalid key for C", "valid": false } },
       { "click": { "data": "valueC", "valid": true } },
@@ -1027,6 +1004,22 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
     ]
   ], `...`);
   assert.deepEqual(formattedResults.map(x => x.outputSequence), [
+    [
+      NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, {
+      "b": { "keyB": "valueB" },
+      "c": { "data": "valueC", "error": null },
+      "reviewed": true,
+      "switch": true
+    }
+    ],
+    [
+      NO_OUTPUT, NO_OUTPUT, {
+      "b": { "keyB": "valueB" },
+      "c": { "data": "valueC", "error": null },
+      "reviewed": false,
+      "switch": true
+    }
+    ],
     [
       NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, {
       "b": { "keyB": "valueB" },
@@ -1037,22 +1030,6 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
     ],
     [
       NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, {
-      "b": { "keyB": "valueB" },
-      "c": { "data": "valueC", "error": null },
-      "reviewed": false,
-      "switch": true
-    }
-    ],
-    [
-      NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, {
-      "b": { "keyB": "valueB" },
-      "c": { "data": "valueC", "error": null },
-      "reviewed": true,
-      "switch": true
-    }
-    ],
-    [
-      NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, NO_OUTPUT, {
       "b": { "keyB": "valueB" },
       "c": { "data": "valueC", "error": null },
       "reviewed": false,
@@ -1070,15 +1047,15 @@ QUnit.test("eventless transitions no guards, inner INIT event transitions, loops
   const REVIEW_B = 'reviewB';
   const SAVE = 'save';
   const fsmDef = {
-    states: { EVENTLESS: '', A: '', B: '', C: '', OUTER_GROUP_D: { INNER_GROUP_D: { D: '' } }, E: '' },
-    events: [CLICK, REVIEW_A, REVIEW_B, SAVE],
+    states: { START:'', EVENTLESS: '', A: '', B: '', C: '', OUTER_GROUP_D: { INNER_GROUP_D: { D: '' } }, E: '' },
+    events: [CLICK, REVIEW_A, REVIEW_B, SAVE, 'start'],
     initialExtendedState: { switch: false, reviewed: false },
     transitions: [
       {
-        from: INIT_STATE, event: INIT_EVENT, guards: [
-          { predicate: function isSwitchOn(x, e) {return x.switch}, to: 'A', action: ACTION_IDENTITY },
-          { predicate: function isSwitchOff(x, e) {return !x.switch}, to: 'EVENTLESS', action: ACTION_IDENTITY }
-        ]
+        from: INIT_STATE, event: INIT_EVENT, to: 'START', action: ACTION_IDENTITY
+      },
+      {
+        from: 'START', event: 'start', to: 'EVENTLESS', action: ACTION_IDENTITY
       },
       {
         from: 'A', event: CLICK, guards: [
@@ -1104,24 +1081,20 @@ QUnit.test("eventless transitions no guards, inner INIT event transitions, loops
   const genFsmDef = {
     transitions: [
       {
-        from: INIT_STATE, event: INIT_EVENT, guards: [
-          {
-            predicate: function isSwitchOn(x, e) {return x.switch}, to: 'A', gen: function genINIT2A(extS) {
-              return {
-                input: null, // does not matter, the guard does not depend on e
-                hasGeneratedInput: extS.switch
-              }
-            }
-          },
-          {
-            predicate: function isSwitchOff(x, e) {return !x.switch}, to: 'B', gen: function genINIT2B(extS) {
-              return {
-                input: null, // does not matter, the guard does not depend on e
-                hasGeneratedInput: !extS.switch
-              }
-            }
+        from: INIT_STATE, event: INIT_EVENT, to: 'START', gen: function genINIT2B(extS) {
+          return {
+            input: null,
+            hasGeneratedInput: true
           }
-        ]
+        }
+      },
+      {
+        from: 'START', event: 'start', to: 'EVENTLESS', gen: function genINIT2B(extS) {
+          return {
+            input: null,
+            hasGeneratedInput: !extS.switch
+          }
+        }
       },
       {
         from: 'A', event: CLICK, guards: [
@@ -1180,14 +1153,14 @@ QUnit.test("eventless transitions no guards, inner INIT event transitions, loops
   const results = generateTestsFromFSM(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);
   assert.deepEqual(formattedResults.map(x => x.controlStateSequence), [
-    ["nok", "EVENTLESS", "B", "C", "INNER_GROUP_D", "D", "A", "OUTER_GROUP_D", "INNER_GROUP_D", "D", "E"],
-    ["nok", "EVENTLESS", "B", "C", "INNER_GROUP_D", "D", "E"],
-    ["nok", "EVENTLESS", "B", "C", "C", "INNER_GROUP_D", "D", "A", "OUTER_GROUP_D", "INNER_GROUP_D", "D", "E"],
-    ["nok", "EVENTLESS", "B", "C", "C", "INNER_GROUP_D", "D", "E"]
+    ["nok", "START","EVENTLESS", "B", "C", "INNER_GROUP_D", "D", "A", "OUTER_GROUP_D", "INNER_GROUP_D", "D", "E"],
+    ["nok", "START","EVENTLESS", "B", "C", "INNER_GROUP_D", "D", "E"],
+    ["nok", "START","EVENTLESS", "B", "C", "C", "INNER_GROUP_D", "D", "A", "OUTER_GROUP_D", "INNER_GROUP_D", "D", "E"],
+    ["nok", "START","EVENTLESS", "B", "C", "C", "INNER_GROUP_D", "D", "E"]
   ], `...`);
   assert.deepEqual(formattedResults.map(x => x.inputSequence), [
     [
-      { "init": null },
+      { "start": null },
       { "click": { "keyB": "valueB" } },
       { "click": { "data": "valueC", "valid": true } },
       { "reviewA": null },
@@ -1195,12 +1168,12 @@ QUnit.test("eventless transitions no guards, inner INIT event transitions, loops
       { "save": null }
     ],
     [
-      { "init": null },
+      { "start": null },
       { "click": { "keyB": "valueB" } },
       { "click": { "data": "valueC", "valid": true } },
       { "save": null }],
     [
-      { "init": null },
+      { "start": null },
       { "click": { "keyB": "valueB" } },
       { "click": { "data": "invalid key for C", "valid": false } },
       { "click": { "data": "valueC", "valid": true } },
@@ -1209,7 +1182,7 @@ QUnit.test("eventless transitions no guards, inner INIT event transitions, loops
       { "save": null }
     ],
     [
-      { "init": null },
+      { "start": null },
       { "click": { "keyB": "valueB" } },
       { "click": { "data": "invalid key for C", "valid": false } },
       { "click": { "data": "valueC", "valid": true } },
@@ -1419,86 +1392,70 @@ QUnit.test("shallow history transitions, INIT event CASCADING transitions", func
   ], `...`);
   assert.deepEqual(formattedResults.map(x => x.inputSequence), [
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event1": null }, { "event3": null }, { "event3": null }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event1": null }, { "event3": null }, { "event3": null }, { "event5": null }, { "event4": "shallow" }, { "event2": null }],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event1": null }, { "event3": null }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "shallow" }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event1": null }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event1": null }, { "event5": null }, { "event4": "shallow" }, { "event3": null }, { "event3": null }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event1": null }, { "event5": null }, { "event4": "shallow" }, { "event3": null }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event1": null }, { "event5": null }, { "event4": "shallow" }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event3": null }, { "event3": null }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event3": null }, { "event3": null }, { "event5": null }, { "event4": "shallow" }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event3": null }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "shallow" }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event5": null }, { "event4": "shallow" }, { "event3": null }, { "event3": null }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event5": null }, { "event4": "shallow" }, { "event3": null }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event5": null }, { "event4": "shallow" }, { "event2": null }
     ]
   ], `...`);
   assert.deepEqual(formattedResults.map(x => x.outputSequence), [
-    [null, null, null, null, null],
-    [null, null, null, null, null, 0, null],
     [null, null, null, null],
     [null, null, null, null, 0, null],
     [null, null, null],
-    [null, null, null, 0, null, null, null],
-    [null, null, null, 0, null, null],
     [null, null, null, 0, null],
-    [null, null, 0, null, null, null, null],
-    [null, null, 0, null, null, null, null, 1, null],
+    [null, null],
     [null, null, 0, null, null, null],
-    [null, null, 0, null, null, null, 1, null],
     [null, null, 0, null, null],
-    [null, null, 0, null, null, 1, null, null, null],
-    [null, null, 0, null, null, 1, null, null],
-    [null, null, 0, null, null, 1, null]
+    [null, null, 0, null],
+    [null, 0, null, null, null, null],
+    [null, 0, null, null, null, null, 1, null],
+    [null, 0, null, null, null],
+    [null, 0, null, null, null, 1, null],
+    [null, 0, null, null],
+    [null, 0, null, null, 1, null, null, null],
+    [null, 0, null, null, 1, null, null],
+    [null, 0, null, null, 1, null]
   ], `...`);
 });
 
@@ -1623,108 +1580,65 @@ QUnit.test("deep history transitions, INIT event CASCADING transitions", functio
   ], `...`);
   assert.deepEqual(formattedResults.map(x => x.inputSequence), [
     [
-      { "init": { "counter": 0, "history": "deep" } },
       { "event1": null }, { "event3": null }, { "event3": null }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "deep" } },
       { "event1": null }, { "event3": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "deep" } },
       { "event1": null }, { "event3": null }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "deep" } },
       { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "deep" } },
       { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }
     ],
-    [
-      { "init": { "counter": 0, "history": "deep" } },
-      { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
-    [{
-      "init": { "counter": 0, "history": "deep" }
-    }, { "event1": null }, { "event2": null }],
-    [{
-      "init": { "counter": 0, "history": "deep" }
-    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event3": null }, { "event2": null }],
-    [{
-      "init": { "counter": 0, "history": "deep" }
-    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }],
-    [{
-      "init": { "counter": 0, "history": "deep" }
-    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }],
-    [{
-      "init": { "counter": 0, "history": "deep" }
-    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
-    [{
-      "init": { "counter": 0, "history": "deep" }
-    }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
-    [{
-      "init": { "counter": 0, "history": "deep" }
-    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event3": null }, { "event2": null }],
-    [{
-      "init": { "counter": 0, "history": "deep" }
-    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
-    [{
-      "init": { "counter": 0, "history": "deep" }
-    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event2": null }],
-    [{
-      "init": { "counter": 0, "history": "deep" }
-    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }],
-    [{
-      "init": { "counter": 0, "history": "deep" }
-    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
-    [{
-      "init": { "counter": 0, "history": "deep" }
-    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
-    [{
-      "init": { "counter": 0, "history": "deep" }
-    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event2": null }],
-    [{
-      "init": { "counter": 0, "history": "deep" }
-    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event3": null }, { "event2": null }],
-    [{
-      "init": { "counter": 0, "history": "deep" }
-    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }],
-    [{
-      "init": { "counter": 0, "history": "deep" }
-    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }],
-    [{
-      "init": { "counter": 0, "history": "deep" }
-    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
-    [{
-      "init": { "counter": 0, "history": "deep" }
-    }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }]
+    [      { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
+    [{ "event1": null }, { "event2": null }],
+    [{ "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event3": null }, { "event2": null }],
+    [{ "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }],
+    [{ "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }],
+    [{ "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
+    [{ "event1": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
+    [{ "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event3": null }, { "event2": null }],
+    [{ "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
+    [{ "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event2": null }],
+    [{ "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }],
+    [{ "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
+    [{ "event5": null }, { "event4": "deep" }, { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
+    [{ "event5": null }, { "event4": "deep" }, { "event1": null }, { "event2": null }],
+    [{ "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event3": null }, { "event2": null }],
+    [{ "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }],
+    [{ "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event2": null }],
+    [{ "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event3": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }],
+    [{ "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }]
   ], `...`);
   assert.deepEqual(formattedResults.map(x => x.outputSequence), [
-    [null, null, null, null, null],
-    [null, null, null, null, null, 0, null],
     [null, null, null, null],
-    [null, null, null, null, 0, null, null],
-    [null, null, null, null, 0, null, null, 1, null],
     [null, null, null, null, 0, null],
     [null, null, null],
-    [null, null, null, 0, null, null, null],
     [null, null, null, 0, null, null],
-    [null, null, null, 0, null, null, 1, null, null],
     [null, null, null, 0, null, null, 1, null],
     [null, null, null, 0, null],
-    [null, null, 0, null, null, null, null],
-    [null, null, 0, null, null, null, null, 1, null],
+    [null, null],
     [null, null, 0, null, null, null],
-    [null, null, 0, null, null, null, 1, null, null],
-    [null, null, 0, null, null, null, 1, null, null, 2, null],
-    [null, null, 0, null, null, null, 1, null],
     [null, null, 0, null, null],
-    [null, null, 0, null, null, 1, null, null, null],
     [null, null, 0, null, null, 1, null, null],
-    [null, null, 0, null, null, 1, null, null, 2, null, null],
-    [null, null, 0, null, null, 1, null, null, 2, null],
-    [null, null, 0, null, null, 1, null]
+    [null, null, 0, null, null, 1, null],
+    [null, null, 0, null],
+    [null, 0, null, null, null, null],
+    [null, 0, null, null, null, null, 1, null],
+    [null, 0, null, null, null],
+    [null, 0, null, null, null, 1, null, null],
+    [null, 0, null, null, null, 1, null, null, 2, null],
+    [null, 0, null, null, null, 1, null],
+    [null, 0, null, null],
+    [null, 0, null, null, 1, null, null, null],
+    [null, 0, null, null, 1, null, null],
+    [null, 0, null, null, 1, null, null, 2, null, null],
+    [null, 0, null, null, 1, null, null, 2, null],
+    [null, 0, null, null, 1, null]
   ], `...`);
 });
 
@@ -1862,97 +1776,82 @@ QUnit.test("shallow history transitions, INIT event CASCADING transitions, compo
   ], `...`);
   assert.deepEqual(formattedResults.map(x => x.inputSequence), [
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event1": null }, { "event3": null }, { "event3": null }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event1": null }, { "event3": null }, { "event3": null }, { "event5": null }, { "event4": "shallow" }, { "event2": null }],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event1": null }, { "event3": null }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "shallow" }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event1": null }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event1": null }, { "event5": null }, { "event4": "shallow" }, { "event3": null }, { "event3": null }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event1": null }, { "event5": null }, { "event4": "shallow" }, { "event3": null }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event1": null }, { "event5": null }, { "event4": "shallow" }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event3": null }, { "event3": null }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event3": null }, { "event3": null }, { "event5": null }, { "event4": "shallow" }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event3": null }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event3": null }, { "event5": null }, { "event4": "shallow" }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event5": null }, { "event4": "shallow" }, { "event3": null }, { "event3": null }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event5": null }, { "event4": "shallow" }, { "event3": null }, { "event2": null }
     ],
     [
-      { "init": { "counter": 0, "history": "shallow" } },
       { "event5": null }, { "event4": "shallow" }, { "event1": null }, { "event5": null }, { "event4": "shallow" }, { "event2": null }
     ]
   ], `...`);
   assert.deepEqual(formattedResults.map(x => x.outputSequence), [
-    [null, null, null, null, null],
-    [null, null, null, null, null, 0, null],
     [null, null, null, null],
     [null, null, null, null, 0, null],
     [null, null, null],
-    [null, null, null, 0, null, null, null],
-    [null, null, null, 0, null, null],
     [null, null, null, 0, null],
-    [null, null, 0, null, null, null, null],
-    [null, null, 0, null, null, null, null, 1, null],
+    [null, null],
     [null, null, 0, null, null, null],
-    [null, null, 0, null, null, null, 1, null],
     [null, null, 0, null, null],
-    [null, null, 0, null, null, 1, null, null, null],
-    [null, null, 0, null, null, 1, null, null],
-    [null, null, 0, null, null, 1, null]
+    [null, null, 0, null],
+    [null, 0, null, null, null, null],
+    [null, 0, null, null, null, null, 1, null],
+    [null, 0, null, null, null],
+    [null, 0, null, null, null, 1, null],
+    [null, 0, null, null],
+    [null, 0, null, null, 1, null, null, null],
+    [null, 0, null, null, 1, null, null],
+    [null, 0, null, null, 1, null]
   ], `...`);
 });
 
 QUnit.test("eventless x atomic transitions", function exec_test(assert) {
-  const states = { [A]: '', [B]: '', [C]: '', [D]: '', [E]: '' };
+  const states = { [A]: '', [B]: '', [C]: '', [D]: '', [E]: '', 'START':'' };
   const fsmDef = {
     states,
-    events: [EVENT1, EVENT2],
+    events: [EVENT1, EVENT2, 'start'],
     initialExtendedState: { switch: false, b: 0, c: 0 },
     transitions: [
-      { from: INIT_STATE, event: INIT_EVENT, to: A, action: setSwitch },
+      { from: INIT_STATE, event: INIT_EVENT, to: 'START', action: ACTION_IDENTITY },
+      { from: 'START', event: 'start', to: A, action: setSwitch },
       {
         from: A, guards: [
           { predicate: isSetSwitch, to: C, action: incC },
@@ -1974,9 +1873,10 @@ QUnit.test("eventless x atomic transitions", function exec_test(assert) {
       {
         from: INIT_STATE,
         event: INIT_EVENT,
-        to: A,
+        to: 'START',
         gen: function genINITtoA(extS) {return { input: extS, hasGeneratedInput: true } }
       },
+      { from: 'START', event: 'start', to: A, gen: function (extS) {return { input: extS, hasGeneratedInput: true } } },
       {
         from: A, guards: [
           { predicate: isSetSwitch, to: C },
@@ -1999,11 +1899,11 @@ QUnit.test("eventless x atomic transitions", function exec_test(assert) {
   const results = generateTestsFromFSM(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);
   assert.deepEqual(formattedResults.map(x => x.controlStateSequence), [
-    ["nok", "A", "C", "D", "A", "B", "D", "E"]
+    ["nok", "START", "A", "C", "D", "A", "B", "D", "E"]
   ], `...`);
   assert.deepEqual(formattedResults.map(x => x.inputSequence), [
     [
-      { "init": { "b": 0, "c": 0, "switch": false } },
+      { "start": { "b": 0, "c": 0, "switch": false } },
       { "event1": null },
       { "event2": null }
     ]

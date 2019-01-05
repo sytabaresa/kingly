@@ -97,28 +97,29 @@ QUnit.module("Testing traceFSM(env, fsm)", {});
 
 QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
   const fsmDef = {
-    states: { A: '' },
-    events: [],
+    states: { A: '' , B:''},
+    events: ['ev'],
     transitions: [
-      { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY }
+      { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY },
+      { from: 'A', to: 'B', event: 'ev', action: ACTION_IDENTITY }
     ],
     initialExtendedState: initialExtendedState
   };
   const settings = default_settings;
   const decoratedFsmDef = traceFSM(settings, fsmDef);
   const decoratedFSM = create_state_machine(decoratedFsmDef, settings);
-  const result = decoratedFSM.start();
+  const result = decoratedFSM.yield({'ev': initialExtendedState});
   const formattedResult = result.map(formatResult);
   assert.deepEqual(formattedResult,
     [{
     "actionFactory": "ACTION_IDENTITY",
-    "controlState": "nok",
+    "controlState": "A",
     "event": {
       "eventData": {
         "a_key": "some value",
         "another_key": "another value"
       },
-      "eventLabel": "init"
+      "eventLabel": "ev"
     },
     "extendedState": {
       "a_key": "some value",
@@ -138,8 +139,8 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
       "subject_factory": "subject_factory",
       "updateState": "applyJSONpatch"
     },
-    "targetControlState": "A",
-    "transitionIndex": 0
+    "targetControlState": "B",
+    "transitionIndex": 1
   }], `trace is correct`);
 });
 
@@ -156,73 +157,11 @@ QUnit.test("INIT event, 2 actions with extended state update, NOK -> A -> B, no 
   const settings = default_settings;
   const decoratedFsmDef = traceFSM(settings, fsmDef);
   const decoratedFSM = create_state_machine(decoratedFsmDef, settings);
-  const result1 = decoratedFSM.start();
   const result2 = decoratedFSM.yield({ [EVENT1]: EVENT1_DATA });
-  const formattedResult1 = result1.map(formatResult);
   const formattedResult2 = result2.map(formatResult);
 
-  assert.deepEqual([formattedResult1, formattedResult2],
+  assert.deepEqual([formattedResult2],
     [
-      [{
-        "actionFactory": "dummy_action_with_update",
-        "controlState": "nok",
-        "event": {
-          "eventData": {
-            "a_key": "some value",
-            "another_key": "another value"
-          },
-          "eventLabel": "init"
-        },
-        "extendedState": {
-          "a_key": "some value",
-          "another_key": "another value"
-        },
-        "guardIndex": 0,
-        "updates": [
-          {
-            "op": "add",
-            "path": "/new_model_key_1",
-            "value": "new_model_value_1"
-          },
-          {
-            "op": "replace",
-            "path": "/a_key",
-            "value": {
-              "new_model_key": "new_model_value"
-            }
-          },
-          {
-            "op": "remove",
-            "path": "/another_key"
-          }
-        ],
-        "newExtendedState": {
-          "a_key": {
-            "new_model_key": "new_model_value"
-          },
-          "new_model_key_1": "new_model_value_1"
-        },
-        "outputs": {
-          "event_data": {
-            "a_key": "some value",
-            "another_key": "another value"
-          },
-          "model": {
-            "a_key": "some value",
-            "another_key": "another value"
-          },
-          "settings": {}
-        },
-        "predicate": undefined,
-        "settings": {
-          "merge": "merge",
-          "of": "anonymous",
-          "subject_factory": "subject_factory",
-          "updateState": "applyJSONpatch"
-        },
-        "targetControlState": "A",
-        "transitionIndex": 0
-      }],
       [{
         "actionFactory": "another_dummy_action_with_update",
         "controlState": "A",

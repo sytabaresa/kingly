@@ -571,6 +571,7 @@ must be one)
  
 ### Contracts
 
+#### Format
 - state names must be unique and conform to the same nomenclature than javascript variable 
 identifiers (cannot be empty strings, cannot start with a number, etc.)
 - all transitions must be valid :
@@ -579,19 +580,48 @@ identifiers (cannot be empty strings, cannot start with a number, etc.)
   - the transition syntax must be followed (cf. types)
   - all transitions must define an action (even if that action does not modify the extended state
    or returns `NO_OUTPUT`)
+- all action factories must fill in the `updates` and `outputs` property (no syntax sugar)
+  - NO_OUTPUT must be used to indicate the absence of outputs
+
+#### Initial event and initial state
+By initial transition, we mean the transition with origin the machine's default initial state.
+
 - the first event processed by the state machine must be the init event
 - ~~the init event has the initial extended state as event data~~
 - the init event can only be sent once (further init events will be ignored, and the machine will
  return `NO_OUTPUT`)
 - the state machine starts in the initial state
 - there are no incoming transitions to the initial state
-- The machine cannot stay blocked in the initial control state. This means that at least one 
+- ~~The machine cannot stay blocked in the initial control state. This means that at least one 
 transition must be configured and be executed between the initial control state and another state
-.   This is turn means :
-  - at least one non-reserved control state must be configured
-  - at least one transition out of the initial control state must be configured
-  - of all guards for such transitions, if any, at least one must be fulfilled to enable a 
-  transition away from the initial control state
+.   This is turn means :~~
+  - ~~at least one non-reserved control state must be configured~~
+  - ~~at least one transition out of the initial control state must be configured~~
+  - ~~of all guards for such transitions, if any, at least one must be fulfilled to enable a 
+  transition away from the initial control state~~
+- there is exactly one initial transition, with unambiguous target state, with only effect to 
+determine the initial control state for the machine 
+  - there is no guard on that transition
+  - the action on that transition is the *identity* action 
+
+#### Semantical contracts
+- the machine cannot block on receiving an input
+  - eventless transitions must progress the state machine
+    - at least one guard must be fulfilled, otherwise we would remain forever in the same state
+  - eventless self-transitions must modify the extended state
+    - lest we loop forever (a real blocking infinite loop)
+    - note that there is not really a strong rationale for eventless self-transition, I recommend 
+      just staying away from it.
+- the machine is deterministic and unambiguous
+  - **NOTE TO SELF**: absolutely enforce that contract
+  - to a (from, event) couple, there can only correspond one row in the `transitions` array of the 
+  state machine (but there can be several guards in that row)
+      - (particular case) eventless transitions must not be contradicted by event-ful transitions
+  - A -ev> B and A < OUTER_A with OUTER_A -ev>C !! : there are two valid transitions triggered by
+     `ev`. Such transitions would unduely complicate the input testing generation, and decrease 
+     the readability of the machine so we forbid such transitions[^x]
+  - there cannot be two transitions with the same `(from, event, predicate)` - sameness defined for
+     predicate by referential equality
 - no transitions from the history state (history state is only a target state)
 - A transition evaluation must end in an atomic state
   - Initial states must be defined for every compound state 
@@ -603,31 +633,14 @@ transition must be configured and be executed between the initial control state 
   - (the previous conditions ensure that there is always a way down the hierarchy for compound 
   states, and that way is always taken when entering the compound state, and the descent 
   process always terminate)
-- guards, action factories are pure functions
-  - as such exceptions while running those functions are fatal, and will not be caught
-- eventless transitions must progress the state machine
-  - at least one guard must be fulfilled, otherwise we would remain forever in the same state
-- eventless self-transitions must modify the extended state
-  - lest we loop forever (a real blocking infinite loop)
-  - note that there is not really a strong rationale for eventless self-transition, I recommend 
-  just staying away from it.
-- eventless transitions must not be contradicted by event-ful transitions
-  - they must be the only transition defined for a given origin control state and triggering event
-- to a (from, event) couple, there can only correspond one row in the `transitions` array of the 
-state machine
-- cannot have non-determinstic transitions
-  - A -ev> B and A < OUTER_A with OUTER_A -ev>C !! : there are two valid transitions triggered by
-   `ev`. While it is possible to decide deterministically which transition should proceed, this 
-   unduely complicated the input testing generation so we forbid non-deterministic transitions
-  - NOTE TO SELF: absolutely write that contract
-- `updateState :: ExtendedState -> ExtendedStateUpdates -> ExtendedState` must be a pure function
- (this is important in particular for the tracing mechanism which triggers two execution of this 
- function with the same parameters)
-- all action factories must fill in the `updates` and `outputs` property (no syntax sugar)
-  - NO_OUTPUT must be used to indicate the absence of outputs
-- there cannot be two transitions with the same `(from, event, predicate)` - sameness defined for
- predicate by referential equality
+- the machine does not perform any effects
+  - guards, action factories are pure functions
+    - as such exceptions while running those functions are fatal, and will not be caught
+  - `updateState :: ExtendedState -> ExtendedStateUpdates -> ExtendedState` must be a pure function
+   (this is important in particular for the tracing mechanism which triggers two execution of this 
+   function with the same parameters)
 
+[^x]: There are however semantics which allow such transitions, thus possibilitating event bubbling.
 
 ## `create_state_machine :: FSM_Def -> Settings -> FSM`
 ### Description

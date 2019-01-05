@@ -151,7 +151,7 @@ function computeNewPathTraversalState(fsm, fsmStates, analyzedStates, edge, genI
   }
   // Case 2. the init event is manually sent : we have to generate the corresponding input
   else if (isInitState(controlState) && isInitEvent(eventLabel)) {
-    return computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, genInput, pathTraversalState)
+    return computeGeneratedInfoDoNothingCase(edge, pathTraversalState)
   }
   // Case 3 : the init event is automatically and internally sent by the state machine : no need to generate inputs!
   else if (!isInitState(controlState) && isInitEvent(eventLabel)) {
