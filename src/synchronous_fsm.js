@@ -196,8 +196,6 @@ export function create_state_machine(fsmDef, settings) {
       is_auto_state[from] = true;
     }
 
-    console.log("This is transition for event:", event);
-
     from_proto[event] = arr_predicate.reduce(
       function (acc, guard, index) {
         let action = guard.action;
