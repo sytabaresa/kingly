@@ -549,7 +549,7 @@ export function testFsm({testAPI, fsmFactorySpecs, inputSequences, oracle, forma
 
   const expectedOutputSequences = computeOutputSequences(inputSequences);
 
-  range(0, inputSequences.length).forEach(index => {
+  inputSequences.forEach((_,index) => {
     assert.deepEqual(
       formattedOutputsSequences[index],
       expectedOutputSequences[index],
