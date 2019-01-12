@@ -155,3 +155,25 @@ you can access the data which serve to compute the guard at event triggering tim
 
 # Trivia
 - example of game state machine (tetris) : https://www.colinfahey.com/tetris/tetris.html?utm_source=ponyfoo+weekly&utm_medium=email&utm_campaign=146
+
+#testing
+The FSM can be used to generate test cases fulfilling test
+covers. There exists a set of desirable properties for the testing
+of FSMs. Action Coverage is defined as the desirable property
+of executing every possible action at each state at least once.
+Action coverage is the easiest test coverage criterion for a
+FSM model. Ref. [9] introduces Branch Cover, Switch Cover,
+Boundary-Interior Cover and H-Language as test coverage
+criteria. Branch Cover traverses an FSM in order to visit each
+branch, so that the complexity of all possible paths reaching
+to infinity at worst can be reduced. Switch Cover describes a
+branch-to-branch tuple, meaning that in and out branches of
+a state are covered by test sequences [10]. Boundary-Interior
+Cover as described in [9] characterize test sequences causing
+loops to be traversed once without additional iterations. HLanguage is a similar approach to for Boundary-Interior
+Cover loop testing. 
+From Test case generation approach for industrial automation systems 2011
+
+ Furthermore, “the process of deriving tests tends to be unstructured, not reproducible, not documented,
+lacking detailed rationales for the test design, and dependent on the ingenuity of single 
+engineers” [7].  in Review of Model-Based Testing Approaches

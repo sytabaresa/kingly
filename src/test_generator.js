@@ -29,7 +29,7 @@ const graphSettings = {
  * stop path accumulation and aggregate the current path to current results
  * @returns {Array<TestCase>}
  */
-export function generateTestsFromFSM(fsm, generators, settings) {
+export function generateTestSequences(fsm, generators, settings) {
   const startingVertex = INIT_STATE;
   const tracedFSM = traceFSM({}, fsm);
   const fsmStates = tracedFSM.states;
@@ -528,6 +528,34 @@ export function analyzeStateTree(states) {
 function getGeneratorMappedTransitionFromEdge(genMap, edge) {
   const { from, event, guardIndex } = edge;
   return genMap.get(JSON.stringify({ from, event, guardIndex }))
+}
+
+export function testFsm({testAPI, fsmFactorySpecs, inputSequences, oracle, format}){
+  const getInputKey = function getInputKey(input) {return Object.keys(input)[0]};
+  const {assert} = testAPI;
+  const {formatOutputsSequences} = format;
+  const {fsmDef, factorySettings, create_state_machine} = fsmFactorySpecs;
+  const {computeOutputSequences} = oracle;
+
+  const formattedInputSequences = inputSequences.map(inputSequence => inputSequence.map(getInputKey).join(' -> '));
+
+  const outputsSequences = inputSequences.map(testSequence => {
+    const fsm = create_state_machine(fsmDef, factorySettings);
+    const output = testSequence.map(fsm.yield);
+    console.debug('outputSequence', output)
+    return output
+  }  );
+  const formattedOutputsSequences = formatOutputsSequences(outputsSequences);
+
+  const expectedOutputSequences = computeOutputSequences(inputSequences);
+
+  range(0, inputSequences.length).forEach(index => {
+    assert.deepEqual(
+      formattedOutputsSequences[index],
+      expectedOutputSequences[index],
+      formattedInputSequences[index]
+    );
+  })
 }
 
 /**

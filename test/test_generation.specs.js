@@ -2,7 +2,7 @@ import * as QUnit from "qunitjs"
 import * as Rx from "rx"
 import { F, merge, T } from "ramda"
 import {
-  ACTION_IDENTITY, computeTimesCircledOn, DEEP, generateTestsFromFSM, INIT_EVENT, INIT_STATE,
+  ACTION_IDENTITY, computeTimesCircledOn, DEEP, generateTestSequences, INIT_EVENT, INIT_STATE,
   makeHistoryStates, NO_OUTPUT, SHALLOW
 } from "../src"
 import { formatResult } from "./helpers"
@@ -114,7 +114,7 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
     },
   };
   const settings = merge(default_settings, { strategy });
-  const results = generateTestsFromFSM(fsmDef, generators, settings);
+  const results = generateTestSequences(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);
   assert.deepEqual(formattedResults, [
     {
@@ -185,7 +185,7 @@ QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", funct
     },
   };
   const settings = merge(default_settings, { strategy });
-  const results = generateTestsFromFSM(fsmDef, generators, settings);
+  const results = generateTestSequences(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);
   assert.deepEqual(formattedResults, [
     {
@@ -268,7 +268,7 @@ QUnit.test("INIT event, 2 actions, 2 conditions", function exec_test(assert) {
     },
   };
   const settings = merge(default_settings, { strategy });
-  const results = generateTestsFromFSM(fsmDef, generators, settings);
+  const results = generateTestSequences(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);
   assert.deepEqual(formattedResults, [
     {
@@ -507,7 +507,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
   const generators = genFsmDef.transitions;
   const strategy = ALL_TRANSITIONS({ targetVertex: 'E' });
   const settings = merge(default_settings, { strategy });
-  const results = generateTestsFromFSM(fsmDef, generators, settings);
+  const results = generateTestSequences(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);
   assert.deepEqual(formattedResults, [
     {
@@ -810,7 +810,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
   const generators = genFsmDef.transitions;
   const strategy = ALL_n_TRANSITIONS({ targetVertex: 'E', maxNumberOfTraversals: 2 });
   const settings = merge(default_settings, { strategy });
-  const results = generateTestsFromFSM(fsmDef, generators, settings);
+  const results = generateTestSequences(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);
   assert.deepEqual(formattedResults.map(x => x.controlStateSequence), [
     ["nok", "A", "B", "C", "D", "A", "D", "A", "D", "B", "C", "D", "E"],
@@ -968,7 +968,7 @@ QUnit.test("INIT event multi transitions, self-loop, 1-loop, 2-loops, conditions
   const generators = genFsmDef.transitions;
   const strategy = ALL_TRANSITIONS({ targetVertex: 'E' });
   const settings = merge(default_settings, { strategy });
-  const results = generateTestsFromFSM(fsmDef, generators, settings);
+  const results = generateTestSequences(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);
   assert.deepEqual(formattedResults.map(x => x.controlStateSequence), [
     ["nok", "B", "C", "INNER_GROUP_D", "D", "A", "OUTER_GROUP_D", "INNER_GROUP_D", "D", "E"],
@@ -1150,7 +1150,7 @@ QUnit.test("eventless transitions no guards, inner INIT event transitions, loops
   const generators = genFsmDef.transitions;
   const strategy = ALL_TRANSITIONS({ targetVertex: 'E' });
   const settings = merge(default_settings, { strategy });
-  const results = generateTestsFromFSM(fsmDef, generators, settings);
+  const results = generateTestSequences(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);
   assert.deepEqual(formattedResults.map(x => x.controlStateSequence), [
     ["nok", "START","EVENTLESS", "B", "C", "INNER_GROUP_D", "D", "A", "OUTER_GROUP_D", "INNER_GROUP_D", "D", "E"],
@@ -1370,7 +1370,7 @@ QUnit.test("shallow history transitions, INIT event CASCADING transitions", func
   const generators = genFsmDef.transitions;
   const strategy = ALL_TRANSITIONS({ targetVertex: OUTER_B });
   const settings = merge(default_settings, { strategy });
-  const results = generateTestsFromFSM(fsmDef, generators, settings);
+  const results = generateTestSequences(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);
   assert.deepEqual(formattedResults.map(x => x.controlStateSequence), [
     ["nok", "OUTER", "outer_a", "INNER", "inner_s", "inner_t", "inner_s", "outer_b"],
@@ -1550,7 +1550,7 @@ QUnit.test("deep history transitions, INIT event CASCADING transitions", functio
   const generators = genFsmDef.transitions;
   const strategy = ALL_TRANSITIONS({ targetVertex: OUTER_B });
   const settings = merge(default_settings, { strategy });
-  const results = generateTestsFromFSM(fsmDef, generators, settings);
+  const results = generateTestSequences(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);
   assert.deepEqual(formattedResults.map(x => x.controlStateSequence), [
     ["nok", "OUTER", "outer_a", "INNER", "inner_s", "inner_t", "inner_s", "outer_b"],
@@ -1754,7 +1754,7 @@ QUnit.test("shallow history transitions, INIT event CASCADING transitions, compo
   const generators = genFsmDef.transitions;
   const strategy = ALL_TRANSITIONS({ targetVertex: OUTER_B });
   const settings = merge(default_settings, { strategy });
-  const results = generateTestsFromFSM(fsmDef, generators, settings);
+  const results = generateTestSequences(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);
   assert.deepEqual(formattedResults.map(x => x.controlStateSequence), [
     ["nok", "OUTER", "outer_a", "INNER", "inner_s", "inner_t", "inner_s", "OTHER", "outer_b"],
@@ -1896,7 +1896,7 @@ QUnit.test("eventless x atomic transitions", function exec_test(assert) {
   const generators = genFsmDef.transitions;
   const strategy = ALL_TRANSITIONS({ targetVertex: 'E' });
   const settings = merge(default_settings, { strategy });
-  const results = generateTestsFromFSM(fsmDef, generators, settings);
+  const results = generateTestSequences(fsmDef, generators, settings);
   const formattedResults = results.map(formatResult);
   assert.deepEqual(formattedResults.map(x => x.controlStateSequence), [
     ["nok", "START", "A", "C", "D", "A", "B", "D", "E"]

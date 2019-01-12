@@ -22,7 +22,7 @@
     + [Description](#description-2)
     + [Contracts](#contracts-3)
     + [Implementation example](#implementation-example-2)
-  * [`generateTestsFromFSM :: FSM_Def -> Generators -> GenSettings -> Array<TestCase>`](#-generatetestsfromfsm----fsm-def----generators----gensettings----array-testcase--)
+  * [`generateTestSequences :: FSM_Def -> Generators -> GenSettings -> Array<TestCase>`](#-generatetestsfromfsm----fsm-def----generators----gensettings----array-testcase--)
     + [Description](#description-3)
     + [Semantics](#semantics)
     + [Contracts](#contracts-4)
@@ -892,9 +892,9 @@ Types contracts, nothing special.
 ### Implementation example
 Cf. tests
 
-## `generateTestsFromFSM :: FSM_Def -> Generators -> GenSettings -> Array<TestCase>`
+## `generateTestSequences :: FSM_Def -> Generators -> GenSettings -> Array<TestCase>`
 ### Description
-The `generateTestsFromFSM` method produce test cases from a state machine definition, and input 
+The `generateTestSequences` method produce test cases from a state machine definition, and input 
 generators associated to each transition defined in the machine. The test generation strategy is 
 specified in `genSettings.strategy` (two common strategies are already defined in `graph-adt` 
 library and can be reused). Additionally the `genSettings` parameter can contain any relevant 
@@ -1142,7 +1142,7 @@ We then define our extended state update method, our search strategy (*All-trans
   const generators = genFsmDef.transitions;
   const settings = { updateState: applyJSONpatch, strategy: ALL_TRANSITIONS({ targetVertex: 
   OUTER_B }) };
-  const results = generateTestsFromFSM(fsmDef, generators, settings);
+  const results = generateTestSequences(fsmDef, generators, settings);
 ```
 
 We then get the results back :
