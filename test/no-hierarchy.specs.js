@@ -121,24 +121,6 @@ function another_dummy_action_with_update(extendedState, event_data, settings) {
 
 QUnit.module("Testing create_state_machine(fsmDef, settings)", {});
 
-// NOTE : deprecated, there is no more INIT EVENT to send
-// Basic test with settings
-// NOK -init> A, no action, no guard, it is init -> outputs NO_OUTPUT
-// QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
-//   const fsmDef = {
-//     states: { A: '' },
-//     events: [],
-//     transitions: [
-//       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY }
-//     ],
-//     initialExtendedState: initialExtendedState
-//   };
-//   const settings = default_settings;
-//   const fsm = create_state_machine(fsmDef, settings);
-//   const result = fsm.start();
-//   assert.deepEqual(result, NO_OUTPUT, `INIT event starts the state machine`);
-// });
-
 QUnit.test("event, no action, false guard", function exec_test(assert) {
   const fsmDef = {
     states: { A: '', B:'' },
@@ -152,7 +134,7 @@ QUnit.test("event, no action, false guard", function exec_test(assert) {
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
   const result = fsm.yield({ev: initialExtendedState});
-  assert.deepEqual(result, NO_OUTPUT, `INIT event starts the state machine`);
+  assert.deepEqual(result, NO_OUTPUT, `event starts the state machine`);
 });
 
 QUnit.test("event, no action, true guard", function exec_test(assert) {
@@ -171,8 +153,7 @@ QUnit.test("event, no action, true guard", function exec_test(assert) {
   assert.deepEqual(result, NO_OUTPUT, `INIT event starts the state machine`);
 });
 
-// NOK -init> A, action, false guard, it is init -> action called right params, outputs as expected
-QUnit.test("INIT event, action, false guard", function exec_test(assert) {
+QUnit.test("event, action, false guard", function exec_test(assert) {
   const fail_if_called = spy_on_args(dummy_action,
     (extendedState, event_data, settings) => {
       assert.ok(true, false, `Guard is false, this action should not be called!`)
@@ -189,11 +170,10 @@ QUnit.test("INIT event, action, false guard", function exec_test(assert) {
   const settings = default_settings;
   const fsm = create_state_machine(fsmDef, settings);
   const result = fsm.yield({ev:initialExtendedState});
-  assert.deepEqual(result, NO_OUTPUT, `INIT event starts the state machine`);
+  assert.deepEqual(result, NO_OUTPUT, `event starts the state machine`);
 });
 
-// NOK -init> A, action, true guard, it is init -> action called right params, outputs as expected
-QUnit.test("INIT event, action, true guard", function exec_test(assert) {
+QUnit.test("event, action, true guard", function exec_test(assert) {
   const spied_on_dummy_action = spy_on_args(dummy_action,
     (extendedState, event_data, settings) => {
       assert.deepEqual(extendedState, initialExtendedState, `action called with extendedState as first parameter`);
@@ -213,11 +193,10 @@ QUnit.test("INIT event, action, true guard", function exec_test(assert) {
   const fsm = create_state_machine(fsmDef, settings);
   const result = fsm.yield({ev:initialExtendedState});
   assert.deepEqual(result, arrayizeOutput(dummy_action_result.outputs),
-    `INIT event starts the state machine, transition is taken, action is executed`);
+    `event starts the state machine, transition is taken, action is executed`);
 });
 
-// NOK -init> A, 2 actions, [{T,F}x{T,F}] guards
-QUnit.test("INIT event, 2 actions, [T,T] conditions, 1st action executed", function exec_test(assert) {
+QUnit.test("event, 2 actions, [T,T] conditions, 1st action executed", function exec_test(assert) {
   const spied_on_dummy_action = spy_on_args(dummy_action,
     (extendedState, event_data, settings) => {
       assert.deepEqual(extendedState, initialExtendedState, `action called with extendedState as first parameter`);
@@ -246,10 +225,10 @@ QUnit.test("INIT event, 2 actions, [T,T] conditions, 1st action executed", funct
   const fsm = create_state_machine(fsmDef, settings);
   const result = fsm.yield({ev:initialExtendedState});
   assert.deepEqual(result, arrayizeOutput(dummy_action_result.outputs),
-    `INIT event starts the state machine, transition is taken, action is executed`);
+    `event starts the state machine, transition is taken, action is executed`);
 });
 
-QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", function exec_test(assert) {
+QUnit.test("event, 2 actions, [F,T] conditions, 2nd action executed", function exec_test(assert) {
   const spied_on_dummy_action = spy_on_args(dummy_action,
     (extendedState, event_data, settings) => {
       assert.deepEqual(extendedState, initialExtendedState, `action called with extendedState as first parameter`);
@@ -278,10 +257,10 @@ QUnit.test("INIT event, 2 actions, [F,T] conditions, 2nd action executed", funct
   const fsm = create_state_machine(fsmDef, settings);
   const result = fsm.yield({ev:initialExtendedState});
   assert.deepEqual(result, arrayizeOutput(dummy_action_result.outputs),
-    `INIT event starts the state machine, transition is taken, action is executed`);
+    `event starts the state machine, transition is taken, action is executed`);
 });
 
-QUnit.test("INIT event, 2 actions, [T,F] conditions, 1st action executed", function exec_test(assert) {
+QUnit.test("event, 2 actions, [T,F] conditions, 1st action executed", function exec_test(assert) {
   const spied_on_dummy_action = spy_on_args(dummy_action,
     (extendedState, event_data, settings) => {
       assert.deepEqual(extendedState, initialExtendedState, `action called with extendedState as first parameter`);
@@ -310,10 +289,10 @@ QUnit.test("INIT event, 2 actions, [T,F] conditions, 1st action executed", funct
   const fsm = create_state_machine(fsmDef, settings);
   const result = fsm.yield({ev:initialExtendedState});
   assert.deepEqual(result, arrayizeOutput(dummy_action_result.outputs),
-    `INIT event starts the state machine, transition is taken, action is executed`);
+    `event starts the state machine, transition is taken, action is executed`);
 });
 
-QUnit.test("INIT event, 2 actions, [F,F] conditions, no action executed", function exec_test(assert) {
+QUnit.test("event, 2 actions, [F,F] conditions, no action executed", function exec_test(assert) {
   const spied_on_dummy_action = spy_on_args(dummy_action,
     (extendedState, event_data, settings) => {
       assert.deepEqual(extendedState, initialExtendedState, `action called with extendedState as first parameter`);
@@ -342,12 +321,10 @@ QUnit.test("INIT event, 2 actions, [F,F] conditions, no action executed", functi
   const fsm = create_state_machine(fsmDef, settings);
   const result = fsm.yield({ev:initialExtendedState});
   assert.deepEqual(result, NO_OUTPUT,
-    `INIT event starts the state machine, all guards failing, no transition is taken, no action is executed`);
+    `event starts the state machine, all guards failing, no transition is taken, no action is executed`);
 });
 
-// NOK -init> A, no guards, dummy action
-// A -ev1> B, no guards, another dummy action
-QUnit.test("INIT event, 2 actions with no extendedState update, NOK -> A -> B, no guards", function exec_test(assert) {
+QUnit.test("event, 2 actions with no extendedState update, NOK -> A -> B, no guards", function exec_test(assert) {
   const fsmDef = {
     states: { A: '', B: '' },
     events: [EVENT1],
@@ -363,10 +340,7 @@ QUnit.test("INIT event, 2 actions with no extendedState update, NOK -> A -> B, n
   assert.deepEqual([result2], [arrayizeOutput(another_output)], `event triggers correct transition`);
 });
 
-// NOK -init> A, no guards, dummy action
-// A -ev1> B, no guards, another dummy action
-// WITH extendedState UPDATE and test of extendedState update, settings and event passing : except last extendedState update
-QUnit.test("INIT event, 2 actions with extendedState update, NOK -> A -> B, no guards", function exec_test(assert) {
+QUnit.test("event, 2 actions with extendedState update, NOK -> A -> B, no guards", function exec_test(assert) {
   const fsmDef = {
     states: { A: '', B: '' },
     events: [EVENT1],
@@ -398,8 +372,6 @@ QUnit.test("INIT event, 2 actions with extendedState update, NOK -> A -> B, no g
   ], `event triggers correct transition`);
 });
 
-// NOK -init-> A, no guards, dummy action
-// A -init-> A, + warning : reserved init event can only be sent once
 QUnit.test("2 INIT event", function exec_test(assert) {
   const fsmDef = {
     states: { A: '', B: '' },

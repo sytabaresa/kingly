@@ -7,11 +7,6 @@ of a state machine and returns a clone of it
 state at that target (cf. previous) 
 - maybe write a generator like with jsverify. cf. https://github.com/jsverify/jsverify#types 
   - seems like shrinking in our case is easy, just remove one input from the failing sequence
-- review tests for no-hierarchy because no start... change comments, see what I miss as cases
-- rewrite trace fsm tests
-- rewrite test_generation.specs
-- send the init event before returning the machine!! How does that impact test?? maybe best is 
-not to pass extended state in the init event!! and force in test the same
 - I could have a debug property in the object I return and set that property to true or false (or
  a setter if that works better), cf penpal
  ```javascript

@@ -160,7 +160,7 @@ function isNotSetSwitch(extS) {
 
 QUnit.module("Testing hierarchy features", {});
 
-QUnit.test("INIT event multi transitions, CASCADING inner INIT event transitions", function exec_test(assert) {
+QUnit.test("event multi transitions, CASCADING inner INIT event transitions", function exec_test(assert) {
   const CLICK = 'click';
   const REVIEW_A = 'reviewA';
   const REVIEW_B = 'reviewB';
@@ -358,7 +358,7 @@ QUnit.test("INIT event multi transitions, CASCADING inner INIT event transitions
   ], `Cascading init transitions are correctly taken`);
 });
 
-QUnit.test("eventless transition, INIT event multi transitions, CASCADING inner INIT event transitions", function exec_test(assert) {
+QUnit.test("eventless transition, event multi transitions, CASCADING inner event transitions", function exec_test(assert) {
   const CLICK = 'click';
   const REVIEW_A = 'reviewA';
   const REVIEW_B = 'reviewB';
@@ -617,7 +617,7 @@ QUnit.test("eventless transition, INIT event multi transitions, CASCADING inner 
   ], `eventless transitions are correctly taken`);
 });
 
-QUnit.test("shallow history transitions, INIT event CASCADING transitions", function exec_test(assert) {
+QUnit.test("shallow history transitions, event CASCADING transitions", function exec_test(assert) {
   const OUTER = 'OUTER';
   const INNER = 'INNER';
   const OUTER_A = 'outer_a';
@@ -676,7 +676,7 @@ QUnit.test("shallow history transitions, INIT event CASCADING transitions", func
   ], `eventless transitions are correctly taken`);
 });
 
-QUnit.test("deep history transitions, INIT event CASCADING transitions", function exec_test(assert) {
+QUnit.test("deep history transitions, event CASCADING transitions", function exec_test(assert) {
   const OUTER = 'OUTER';
   const INNER = 'INNER';
   const OUTER_A = 'outer_a';
@@ -735,7 +735,7 @@ QUnit.test("deep history transitions, INIT event CASCADING transitions", functio
   ], `eventless transitions are correctly taken`);
 });
 
-QUnit.test("with trace : shallow history transitions, INIT event CASCADING transitions", function exec_test(assert) {
+QUnit.test("with trace : shallow history transitions, event CASCADING transitions", function exec_test(assert) {
   const OUTER = 'OUTER';
   const INNER = 'INNER';
   const OUTER_A = 'outer_a';
@@ -1039,7 +1039,7 @@ QUnit.test("with trace : shallow history transitions, INIT event CASCADING trans
     ], `eventless transitions are correctly taken`);
 });
 
-QUnit.test("with trace : deep history transitions, INIT event CASCADING transitions", function exec_test(assert) {
+QUnit.test("with trace : deep history transitions, event CASCADING transitions", function exec_test(assert) {
   const OUTER = 'OUTER';
   const INNER = 'INNER';
   const OUTER_A = 'outer_a';
@@ -1315,7 +1315,7 @@ QUnit.test("with trace : deep history transitions, INIT event CASCADING transiti
     ], `eventless transitions are correctly taken`);
 });
 
-QUnit.test("shallow history transitions FROM INSIDE, INIT event CASCADING transitions", function exec_test(assert) {
+QUnit.test("shallow history transitions FROM INSIDE, event CASCADING transitions", function exec_test(assert) {
   const OUTER = 'OUTER';
   const INNER = 'INNER';
   const OUTER_A = 'outer_a';
@@ -1387,7 +1387,7 @@ QUnit.test("shallow history transitions FROM INSIDE, INIT event CASCADING transi
   ], `eventless transitions are correctly taken`);
 });
 
-QUnit.test("deep history transitions FROM INSIDE, INIT event CASCADING transitions", function exec_test(assert) {
+QUnit.test("deep history transitions FROM INSIDE, event CASCADING transitions", function exec_test(assert) {
   const OUTER = 'OUTER';
   const INNER = 'INNER';
   const OUTER_A = 'outer_a';

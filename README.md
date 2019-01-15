@@ -833,28 +833,6 @@ Note in particular :
 
 There are plenty of additional examples in the [test directory](https://github.com/brucou/state-transducer/blob/master/test/hierarchy.specs.js).
 
-## `makeStreamingStateMachine :: FSM$_Settings -> FSM_Def -> StreamingStateMachine`
-### Description
-A `StreamingStateMachine` is a standard `cyclejs` component, i.e. a function which takes an 
-observable and returns an obsrvable. Concretely, every incoming event is passed through the 
-machine defined in `FSM_Def` and the computed output is emitted by the `StreamingStateMachine`.
-Note that it is not necessary to start the state machine manually here, as it is started 
-automatically at subscription time.
-
-The API user must provide a series of stream operators in settings (cf. types). This allows to use 
-the  `StreamingStateMachine` function with any streaming library, which makes those stream operators 
-available, with the same semantics.
-
-### Contracts
-- events have the shape `HashMap<EventLabel, EventData>`, i.e. an object whose keys are event 
-identifiers, and values are the data carried with the event. 
-- `EventLabel` follow the same rules than identifier for javascript function
-- `FSM$_Settings.from` should emit **synchronously and recursively**
-
-
-### Implementation example
-Cf. [multi-step workflow demo repo](https://github.com/brucou/cycle-state-machine-demo)
-
 ## `traceFSM :: Env -> FSM_Def -> FSM_Def`
 ### Description
 This function converts a state machine `A` into a traced state machine `T(A)`. The traced state 
