@@ -542,7 +542,6 @@ export function testFsm({testAPI, fsmFactorySpecs, inputSequences, oracle, forma
   const outputsSequences = inputSequences.map(testSequence => {
     const fsm = create_state_machine(fsmDef, factorySettings);
     const output = testSequence.map(fsm.yield);
-    console.debug('outputSequence', output)
     return output
   }  );
   const formattedOutputsSequences = formatOutputsSequences(outputsSequences);

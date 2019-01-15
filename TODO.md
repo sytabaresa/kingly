@@ -1,4 +1,10 @@
 # Now
+- would be good to have a `reset` function which puts the machine back in starting position and 
+returns a clone of it.
+- would be good a function `UNSAFE_SET_STATE` which sets the state (control, extended, history) 
+of a state machine and returns a clone of it
+- test wise, would be good to generate tests starting from a target not INIT and some initial 
+state at that target (cf. previous) 
 - maybe write a generator like with jsverify. cf. https://github.com/jsverify/jsverify#types 
   - seems like shrinking in our case is easy, just remove one input from the failing sequence
 - review tests for no-hierarchy because no start... change comments, see what I miss as cases
