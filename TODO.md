@@ -1,4 +1,5 @@
 # Now
+- update README!!! because of new article. maybe remove some console.log, it is too chatty
 - would be good to have a `reset` function which puts the machine back in starting position and 
 returns a clone of it.
 - would be good a function `UNSAFE_SET_STATE` which sets the state (control, extended, history) 
