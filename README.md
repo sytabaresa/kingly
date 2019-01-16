@@ -256,9 +256,6 @@ The state transducer is not, in general, a pure function of its inputs. However,
  associate to a state transducer another function which takes a sequence of inputs into a 
  sequence of outputs, in a way that that function is pure. 
 
-We provide a way to construct such a function with the `makeStreamingStateMachine` factory to 
-create a stream transducer, which translates an input stream into an output stream.
-
 ## General concepts
 Our state transducer is an object which encapsulates state, and exposes a single function by which 
 input is received. That function, based on the transducer's encapsulated state and configuration, and the 
