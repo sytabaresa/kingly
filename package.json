@@ -8,9 +8,12 @@
     "url": "https://github.com/brucou"
   },
   "keywords": [
-    "rxjs",
     "state-machine",
+    "state machine",
+    "finite state machine",
     "state-transducer",
+    "state transducer",
+    "automata",
     "automaton",
     "automata"
   ],
