@@ -1,4 +1,14 @@
 # Now
+- towards v1.0
+    - put in readme and update roadmap
+    - return a function with create state machine, I only have yield now so I can
+    - also remove the initial transition, add it automatically, meaning pass a parameter which is 
+    initial state
+    - make the makeState, and makeEvent helpers function, remove the modif. I wanted to bring to the 
+    graph stuff (simulating incoming events at any time)
+    - contracts to implement
+    - console log to put behind a flag to pass in options
+    - review code quality (less important)
 - I could have a debug property in the object I return and set that property to true or false (or
  a setter if that works better), cf penpal
  ```javascript
@@ -15,19 +25,11 @@ var log = function log() {
 };
 
 ```
-- change subject API to next instead of `emit`, this is observable standard
 - do an angular2 demo (like ng-state-machine or something)
 - do a svelte-state-machine demo (will be useful for template-based libraries)
 - DOC the generator state in the testing generator
 - test new version with iterator of graph-adt 0.8.1!
 - DOC if outputs wants to output an array as outputs how to do it : [Array]! DOC it
-- could use transducer in streaming state machine to avoid using operators?? 2K gzipped
-  - that replaces operators by one : transduce
-    - would be great I avoid `pipe` and more easy interface for switching event processing libraries
-    - cf. https://github.com/pangloss/transducers for multiplex(great!!) transducers and other
-    useful stuff
-  - question! do transducer flatMap?? yes we can, but is it in the common libraries..mmm
-- think about how to sell the test stuff and the finished 1st iteration fix
 - think about debugger for state machine - basically a UI around traceFSM
   - that is the best way to explain the state machine behavior!!
   - review the format for the visualizer
@@ -47,7 +49,6 @@ var log = function log() {
   - etc.
 - !! all-transitions is all-path-with-no-repeated-transitions which is a all-transition but
 bigger, call it all-transitions* ?? to avoid changing everything
-- DOC for test_generators
 - ROADMAP : DSL with parser (check my gmail) like http://blog.efftinge
 .de/2012/05/implementing-fowlers-state-machine-dsl.html so I can convert to it and back for
 drawing and debugging?
@@ -79,10 +80,9 @@ error is ...[0] is undefined. That means an event was sent and could not be hand
    - note this is a generalization of from1 = from 2 mentioned previously
 - visualization
   - try the visualizer with the examples in tests
-- make visualizer work for history states too!!
-- README : put links for tests everywhere I put cf. tests!!
-- ROADMAP : add the super test from quantum leaps for hierarchy specs
-- ROADMAP : allow event forwarding : THAT IS A REWRITE, good thing tests are already there
+  - make visualizer work for history states too!!
+- ROADMAP : add the super test from quantum leaps for hierarchy specs : remove those who cannot work
+- ROADMAP : NO!! allow event forwarding : THAT IS A REWRITE, good thing tests are already there
   - that requires getting rid of prototypes and make a list of transitions for each (from, event)
   - when done, graph transformation does not change
   - BUT edge traversal changes : do not take a edge (from1, event) if from2 < from1 and
@@ -103,14 +103,12 @@ error is ...[0] is undefined. That means an event was sent and could not be hand
     immutable and we are good
 - ROADMAP : implement iterator symbol, async iterator probably to emulate stream without stream
 library
-- ROADMAP : targetless events
+- ROADMAP : targetless events : NO only serves to confuse readability
       // NOTE : we implemented it here by repeating the self-loop corresponding to the targetless event in all substates
 - ROADMAP : // T9. A transition to a history state must transition to the history state containing parent, if there is no history
             // ENFORCE, NOT IMPLEMENTED TODO in ROADMAP!!! impact on test generation
-
-- TODO DOC : document initial state is NOK, and event init automatically fired on starting the fsm
+            NO~~~ there must be a history!! throw if none?
 - no hierarchy : TODO : add tests for when event passed in not in state machine
-
 - would be great to have a query language to select input sequences from the generated set
   - for instance includes a cycle
   - includes a cycle which includes this node etc.
