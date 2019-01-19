@@ -1,14 +1,18 @@
 # Now
 - towards v1.0
     - put in readme and update roadmap
-    - return a function with create state machine, I only have yield now so I can
-    - also remove the initial transition, add it automatically, meaning pass a parameter which is 
-    initial state
     - make the makeState, and makeEvent helpers function, remove the modif. I wanted to bring to the 
     graph stuff (simulating incoming events at any time)
     - contracts to implement
-    - console log to put behind a flag to pass in options
     - review code quality (less important)
+- would be good to have a `reset` function which puts the machine back in starting position and 
+returns a clone of it.
+- would be good a function `clone` which returns a new state machine, with the same state as the 
+current one
+- test wise, would be good to generate tests starting from a target not INIT and some initial 
+state at that target (cf. previous) 
+- maybe write a generator like with jsverify. cf. https://github.com/jsverify/jsverify#types 
+  - seems like shrinking in our case is easy, just remove one input from the failing sequence
 - I could have a debug property in the object I return and set that property to true or false (or
  a setter if that works better), cf penpal
  ```javascript
@@ -138,7 +142,33 @@ do the design on spare time but work rather on the dev tool!!! that is the killi
 - modelling tool for visual DSL!! https://github.com/webgme/webgme
 - already one exists for state machines. Complex but already exists. Would be good to have a
 plugin to exchange format between the two!! That way I don't have to do a tracer myself!.!.!
+- compiler to js : spec -> js code
 
 # NOTE
 you can remove some guards by giving them different event names and generating those. That is if
 you can access the data which serve to compute the guard at event triggering time!!
+
+# Trivia
+- example of game state machine (tetris) : https://www.colinfahey.com/tetris/tetris.html?utm_source=ponyfoo+weekly&utm_medium=email&utm_campaign=146
+
+#testing
+The FSM can be used to generate test cases fulfilling test
+covers. There exists a set of desirable properties for the testing
+of FSMs. Action Coverage is defined as the desirable property
+of executing every possible action at each state at least once.
+Action coverage is the easiest test coverage criterion for a
+FSM model. Ref. [9] introduces Branch Cover, Switch Cover,
+Boundary-Interior Cover and H-Language as test coverage
+criteria. Branch Cover traverses an FSM in order to visit each
+branch, so that the complexity of all possible paths reaching
+to infinity at worst can be reduced. Switch Cover describes a
+branch-to-branch tuple, meaning that in and out branches of
+a state are covered by test sequences [10]. Boundary-Interior
+Cover as described in [9] characterize test sequences causing
+loops to be traversed once without additional iterations. HLanguage is a similar approach to for Boundary-Interior
+Cover loop testing. 
+From Test case generation approach for industrial automation systems 2011
+
+ Furthermore, “the process of deriving tests tends to be unstructured, not reproducible, not documented,
+lacking detailed rationales for the test design, and dependent on the ingenuity of single 
+engineers” [7].  in Review of Model-Based Testing Approaches
