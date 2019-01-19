@@ -108,7 +108,7 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
   const settings = default_settings;
   const decoratedFsmDef = traceFSM(settings, fsmDef);
   const decoratedFSM = create_state_machine(decoratedFsmDef, settings);
-  const result = decoratedFSM.yield({'ev': initialExtendedState});
+  const result = decoratedFSM({'ev': initialExtendedState});
   const formattedResult = result.map(formatResult);
   assert.deepEqual(formattedResult,
     [{
@@ -157,7 +157,7 @@ QUnit.test("INIT event, 2 actions with extended state update, NOK -> A -> B, no 
   const settings = default_settings;
   const decoratedFsmDef = traceFSM(settings, fsmDef);
   const decoratedFSM = create_state_machine(decoratedFsmDef, settings);
-  const result2 = decoratedFSM.yield({ [EVENT1]: EVENT1_DATA });
+  const result2 = decoratedFSM({ [EVENT1]: EVENT1_DATA });
   const formattedResult2 = result2.map(formatResult);
 
   assert.deepEqual([formattedResult2],
@@ -311,7 +311,7 @@ QUnit.skip("all transitions topologies up to 4 levels of state nesting", functio
   const inputSequence = eventSequence.map(x => ({ [x]: null }));
   const decoratedFsmDef = traceFSM(settings, fsmDef);
   const decoratedFSM = create_state_machine(decoratedFsmDef, settings);
-  const outputSequence = inputSequence.map(decoratedFSM.yield);
+  const outputSequence = inputSequence.map(decoratedFSM);
   const formattedResults = outputSequence.map(output => output && output.map(formatResult));
   assert.deepEqual(formattedResults,
     [
