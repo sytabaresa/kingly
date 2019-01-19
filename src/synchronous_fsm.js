@@ -5,7 +5,6 @@ import {
   arrayizeOutput, computeHistoryMaps, get_fn_name, getFsmStateList, initHistoryDataStructure, keys,
   mapOverTransitionsActions, updateHistory, wrap
 } from "./helpers";
-import { NO_ACTIONS } from "../test/helpers"
 
 const noop = ()=>{};
 const emptyConsole = {log: noop, warn: noop, info:noop, debug:noop, error:noop, trace:noop};

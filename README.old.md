@@ -43,21 +43,72 @@ functions, however have the following interesting properties :
 - the algorithm for the computation involves a finite, parameterizable set of rules, coalescing  
 around a finite, fixed set of control states
 
-These computations can be modelized by a class of state machines called 
-hierarchical extended [state transducer](https://en.wikipedia.org/wiki/Finite-state_transducer). 
-This library offers a way to define, and use such class of state machines. Most of the time, we 
-will call them just state machines instead of the more accurate state transducer term.
+These computations can often be modelized advantageously[^1] by a class of state machines called 
+hierarchical extended state transducer. This library offers a way to define, and use such class of
+ state machines. We will come back on the meaning of the fancy name, but in short a [state 
+ transducer](https://en.wikipedia.org/wiki/Finite-state_transducer) is a state machine which may 
+ produce outputs. Most of the time, we will call them just state machine anyways, but keep 
+ in mind that every word in <em>hierarchical extended state transducer</em> has a reason to be.
 
 Now, the whole thing can sound very abstract but the major motivation for this library has been the 
 specification and implementation of user interfaces. As a matter of fact, to [every user 
 interface can be associated a computation](https://brucou.github.io/posts/user-interfaces-as-reactive-systems/#reactive-systems-as-automata) 
-relating inputs to the user interface to an action to be performed on the interfaced systems. That 
-computation often has a logic [organized around a limited set of control states](#base-example). Exactly what
+relating a user input to an action to be performed on the interfaced systems. That computation 
+often has a logic [organized around a limited set of control states](#base-example). Exactly what
  we just wrote about. [**Jump to the examples**](https://github.com/brucou/state-transducer#general-concepts).
+
+The use of state machines is not unusual for safety-critical software for embedded systems. 
+Nearly all safety-critical code on the Airbus A380 is implemented with a [suite of tools](https://www.ansys.com/products/embedded-software/ansys-scade-suite/scade-suite-capabilities#cap1) which 
+produces state machines both as [specification](https://www.youtube.com/watch?list=PL0lZXwHtV6Ok5s-iSkBjHirM1fu53_Phv&v=EHP_spl5xU0) and [implementation](https://www.youtube.com/watch?v=523bJ1vZZmw&index=5&list=PL0lZXwHtV6Ok5s-iSkBjHirM1fu53_Phv) 
+target. The driver here is two-fold. On the one hand is productivity : writing highly reliable code
+ by hand can be done but it is painstakingly slow, while state machines allow to **generate the code** 
+automatically. On the other hand is reliability. Quoting Gerard Berry, founder of Esterel 
+technologies, [<< low-level programming techniques will not remain acceptable for large 
+safety-critical programs, since they make behavior understanding and analysis almost 
+impracticable >>](https://ptolemy.berkeley.edu/projects/chess/design/2010/discussions/Pdf/synclang.pdf), in a harsh regulatory context 
+which may require that every single system requirement 
+be traced to the code that implements it (!). Requirements modeled by state-machines are amenable
+ to formal verification and validation. 
+
+State machines have also been used extensively in [games of reasonable complexity](http://howtomakeanrpg.com/a/state-machines.html), and [tutorials](https://www.gamedev.net/articles/programming/general-and-gameplay-programming/state-machines-in-games-r2982/) abound
+ on the subject. The driving factors are again two. First, the basic problem for AI to solve 
+ here is : given the state of the world, what should I do? Because game character behavior can be
+  modeled (in most cases) as a sequence of different character "mental states", where change in 
+  state is driven by the actions of the player or other characters, or possibly some features 
+  of the game world, game programmers often find that state machines are a natural choice for 
+  defining character AI.  Second, it is a very accessible and affordable tool vs. alternatives. The 
+  "decision-action" model is [straightforward enough to appeal to the nonprogrammers](https://www.researchgate.net/publication/284383920_The_Ultimate_Guide_to_FSMs_in_Games) on the game 
+  development team (such as level designers), yet impressively powerful. FSMs also lend 
+  themselves to being quickly sketched out during design and prototyping, and even better, they 
+  can be easily and efficiently implemented. 
+
+More prosaically, did you know that ES6 generators compile down to ES5 state machines where no 
+native option is available? Facebook's [`regenerator`](https://github.com/facebook/regenerator) 
+is a good example of such.
+
+So state machines are nothing like a new, experimental tool, but rather one with a fairly extended 
+and proven track in both industrial and consumer applications. Actually, old people like me will 
+remember SproutCore, an ancient framework by any means (2010 was it?) when javascript was still 
+young and nimble, and jQuery was a baby. The [Ki library](https://frozencanuck.wordpress.com/2011/02/15/ki-just-got-better/) already offered then an interface to use hierarchical state machines (concretely statecharts). However, it has to be said that, 
+when it comes to graphical user interfaces, it is a tool fairly unknown to developers. 
+Our current assessment is that state machines are another useful tool in our toolbox to write 
+more **reliable, maintainable** UIs, with a **short distance between specification and 
+implementation**, just as it is the case with embedded software.
 
 This library is born from :
 
-- the desire to apply such tool for both specification and implementation of user interfaces
+- the desire to investigate further the extent of the applicability of such tool both for 
+specification and implementation of user interfaces
+  - the reliability factor driving the use of state machines for safety-critical software is moot in
+   the human-machine interface space. Errors in graphical user interfaces have lower 
+  significance than in airplane systems. Moreover, because of the potential subtle 
+  interactions between UI components, it may be difficult to exercise an extensive and realistic 
+   simulation of user interaction. But wouldn't the productivity factor still hold? Given 
+   that user interface programming is highly iterative, wouldn't the maintainability benefits be 
+   significant ? 
+  - the experience with gaming shows that, passed a given level of AI complexity, other 
+  techniques are better suited (behaviour trees, etc.). How does this translate to the graphical 
+  user interfaces problem space? What would be a sweet spot?
 - the absence of existing javascript libraries which satisfy our [design criteria](https://github.com/brucou/state-transducer#api-design)
   - mostly, we want the state machine library API design to be as close as possible from the 
   mathematical object denoting it. This should allow us to reason about it, compose and reuse 
@@ -65,13 +116,13 @@ This library is born from :
   - most libraries we found either do not feature hierarchy in their state machines, or use a 
   rather imperative API, or impose a concurrency model on top of the state machine's control flow
 
-This is a [work in progress](#roadmap), however the main API for the v1.0 should be relatively 
-stable. Some changes for the test API are to be expected though.
+Needless to say, this library is written because of a substantiated belief that there are serious 
+benefits **today** in using a more formalized approach to user interface design. It should also be 
+obvious that this is a [work in progress](#roadmap), the current version is taken from statechart 
+code written two/three years ago and adjusted to the current API design. It works nicely though 
+and have already been used succesfully :
 
-It works nicely and have already been used succesfully for user-interfaces as well as in other 
-contexts:
-
-- in multi-steps workflows: see an example [here](https://github.com/brucou/component-combinators/tree/master/examples/volunteerApplication), a constant feature of enterprise software today
+- in [multi-steps workflows](https://github.com/brucou/component-combinators/tree/master/examples/volunteerApplication), a constant feature of enterprise software today
 - for ['smart' synchronous streams](https://github.com/brucou/partial-synchronous-streams), which
  tracks computation state to avoid useless re-computations
 - to implement cross-domain communication protocols, to coordinate iframes with a main window
@@ -85,6 +136,14 @@ in a way that :
  specification and documentation)
 - supports step-wise refinement and iterative development (control states can be refined into a 
 hierarchy of nested states)
+
+I guess we live in interesting times.
+
+[^1]: In fact, [computability theory]((https://en.wikipedia.org/wiki/Computability_theory)) links
+ the feasability of a computation to the existence of a machine whose run produces the 
+ desired results. Some formalizations of the matching computing machine however can be useless 
+  in practice, which is why we use the term advantageously to indicate those computations where 
+  a formalization of the computing machine brings desired benefits.
 
 # So what is an Extended Hierarchical State Transducer ? 
 Not like it matters so much but anyways. Feel free to skip that section if you have little 
@@ -1317,36 +1376,3 @@ transducers and manipulate the test cases one by one as soon as they are produce
 - [ ] include initial history state as a part of initial extended state (this allows to recreate 
 a state machine from its full state : control state, extended state, history state), which opens 
 the way to serialization/de-serialization )
-
-# Who else uses state machines
-The use of state machines is not unusual for safety-critical software for embedded systems. 
-Nearly all safety-critical code on the Airbus A380 is implemented with a [suite of tools](https://www.ansys.com/products/embedded-software/ansys-scade-suite/scade-suite-capabilities#cap1) which 
-produces state machines both as [specification](https://www.youtube.com/watch?list=PL0lZXwHtV6Ok5s-iSkBjHirM1fu53_Phv&v=EHP_spl5xU0) and [implementation](https://www.youtube.com/watch?v=523bJ1vZZmw&index=5&list=PL0lZXwHtV6Ok5s-iSkBjHirM1fu53_Phv) 
-target. The driver here is two-fold. On the one hand is productivity : writing highly reliable code
- by hand can be done but it is painstakingly slow, while state machines allow to **generate the code** 
-automatically. On the other hand is reliability. Quoting Gerard Berry, founder of Esterel 
-technologies, [<< low-level programming techniques will not remain acceptable for large 
-safety-critical programs, since they make behavior understanding and analysis almost 
-impracticable >>](https://ptolemy.berkeley.edu/projects/chess/design/2010/discussions/Pdf/synclang.pdf), in a harsh regulatory context 
-which may require that every single system requirement 
-be traced to the code that implements it (!). Requirements modeled by state-machines are amenable
- to formal verification and validation. 
-
-State machines have also been used extensively in [games of reasonable complexity](http://howtomakeanrpg.com/a/state-machines.html), and [tutorials](https://www.gamedev.net/articles/programming/general-and-gameplay-programming/state-machines-in-games-r2982/) abound
- on the subject. The driving factors are again two. First, the basic problem for AI to solve 
- here is : given the state of the world, what should I do? Because game character behavior can be
-  modeled (in most cases) as a sequence of different character "mental states", where change in 
-  state is driven by the actions of the player or other characters, or possibly some features 
-  of the game world, game programmers often find that state machines are a natural choice for 
-  defining character AI.  Second, it is a very accessible and affordable tool vs. alternatives. The 
-  "decision-action" model is [straightforward enough to appeal to the nonprogrammers](https://www.researchgate.net/publication/284383920_The_Ultimate_Guide_to_FSMs_in_Games) on the game 
-  development team (such as level designers), yet impressively powerful. FSMs also lend 
-  themselves to being quickly sketched out during design and prototyping, and even better, they 
-  can be easily and efficiently implemented. 
-
-More prosaically, did you know that ES6 generators compile down to ES5 state machines where no 
-native option is available? Facebook's [`regenerator`](https://github.com/facebook/regenerator) 
-is a good example of such.
-
-So state machines are nothing like a new, experimental tool, but rather one with a fairly extended 
-and proven track in both industrial and consumer applications. 
