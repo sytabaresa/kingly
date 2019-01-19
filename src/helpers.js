@@ -2,6 +2,17 @@
 import { DEEP, HISTORY_PREFIX, HISTORY_STATE_NAME, INIT_EVENT, INIT_STATE, NO_OUTPUT, SHALLOW } from "./properties"
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
 
+export function make_states(stateList){
+  return stateList.reduce((acc, state) => {
+    acc[state]="";
+    return acc
+  }, {})
+}
+
+export function make_events(eventList){
+  return eventList
+}
+
 /**
  * Returns the name of the function as taken from its source definition.
  * For instance, function do_something(){} -> "do_something"
