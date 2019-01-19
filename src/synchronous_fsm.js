@@ -5,6 +5,10 @@ import {
   arrayizeOutput, computeHistoryMaps, get_fn_name, getFsmStateList, initHistoryDataStructure, keys,
   mapOverTransitionsActions, updateHistory, wrap
 } from "./helpers";
+import { NO_ACTIONS } from "../test/helpers"
+
+const noop = ()=>{};
+const emptyConsole = {log: noop, warn: noop, info:noop, debug:noop, error:noop, trace:noop};
 
 /**
  * Takes a list of identifiers (strings), adds init to it, and returns a hash whose properties are
@@ -126,6 +130,31 @@ export function build_state_enum(states) {
   return states_enum;
 }
 
+function hasInitTransition(transitions){
+  return transitions.some(transition => {
+    return transition.from === INIT_STATE && transition.event === INIT_EVENT
+  })
+}
+
+function normalize_transitions(fsmDef){
+  const {initialControlState, transitions} = fsmDef;
+  const initTransition = hasInitTransition(transitions);
+
+  if (initTransition && initialControlState) {
+    throw new Error(`create_state_machine > normalize_transitions : invalid machine configuration : defining an initial control state and an initial transition at the same time may lead to ambiguity and is forbidden!`)
+  }
+  if (!initTransition && !initialControlState) {
+    throw new Error(`create_state_machine > normalize_transitions : invalid machine configuration : you must define EITHER an initial control state OR an initial transition! Else in which state is the machine supposed to start?`)
+  }
+  if (initialControlState) {
+    return transitions
+      .concat([{from: INIT_STATE, event:INIT_EVENT, to: initialControlState, action : ACTION_IDENTITY}])
+  }
+  else if (initTransition){
+    return transitions
+  }
+}
+
 /**
  * Creates an instance of state machine from a set of states, transitions, and accepted events. The initial
  * extended state for the machine is included in the machine definition.
@@ -138,14 +167,16 @@ export function create_state_machine(fsmDef, settings) {
   const {
     states: control_states,
     events,
-    transitions,
-    initialExtendedState
+    // transitions ,
+    initialExtendedState,
   } = fsmDef;
-  const { updateState } = settings;
+  const transitions = normalize_transitions(fsmDef);
+  const { updateState, debug } = settings;
+  let console = debug ? debug.console : emptyConsole;
 
   const _events = build_event_enum(events);
 
-  // Create the nested hierarchical
+  // Create the nested hierarchy
   const hash_states_struct = build_nested_state_structure(control_states);
 
   // This will be the extended state object which will be updated by all actions and on which conditions
@@ -168,7 +199,6 @@ export function create_state_machine(fsmDef, settings) {
   let hash_states = hash_states_struct.hash_states;
 
   transitions.forEach(function (transition) {
-    console.log("processing transition:", transition);
     let { from, to, action, event, guards: arr_predicate } = transition;
     // CASE : ZERO OR ONE condition set
     if (!arr_predicate)
@@ -196,8 +226,6 @@ export function create_state_machine(fsmDef, settings) {
       is_auto_state[from] = true;
     }
 
-    console.log("This is transition for event:", event);
-
     from_proto[event] = arr_predicate.reduce(
       function (acc, guard, index) {
         let action = guard.action;
@@ -220,10 +248,10 @@ export function create_state_machine(fsmDef, settings) {
 
             if (!predicate || predicate(extendedState_, event_data, settings)) {
               // CASE : guard for transition is fulfilled so we can execute the actions...
-              console.info("IN STATE ", from);
-              console.info("CASE : " + (predicate ? "guard " + predicate.name + "for transition is fulfilled" : "automatic transition"));
+              debug && console.info("IN STATE ", from);
+              debug && console.info("CASE : " + (predicate ? "guard " + predicate.name + "for transition is fulfilled" : "automatic transition"));
               // CASE : we do have some actions to execute
-              console.info("THEN : we execute the action " + (action.name || action.displayName));
+              debug && console.info("THEN : we execute the action " + (action.name || action.displayName));
               // NOTE : in a further extension, passing the fsm and the events object could help
               // in implementing asynchronous fsm
               const actionResult = action(extendedState_, event_data, settings);
@@ -237,7 +265,7 @@ export function create_state_machine(fsmDef, settings) {
 
               // ...and enter the next state (can be different from to if we have nesting state group)
               const next_state = enter_next_state(to, actionResult.updates, hash_states);
-              console.info("ENTERING NEXT STATE : ", next_state);
+              debug && console.info("ENTERING NEXT STATE : ", next_state);
 
               return { stop: true, outputs: actionResult.outputs }; // allows for chaining and stop
               // chaining guard
@@ -268,7 +296,7 @@ export function create_state_machine(fsmDef, settings) {
   });
 
   function send_event(event_struct, isExternalEvent) {
-    console.log("send event", event_struct);
+    debug && console.debug("send event", event_struct);
     const event_name = keys(event_struct)[0];
     const event_data = event_struct[event_name];
     const current_state = hash_states[INIT_STATE].current_state_name;
@@ -278,7 +306,7 @@ export function create_state_machine(fsmDef, settings) {
     // super state of all states in the machine. Hence sending an INIT_EVENT
     // would always execute the INIT transition by prototypal delegation
     if (isExternalEvent && event_name === INIT_EVENT && current_state !== INIT_STATE) {
-      console.warn(`The external event INIT_EVENT can only be sent when starting the machine!`)
+      debug && console.warn(`The external event INIT_EVENT can only be sent when starting the machine!`)
 
       return NO_OUTPUT
     }
@@ -297,8 +325,8 @@ export function create_state_machine(fsmDef, settings) {
 
     if (event_handler) {
       // CASE : There is a transition associated to that event
-      console.log("found event handler!");
-      console.info("WHEN EVENT ", event);
+      debug && console.log("found event handler!");
+      debug && console.info("WHEN EVENT ", event);
       /* OUT : this event handler modifies the extendedState and possibly other data structures */
       const outputs = arrayizeOutput(event_handler(extendedState, event_data, current_state).outputs);
 
@@ -325,7 +353,7 @@ export function create_state_machine(fsmDef, settings) {
       } else return outputs;
     } else {
       // CASE : There is no transition associated to that event from that state
-      console.error(`There is no transition associated to that event!`);
+      debug && console.error(`There is no transition associated to that event!`);
 
       return NO_OUTPUT;
     }
@@ -338,7 +366,7 @@ export function create_state_machine(fsmDef, settings) {
 
     history = updateHistory(history, stateAncestors, state_from_name);
 
-    console.log("left state", wrap(from));
+    debug && console.info("left state", wrap(from));
   }
 
   function enter_next_state(to, updatedExtendedState, hash_states) {
@@ -362,7 +390,7 @@ export function create_state_machine(fsmDef, settings) {
     }
     hash_states[INIT_STATE].current_state_name = state_to_name;
 
-    console.info("AND TRANSITION TO STATE", state_to_name);
+    debug && console.info("AND TRANSITION TO STATE", state_to_name);
     return state_to_name;
   }
 
@@ -370,64 +398,11 @@ export function create_state_machine(fsmDef, settings) {
     return send_event({ [INIT_EVENT]: initialExtendedState }, true);
   }
 
+  start();
+
   return {
     yield: x => send_event(x, true),
-    start: start
-  };
-}
-
-/**
- *
- * @param {{merge: Function, from:Function, filter:Function, map:Function, flatMap:Function, share:Function}} settings
- * Contains the interface necessary from the choosen streaming library
- * @param {FSM_Def} fsmDef
- * settings. That merge function must take an array of observables and return an observable.
- * Otherwise can also hold extra settings the API user wants to make available in state machine's scope
- * @returns {function(Object<String, Rx.Observable>): *}
- */
-// `settings.from` should emit synchronously and recursively
-// NOTE : Rxjs : https://github.com/ReactiveX/rxjs/blob/master/doc/scheduler.md
-// By not passing any scheduler, notifications are delivered synchronously and recursively.
-export function makeStreamingStateMachine(settings, fsmDef) {
-  const fsm = create_state_machine(fsmDef, settings);
-  const merge = settings && settings.merge;
-  const filter = settings && settings.filter;
-  const map = settings && settings.map;
-  const from = settings && settings.from;
-  const flatMap = settings && settings.flatMap;
-  const share = settings && settings.share;
-
-  if (!(merge && from && filter && map && flatMap && share))
-    throw `makeStreamingStateMachine : could not find an observable merge or of functions ! use Rx??`;
-
-  /**
-   * @param {Object.<EventLabel, Rx.Observable>} events A mapping of event labels to the corresponding event sources
-   * @returns {Rx.Observable} Returns an observable containing the actions emitted by the state machine in response
-   * to the specified input events
-   */
-  const computeActions = function computeActions(events) {
-    const events$ = merge(
-      // Contract : the `merge` function must subscribe to its source parameters in order of appearance
-      // This ensures that the init event is indeed processed always before the other events
-      [from([{ [INIT_EVENT]: fsmDef.initialExtendedState }])].concat(
-        keys(events).map(eventLabel => {
-          const eventSource$ = events[eventLabel];
-
-          return eventSource$.map(eventData => ({ [eventLabel]: eventData }));
-        })
-      )
-    );
-
-    const outputs$ = filter(outputs => outputs !== NO_OUTPUT, map(fsm.yield, events$));
-    const filteredOutputs$ = flatMap(outputs => {
-      const filteredOutputs = outputs.filter(x => x !== NO_OUTPUT);
-      return from(filteredOutputs)
-    }, outputs$);
-
-    return share(filteredOutputs$)
-  };
-
-  return computeActions;
+  }.yield;
 }
 
 /**

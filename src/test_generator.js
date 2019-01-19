@@ -29,7 +29,7 @@ const graphSettings = {
  * stop path accumulation and aggregate the current path to current results
  * @returns {Array<TestCase>}
  */
-export function generateTestsFromFSM(fsm, generators, settings) {
+export function generateTestSequences(fsm, generators, settings) {
   const startingVertex = INIT_STATE;
   const tracedFSM = traceFSM({}, fsm);
   const fsmStates = tracedFSM.states;
@@ -94,7 +94,7 @@ export function generateTestsFromFSM(fsm, generators, settings) {
       // Execute the state machine with the input sequence to get it in the matching control state
       // Note that the machine has to be recreated each time, as it is a stateful object
       const fsm = create_state_machine(tracedFSM, settings);
-      const tracedOutputs = lastOf(inputSequence.map(fsm.yield));
+      const tracedOutputs = lastOf(inputSequence.map(fsm));
       // We want the final extended state after miscellaneous updates on the transition path
       const extendedState = inputSequence.length === 0
         // Edge case : we are in INIT_STATE, the init event has the initial extended state as event data
@@ -151,7 +151,7 @@ function computeNewPathTraversalState(fsm, fsmStates, analyzedStates, edge, genI
   }
   // Case 2. the init event is manually sent : we have to generate the corresponding input
   else if (isInitState(controlState) && isInitEvent(eventLabel)) {
-    return computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, genInput, pathTraversalState)
+    return computeGeneratedInfoDoNothingCase(edge, pathTraversalState)
   }
   // Case 3 : the init event is automatically and internally sent by the state machine : no need to generate inputs!
   else if (!isInitState(controlState) && isInitEvent(eventLabel)) {
@@ -271,7 +271,7 @@ function computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, genInput, pa
     const newInput = { [eventLabel]: newInputData };
     newInputSequence = inputSequence.concat([newInput]);
     // NOTE : fsm will always return as output an array with exactly one item in the base case!
-    const newOutput = fsm.yield(newInput)[0];
+    const newOutput = fsm(newInput)[0];
     // NOTE : finalControlState is the control state at the end of the associated automatic transitions, if any
     // A -INIT> B -INIT> C ; edge : [A -INIT> B] => finalControlState = C, targetControlState = B
     const { outputs: untracedOutput, targetControlState: finalControlState } = newOutput;
@@ -528,6 +528,33 @@ export function analyzeStateTree(states) {
 function getGeneratorMappedTransitionFromEdge(genMap, edge) {
   const { from, event, guardIndex } = edge;
   return genMap.get(JSON.stringify({ from, event, guardIndex }))
+}
+
+export function testFsm({testAPI, fsmFactorySpecs, inputSequences, oracle, format}){
+  const getInputKey = function getInputKey(input) {return Object.keys(input)[0]};
+  const {assert} = testAPI;
+  const {formatOutputsSequences} = format;
+  const {fsmDef, factorySettings, create_state_machine} = fsmFactorySpecs;
+  const {computeOutputSequences} = oracle;
+
+  const formattedInputSequences = inputSequences.map(inputSequence => inputSequence.map(getInputKey).join(' -> '));
+
+  const outputsSequences = inputSequences.map(testSequence => {
+    const fsm = create_state_machine(fsmDef, factorySettings);
+    const output = testSequence.map(fsm);
+    return output
+  }  );
+  const formattedOutputsSequences = formatOutputsSequences(outputsSequences);
+
+  const expectedOutputSequences = computeOutputSequences(inputSequences);
+
+  inputSequences.forEach((_,index) => {
+    assert.deepEqual(
+      formattedOutputsSequences[index],
+      expectedOutputSequences[index],
+      formattedInputSequences[index]
+    );
+  })
 }
 
 /**

@@ -56,7 +56,7 @@ export default {
       // Any additional options that should be passed through
       // to node-resolve
       // customResolveOptions: {
-      //   moduleDirectory: 'js_modules'
+      //   moduleDirectory: 'mode_modules'
       // }
     }),
     commonjs({
