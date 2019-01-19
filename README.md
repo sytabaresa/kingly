@@ -93,8 +93,8 @@ hierarchy of nested states)
 ## API design
 The key objectives for the API was :
 
-- generality and reusability (there is no provision made to accommodate specific use cases or 
-frameworks)
+- generality, reusability and simplicity 
+  - there is no explicit provision made to accommodate specific use cases or frameworks
   - it must be possible to add a [concurrency and/or communication mechanism](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.92.6145&rep=rep1&type=pdf) on top of the current design
   - it must be possible to integrate smoothly into React, Angular and your popular framework
   - support for both interactive and reactive programming
@@ -102,44 +102,47 @@ frameworks)
 
 As a result of this, the following choices were made :
 
-- complete encapsulation of the state of the transducer
-- single public method : the transducer is used through a sole `yield` function (though a 
-`start` syntactic sugar is provided for `yield`ing the mandatory INIT event). As such, the 
+- functional interface : the transducer is just a function. As such, the 
 transducer is a black-box, and only its computed outputs can be observed
+- complete encapsulation of the state of the transducer
 - no effects performed by the machine
 - no exit and entry actions, or activities as in other state machine formalisms
   - there is no loss of generality as both entry and exit actions can be implemented with our 
-  state transducer, there is simply no API or syntactic support for it
+  state transducer. There is simply no syntactic support for it in the core API. This can however be
+   provided through standard functional programming patterns (higher-order functions, etc.)
 - every computation performed is synchronous (asynchrony is an effect)
-- action factories return the **updates** to the extended state (JSON patch format) to avoid any 
-unwanted direct modification of the extended state
+- action factories return the **updates** to the extended state to avoid any 
+unwanted direct modification of the extended state (API user must provide such update function, 
+which in turn allows him to use any formalism to represent state - for instance `immutable.js`)
 - no restriction is made on output of transducers, but inputs must follow some conventions (if a
- machine's output match those conventions, two such machines can be sequentially composed ; 
- parallel composition naturally occurs by feeding two state machines the same input(s))
-- reactive programming is enabled by exposing a pure function of an input stream, which runs the 
-transducer for each incoming input, thus generating a sequence of outputs
-- library is decoupled from any concrete implementation of streams : an interface is chosen, and the
- implementation of that interface must be passed through settings
+ machine's output match those conventions, two such machines can be sequentially composed
+- parallel composition naturally occurs by feeding two state machines the same input(s))
+- as a result, reactive programming is naturally enabled. If inputs is a stream of 
+well-formatted machine inputs, and `f` is the fsm, then the stream of outputs will be `inputs.map
+(f)`. It is so simple that we do not surface it at the API level
 
 Concretely, our state transducer will be created by the factory function `create_state_machine`, 
 which returns a state transducer which :
 
-- must be started manually (with `.start()`), and configured with an initial event and transition 
-- will compute an output for any input that is sent to it (with `.yield(input)`)
+- immediately positions itself in its configured initial control state 
+- will compute an output for any input that is sent to it since that
 
-The state transducer is not, in general, a pure function of its inputs. However, a given output of
- the transducer depends exclusively on the sequence of inputs it has received so far ([causality 
- property](https://en.wikipedia.org/wiki/Causal_system)). This means that it is possible to  
- associate to a state transducer another function which takes a sequence of inputs into a 
- sequence of outputs, in a way that that function is pure. 
+Let us insist on the fact that the state transducer is not, in general, a pure function of its 
+inputs. However, a given output of the transducer depends exclusively on the sequence of inputs 
+it has received so far ([causality property](https://en.wikipedia.org/wiki/Causal_system)). This means that it is possible to associate to a state transducer another function which takes a sequence of inputs into a 
+ sequence of outputs, in a way that that function is pure. This is what enables testing.
 
 ## General concepts
 Our state transducer is an object which encapsulates state, and exposes a single function by which 
-input is received. That function, based on the transducer's encapsulated state and configuration, and the 
-received input produces two things : 
+input is received. That function, based on the transducer's encapsulated state, configuration, and
+ the received input produces two things : 
 
 - a list of updates to apply internally to the extended state
 - an external output for the consumer of the state transducer
+
+**TODO** decide whether I want to include the article examples here instead of the more complex 
+example here (which is written in cyclejs anyways right?). Yeah I probably want to do that. But 
+also add a link to the more complex example
 
 To help illustrate further the concepts, and the terminology, we will use two examples, featuring 
 basic and advanced features on the hierarchical state transducer model : 
@@ -148,8 +151,7 @@ basic and advanced features on the hierarchical state transducer model :
 interface
 - the specification of the behaviour for a cd player as a hierarchical extended state machine
 
-We will subsequently precise here the vocabulary which will be used throughout the documentation.
-  We then describe how the behaviour of a transducer relates to its configuration. In particular
+We then describe how the behaviour of a transducer relates to its configuration. In particular
   we detail the concepts and semantics associated to hierarchical states. Finally we present our
    API whose documentation relies on all previously introduced concepts.
 
