@@ -86,70 +86,6 @@ in a way that :
 - supports step-wise refinement and iterative development (control states can be refined into a 
 hierarchy of nested states)
 
-# So what is an Extended Hierarchical State Transducer ? 
-Not like it matters so much but anyways. Feel free to skip that section if you have little 
-interest in computer science.
-
-Alright, let's build the concept progressively.
-
-An [automaton](https://en.wikipedia.org/wiki/Automata_theory) is a construct made of states 
-designed to determine if a sequence of inputs should be accepted or rejected. It looks a lot like a 
-basic board game where each space on the board represents a state. Each state has information about what to do when an input is received by the machine (again, rather like what to do when you land on the Jail spot in a popular board game). As the machine receives a new input, it looks at the state and picks a new spot based on the information on what to do when it receives that input at that state. When there are no more inputs, the automaton stops and the space it is on when it completes determines whether the automaton accepts or rejects that particular set of inputs.
-
-State machines and automata are essentially interchangeable terms. Automata is the favored term 
-when connoting automata theory, while state machines is more often used in the context of the 
-actual or practical usage of automata.
-
-An extended state machine is a state machine endowed with a set of variables, predicates (guards)
-and instructions governing the update of the mentioned set of variables. To any extended state 
-machines it corresponds a standard state machine (albeit often one with a far greater number of 
-states) with the same semantics.
-
-A hierarchical state machine is a state machine whose states can be themselves state machines. 
-Thus instead of having a set of states as in standard state machines, we have a hierarchy (tree) of 
-states describing the system under study.
-
-A [state transducer](https://en.wikipedia.org/wiki/Finite-state_transducer) is a state 
-machine, which in addition to accepting inputs, and modifying its state accordingly, may also 
-generate outputs.
-
-We propose here a library dealing with extended hierarchical state transducers, i.e. a state machine
-whose states can be other state machines (hierarchical part), which (may) associate an output to an 
-input (transducer part), and whose input/output relation follows a logic guided by 
-predefined control states (state machine part), and an encapsulated memory which can be 
-modified through actions guarded by predicates (extended part).
-
-Note that if we add concurrency and messaging to extended hierarchical state transducers, we get
- a statechart. We made the design decision to remain at the present level, and not to incorporate 
- any concurrency mechanism.[^2]
-
-[^2]: Our rationale is as follows :  
- - statecharts include activities and actions which may produce effects, and concurrency. We are 
- seeking an purely computational approach (i.e effect-less) to facilitate **composition, reuse and 
-  testing**. 
- - In the absence of concurrency (i.e. absence of parallel regions), a statechart can be turned 
- into a hierarchical state transducer. That is often enough! 
- - there is no difference in terms of 
- expressive power between statecharts and hierarchical transducers[^4], just as there is no 
- difference in expressive power between extended state machines and regular state machines. The 
- difference lies in naturalness and convenience : a 5-state extended state machine is 
- easier to read and maintain than the equivalent 50-state regular state machine. 
- - we argue that convenience here is on the side of being able to freely plug in any [concurrent 
- or communication model](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.92.6145&rep=rep1&type=pdf) fitting the problem space. In highly concurrent systems, programmers may have it hard to elaborate a mental model of the statecharts solely from the visualization of 
- concurrent statecharts.
- - some [statecharts practitioners](http://sismic.readthedocs.io/en/master/communication.html#) 
- favor having separate state charts communicating[^5] in an ad-hoc way rather than an integrated 
- statechart model where concurrent state charts are gathered in nested states of a single 
- statechart. We agree.
- 
-[^3]: As a matter of fact, more than 20 different semantics have been proposed to define 
-precisely the concurrency model for statecharts, e.g Rhapsody, Statemate, VisualMate, StateFlow, 
-UML, etc. do not share a single concurrency model.
-[^4]: David Harel, Statecharts.History.CACM : Speaking in the strict mathematical sense of power 
-of expression, hierarchy and orthogonality are but helpful abbreviations and can be eliminated
-[^5]: David Harel, Statecharts.History.CACM : <<I definitely do not recommend having a single 
-statechart for an entire system. (...) concurrency occurs on a higher level.)>>
- 
 # Install
 `npm install state-transducer`
 
@@ -1177,7 +1113,106 @@ transducers and manipulate the test cases one by one as soon as they are produce
    - pick a random transition
    - pick next transition according to ranking (probability-based, prefix-based or else) 
 
-# Terminology
+# Who else uses state machines
+The use of state machines is not unusual for safety-critical software for embedded systems. 
+Nearly all safety-critical code on the Airbus A380 is implemented with a [suite of tools](https://www.ansys.com/products/embedded-software/ansys-scade-suite/scade-suite-capabilities#cap1) which 
+produces state machines both as [specification](https://www.youtube.com/watch?list=PL0lZXwHtV6Ok5s-iSkBjHirM1fu53_Phv&v=EHP_spl5xU0) and [implementation](https://www.youtube.com/watch?v=523bJ1vZZmw&index=5&list=PL0lZXwHtV6Ok5s-iSkBjHirM1fu53_Phv) 
+target. The driver here is two-fold. On the one hand is productivity : writing highly reliable code
+ by hand can be done but it is painstakingly slow, while state machines allow to **generate the code** 
+automatically. On the other hand is reliability. Quoting Gerard Berry, founder of Esterel 
+technologies, [<< low-level programming techniques will not remain acceptable for large 
+safety-critical programs, since they make behavior understanding and analysis almost 
+impracticable >>](https://ptolemy.berkeley.edu/projects/chess/design/2010/discussions/Pdf/synclang.pdf), in a harsh regulatory context 
+which may require that every single system requirement 
+be traced to the code that implements it (!). Requirements modeled by state-machines are amenable
+ to formal verification and validation. 
+
+State machines have also been used extensively in [games of reasonable complexity](http://howtomakeanrpg.com/a/state-machines.html), and [tutorials](https://www.gamedev.net/articles/programming/general-and-gameplay-programming/state-machines-in-games-r2982/) abound
+ on the subject. The driving factors are again two. First, the basic problem for AI to solve 
+ here is : given the state of the world, what should I do? Because game character behavior can be
+  modeled (in most cases) as a sequence of different character "mental states", where change in 
+  state is driven by the actions of the player or other characters, or possibly some features 
+  of the game world, game programmers often find that state machines are a natural choice for 
+  defining character AI.  Second, it is a very accessible and affordable tool vs. alternatives. The 
+  "decision-action" model is [straightforward enough to appeal to the nonprogrammers](https://www.researchgate.net/publication/284383920_The_Ultimate_Guide_to_FSMs_in_Games) on the game 
+  development team (such as level designers), yet impressively powerful. FSMs also lend 
+  themselves to being quickly sketched out during design and prototyping, and even better, they 
+  can be easily and efficiently implemented. 
+
+More prosaically, did you know that ES6 generators compile down to ES5 state machines where no 
+native option is available? Facebook's [`regenerator`](https://github.com/facebook/regenerator) 
+is a good example of such.
+
+So state machines are nothing like a new, experimental tool, but rather one with a fairly extended 
+and proven track in both industrial and consumer applications. 
+
+# Annex
+## So what is an Extended Hierarchical State Transducer ? 
+Not like it matters so much but anyways. Feel free to skip that section if you have little 
+interest in computer science.
+
+Alright, let's build the concept progressively.
+
+An [automaton](https://en.wikipedia.org/wiki/Automata_theory) is a construct made of states 
+designed to determine if a sequence of inputs should be accepted or rejected. It looks a lot like a 
+basic board game where each space on the board represents a state. Each state has information about what to do when an input is received by the machine (again, rather like what to do when you land on the Jail spot in a popular board game). As the machine receives a new input, it looks at the state and picks a new spot based on the information on what to do when it receives that input at that state. When there are no more inputs, the automaton stops and the space it is on when it completes determines whether the automaton accepts or rejects that particular set of inputs.
+
+State machines and automata are essentially interchangeable terms. Automata is the favored term 
+when connoting automata theory, while state machines is more often used in the context of the 
+actual or practical usage of automata.
+
+An extended state machine is a state machine endowed with a set of variables, predicates (guards)
+and instructions governing the update of the mentioned set of variables. To any extended state 
+machines it corresponds a standard state machine (albeit often one with a far greater number of 
+states) with the same semantics.
+
+A hierarchical state machine is a state machine whose states can be themselves state machines. 
+Thus instead of having a set of states as in standard state machines, we have a hierarchy (tree) of 
+states describing the system under study.
+
+A [state transducer](https://en.wikipedia.org/wiki/Finite-state_transducer) is a state 
+machine, which in addition to accepting inputs, and modifying its state accordingly, may also 
+generate outputs.
+
+We propose here a library dealing with extended hierarchical state transducers, i.e. a state machine
+whose states can be other state machines (hierarchical part), which (may) associate an output to an 
+input (transducer part), and whose input/output relation follows a logic guided by 
+predefined control states (state machine part), and an encapsulated memory which can be 
+modified through actions guarded by predicates (extended part).
+
+Note that if we add concurrency and messaging to extended hierarchical state transducers, we get
+ a statechart. We made the design decision to remain at the present level, and not to incorporate 
+ any concurrency mechanism.[^2]
+
+[^2]: Our rationale is as follows :  
+ - statecharts include activities and actions which may produce effects, and concurrency. We are 
+ seeking an purely computational approach (i.e effect-less) to facilitate **composition, reuse and 
+  testing**. 
+ - In the absence of concurrency (i.e. absence of parallel regions), a statechart can be turned 
+ into a hierarchical state transducer. That is often enough! 
+ - there is no difference in terms of 
+ expressive power between statecharts and hierarchical transducers[^4], just as there is no 
+ difference in expressive power between extended state machines and regular state machines. The 
+ difference lies in naturalness and convenience : a 5-state extended state machine is 
+ easier to read and maintain than the equivalent 50-state regular state machine. 
+ - we argue that convenience here is on the side of being able to freely plug in any [concurrent 
+ or communication model](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.92.6145&rep=rep1&type=pdf) fitting the problem space. In highly concurrent systems, programmers may have it hard to elaborate a mental model of the statecharts solely from the visualization of 
+ concurrent statecharts.
+ - some [statecharts practitioners](http://sismic.readthedocs.io/en/master/communication.html#) 
+ favor having separate state charts communicating[^5] in an ad-hoc way rather than an integrated 
+ statechart model where concurrent state charts are gathered in nested states of a single 
+ statechart. We agree.
+ 
+[^3]: As a matter of fact, more than 20 different semantics have been proposed to define 
+precisely the concurrency model for statecharts, e.g Rhapsody, Statemate, VisualMate, StateFlow, 
+UML, etc. do not share a single concurrency model.
+[^4]: David Harel, Statecharts.History.CACM : Speaking in the strict mathematical sense of power 
+of expression, hierarchy and orthogonality are but helpful abbreviations and can be eliminated
+[^5]: David Harel, Statecharts.History.CACM : <<I definitely do not recommend having a single 
+statechart for an entire system. (...) concurrency occurs on a higher level.)>>
+ 
+
+## Terminology
 **TODO** review, internal events for instance
 
 In this section, we seek to define quickly the meaning of the key terms which will be commonly 
@@ -1322,35 +1357,3 @@ used when referring to state machines.
   </dd>
 </dl>
 
-# Who else uses state machines
-The use of state machines is not unusual for safety-critical software for embedded systems. 
-Nearly all safety-critical code on the Airbus A380 is implemented with a [suite of tools](https://www.ansys.com/products/embedded-software/ansys-scade-suite/scade-suite-capabilities#cap1) which 
-produces state machines both as [specification](https://www.youtube.com/watch?list=PL0lZXwHtV6Ok5s-iSkBjHirM1fu53_Phv&v=EHP_spl5xU0) and [implementation](https://www.youtube.com/watch?v=523bJ1vZZmw&index=5&list=PL0lZXwHtV6Ok5s-iSkBjHirM1fu53_Phv) 
-target. The driver here is two-fold. On the one hand is productivity : writing highly reliable code
- by hand can be done but it is painstakingly slow, while state machines allow to **generate the code** 
-automatically. On the other hand is reliability. Quoting Gerard Berry, founder of Esterel 
-technologies, [<< low-level programming techniques will not remain acceptable for large 
-safety-critical programs, since they make behavior understanding and analysis almost 
-impracticable >>](https://ptolemy.berkeley.edu/projects/chess/design/2010/discussions/Pdf/synclang.pdf), in a harsh regulatory context 
-which may require that every single system requirement 
-be traced to the code that implements it (!). Requirements modeled by state-machines are amenable
- to formal verification and validation. 
-
-State machines have also been used extensively in [games of reasonable complexity](http://howtomakeanrpg.com/a/state-machines.html), and [tutorials](https://www.gamedev.net/articles/programming/general-and-gameplay-programming/state-machines-in-games-r2982/) abound
- on the subject. The driving factors are again two. First, the basic problem for AI to solve 
- here is : given the state of the world, what should I do? Because game character behavior can be
-  modeled (in most cases) as a sequence of different character "mental states", where change in 
-  state is driven by the actions of the player or other characters, or possibly some features 
-  of the game world, game programmers often find that state machines are a natural choice for 
-  defining character AI.  Second, it is a very accessible and affordable tool vs. alternatives. The 
-  "decision-action" model is [straightforward enough to appeal to the nonprogrammers](https://www.researchgate.net/publication/284383920_The_Ultimate_Guide_to_FSMs_in_Games) on the game 
-  development team (such as level designers), yet impressively powerful. FSMs also lend 
-  themselves to being quickly sketched out during design and prototyping, and even better, they 
-  can be easily and efficiently implemented. 
-
-More prosaically, did you know that ES6 generators compile down to ES5 state machines where no 
-native option is available? Facebook's [`regenerator`](https://github.com/facebook/regenerator) 
-is a good example of such.
-
-So state machines are nothing like a new, experimental tool, but rather one with a fairly extended 
-and proven track in both industrial and consumer applications. 
