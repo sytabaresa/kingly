@@ -86,8 +86,87 @@ in a way that :
 - supports step-wise refinement and iterative development (control states can be refined into a 
 hierarchy of nested states)
 
+# The link between state machines and user interfaces
+In short :
+
+- a user interface can be specified by a relation between events received by the user 
+interfaces and actions to be performed as a result on the interfaced system. 
+- Because to the same triggering event, there may be different actions to perform on the 
+interfaced system (depending for instance on when the event did occur, or which other events 
+occured before), we use state to represent that variability, and specify the user interface with 
+a function `f` such that `actions = f(state, event)`. We call here `f` the reactive function for the user interface.
+- The previous expression suffices to specify the user interface's behaviour, but is not enough 
+to deduce an implementation. We then use a function `g` such that `(actions_n, state_{n+1} = g
+(state_n, event_n)`. That is, we explicitly include the modification of the state triggered by 
+events. Depending on the choice that is made for `state_n`, there is an infinite number of ways 
+to specify the user interface.
+- a state machine specification is one of those ways with some nice properties (concise 
+specification, formal reasoning, easy visualization). It divides the state into control states and 
+extended state. For each control state, it specifies a reactive sub-function which returns an 
+updated state (i.e. a new control state, and a new extended state) and the actions to perform on 
+the interfaced system.
+
+Let's take a very simple example to illustrate those equations. The user interface to 
+specify is a [password selector](https://cdn.dribbble.com/users/522131/screenshots/4467712/password_strength.png). Visually, the user interface consists of a passowrd input field 
+and a submit password button. Its behaviour is the following :
+- the user types
+- for each new value of the password input, the input is displayed in green if the password is 
+strong (that will be, to remain simple if there are both letters and numbers in the password), and
+ in red otherwise
+- if the password is not strong, the user click on `set password` button is ignored, otherwise 
+the password is set to the value of the password input
+ 
+A `f` partial formulation :
+
+|state|event|actions|
+|---|---|---|
+|input: ``|type `a`|display input in red|
+|input: `a`|type `2`|display input in green|
+|input: `a2`|click submit|submit `a2` password|
+|input: `a`|type `b`|display input in red|
+|input: `ab`|click submit|---|
+
+A `g` partial formulation :
+
+|state_n|event|actions_n|state_{n+1}|
+|---|---|---|---|
+|input: ``|type `a`|display input in red|input: `a`|
+|input: `a`|type `2`|display input in green|input: `a2`|
+|input: `a2`|click submit|submit `a2` password|input: `a2`|
+|input: `a`|type `b`|display input in red|input: `ab`|
+|input: `ab`|click submit|---|input: `ab`|
+
+A state machine partial formulation :
+
+|control state|extended state|event|actions|new control state|new extended state|
+|---|---|---|---|---|---|
+|weak|input: ``|type `a`|display input in red|weak|input: `a`|
+|weak|input: `a`|type `2`|display input in green|strong|input: `a2`|
+|strong|input: `a2`|click submit|submit 'a2' password|done|input: `a2`|
+|weak|input: `a`|type `b`|display input in red|weak|input: `ab`|
+|weak|input: `ab`|click submit| - |weak| input: `ab` |
+
+A state machine visualization (actions are not represented) :
+
+![password submit fsm](assets/password%20submit%20fsm.png)
+
+If we would write the specifications for that simple user interface with tables, we would have to
+ write an infinite table. That is why we mentioned *partial* formulation. Our tables do not for 
+ instance give a mapping for the following sequence of events : `[type `a`, type `2`, type 
+ `<-|`]`. Conversely, our state machine concisely represents the fact that whatever input we 
+ receive in the `weak` control state, it will only go to the `strong` control state if some 
+ pre-configured condition are fulfilled (both numbers and letters in the password). It will only 
+ submit the password if the `click submit` event is received while it is in the `strong` state. 
+ These two assertions can be combined into a theorem : the machine will only submit a password if
+  the password is strong. In short, we are able to reason formally about the machine and extract 
+  properties from its definition. This is just one of the many attractive properties of state 
+  machines.
+  
+For the modelization of a more complex user interface, and more details on the benefits of state 
+machine, I'll refer the reader to a [detailed article](https://github.com/brucou/movie-search-app/blob/specs-all/article/article.md) I wrote on the subject.
+ 
 # Install
-`npm install state-transducer`
+`npm install state-transducer --save`
 
 # API
 ## API design
@@ -142,7 +221,8 @@ input is received. That function, based on the transducer's encapsulated state, 
 
 **TODO** decide whether I want to include the article examples here instead of the more complex 
 example here (which is written in cyclejs anyways right?). Yeah I probably want to do that. But 
-also add a link to the more complex example
+also add a link to the more complex example. No, keep the example, and link instead for a CODE 
+EXAMPLE to the article. But rephrase this, this is more to illustrate or something, not to teach mmm
 
 To help illustrate further the concepts, and the terminology, we will use two examples, featuring 
 basic and advanced features on the hierarchical state transducer model : 
