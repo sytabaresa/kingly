@@ -221,7 +221,7 @@ it has received so far ([causality property](https://en.wikipedia.org/wiki/Causa
 ## General concepts
 Our state transducer is an object which encapsulates state, and exposes a single function by which 
 input is received. That function, based on the transducer's encapsulated state, configuration, and
- the received input produces two things : 
+ the received input computes two things : 
 
 - a list of updates to apply internally to the extended state
 - an external output for the consumer of the state transducer
