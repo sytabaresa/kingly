@@ -4,7 +4,11 @@
     - remove the modif. I wanted to bring to the graph stuff (simulating incoming events at any 
     time)
     - update the types...
+    - reorganize the types in README so it explains and copmlete previous explanations
     - contracts to implement
+    - put testing into other .md dedicated to testing and update that by the way
+    - update visualizers or remove it from v1.0 (maybe it is already done), so put `Visualization
+     tools (experimental)`
     - review code quality (less important)
 - would be good to have a `reset` function which puts the machine back in starting position and 
 returns a clone of it.

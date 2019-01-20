@@ -120,11 +120,11 @@ A `f` partial formulation :
 
 |state|event|actions|
 |---|---|---|
-|input: ``|type `a`|display input in red|
-|input: `a`|type `2`|display input in green|
-|input: `a2`|click submit|submit `a2` password|
-|input: `a`|type `b`|display input in red|
-|input: `ab`|click submit|---|
+|input: ``|*type `a`*|display input in red|
+|input: `a`|*type `2`*|display input in green|
+|input: `a2`|*click submit*|submit `a2` password|
+|input: `a`|*type `b`*|display input in red|
+|input: `ab`|*click submit*|---|
 
 A `g` partial formulation :
 
@@ -150,8 +150,8 @@ The corresponding implementation is by a function `fsm` with an encapsulated int
 `{control state : weak, extended state: {input : ''}}` such that :
 
 ```
-f(type 'a') = nothing
-f(type '2') = submit `a2` password
+fsm(type 'a') = nothing
+fsm(type '2') = submit `a2` password
 ```
  
 The corresponding visualization (actions are not represented) :
