@@ -543,7 +543,9 @@ are summarized here :
  */
 /** @typedef {function (ExtendedState, EventData) : Boolean} FSM_Predicate */
 /** @typedef {{updateState :: Function(ExtendedState, ExtendedStateUpdate) : ExtendedState, ...}} FSM_Settings */
-/** @typedef {{merge: MergeObsFn, from: FromObsFn, filter: FilterObsFn, map: MapObsFn, share:ShareObsFn, ...}} FSM$_Settings */
+/**
+ * @typedef {Object.<EventLabel, EventData>} LabelledEvent extended state for a given state machine
+ */
 /**
  * @typedef {Object} FsmTraceData
  * @property {ControlState} controlState
@@ -584,7 +586,7 @@ are summarized here :
  * @typedef {*} ExtendedStateUpdate
  */
 /** @typedef {* | NO_OUTPUT} MachineOutput well it is preferrable that that be an object instead of a primitive */
-```
+
 
 ### Implementation example
 We are going to show the definition for the following state machine :
