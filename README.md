@@ -140,11 +140,11 @@ A state machine partial formulation :
 
 |control state|extended state|event|actions|new control state|new extended state|
 |---|---|---|---|---|---|
-|weak|input: ``|type `a`|display input in red|weak|input: `a`|
-|weak|input: `a`|type `2`|display input in green|strong|input: `a2`|
-|strong|input: `a2`|click submit|submit `a2` password|done|input: `a2`|
-|weak|input: `a`|type `b`|display input in red|weak|input: `ab`|
-|weak|input: `ab`|click submit| - |weak| input: `ab` |
+|Weak|input: ``|type `a`|display input in red|weak|input: `a`|
+|Weak|input: `a`|type `2`|display input in green|strong|input: `a2`|
+|Strong|input: `a2`|click submit|submit `a2` password|done|input: `a2`|
+|Weak|input: `a`|type `b`|display input in red|weak|input: `ab`|
+|Weak|input: `ab`|click submit| - |weak| input: `ab` |
 
 The corresponding implementation is by a function `fsm` with an encapsulated internal state of 
 `{control state : weak, extended state: {input : ''}}` such that :
