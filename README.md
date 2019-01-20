@@ -162,11 +162,11 @@ The corresponding visualization (actions are not represented) :
 
 Note that we wrote only partial formulations in our table, as the sequence of inputs by the user 
 is potentially infinite (while this article is not). Our tables do not for instance give a 
-mapping for the following sequence of events : `[type 'a', type '2', type 
+mapping for the following sequence of events : `[typed 'a', typed '2', typed 
  '<-|']`. Conversely, our state machine concisely represents the fact that whatever input we 
  receive in the `Weak` control state, it will only go to the `Strong` control state if some 
  pre-configured condition are fulfilled (both numbers and letters in the password). It will 
- only submit the password if the `click submit` event is received while it is in the `Strong` 
+ only submit the password if the `clicked submit` event is received while it is in the `Strong` 
  state.
  The starting state and these two assertions can be combined into a theorem : the machine will only 
  submit a password if the password is strong. In short, we are able to reason formally about the 
@@ -222,6 +222,32 @@ it has received so far ([causality property](https://en.wikipedia.org/wiki/Causa
  sequence of outputs, in a way that that function is pure. This is what enables testing.
 
 ## General concepts
+There are a few things to be acquainted with :
+- the state machine formalism
+- its extension, including hierarchy (compound states), history states
+- the library API
+
+To familiarize the reader with these, we will be leveraging two examples. The first example is 
+the aforementioned password selector. This pretty simple example will serve to showcase the API 
+of the library, and standard state machine terminology. The second example modelizes the 
+behaviour of a CD player. It is more complex, and will feature a hierarchical state machine. For 
+this example, we will show a run of the machine, and by doing so, illustrate advanced concepts 
+such as compound states, and history states. We will not indigate into the implementation however
+. For a very advanced example, I invite the reader to refer to [the wizard form demo](https://github.com/brucou/cycle-state-machine-demo).
+
+We then present into more details the semantics of a state transducer and how it relates to its 
+configuration. Finally we present our API whose documentation relies on all previously introduced
+ concepts.
+
+### Base example
+**TODO**
+Reuse the password meter example and provide an implementation. Details the action factory, code 
+whatever to showcase the API
+
+give credit to https://css-tricks.com/password-strength-meter/
+code : https://codepen.io/anon/pen/wNwwbw
+**TODO**
+
 Our state transducer is an object which encapsulates state, and exposes a single function by which 
 input is received. That function, based on the transducer's encapsulated state, configuration, and
  the received input computes two things : 
@@ -229,56 +255,6 @@ input is received. That function, based on the transducer's encapsulated state, 
 - a list of updates to apply internally to the extended state
 - an external output for the consumer of the state transducer
 
-To help illustrate further the concepts, and the terminology, we will use two examples, featuring 
-basic and advanced features on the hierarchical state transducer model : 
-
-- a real use case of non-hierarchical extended state machine applied to a web application user 
-interface
-- the specification of the behaviour for a cd player as a hierarchical extended state machine
-
-We then describe how the behaviour of a transducer relates to its configuration. In particular
-  we detail the concepts and semantics associated to hierarchical states. Finally we present our
-   API whose documentation relies on all previously introduced concepts.
-
-### Base example
-This example is taken from an actual project in which this library was used. It will be used in 
-this paragraph to illustrate the core terminology defined in subsequent sections, and illustrate 
-somewhat abstract notions. It does not feature hierarchical states, and as such can be seen as a 
-regular extended state machine.
-
-This example deals with a typical multi-step application process, whose user interface is made of a 
-sequence of screens. In each screen, the user is required to introduce or review some 
-information, and navigate through the application process up to completion.
-
-That application process concretely consists of 5 screens whose flow is defined by the UX team as
- follows :
- 
-![User flow](https://github.com/brucou/component-combinators/raw/master/examples/volunteerApplication/assets/volunteerApplication/application%20process.png) 
-
-This in turn was turned into a non-trivial state machine (7 states, ~20 transitions) orchestrating 
-the screens to display in function of the user inputs. The machine **does not display the screen 
-itself** (it performs no effects), **it computes a representation of the screen to display** 
-according to the sequence of inputs performed by the user and its encapsulated state 
-(user-entered data, data validation, etc.). The action `display screen` in the graph below must 
-be understood as a regular piece of data (similar to a virtual DOM tree) whose meaning is to be 
-interpreted down the road by the portion of the program in charge of realizing effects (for 
-instance a DOM diff library). The state machine can be visualized as follows :
- 
-![illustration of basic terminology](assets/sparks%20application%20process%20with%20comeback%20proper%20syntax%20-%20flat%20fsm.png)
-
-In our example, the encapsulated state has the following shape :
-
-```javascript
-{
-  user,
-  opportunity,
-  project,
-  userApplication,
-  teams,
-  errorMessage: null,
-  validationMessages: {}
-}
-```
 
 ### CD drawer example
 This example is taken from Ian Horrock's seminal book on statecharts and is the specification of
