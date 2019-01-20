@@ -257,9 +257,9 @@ the screens to display in function of the user inputs. The machine **does not di
 itself** (it performs no effects), **it computes a representation of the screen to display** 
 according to the sequence of inputs performed by the user and its encapsulated state 
 (user-entered data, data validation, etc.). The action `display screen` in the graph below must 
-be understood as a regular piece of data (virtual DOM tree) whose meaning is to be interpreted 
-down the road by the portion of the program in charge of realizing effects (DOM patch library). The 
-state machine can be visualized as follows :
+be understood as a regular piece of data (similar to a virtual DOM tree) whose meaning is to be 
+interpreted down the road by the portion of the program in charge of realizing effects (for 
+instance a DOM diff library). The state machine can be visualized as follows :
  
 ![illustration of basic terminology](assets/sparks%20application%20process%20with%20comeback%20proper%20syntax%20-%20flat%20fsm.png)
 
@@ -301,13 +301,20 @@ the transducer by call of the exposed `yield` method
 
 **Event processing**
 
-- Starting the machine (`.start()`) triggers the reserved `INIT` event which advances the state 
-machine out of the initial control state towards the relevant user-configured control state
-  - note that the `INIT` event carries the initial extended state as data
-- **1**
+- Calling the machine factory creates a machine according to specifications and triggers the 
+reserved `INIT_EVENT` event which advances the state machine out of the initial control state 
+towards the relevant user-configured control state
+  - note that the `INIT_EVENT` event carries the initial extended state as data
+  - if there is no initial transition, it is required to pass an initial control state
+  - if there is no initial control state, it is required to configure an initial transition
+  - an initial transition is a transition from the reserved `INIT_STATE` control state, triggered 
+  by the reserved event `INIT_EVENT`
+- **Mark 1**
 - Search for a feasible transition in the configured transitions
+  - a feasible transition is a transition which is configured to deal with the received event, and 
+  for which there is a fulfilled guard 
 - If there is no feasible transition :
-  - issue memorized output (`NO_OUTPUT` if none), extended state and ocntrol state do not change.
+  - issue memorized output (`NO_OUTPUT` if none), extended state and control state do not change.
    **_THE END_**
 - If there is a feasible transition, select the first transition according to what follows :
   - if there is an INIT transition, select that
@@ -317,10 +324,10 @@ machine out of the initial control state towards the relevant user-configured co
   - if the target control state is an history state, replace it by the control state it 
   references (i.e. the last seen nested state for that compound state)
   - **update the extended state** (with the updates produced by the action factory)
-  - memorize the outputs (produced by the action factory)
-  - update the control state to the target state
+  - aggregate and memorize the outputs (produced by the action factory)
+  - update the control state to the target control state
   - update the history for the control state (applies only if control state is compound state)
-- return to **1**
+- return to **Mark 1**
 
 A few interesting points : 
 
@@ -458,6 +465,9 @@ determine the initial control state for the machine
 [^x]: There are however semantics which allow such transitions, thus possibilitating event bubbling.
 
 ## `create_state_machine :: FSM_Def -> Settings -> FSM`
+**TODO**
+
+
 ### Description
 This FSM factory function takes the parameters defining the behaviour of the state transducer, 
 and returns the created state transducer. That transducer has a method `yield` by which an input 
