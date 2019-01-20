@@ -120,40 +120,40 @@ A `f` partial formulation :
 
 |State|Event|Actions|
 |---|---|---|
-|`{input: ""}`|*type `a`*|display input in red|
-|`{input: "a"}`|*type `2`*|display input in green|
-|`{input: "a2"}`|*click submit*|submit `a2` password|
-|`{input: "a"}`|*type `b`*|display input in red|
-|`{input: "ab"}`|*click submit*|---|
+|`{input: ""}`|*typed `a`*|display input in red|
+|`{input: "a"}`|*typed `2`*|display input in green|
+|`{input: "a2"}`|*clicked submit*|submit `a2` password|
+|`{input: "a"}`|*typed `b`*|display input in red|
+|`{input: "ab"}`|*clicked submit*|---|
 
 A `g` partial formulation :
 
 |state_n|event|actions_n|state_{n+1}|
 |---|---|---|---|
-|`{input: ""}`|*type `a`*|display input in red|`{input: "a"}`|
-|`{input: "a"}`|*type `2`*|display input in green|`{input: "a2"}`|
-|`{input: "a2"}`|*click submit*|submit `a2` password|`{input: "a2"}`|
-|`{input: "a"}`|*type `b`*|display input in red|`{input: "ab"}`|
-|`{input: "ab"}`|*click submit*|---|`{input: "ab"`}|
+|`{input: ""}`|*typed `a`*|display input in red|`{input: "a"}`|
+|`{input: "a"}`|*typed `2`*|display input in green|`{input: "a2"}`|
+|`{input: "a2"}`|*clicked submit*|submit `a2` password|`{input: "a2"}`|
+|`{input: "a"}`|*typed `b`*|display input in red|`{input: "ab"}`|
+|`{input: "ab"}`|*clicked submit*|---|`{input: "ab"`}|
 
 A state machine partial formulation :
 
 |Control state|Extended state|Event|Actions|New control state|New extended state|
 |---|---|---|---|---|---|
-|**Weak**|input: ``|type `a`|display input in red|**Weak**|input: `a`|
-|**Weak**|input: `a`|type `2`|display input in green|**Strong**|input: `a2`|
-|**Strong**|input: `a2`|click submit|submit `a2` password|**Done**|input: `a2`|
-|**Weak**|input: `a`|type `b`|display input in red|**Weak**|input: `ab`|
-|**Weak**|input: `ab`|click submit| - |**Weak**| input: `ab` |
+|**Weak**|`input: ""`|typed `a`|display input in red|**Weak**|input: `a`|
+|**Weak**|`input: "a"`|typed `2`|display input in green|**Strong**|input: `a2`|
+|**Strong**|`input: "a2"`|clicked submit|submit `a2` password|**Done**|input: `a2`|
+|**Weak**|`input: "a"`|typed `b`|display input in red|**Weak**|input: `ab`|
+|**Weak**|`input: "ab"`|clicked submit| - |**Weak**| input: `ab` |
 
 The corresponding implementation is by a function `fsm` with an encapsulated internal state of 
 `{control state : weak, extended state: {input : ''}}` such that, if the user types 'a2' and 
 clicks submit :
 
 ```
-fsm(type 'a') = nothing
-fsm(type '2') = nothing
-fsm(click submit) = submit `a2` password
+fsm(typed 'a') = nothing
+fsm(typed '2') = nothing
+fsm(clicked submit) = submit `a2` password
 ```
 
 The corresponding visualization (actions are not represented) :
@@ -216,8 +216,8 @@ which returns a state transducer which :
 - immediately positions itself in its configured initial control state 
 - will compute an output for any input that is sent to it since that
 
-Let us insist on the fact that the state transducer is not, in general, a pure function of its 
-inputs. However, a given output of the transducer depends exclusively on the sequence of inputs 
+Let us insist again on the fact that the state transducer is not, in general, a pure function of 
+its inputs. However, a given output of the transducer depends exclusively on the sequence of inputs 
 it has received so far ([causality property](https://en.wikipedia.org/wiki/Causal_system)). This means that it is possible to associate to a state transducer another function which takes a sequence of inputs into a 
  sequence of outputs, in a way that that function is pure. This is what enables testing.
 

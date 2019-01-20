@@ -1,5 +1,7 @@
 # Now
 - towards v1.0
+    - keep cd player example and run to illustrat terminology and semantics of transducers, but 
+    that does not illustrate th action factories though
     - put in readme and update roadmap
     - remove the modif. I wanted to bring to the graph stuff (simulating incoming events at any 
     time)
