@@ -545,29 +545,6 @@ are summarized here :
 /** @typedef {{updateState :: Function(ExtendedState, ExtendedStateUpdate) : ExtendedState, ...}} FSM_Settings */
 /** @typedef {{merge: MergeObsFn, from: FromObsFn, filter: FilterObsFn, map: MapObsFn, share:ShareObsFn, ...}} FSM$_Settings */
 /**
- * @typedef {function (Array<Observable>) : Observable} MergeObsFn Similar to Rxjs v4's `Rx.Observable.merge`. Takes
- * an array of observables and return an observable which passes on all outputs emitted by the observables in the array.
- */
-/**
- * @typedef {function (value) : Observable} FromObsFn Similar to Rxjs v4's `Rx.Observable.from`. Takes
- * a value and lift it into an observable which completes immediately after emitting that value.
- */
-/**
- * @typedef {function (value) : Observable} FilterObsFn Similar to Rxjs v4's `Rx.Observable.filter`. Takes
- * a value and lift it into an observable which completes immediately after emitting that value.
- */
-/**
- * @typedef {function (value) : Observable} MapObsFn Similar to Rxjs v4's `Rx.Observable.map`. Takes
- * a value and lift it into an observable which completes immediately after emitting that value.
- */
-/**
- * @typedef {function (value) : Observable} ShareObsFn Similar to Rxjs v4's `Rx.Observable.share`. Takes
- * a value and lift it into an observable which completes immediately after emitting that value.
- */
-/**
- * @typedef {Object.<EventLabel, EventData>} LabelledEvent extended state for a given state machine
- */
-/**
  * @typedef {Object} FsmTraceData
  * @property {ControlState} controlState
  * @property {{EventLabel, EventData}} eventLabel
