@@ -142,11 +142,19 @@ A state machine partial formulation :
 |---|---|---|---|---|---|
 |weak|input: ``|type `a`|display input in red|weak|input: `a`|
 |weak|input: `a`|type `2`|display input in green|strong|input: `a2`|
-|strong|input: `a2`|click submit|submit 'a2' password|done|input: `a2`|
+|strong|input: `a2`|click submit|submit `a2` password|done|input: `a2`|
 |weak|input: `a`|type `b`|display input in red|weak|input: `ab`|
 |weak|input: `ab`|click submit| - |weak| input: `ab` |
 
-A state machine visualization (actions are not represented) :
+The corresponding implementation is by a function `fsm` with an encapsulated internal state of 
+`{control state : weak, extended state: {input : ''}}` such that :
+
+```
+f(type 'a') = nothing
+f(type '2') = submit `a2` password
+```
+ 
+The corresponding visualization (actions are not represented) :
 
 ![password submit fsm](assets/password%20submit%20fsm.png)
 
@@ -217,11 +225,6 @@ input is received. That function, based on the transducer's encapsulated state, 
 
 - a list of updates to apply internally to the extended state
 - an external output for the consumer of the state transducer
-
-**TODO** decide whether I want to include the article examples here instead of the more complex 
-example here (which is written in cyclejs anyways right?). Yeah I probably want to do that. But 
-also add a link to the more complex example. No, keep the example, and link instead for a CODE 
-EXAMPLE to the article. But rephrase this, this is more to illustrate or something, not to teach mmm
 
 To help illustrate further the concepts, and the terminology, we will use two examples, featuring 
 basic and advanced features on the hierarchical state transducer model : 
