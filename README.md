@@ -130,11 +130,11 @@ A `g` partial formulation :
 
 |state_n|event|actions_n|state_{n+1}|
 |---|---|---|---|
-|input: ``|type `a`|display input in red|input: `a`|
-|input: `a`|type `2`|display input in green|input: `a2`|
-|input: `a2`|click submit|submit `a2` password|input: `a2`|
-|input: `a`|type `b`|display input in red|input: `ab`|
-|input: `ab`|click submit|---|input: `ab`|
+|`{input: ""}`|*type `a`*|display input in red|input: `a`|
+|`{input: "a"}`|*type `2`*|display input in green|input: `a2`|
+|`{input: "a2"}`|*click submit*|submit `a2` password|input: `a2`|
+|`{input: "a"}`|*type `b`*|display input in red|input: `ab`|
+|`{input: "ab"}`|*click submit*|---|input: `ab`|
 
 A state machine partial formulation :
 
