@@ -1,8 +1,9 @@
 # Now
 - towards v1.0
     - put in readme and update roadmap
-    - make the makeState, and makeEvent helpers function, remove the modif. I wanted to bring to the 
-    graph stuff (simulating incoming events at any time)
+    - remove the modif. I wanted to bring to the graph stuff (simulating incoming events at any 
+    time)
+    - update the types...
     - contracts to implement
     - review code quality (less important)
 - would be good to have a `reset` function which puts the machine back in starting position and 

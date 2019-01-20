@@ -586,7 +586,7 @@ are summarized here :
  * @typedef {*} ExtendedStateUpdate
  */
 /** @typedef {* | NO_OUTPUT} MachineOutput well it is preferrable that that be an object instead of a primitive */
-
+```
 
 ### Implementation example
 We are going to show the definition for the following state machine :
