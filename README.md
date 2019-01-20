@@ -140,11 +140,11 @@ A state machine partial formulation :
 
 |Control state|Extended state|Event|Actions|New control state|New extended state|
 |---|---|---|---|---|---|
-|**Weak**|`input: ""`|typed `a`|display input in red|**Weak**|input: `a`|
-|**Weak**|`input: "a"`|typed `2`|display input in green|**Strong**|input: `a2`|
-|**Strong**|`input: "a2"`|clicked submit|submit `a2` password|**Done**|input: `a2`|
-|**Weak**|`input: "a"`|typed `b`|display input in red|**Weak**|input: `ab`|
-|**Weak**|`input: "ab"`|clicked submit| - |**Weak**| input: `ab` |
+|**Weak**|`input: ""`|typed `a`|display input in red|**Weak**|`input: "a"`|
+|**Weak**|`input: "a"`|typed `2`|display input in green|**Strong**|`input: "a2"`|
+|**Strong**|`input: "a2"`|clicked submit|submit `a2` password|**Done**|`input: "a2"`|
+|**Weak**|`input: "a"`|typed `b`|display input in red|**Weak**|`input: "ab"`|
+|**Weak**|`input: "ab"`|clicked submit| - |**Weak**| `input: "ab"` |
 
 The corresponding implementation is by a function `fsm` with an encapsulated internal state of 
 `{control state : weak, extended state: {input : ''}}` such that, if the user types 'a2' and 
