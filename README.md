@@ -118,7 +118,7 @@ the password is set to the value of the password input
  
 A `f` partial formulation :
 
-|state|event|actions|
+|State|Event|Actions|
 |---|---|---|
 |`{input: ""}`|*type `a`*|display input in red|
 |`{input: "a"}`|*type `2`*|display input in green|
@@ -138,7 +138,7 @@ A `g` partial formulation :
 
 A state machine partial formulation :
 
-|control state|extended state|event|actions|new control state|new extended state|
+|Control state|Extended state|Event|Actions|New control state|New extended state|
 |---|---|---|---|---|---|
 |**Weak**|input: ``|type `a`|display input in red|**Weak**|input: `a`|
 |**Weak**|input: `a`|type `2`|display input in green|**Strong**|input: `a2`|
@@ -147,11 +147,13 @@ A state machine partial formulation :
 |**Weak**|input: `ab`|click submit| - |**Weak**| input: `ab` |
 
 The corresponding implementation is by a function `fsm` with an encapsulated internal state of 
-`{control state : weak, extended state: {input : ''}}` such that :
+`{control state : weak, extended state: {input : ''}}` such that, if the user types 'a2' and 
+clicks submit :
 
 ```
 fsm(type 'a') = nothing
-fsm(type '2') = submit `a2` password
+fsm(type '2') = nothing
+fsm(click submit) = submit `a2` password
 ```
  
 The corresponding visualization (actions are not represented) :
