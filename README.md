@@ -155,23 +155,24 @@ fsm(type 'a') = nothing
 fsm(type '2') = nothing
 fsm(click submit) = submit `a2` password
 ```
- 
+
 The corresponding visualization (actions are not represented) :
 
 ![password submit fsm](assets/password%20submit%20fsm.png)
 
-If we would write the specifications for that simple user interface with tables, we would have to
- write an infinite table. That is why we mentioned *partial* formulation. Our tables do not for 
- instance give a mapping for the following sequence of events : `[type `a`, type `2`, type 
- `<-|`]`. Conversely, our state machine concisely represents the fact that whatever input we 
- receive in the `weak` control state, it will only go to the `strong` control state if some 
- pre-configured condition are fulfilled (both numbers and letters in the password). It will only 
- submit the password if the `click submit` event is received while it is in the `strong` state. 
- These two assertions can be combined into a theorem : the machine will only submit a password if
-  the password is strong. In short, we are able to reason formally about the machine and extract 
-  properties from its definition. This is just one of the many attractive properties of state 
-  machines.
-  
+Note that we wrote only partial formulations in our table, as the sequence of inputs by the user 
+is potentially infinite (while this article is not). Our tables do not for instance give a 
+mapping for the following sequence of events : `[type 'a', type '2', type 
+ '<-|']`. Conversely, our state machine concisely represents the fact that whatever input we 
+ receive in the `Weak` control state, it will only go to the `Strong` control state if some 
+ pre-configured condition are fulfilled (both numbers and letters in the password). It will 
+ only submit the password if the `click submit` event is received while it is in the `Strong` 
+ state.
+ The starting state and these two assertions can be combined into a theorem : the machine will only 
+ submit a password if the password is strong. In short, we are able to reason formally about the 
+ machine and extract properties from its definition. This is just one of the many attractive properties of state 
+  machines which makes it a tool of choice for robust and testable user interface's implementation.
+
 For the modelization of a [much more complex user interface](https://sarimarton.github.io/tmdb-ui-cyclejs/dist/#/), and more details on the benefits of state machine, I'll refer the reader to a [detailed article](https://github.com/brucou/movie-search-app/blob/specs-all/article/article.md) I wrote on the subject.
  
 # Install
