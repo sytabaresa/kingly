@@ -178,6 +178,10 @@ For the modelization of a [much more complex user interface](https://sarimarton.
 # Install
 `npm install state-transducer --save`
 
+# Tests
+Automated tests are close to completion. Contracts are so far not enforced. To run the 
+current automated tests, type in a terminal : `npm run test`
+
 # API
 ## API design
 The key objectives for the API was :
@@ -232,8 +236,7 @@ the aforementioned password selector. This pretty simple example will serve to s
 of the library, and standard state machine terminology. The second example modelizes the 
 behaviour of a CD player. It is more complex, and will feature a hierarchical state machine. For 
 this example, we will show a run of the machine, and by doing so, illustrate advanced concepts 
-such as compound states, and history states. We will not indigate into the implementation however
-. For a very advanced example, I invite the reader to refer to [the wizard form demo](https://github.com/brucou/cycle-state-machine-demo).
+such as compound states, and history states. We will not indigate into the implementation however. For a very advanced example, I invite the reader to refer to [the wizard form demo](https://github.com/brucou/cycle-state-machine-demo).
 
 We then present into more details the semantics of a state transducer and how it relates to its 
 configuration. Finally we present our API whose documentation relies on all previously introduced
@@ -259,92 +262,31 @@ input is received. That function, based on the transducer's encapsulated state, 
 ### CD drawer example
 This example is taken from Ian Horrock's seminal book on statecharts and is the specification of
  a CD player. The behaviour of the CD player is pretty straight forward and understandable 
- immediately from the visualization. From a didactical point of view, the example serve to feature 
- advanced characteristics of hierarchical state machines,  including history states, composite states, 
+ immediately from the visualization. From a didactical point of view, the example serves to feature 
+ advanced characteristics of hierarchical state machines, including history states, composite states, 
  transient states, automatic transitions, and entry points. For a deeper understanding of how the
-  transitions work in the case of a hierarchical machine, you can have a look at the [sample run](https://github.com/brucou/state-transducer#example-run) for the CD player machine.
+  transitions work in the case of a hierarchical machine, you can have a look at the 
+  [terminology](https://github.com/brucou/state-transducer#terminology) and 
+  [sample run](https://github.com/brucou/state-transducer#example-run) for the CD player machine.
  
 ![cd player state chart](http://i.imgur.com/ygsOVi9.jpg)
 
-## Transducer semantics
-We give here a quick summary of the behaviour of the state transducer :
-
-**Preconditions**
-
-- the machine is configured with a set of control states, an initial extended state, 
-transitions, guards, action factories, and user settings. 
-- the machine configuration is valid (cf. contracts)
-- the machine is in a fixed initial control state at starting time
-- Input events (`{{[event_label]: event_data}}`), including the initial INIT event are passed to 
-the transducer by call of the exposed `yield` method
-
-**Event processing**
-
-- Calling the machine factory creates a machine according to specifications and triggers the 
-reserved `INIT_EVENT` event which advances the state machine out of the initial control state 
-towards the relevant user-configured control state
-  - note that the `INIT_EVENT` event carries the initial extended state as data
-  - if there is no initial transition, it is required to pass an initial control state
-  - if there is no initial control state, it is required to configure an initial transition
-  - an initial transition is a transition from the reserved `INIT_STATE` control state, triggered 
-  by the reserved event `INIT_EVENT`
-- **Mark 1**
-- Search for a feasible transition in the configured transitions
-  - a feasible transition is a transition which is configured to deal with the received event, and 
-  for which there is a fulfilled guard 
-- If there is no feasible transition :
-  - issue memorized output (`NO_OUTPUT` if none), extended state and control state do not change.
-   **_THE END_**
-- If there is a feasible transition, select the first transition according to what follows :
-  - if there is an INIT transition, select that
-  - if there is an eventless transition, select that
-  - otherwise select the first transition whose guard is fulfilled (as ordered per array index)
-- evaluate the selected transition
-  - if the target control state is an history state, replace it by the control state it 
-  references (i.e. the last seen nested state for that compound state)
-  - **update the extended state** (with the updates produced by the action factory)
-  - aggregate and memorize the outputs (produced by the action factory)
-  - update the control state to the target control state
-  - update the history for the control state (applies only if control state is compound state)
-- return to **Mark 1**
-
-A few interesting points : 
-
-- a machine always transitions towards an atomic state at the end of event processing
-- on that path towards an atomic target state, all intermediary extended state updates are 
-performed. Guards and action factories on that path are thus receiving a possibly evolving extended 
-state. The computed outputs will be aggregated in an array of outputs.
- 
-The aforedescribed behaviour is summarized here :
-
-![event processing](assets/FSM%20event%20processing%20semantics.png)
-
-**History states semantics**
-An history state relates to the past configuration a compound state. There 
-are two kinds of history states : shallow history states (H), and deep history states (H*). A 
-picture being worth more than words, thereafter follows an illustration of both history states :
-
-![deep and shallow history](test/assets/history%20transitions,%20INIT%20event%20CASCADING%20transitions.png)
-
-Assuming the corresponding machine has had the following run `[INIT, EVENT1, EVENT3, EVENT5, 
-EVENT4]`:
- 
-- the configurations for the `OUTER` control state will have been `[OUTER.A, INNER, INNER.S, INNER.T]`
- - the shallow history state for the `OUTER` control state will correspond to the `INNER` control
-  state (the last direct substate of `OUTER`), leading to an automatic transition to INNER_S  
- - the deep history state for the `OUTER` control state will correspond to the `INNER.T` control
-     state (the last substate of `OUTER` before exiting it)
-
-In short the history state allows to short-circuit the default entry behaviour for a compound 
-state, which is to follow the transition triggered by the INIT event. When transitioning to the 
-history state, transition is towards the last seen state for the entered compound state.
+The salient facts are :
+- `NO Cd loaded`, `CD_Paused` are control states which are composite states : they are themselves state machines comprised on control states.
+- The control state `H` is a pseudo-control state called shallow history state
+- All composite states feature an entry point and an automatic transition. For instance 
+`CD_Paused` has the sixth control state as entry point, and the transition from `CD_Paused` into 
+that control state is called an automatic transition. Entering the `CD_Paused` control state 
+automatically triggers that transition.
+- `Closing CD drawer` is a transient state. The machine will automatically transition away from 
+it, picking a path according to the guards configured on the available exiting transitions
 
 ### Example run
 To illustrate the previously described transducer semantics, let's run the CD player example.
 
-| Control state      | Internal event | User event       |
+| Control state      | Internal event | External event|
 |--------------------|:-----------:|------------------|
-| INIT               |     INIT    |                  |
+| INIT_STATE         |     INIT_EVENT |                  |
 | No Cd Loaded       |     INIT    |                  |
 | CD Drawer Closed   |      --     |                  |
 | CD Drawer Closed   |             | Eject            |
@@ -370,6 +312,80 @@ must be one)
 - the history semantics -- releasing the forward key on the CD player returns to `CD Playing` the
  last atomic state for compound state `CD Loaded subgroup`.
  
+
+## Transducer semantics
+We give here a quick summary of the behaviour of the state transducer :
+
+**Preconditions**
+
+- the machine is configured with a set of control states, an initial extended state, 
+transitions, guards, action factories, and user settings. 
+- the machine configuration is valid (cf. contracts)
+- Input events have the shape `{{[event_label]: event_data}}`
+
+**Event processing**
+
+- Calling the machine factory creates a machine according to specifications and triggers the 
+reserved `INIT_EVENT` event which advances the state machine out of the reserved **internal** 
+initial control state towards the relevant **user-configured** initial control state
+  - the `INIT_EVENT` event carries the initial extended state as data
+  - if there is no initial transition, it is required to pass an initial control state
+  - if there is no initial control state, it is required to configure an initial transition
+  - an initial transition is a transition from the reserved `INIT_STATE` initial control state, 
+  triggered by the reserved initial event `INIT_EVENT`
+- **Loop**
+- Search for a feasible transition in the configured transitions
+  - a feasible transition is a transition which is configured to deal with the received event, and 
+  for which there is a fulfilled guard 
+- If there is no feasible transition :
+  - issue memorized output (`NO_OUTPUT` if none), extended state and control state do not change.
+   **Break** away from the loop
+- If there is a feasible transition, select the first transition according to what follows :
+  - if there is an INIT transition, select that
+  - if there is an eventless transition, select that
+  - otherwise select the first transition whose guard is fulfilled (as ordered per array index)
+- evaluate the selected transition
+  - if the target control state is an history state, replace it by the control state it 
+  references (i.e. the last seen nested state for that compound state)
+  - **update the extended state** (with the updates produced by the action factory)
+  - aggregate and memorize the outputs (produced by the action factory)
+  - update the control state to the target control state
+  - update the history for the control state (applies only if control state is compound state)
+- iterate on **Loop**
+- **_THE END_**
+
+A few interesting points : 
+
+- a machine always transitions towards an atomic state at the end of event processing
+- on that path towards an atomic target state, all intermediary extended state updates are 
+performed. Guards and action factories on that path are thus receiving a possibly evolving extended 
+state. The computed outputs will be aggregated in an array of outputs.
+ 
+The aforedescribed behaviour is loosely summarized here :
+
+![event processing](assets/FSM%20event%20processing%20semantics.png)
+
+**History states semantics**
+
+An history state relates to the past configuration a compound state. There 
+are two kinds of history states : shallow history states (H), and deep history states (H*). A 
+picture being worth more than words, thereafter follows an illustration of both history states :
+
+![deep and shallow history](test/assets/history%20transitions,%20INIT%20event%20CASCADING%20transitions.png)
+
+Assuming the corresponding machine has had the following run `[INIT, EVENT1, EVENT3, EVENT5, 
+EVENT4]`:
+ 
+- the configurations for the `OUTER` control state will have been `[OUTER.A, INNER, INNER.S, INNER.T]`
+ - the shallow history state for the `OUTER` control state will correspond to the `INNER` control
+  state (the last direct substate of `OUTER`), leading to an automatic transition to INNER_S  
+ - the deep history state for the `OUTER` control state will correspond to the `INNER.T` control
+     state (the last substate of `OUTER` before exiting it)
+
+In short the history state allows to short-circuit the default entry behaviour for a compound 
+state, which is to follow the transition triggered by the INIT event. When transitioning to the 
+history state, transition is towards the last seen state for the entered compound state.
+
 ### Contracts
 
 #### Format
@@ -387,12 +403,14 @@ identifiers (cannot be empty strings, cannot start with a number, etc.)
 #### Initial event and initial state
 By initial transition, we mean the transition with origin the machine's default initial state.
 
-- the first event processed by the state machine must be the init event
+- An initial transition must be configured :
+  - by way of a starting control state defined at configuration time
+  - by way of a initial transition at configuration time
 - ~~the init event has the initial extended state as event data~~
-- the init event can only be sent once (further init events will be ignored, and the machine will
- return `NO_OUTPUT`)
-- the state machine starts in the initial state
-- there are no incoming transitions to the initial state
+- the initial event can only be sent internally (external initial events will be ignored, and the 
+machine will return `NO_OUTPUT`)
+- the state machine starts in the reserved initial state
+- there are no incoming transitions to the reserved initial state
 - ~~The machine cannot stay blocked in the initial control state. This means that at least one 
 transition must be configured and be executed between the initial control state and another state
 .   This is turn means :~~
@@ -400,19 +418,21 @@ transition must be configured and be executed between the initial control state 
   - ~~at least one transition out of the initial control state must be configured~~
   - ~~of all guards for such transitions, if any, at least one must be fulfilled to enable a 
   transition away from the initial control state~~
-- there is exactly one initial transition, with unambiguous target state, with only effect to 
-determine the initial control state for the machine 
+- there is exactly one initial transition, with unambiguous target state, whose only effect is to 
+determine the starting control state for the machine 
   - there is no guard on that transition
   - the action on that transition is the *identity* action 
 
 #### Semantical contracts
-- the machine cannot block on receiving an input
+- A transition evaluation must end
   - eventless transitions must progress the state machine
     - at least one guard must be fulfilled, otherwise we would remain forever in the same state
-  - eventless self-transitions must modify the extended state
-    - lest we loop forever (a real blocking infinite loop)
-    - note that there is not really a strong rationale for eventless self-transition, I recommend 
-      just staying away from it.
+  - eventless self-transitions are forbidden (while theoretically possible, the feature is of 
+  little practical value, though being a possible source of ambiguity or infinite loops)
+  - ~~eventless self-transitions must modify the extended state~~
+    - ~~lest we loop forever (a real blocking infinite loop)~~
+    - ~~note that there is not really a strong rationale for eventless self-transition, I recommend 
+      just staying away from it~~
 - the machine is deterministic and unambiguous
   - **NOTE TO SELF**: absolutely enforce that contract
   - to a (from, event) couple, there can only correspond one row in the `transitions` array of the 
@@ -444,32 +464,25 @@ determine the initial control state for the machine
 [^x]: There are however semantics which allow such transitions, thus possibilitating event bubbling.
 
 ## `create_state_machine :: FSM_Def -> Settings -> FSM`
-**TODO**
-
-
 ### Description
 This FSM factory function takes the parameters defining the behaviour of the state transducer, 
-and returns the created state transducer. That transducer has a method `yield` by which an input 
-is passed to the state machine, and in return the computed output is received. The syntax for an 
-input is `{{[eventLabel] : eventData}}`, i.e. an input is an object with exactly one key, which 
-is the event identifier, and the value matching the key is the event data.
-
-Note that by contract the state machine must be started by sending the `INIT` event. We provide 
-the syntatic sugar `.start()` to do so. 
+and returns the created state transducer. The created state transducer is a regular function called 
+with inputs which are passed to the internal state machine, and in return the computed outputs are
+received. The syntax for an input is `{{[eventLabel] : eventData}}`, i.e. an input is an object with exactly one key, which is the event identifier, and the value matching the key is the event data.
 
 The machine additionnally can carry over environment variables, which are accessible in guards, 
-and action factories. This helps maintaining such functions pure and testable. 
+and action factories. This helps maintaining such functions pure and testable. Environment 
+variables can also be used to parameterize the state machine's behaviour.
 
 History states are generated by a factory returned by a helper `makeHistoryStates :: FSM_States -> 
 HistoryStateFactory`. An history state is coupled to a compound state, and has a type (deep or 
 shallow). Passing this information to the factory produdces the sought history state. 
 
 The `settings.updateState` property is mandatory, and specify how to update a model from the `
-.updates` produced by an action factory. We used successfully JSON patch operations for 
-model updates, but you can choose to use the inmutable library of your choice or else. The 
+.updates` produced by an action factory. We used successfully JSON patch operations for model 
+updates, but you can choose to use the inmutable library of your choice or a simple reducer. The 
 important point is that the extended state should not be modified in place, i.e. `updateState` is
  a pure function. 
-
 
 ### Contracts
 - All [previously mentioned](https://github.com/brucou/state-transducer#contracts) contracts apply.
@@ -524,18 +537,6 @@ are summarized here :
 /** @typedef {{updateState :: Function(ExtendedState, ExtendedStateUpdate) : ExtendedState, ...}} FSM_Settings */
 /**
  * @typedef {Object.<EventLabel, EventData>} LabelledEvent extended state for a given state machine
- */
-/**
- * @typedef {Object} FsmTraceData
- * @property {ControlState} controlState
- * @property {{EventLabel, EventData}} eventLabel
- * @property {ControlState} targetControlState
- * @property {FSM_Predicate} predicate
- * @property {ExtendedStateUpdate} updates
- * @property {ExtendedState} extendedState
- * @property {ActionFactory} actionFactory
- * @property {Number} guardIndex
- * @property {Number} transitionIndex
  */
 /**
  * @typedef {function(historyType: HistoryType, controlState: ControlState): HistoryState} HistoryStateFactory
@@ -1105,10 +1106,6 @@ when a pattern occurs in the matching sequence of inputs).
 These extensions are useful to check/test the **design** of the automata, i.e. checking that the 
 automata which acts as modelization of requirements indeed satisfies the requirements. When 
 sufficient confidence is acquired, those extensions can be safely removed.
-
-# Tests
-Automated tests are close to completion. Contracts are so far not enforced. To run the 
-current automated tests, type in a terminal : `npm run test`
 
 # Visualization tools
 We have included two helpers for visualization of the state transducer :
