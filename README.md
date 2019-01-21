@@ -1,38 +1,43 @@
 - [Motivation](#motivation)
-- [So what is an Extended Hierarchical State Transducer ?](#so-what-is-an-extended-hierarchical-state-transducer--)
+- [The link between state machines and user interfaces](#the-link-between-state-machines-and-user-interfaces)
 - [Install](#install)
+- [Tests](#tests)
 - [API](#api)
   * [API design](#api-design)
   * [General concepts](#general-concepts)
     + [Base example](#base-example)
     + [CD drawer example](#cd-drawer-example)
-    + [Terminology](#terminology)
-  * [Transducer semantics](#transducer-semantics)
     + [Example run](#example-run)
+  * [Transducer semantics](#transducer-semantics)
     + [Contracts](#contracts)
+      - [Format](#format)
+      - [Initial event and initial state](#initial-event-and-initial-state)
+      - [Semantical contracts](#semantical-contracts)
   * [`create_state_machine :: FSM_Def -> Settings -> FSM`](#-create-state-machine----fsm-def----settings----fsm-)
     + [Description](#description)
     + [Contracts](#contracts-1)
     + [Implementation example](#implementation-example)
-  * [`makeStreamingStateMachine :: FSM$_Settings -> FSM_Def -> StreamingStateMachine`](#-makestreamingstatemachine----fsm--settings----fsm-def----streamingstatemachine-)
+  * [`traceFSM :: Env -> FSM_Def -> FSM_Def`](#-tracefsm----env----fsm-def----fsm-def-)
     + [Description](#description-1)
     + [Contracts](#contracts-2)
     + [Implementation example](#implementation-example-1)
-  * [`traceFSM :: Env -> FSM_Def -> FSM_Def`](#-tracefsm----env----fsm-def----fsm-def-)
+  * [`generateTestSequences :: FSM_Def -> Generators -> GenSettings -> Array<TestCase>`](#-generatetestsequences----fsm-def----generators----gensettings----array-testcase--)
     + [Description](#description-2)
+    + [Semantics](#semantics)
     + [Contracts](#contracts-3)
     + [Implementation example](#implementation-example-2)
-  * [`generateTestSequences :: FSM_Def -> Generators -> GenSettings -> Array<TestCase>`](#-generatetestsfromfsm----fsm-def----generators----gensettings----array-testcase--)
-    + [Description](#description-3)
-    + [Semantics](#semantics)
-    + [Contracts](#contracts-4)
-    + [Implementation example](#implementation-example-3)
 - [Possible API extensions](#possible-api-extensions)
-- [Tests](#tests)
 - [Visualization tools](#visualization-tools)
 - [References](#references)
-- [Roadmap v0.8](#roadmap-v08)
-- [Roadmap v0.9](#roadmap-v09)
+- [Roadmap](#roadmap)
+  * [Roadmap v1.0](#roadmap-v10)
+  * [Roadmap v1.1](#roadmap-v11)
+  * [Roadmap v1.2](#roadmap-v12)
+  * [Roadmap v1.3](#roadmap-v13)
+- [Who else uses state machines](#who-else-uses-state-machines)
+- [Annex](#annex)
+  * [So what is an Extended Hierarchical State Transducer ?](#so-what-is-an-extended-hierarchical-state-transducer--)
+  * [Terminology](#terminology)
 
 # Motivation
 Time and again we have to implement computations which, while they cannot be modelized by pure 
@@ -662,36 +667,68 @@ The `generateTestSequences` method produce test cases from a state machine defin
 generators associated to each transition defined in the machine. The test generation strategy is 
 specified in `genSettings.strategy` (two common strategies are already defined in `graph-adt` 
 library and can be reused). Additionally the `genSettings` parameter can contain any relevant 
-parameter to be passed to the machine when it is created. 
+parameters to be passed to the state machine when it is created. 
 
 Input generators (`Generators`) are coupled to a given state machine for which they generate an 
 input sequence. The structure of `Generators` hence replicates the structure of the transitions of
  the state machine under test. Typically we recommend copy pasting transitions from `FSM_Def`,  
- and add a `gen` property for each transition definition. That `gen` property is a 
- function, which will either generate an input which progresses the state machine to the 
- transition's target state, or declare itself incapable of doing so. That function will receive 
- the extended state for the state machine, and must generate event data for the event defined in 
- the embedding transition, or signal impossibility of such generation. If the input generate does
+ and add a `gen` property for each transition definition (you can keep or remove any of the 
+ other properties - they are ignored). That `gen` property is a 
+ function, which must generate event data for the event defined in 
+ the coupled transition, or signal impossibility of such generation. If the generator does
   generate event data, then we have a candidate input for inclusion in the test input sequence.
 
-The generation strategy is determined by two predicates :  `isGoalReached`, `isTraversableEdge` 
-with the same signature. `isGoalReached` answers the question of whether an input sequence is 
-finalized, and should be wrapped as a test case; or if alternatively the search should continue, 
-possibly increasing the input sequence or possibly failing to generate an input sequence. 
+The generators receive as input the extended state for the state machine, and the current value 
+of the input generation state. The input generation state is empty when the input generation 
+starts, and only generators have the possibility to update it. The generator thus computes and 
+returns three things :
+- whether it can generate an input which makes the machine take the coupled transition
+- the input that makes the machine take the coupled transition if any
+- the updated input generation state
+
+The input generation state is for instance used in the [movie search app](https://github.com/brucou/movie-search-app/blob/with-state-library/tests/test-generation.specs.js) demo to ensure that 
+different movie searches are generated every time the user returns to the querying control state.
+
+The generation strategy is determined by two predicates,  `isGoalReached` and `isTraversableEdge`, 
+with the same signature :
+- `isGoalReached` answers the question of whether an input sequence is 
+as good as finalized, and should be wrapped as a test case; or if alternatively the search should 
+continue, possibly increasing the input sequence or possibly failing to generate an input sequence. 
 Commonly, this function will test if a target control state is reached, as we often seek to 
-generate input sequences driving the machine to a given state. `isTraversableEdge` answers the 
-question of whether a transition (edge of the graph corresponding to the machine) should be taken, 
-adding the generated input to the current input sequence. `isTraversableEdge` is commonly used to
- fulfill a coverage criteria, for instance *All-transition* (No test case can lead to a 
- transition to be taken twice). As a matter of fact, the input generation is an exhaustive 
- enumeration of edge paths in the state machine graph, which `isTraversableEdge` filters down 
- through its criteria.
+generate input sequences driving the machine to a given state. 
+- `isTraversableEdge` answers the question of whether a transition (edge of the graph 
+corresponding to the machine) should be taken, adding the generated input to the current input 
+sequence. `isTraversableEdge` is commonly used to fulfill a coverage criteria, for instance 
+*All-transition* (No test case can lead to a transition to be taken twice). As a matter of fact,
+ the input generation is an exhaustive enumeration of edge paths in the state machine graph, which `isTraversableEdge` filters down through its criteria.
+
+There are two premade strategies which you can use, instead of configuring the generation 
+strategy by yourself :
+- `ALL_n_TRANSITIONS({ targetVertex: ..., maxNumberOfTraversals: ... })` 
+  - this strategy constructs the input sequences for which the machine ends in the target control
+   state `targetVertex`, and no transition taken as a result of applying the input sequence to 
+   the machine is taken more than the `maxNumberOfTraversals`
+- `ALL_TRANSITIONS({ targetVertex: ... })`
+  - this strategy is a particular case of the former strategy with `maxNumberOfTraversals` set to 1
+  - this strategy visits all the configured transitions of the state machine
 
 Any generated test case fulfills the goal specified by `isGoalReached`, and fulfills the conditions
- imposed by `isTraversableEdge`. The test case gathers information about the input sequence for 
- the test case, the output and control state sequence (the latter for reporting purposes) 
- corresponding to running that input sequence through the state machine.
- 
+ imposed by `isTraversableEdge`. The test case gathers the generated input sequence, together 
+ with the outputs and control state sequences corresponding to running the generated input sequence 
+ through the state machine. 
+
+**Important caveats** : 
+- The machine configuration generally specifies only those events which must be 
+reacted to. However it is implicitly part of the machine's specification that the events which are 
+not configured for the current control state to cause the machine to output `NO_OUTPUT`. A 
+**complete** specification of the machine would involve for every control state, an 
+explicit transition defining its behaviour for every event handled by the machine. For obvious 
+reasons of economy, we hardly ever write explicitly complete state machines 
+- For that reason, keep in mind that `generateTestSequences` generates what we would call valid or 
+interesting test sequences. Invalid or impossible input sequences are not generated by design. It is thus not
+ possible to use directly the test generator output to test against the behaviour of the machine 
+ when facing an incorrect input sequence
+
 ### Semantics
 - the state machine is turned into a graph
   - the machine is flattened : all outgoing transitions from a compound state are replaced by 
@@ -720,8 +757,8 @@ test case in process, starting from an initial state with empty test cases
       - for instance, for the previous graph, if `[A,B,C]` fails to generate a case, then `[A,B,D]` 
       is tried next
     - if an input trigerring the transition is generated, it is added to the test case in 
-    progress, together with the corresponding outputs of the machine, and the resulting control 
-    state
+    progress, together with the corresponding outputs of the machine, the resulting control 
+    state and the updated input generation state
   - the candidate transition may result in a cascade of transitions, due to special 
   transitions (eventless, automatic transitions (for instance entering a compound state, 
   transition involving history states). The  test case is adjusted accordingly.
@@ -730,10 +767,9 @@ test case in process, starting from an initial state with empty test cases
   backtracks and continues with investigating another path sequence
 - in summary, there are two reductions processes and two accumulators involved:
   - the `PathTraversalState`, which gathers the path sequence and associated data (input 
-  sequence, output sequence, control state sequence)
+  sequence, output sequence, control state sequence, and input generation state)
   - the `GraphTraversalState`, which gathers the generated test cases
 - when the search finished, the array of generated test cases is returned
-
 
 ### Contracts
 Type contracts apply.
@@ -756,10 +792,11 @@ Type contracts apply.
  * assist writing the input generator by having the transition it refers to at hand.
  */
 /**
- * @typedef {function (ExtendedState) : {input: EventData, hasGeneratedInput: Boolean}} InputGenerator generator which
- * knows how to generate event data for an event to trigger the related transition, taking into account the extended
- * state of the machine under test. In the event, it is not possible to generate the targeted transition of the
- * state machine, the generator sets the returned property `hasGeneratedInput` to `false`.
+ * @typedef {function (ExtendedState) : {input: EventData, hasGeneratedInput: Boolean, generatorState:*}} InputGenerator
+ * generator which knows how to generate event data for an event to trigger the related transition, taking into
+ * account the extended state of the machine under test, and the state of the input generation. In the event, it is not
+ * possible to generate the targeted transition of the state machine, the generator sets the returned property
+ * `hasGeneratedInput` to `false`. The generator may also update the state of the input generation.
  */
 /**
  * @typedef {{inputSequence: InputSequence, outputSequence:OutputSequence, controlStateSequence:ControlStateSequence}} TestCase
@@ -993,7 +1030,6 @@ We then get the results back :
     }, { "event5": null }, { "event4": "deep" }, { "event1": null }, { "event5": null }, { "event4": "deep" }, { "event2": null }]
 ]
 
-
 ```
 
 **Test case outputs**
@@ -1116,22 +1152,26 @@ We have included two helpers for visualization of the state transducer :
   - the resulting chain of characters can be pasted in [plantText](`https://www.planttext.com/`) 
   or [plantUML previewer](http://sujoyu.github.io/plantuml-previewer/) to get an automated graph 
   representation. Both will produce the exact same visual representation.
-- conversion to [online visualizer](https://github.com/brucou/state-transducer-visualizer) format 
-(dagre layout engine) : for instructions, cf. github directory : `toDagreVisualizerFormat :: 
-FSM_Def -> JSON`
+- conversion to [online visualizer](https://github.com/brucou/state-transducer-visualizer) 
+format (dagre layout engine) : for instructions, cf. github directory : `toDagreVisualizerFormat 
+:: FSM_Def -> JSON`
 
 ![visualization example](https://github.com/brucou/state-transducer-visualizer/raw/master/assets/cd-player-automatic-dagre-visualization.png)
 
 Automated visualization works well with simple graphs, but seems to encounter trouble to generate
- optimally satisfying complex graphs. The Dagre layout seems to be a relatively good option. The 
- [`yed`](https://www.yworks.com/products/yed) orthogonal layout also seems to give pretty good results. 
+ optimally satisfying complex graphs. The Dagre layout seems to be a least worse option. We 
+ believe the best option for visualization is to use professional specialized tooling such as 
+ `yed`. In a future version, we will provide a conversion to `yed` graph format to facilitate 
+ such workflow. The [`yed`](https://www.yworks.com/products/yed) orthogonal and flowchart layout 
+ seem to give pretty good results.
 
 # References
 - [the ultimate guide to FSM in games](https://www.researchgate.net/publication/284383920_The_Ultimate_Guide_to_FSMs_in_Games)
 - [artificial intelligence - state machines](http://aiwisdom.com/ai_fsm.html)
 - [A method for testing and validating executable statechart models](https://link.springer.com/article/10.1007/s10270-018-0676-3)
 
-# Roadmap v1.0
+# Roadmap
+## Roadmap v1.0
 - [x] stabilise core API
   - state machine as an effectless, impure function with causality properties
   - expose only the factory, keep internal state fully encapsulated
@@ -1142,17 +1182,17 @@ Automated visualization works well with simple graphs, but seems to encounter tr
   - obtained by decorating the machine definition
 - [x] add entry actions
 
-# Roadmap v1.1
+## Roadmap v1.1
 - [ ] support for visualization in third-party tools
 - [ ] document entry actions
 - [ ] showcase property-based testing
 - [ ] add cloning API
 - [ ] add reset API
 
-# Roadmap v1.2
+## Roadmap v1.2
 - [ ] support for live, interactive debugging
 
-# Roadmap v1.3
+## Roadmap v1.3
 - [ ] add and document exit actions
 - [ ] turn the test generation into an iterator(ES6 generator) : this allows it to be composed with 
 transducers and manipulate the test cases one by one as soon as they are produced. Will be useful

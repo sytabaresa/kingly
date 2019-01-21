@@ -1,5 +1,5 @@
 import { constructGraph, depthFirstTraverseGraphEdges } from "graph-adt"
-import { ACTION_IDENTITY, INIT_STATE } from "./properties"
+import { INIT_STATE } from "./properties"
 import {
   computeHistoryState, getFsmStateList, getHistoryParentState, getHistoryType, isCompoundState, isEventless,
   isHistoryControlState, isHistoryStateEdge, isInitEvent, isInitState, isShallowHistory, lastOf, merge,
@@ -9,15 +9,9 @@ import { create_state_machine, traceFSM } from "./synchronous_fsm"
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
 
 const graphSettings = {
-  getEdgeOrigin: function (edge) {
-    return edge.from
-  },
-  getEdgeTarget: function (edge) {
-    return edge.to
-  },
-  constructEdge: function (originVertex, targetVertex) {
-    return { from: originVertex, to: targetVertex }
-  }
+  getEdgeOrigin: edge => edge.from,
+  getEdgeTarget: edge => edge.to,
+  constructEdge: (originVertex, targetVertex) => ({ from: originVertex, to: targetVertex })
 };
 
 /**
@@ -35,22 +29,15 @@ export function generateTestSequences(fsm, generators, settings) {
   const fsmStates = tracedFSM.states;
   const analyzedStates = analyzeStateTree(fsmStates);
   const initialExtendedState = tracedFSM.initialExtendedState;
-  // DOC : anywhere :: Array<EventNames> those events which must have an explicit transition in every control state
-  const { strategy: { isGoalReached, isTraversableEdge }, onResult, ubiquitous: ubiquitousEvents } = settings;
+  // DOC : generated tests based on those events with explicit transitions defined (if the machine is complete, it is
+  // all the same, but most of the time it is not)
+  const { strategy: { isGoalReached, isTraversableEdge }, onResult } = settings;
 
   // Associate a gen to (from, event, guard index) = the transition it is mapped
-  // const _genMap = getGeneratorMapFromGeneratorMachine(generators);
   const genMap = getGeneratorMapFromGeneratorMachine(generators);
-
-  // TODO:  I have to apply the transformation to both genMap and fsmGraph and it is coupled!!
-  // TODO : but for now I have no need for a transform... I can gen without it
 
   // Build a graph from the tracedFSM, and the state machine triggering logic
   const fsmGraph = convertFSMtoGraph(tracedFSM);
-  // const transforms = computeImplicitTransitions(ubiquitousEvents) || []; // TODO
-  // const transforms = [];
-  // const { edges, vertices, genMap } = (transforms || [])
-  //   .reduce((acc, transform) => transform(acc), { graphADT: graphSettings, edges, vertices, genMap: _genMap });
 
   // search that graph with the right parameters
   const search = {
@@ -81,7 +68,7 @@ export function generateTestSequences(fsm, generators, settings) {
       outputSequence: [],
       noMoreInput: false,
       outputIndex: 0,
-      generatorState : null
+      generatorState: null
     },
     visitEdge: (edge, graph, pathTraversalState, graphTraversalState) => {
       const trueEdge = edge.compound
@@ -253,7 +240,7 @@ function computeGeneratedInfoHistoryStateCase(fsm, fsmStates, edge, isTraversabl
 function computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, genInput, pathTraversalState) {
   // TODO : performance improvement : if !isTraversableEdge then return immediately, no need to compute stuff
   const { event: eventLabel, from: controlState, to: targetControlState } = edge;
-  const { path, inputSequence, outputSequence, controlStateSequence, generatorState} = pathTraversalState;
+  const { path, inputSequence, outputSequence, controlStateSequence, generatorState } = pathTraversalState;
   const { input: newInputData, hasGeneratedInput, generatorState: newGeneratorState } = genInput;
   let noMoreInput, newInputSequence, newOutputSequence, newControlStateSequence, newPath;
 
@@ -293,7 +280,7 @@ function computeGeneratedInfoBaseCase(fsm, edge, isTraversableEdge, genInput, pa
       path: newPath,
       outputIndex: 0,
       // DOC : !!! undefined value for generator state means that we keep the same generator state. Use null if cancel
-      generatorState : newGeneratorState !== undefined ? newGeneratorState : generatorState
+      generatorState: newGeneratorState !== undefined ? newGeneratorState : generatorState
     }
   }
 }
@@ -401,79 +388,6 @@ export function convertFSMtoGraph(tracedFSM) {
   return constructGraph(graphSettings, edges, vertices)
 }
 
-function computeStateEventTransitionMap(transitionRecords) {
-  return transitionRecords.reduce((acc, transitionRecord) => {
-    const { from, event, to } = transitionRecord;
-    acc[from] = acc[from] || {};
-    acc[from][event] = true;
-
-    return acc
-  }, {})
-}
-
-function computeNextTransitionIndex(transitionRecords) {
-  return transitionRecords.reduce((acc, transitionRecord) => {
-    const { transitionIndex } = transitionRecord;
-    if (transitionIndex > acc) {
-      acc = transitionIndex
-    }
-
-    return acc
-  }, 0)
-}
-
-function computeImplicitTransitions(freeEvents) {
-  if (!freeEvents) return void 0
-
-  // TODO: genMap transform!!!
-// TODO : transform to add S -E-> S for any S where there is no (E,S') transition such that S -E-> S'
-// Assumptions are : any preexisting S -E-> S' is complete, i.e. the possible guards cover the whole space
-// If that would not be the case, then the missing branch does not lead to any input generation
-// i.e. it is left unexplored
-// TODO : supposing I do that, I need to write the guards, though they are always true...
-
-  // return function transformTestGenerationGraphs({ graphADT, edges, vertices, genMap }) {
-  //   // TODO : to test
-  //   // Vertices do not change
-  //   // Edge is a flattened transition record
-  //   const stateEventTransitionMap = computeStateEventTransitionMap(edges);
-  //   const { edges: finalEdges, genMap } = edges.reduce((acc, edge) => {
-  //     const { from } = edge;
-  //
-  //     const { newEdges, newTransitionIndex } = freeEvents.reduce((acc, freeEvent) => {
-  //       const { newEdges, newTransitionIndex, newGenMap } = acc;
-  //       if (stateEventTransitionMap[from][freeEvent]) {
-  //         return acc
-  //       }
-  //       else {
-  //         // Add a always true input generation
-  //         newGenMap.set(JSON.stringify({ from, event: freeEvent, guardIndex: 0 }), extS => ({
-  //           input: null,// TODO: I need to put the free event data here but it could be a dummy value as it does not
-  //           // matter... mmm think about it
-  //           hasGeneratedInput: true
-  //         })); //TODO gen
-  //         return {
-  //           newEdges: newEdges.concat({
-  //             from, event: freeEvent, to: from, action: ACTION_IDENTITY,
-  //             // NOTE : this works because by construction, we have no other guards on that (from, event) transition,
-  //             // so telescoping of preexisting guards
-  //             predicate: function alwaysTrue(x) {return true},
-  //             guardIndex: 0,
-  //             transitionIndex: newTransitionIndex
-  //           }),
-  //           newTransitionIndex: newTransitionIndex + 1,
-  //           genMap: void 0 //TODO
-  //         }
-  //       }
-  //     }, { newEdges: [], newTransitionIndex: acc.transitionIndex, newGenMap: acc.genMap });
-  //
-  //     return { edges: acc.edges.concat(newEdges), transitionIndex: newTransitionIndex }
-  //   }, { edges, transitionIndex: computeNextTransitionIndex(edges), genMap });
-  //
-  //   return { graphADT, edges: finalEdges, vertices, genMap }
-  // }
-}
-
 /**
  * For a given state hierarchy, return a map associating, for every control state, its direct substates, and its
  * children which are atomic states
@@ -530,12 +444,12 @@ function getGeneratorMappedTransitionFromEdge(genMap, edge) {
   return genMap.get(JSON.stringify({ from, event, guardIndex }))
 }
 
-export function testFsm({testAPI, fsmFactorySpecs, inputSequences, oracle, format}){
+export function testFsm({ testAPI, fsmFactorySpecs, inputSequences, oracle, format }) {
   const getInputKey = function getInputKey(input) {return Object.keys(input)[0]};
-  const {assert} = testAPI;
-  const {formatOutputsSequences} = format;
-  const {fsmDef, factorySettings, create_state_machine} = fsmFactorySpecs;
-  const {computeOutputSequences} = oracle;
+  const { assert } = testAPI;
+  const { formatOutputsSequences } = format;
+  const { fsmDef, factorySettings, create_state_machine } = fsmFactorySpecs;
+  const { computeOutputSequences } = oracle;
 
   const formattedInputSequences = inputSequences.map(inputSequence => inputSequence.map(getInputKey).join(' -> '));
 
@@ -543,12 +457,12 @@ export function testFsm({testAPI, fsmFactorySpecs, inputSequences, oracle, forma
     const fsm = create_state_machine(fsmDef, factorySettings);
     const output = testSequence.map(fsm);
     return output
-  }  );
+  });
   const formattedOutputsSequences = formatOutputsSequences(outputsSequences);
 
   const expectedOutputSequences = computeOutputSequences(inputSequences);
 
-  inputSequences.forEach((_,index) => {
+  inputSequences.forEach((_, index) => {
     assert.deepEqual(
       formattedOutputsSequences[index],
       expectedOutputSequences[index],
@@ -574,10 +488,11 @@ export function testFsm({testAPI, fsmFactorySpecs, inputSequences, oracle, forma
  * assist writing the input generator by having the transition it refers to at hand.
  */
 /**
- * @typedef {function (ExtendedState) : {input: EventData, hasGeneratedInput: Boolean}} InputGenerator generator which
- * knows how to generate event data for an event to trigger the related transition, taking into account the extended
- * state of the machine under test. In the event, it is not possible to generate the targeted transition of the
- * state machine, the generator sets the returned property `hasGeneratedInput` to `false`.
+ * @typedef {function (ExtendedState) : {input: EventData, hasGeneratedInput: Boolean, generatorState:*}} InputGenerator
+ * generator which knows how to generate event data for an event to trigger the related transition, taking into
+ * account the extended state of the machine under test, and the state of the input generation. In the event, it is not
+ * possible to generate the targeted transition of the state machine, the generator sets the returned property
+ * `hasGeneratedInput` to `false`. The generator may also update the state of the input generation.
  */
 /**
  * @typedef {{inputSequence: InputSequence, outputSequence:OutputSequence, controlStateSequence:ControlStateSequence}}
