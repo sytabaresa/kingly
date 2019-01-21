@@ -1304,8 +1304,6 @@ statechart for an entire system. (...) concurrency occurs on a higher level.)>>
  
 
 ## Terminology
-**TODO** review, internal events for instance
-
 In this section, we seek to define quickly the meaning of the key terms which will be commonly 
 used when referring to state machines.
 
@@ -1335,13 +1333,13 @@ used when referring to state machines.
   <dt>internal event</dt>
   <dd>Internal events are events coupled to a specific state machine. Depending on the semantics 
   of a particular state machine, internal events may be generated to realize those semantics. In 
-  the context of our library, we only generate automatic events to trigger automatic transitions 
-  ; INIT events to jump start a state machine
+  the context of our library, we only generate internal events to trigger automatic transitions. 
   </dd>
   <dt>initial event</dt>
-  <dd>In the context of our library, the initial event (<b>INIT</b> in the base example 
-  illustration) is fired automatically and only upon starting a state machine. The initial event 
-  can be used to configure the initial machine transition, out from the initial control state.
+  <dd>In the context of our library, the initial event (<b>INIT_EVENT</b>) is fired automatically
+   upon starting a state machine. The initial event 
+  can be used to configure the initial machine transition, out from the initial control state. 
+  However it is often simpler to just configure an initial control state for the machine.
   </dd>
   <dt>automatic event</dt>
   <dd>This is an internally triggered event which serves to triggers transitions from control 
@@ -1366,8 +1364,7 @@ used when referring to state machines.
   </dd>
   <dt>self transition</dt>
   <dd>Transitions can also occur with origin and destination the same conrol state. When 
-  that happens, the transition is called a self transition. In our base example, the `Team Detail
-   Screen` control state features 2 self-transitions.
+  that happens, the transition is called a self transition.
   </dd>
   <dt>transition evaluation</dt>
   <dd>Given a machine in a given control state, and an external event occuring, the transitions 
