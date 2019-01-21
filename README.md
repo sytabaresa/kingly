@@ -1301,7 +1301,6 @@ UML, etc. do not share a single concurrency model.
 of expression, hierarchy and orthogonality are but helpful abbreviations and can be eliminated
 [^5]: David Harel, Statecharts.History.CACM : <<I definitely do not recommend having a single 
 statechart for an entire system. (...) concurrency occurs on a higher level.)>>
- 
 
 ## Terminology
 In this section, we seek to define quickly the meaning of the key terms which will be commonly 
