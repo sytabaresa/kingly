@@ -569,7 +569,7 @@ are summarized here :
 ```
 
 ### Implementation example
-We are going to show the definition for the following state machine :
+We are going to show the definition for the following hierrchical state machine :
 
 ![state machine under test](test/assets/history%20transitions,%20INIT%20event%20CASCADING%20transitions.png)
 
@@ -622,9 +622,11 @@ There are plenty of additional examples in the [test directory](https://github.c
 This function converts a state machine `A` into a traced state machine `T(A)`. The traced state 
 machine, on receiving an input `I` outputs the following information :
 
-- `outputs` : the output `A.yield(I)` 
+- `outputs` : the outputs `A(I)` 
 - `updates` : the update of the extended state of `A` to be performed as a consequence of receiving the input `I` 
-- `extendedState` : the extended state of `A` prior to receiving the input `I`
+- `extendedState` : the extended state of `A` **prior** to receiving the input `I`
+- `newExtendedState` : the extended state of `A` **after** receiving the input `I` and computing 
+the outputs
 - `controlState` : the control state in which the machine is when receiving the input `I`
 - `event::{eventLabel, eventData}` : the event label and event data corresponding to `I` 
 - `settings` : settings passed at construction time to `A`
