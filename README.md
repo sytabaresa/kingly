@@ -1,11 +1,17 @@
 |Modelize your interface | Encode it in a state machine | Run the computed actions |
 |:---:|:---:|:---:|
 |![password submit fsm](assets/password%20submit%20fsm.png) |![password selector fsm transitions](assets/password%20selector%20transitions%20code.png)|![password selector](assets/password%20selector.png)
-| | ![](https://static.thenounproject.com/png/9997-200.png)| |
-|---|---|---|
+
+<div style="margin-right:auto;margin-left:auto;">
+<img src="https://static.thenounproject.com/png/9997-200.png" width="300" />
+</div>
+
+
 | | **Describe events progressing the machine**| **Get your tests generated for you!** |
+|:---:|:---:|:---:|
 |![password submit fsm](assets/password%20submit%20fsm.png) | ![password selector test generation](assets/password%20selector%20test%20generation.png)| <img src="https://github.com/brucou/state-transducer/raw/WIP/assets/password%20selector%20test%20generated.png" width="300" />|
 
+**TODO** do it in html directly
 
 # Table of Contents
 - [Features](#features)
