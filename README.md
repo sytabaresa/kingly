@@ -3,7 +3,7 @@
 |![password submit fsm](assets/password%20submit%20fsm.png) |![password selector fsm transitions](assets/password%20selector%20transitions%20code.png)|![password selector](assets/password%20selector.png)
 
 <div align="center">
-<img src="https://static.thenounproject.com/png/9997-200.png" width="300" />
+<img src="https://static.thenounproject.com/png/9997-200.png" width="300" heigth="50" />
 </div>
 
 | **Describe events progressing the machine**| **Get your tests generated for you!** |
