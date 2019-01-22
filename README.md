@@ -1,3 +1,6 @@
+# Table of Contents
+- [Features](#features)
+- [Examples](#examples)
 - [Motivation](#motivation)
 - [The link between state machines and user interfaces](#the-link-between-state-machines-and-user-interfaces)
 - [Install](#install)
@@ -6,39 +9,36 @@
 - [API](#api)
   * [API design](#api-design)
   * [General concepts](#general-concepts)
-    + [Base example](#base-example)
-    + [CD drawer example](#cd-drawer-example)
-    + [Example run](#example-run)
   * [Transducer semantics](#transducer-semantics)
-    + [Contracts](#contracts)
-      - [Format](#format)
-      - [Initial event and initial state](#initial-event-and-initial-state)
-      - [Semantical contracts](#semantical-contracts)
   * [`createStateMachine :: FSM_Def -> Settings -> FSM`](#-create-state-machine----fsm-def----settings----fsm-)
-    + [Description](#description)
-    + [Contracts](#contracts-1)
-    + [Implementation example](#implementation-example)
   * [`traceFSM :: Env -> FSM_Def -> FSM_Def`](#-tracefsm----env----fsm-def----fsm-def-)
-    + [Description](#description-1)
-    + [Contracts](#contracts-2)
-    + [Implementation example](#implementation-example-1)
   * [`generateTestSequences :: FSM_Def -> Generators -> GenSettings -> Array<TestCase>`](#-generatetestsequences----fsm-def----generators----gensettings----array-testcase--)
-    + [Description](#description-2)
-    + [Semantics](#semantics)
-    + [Contracts](#contracts-3)
-    + [Implementation example](#implementation-example-2)
 - [Possible API extensions](#possible-api-extensions)
 - [Visualization tools](#visualization-tools)
 - [References](#references)
 - [Roadmap](#roadmap)
-  * [Roadmap v1.0](#roadmap-v10)
-  * [Roadmap v1.1](#roadmap-v11)
-  * [Roadmap v1.2](#roadmap-v12)
-  * [Roadmap v1.3](#roadmap-v13)
 - [Who else uses state machines](#who-else-uses-state-machines)
 - [Annex](#annex)
   * [So what is an Extended Hierarchical State Transducer ?](#so-what-is-an-extended-hierarchical-state-transducer--)
   * [Terminology](#terminology)
+
+# Features
+- **small size** : treeshakeable implementation, 5k for the core, 8k including tracing and testing
+- **small API** : one function for the state machine, one function for the test generation, one 
+function for tracing
+- **just a function!** : easy to integrate into any framework
+- **automatic test generation!** : write the machine, how to progress from one state to another, 
+and let the computer generate hundreds of tests for you
+
+# Examples
+- [password meter component](https://codesandbox.io/s/73wy8jwk86)
+- [movie database search interface](https://codesandbox.io/s/mo2p97k7m8) 
+- [wizard forms](https://github.com/brucou/cycle-state-machine-demo/tree/first-iteration-fix)
+
+# A simple process
+|Modelization | Implementation | Execution |
+|---|---|---|
+|![password submit fsm](assets/password%20submit%20fsm.png) |![password selector fsm transitions](assets/password%20selector%20transitions%20code.png)|![password selector](assets/password%20selector.png)
 
 # Motivation
 Time and again we have to implement computations which, while they cannot be modelized by pure 

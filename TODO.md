@@ -1,4 +1,8 @@
 # Now
+- add a tutorial section in README:
+  - modelization (show graph)
+  - implementation (show transitions)
+  - execution (show interface)
 - towards v1.0
     - contracts to implement
     - put testing into other .md dedicated to testing and update that by the way
