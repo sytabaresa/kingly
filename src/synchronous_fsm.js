@@ -154,6 +154,11 @@ function normalize_transitions(fsmDef){
   }
 }
 
+// Alias for compatibility before deprecating entirely create_state_machine
+export function createStateMachine(fsmDef, settings){
+return create_state_machine(fsmDef, settings)
+}
+
 /**
  * Creates an instance of state machine from a set of states, transitions, and accepted events. The initial
  * extended state for the machine is included in the machine definition.

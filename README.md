@@ -2,6 +2,7 @@
 - [The link between state machines and user interfaces](#the-link-between-state-machines-and-user-interfaces)
 - [Install](#install)
 - [Tests](#tests)
+- [Integration with React](#integration-with-react)
 - [API](#api)
   * [API design](#api-design)
   * [General concepts](#general-concepts)
@@ -13,7 +14,7 @@
       - [Format](#format)
       - [Initial event and initial state](#initial-event-and-initial-state)
       - [Semantical contracts](#semantical-contracts)
-  * [`create_state_machine :: FSM_Def -> Settings -> FSM`](#-create-state-machine----fsm-def----settings----fsm-)
+  * [`createStateMachine :: FSM_Def -> Settings -> FSM`](#-create-state-machine----fsm-def----settings----fsm-)
     + [Description](#description)
     + [Contracts](#contracts-1)
     + [Implementation example](#implementation-example)
@@ -187,6 +188,14 @@ For the modelization of a [much more complex user interface](https://sarimarton.
 Automated tests are close to completion. Contracts are so far not enforced. To run the 
 current automated tests, type in a terminal : `npm run test`
 
+# Integration with React
+The machine is just a function. As such it is pretty easy to integrate in any framework. As of 
+today, we provide the following integrations :
+
+- [integration with React](https://github.com/brucou/react-state-driven) 
+  - using state machines allows to use React mostly as a DOM library and eliminates the need for 
+  state management, HOC, hooks and other react advanced concepts.
+
 # API
 ## API design
 The key objectives for the API was :
@@ -219,7 +228,7 @@ which in turn allows him to use any formalism to represent state - for instance 
 well-formatted machine inputs, and `f` is the fsm, then the stream of outputs will be `inputs.map
 (f)`. It is so simple that we do not surface it at the API level
 
-Concretely, our state transducer will be created by the factory function `create_state_machine`, 
+Concretely, our state transducer will be created by the factory function `createStateMachine`, 
 which returns a state transducer which :
 
 - immediately positions itself in its configured initial control state 
@@ -529,7 +538,7 @@ determine the starting control state for the machine
 
 [^x]: There are however semantics which allow such transitions, thus possibilitating event bubbling.
 
-## `create_state_machine :: FSM_Def -> Settings -> FSM`
+## `createStateMachine :: FSM_Def -> Settings -> FSM`
 ### Description
 This FSM factory function takes the parameters defining the behaviour of the state transducer, 
 and returns the created state transducer. The created state transducer is a regular function called 
