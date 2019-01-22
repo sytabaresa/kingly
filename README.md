@@ -111,7 +111,7 @@ extended state. For each control state, it specifies a reactive sub-function whi
 updated state (i.e. a new control state, and a new extended state) and the actions to perform on 
 the interfaced system.
 
-Let's take a very simple example to illustrate those equations. The user interface to 
+Let's take a very simple example to illustrate these equations. The user interface to 
 specify is a [password selector](https://cdn.dribbble.com/users/522131/screenshots/4467712/password_strength.png). Visually, the user interface consists of a passowrd input field 
 and a submit password button. Its behaviour is the following :
 - the user types
@@ -248,8 +248,6 @@ configuration. Finally we present our API whose documentation relies on all prev
  concepts.
 
 ### Base example
-https://codesandbox.io/s/73wy8jwk86
-
 We will be using as our base example the password selector we discussed previously. As a 
 reminder, its behaviour was described by the following state machine : 
 
@@ -325,7 +323,7 @@ function displayInitScreen() {
 
 ```
 
-The full code is [available here](https://codesandbox.io/s/73wy8jwk86).
+The full runnable code is [available here](https://codesandbox.io/s/73wy8jwk86).
 
 ### CD drawer example
 This example is taken from Ian Horrock's seminal book on statecharts and is the specification of
