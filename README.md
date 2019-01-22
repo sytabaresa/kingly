@@ -1,15 +1,32 @@
-|Modelize your interface | Encode it in a state machine | Run the computed actions |
-|:---:|:---:|:---:|
-|![password submit fsm](assets/password%20submit%20fsm.png) |![password selector fsm transitions](assets/password%20selector%20transitions%20code.png)|![password selector](assets/password%20selector.png)
-
-<div style="margin-right:auto;margin-left:auto;">
-<img src="https://static.thenounproject.com/png/9997-200.png" width="300" />
-</div>
-
-
-| | **Describe events progressing the machine**| **Get your tests generated for you!** |
-|:---:|:---:|:---:|
-|![password submit fsm](assets/password%20submit%20fsm.png) | ![password selector test generation](assets/password%20selector%20test%20generation.png)| <img src="https://github.com/brucou/state-transducer/raw/WIP/assets/password%20selector%20test%20generated.png" width="300" />|
+<style type="text/css">
+.tg  {border-collapse:collapse;border-spacing:0;}
+.tg td{font-family:Arial, sans-serif;font-size:14px;padding:10px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;border-color:black;}
+.tg th{font-family:Arial, sans-serif;font-size:14px;font-weight:normal;padding:10px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;border-color:black;}
+.tg .tg-c3ow{border-color:inherit;text-align:center;vertical-align:top}
+.tg .tg-0pky{border-color:inherit;text-align:left;vertical-align:top;}
+</style>
+<table class="tg">
+  <tr>
+    <th class="tg-c3ow">Modelize your interface</th>
+    <th class="tg-c3ow">Encode it in a state machine</th>
+    <th class="tg-c3ow">Run the computed actions</th>
+  </tr>
+  <tr>
+    <td class="tg-0pky"><img src="https://github.com/brucou/state-transducer/raw/WIP/assets/password%20submit%20fsm.png" /></td>
+    <td class="tg-0pky"><img src="https://github.com/brucou/state-transducer/raw/WIP/assets/password%20selector%20transitions%20code.png" /></td>
+    <td class="tg-0pky"><img src="https://github.com/brucou/state-transducer/raw/WIP/assets/password%20selector.png" /></td>
+  </tr>
+  <tr>
+    <td class="tg-0pky"></td>
+    <td class="tg-0pky"><img src="https://static.thenounproject.com/png/9997-200.png" /></td>
+    <td class="tg-0pky"></td>
+  </tr>
+  <tr>
+    <td class="tg-0pky"></td>
+    <td class="tg-0pky"><img src="https://github.com/brucou/state-transducer/raw/WIP/assets/password%20selector%20test%20generation.png" /></td>
+    <td class="tg-0pky"><img src="https://github.com/brucou/state-transducer/raw/WIP/assets/password%20selector%20test%20generated.png" /></td>
+  </tr>
+</table>
 
 **TODO** do it in html directly
 
