@@ -1,6 +1,9 @@
 |Modelize your interface | Encode it in a state machine | Run the computed actions |
 |---|---|---|
 |![password submit fsm](assets/password%20submit%20fsm.png) |![password selector fsm transitions](assets/password%20selector%20transitions%20code.png)|![password selector](assets/password%20selector.png)
+| | ![](https://static.thenounproject.com/png/9997-200.png)| |
+| | **Describe events progressing the machine**| **Get your tests generated for you!** |
+| | ![password selector test generation](assets/password%20selector%20test%20generation.png)|![password selector test generated](assets/password%20selector%20test%20generated.png) |
 
 # Table of Contents
 - [Features](#features)
