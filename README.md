@@ -6,11 +6,6 @@
 <img src="https://static.thenounproject.com/png/9997-200.png" width="300" />
 </div>
 
-<p align="center">
-  <img src="https://github.com/waldyr/Sublime-Installer/blob/master/sublime_text.png?raw=true" alt="Sublime's custom image"/>
-</p>
-
-
 | | **Describe events progressing the machine**| **Get your tests generated for you!** |
 |:---:|:---:|:---:|
 |![password submit fsm](assets/password%20submit%20fsm.png) | ![password selector test generation](assets/password%20selector%20test%20generation.png)| <img src="https://github.com/brucou/state-transducer/raw/WIP/assets/password%20selector%20test%20generated.png" width="300" />|
