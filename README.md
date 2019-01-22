@@ -248,21 +248,84 @@ configuration. Finally we present our API whose documentation relies on all prev
  concepts.
 
 ### Base example
-**TODO**
-Reuse the password meter example and provide an implementation. Details the action factory, code 
-whatever to showcase the API
+https://codesandbox.io/s/73wy8jwk86
 
-give credit to https://css-tricks.com/password-strength-meter/
-code : https://codepen.io/anon/pen/wNwwbw
-**TODO**
+We will be using as our base example the password selector we discussed previously. As a 
+reminder, its behaviour was described by the following state machine : 
 
-Our state transducer is an object which encapsulates state, and exposes a single function by which 
-input is received. That function, based on the transducer's encapsulated state, configuration, and
- the received input computes two things : 
+![password submit fsm](assets/password%20submit%20fsm.png)
 
+To specify our machine, we need :
+- a list of control states the machine can be in
+- a list of events accepted by the machine
+- the initial state of the machine (initial control state, initial extended state)
+- to describe transitions from a control state to another 
+
+The first three are clear from the graph. The last one can be deduced from the table (cf. above) 
+describing the behaviour of the password selector. 
+
+The fsm ends up being defined by:
+
+```javascript
+const initialExtendedState = {
+  input: ""
+};
+const states = {
+  [INIT]: "",
+  [STRONG]: "",
+  [WEAK]: "",
+  [DONE]: ""
+};
+const initialControlState = INIT;
+const events = [TYPED_CHAR, CLICKED_SUBMIT, START];
+const transitions = [
+  { from: INIT, event: START, to: WEAK, action: displayInitScreen },
+  { from: WEAK, event: CLICKED_SUBMIT, to: WEAK, action: NO_ACTIONS },
+  {
+    from: WEAK,
+    event: TYPED_CHAR,
+    guards: [
+      { predicate: isPasswordWeak, to: WEAK, action: displayInputInRed },
+      { predicate: isPasswordStrong, to: STRONG, action: displayInputInGreen }
+    ]
+  },
+  {
+    from: STRONG,
+    event: TYPED_CHAR,
+    guards: [
+      { predicate: isPasswordWeak, to: WEAK, action: displayInputInRed },
+      { predicate: isPasswordStrong, to: STRONG, action: displayInputInGreen }
+    ]
+  },
+  {
+    from: STRONG,
+    event: CLICKED_SUBMIT,
+    to: DONE,
+    action: displaySubmittedPassword
+  }
+];
+
+```
+
+where action factories mapped to a transition compute two things : 
 - a list of updates to apply internally to the extended state
-- an external output for the consumer of the state transducer
+- an external output for the consumer of the state transducer 
 
+For instance :
+
+```javascript
+function displayInitScreen() {
+  return {
+    updates: NO_STATE_UPDATE,
+    outputs: [
+      { command: RENDER, params: { screen: INIT_SCREEN, props: void 0 } }
+    ]
+  };
+}
+
+```
+
+The full code is [available here](https://codesandbox.io/s/73wy8jwk86).
 
 ### CD drawer example
 This example is taken from Ian Horrock's seminal book on statecharts and is the specification of
@@ -1169,6 +1232,8 @@ Automated visualization works well with simple graphs, but seems to encounter tr
 - [the ultimate guide to FSM in games](https://www.researchgate.net/publication/284383920_The_Ultimate_Guide_to_FSMs_in_Games)
 - [artificial intelligence - state machines](http://aiwisdom.com/ai_fsm.html)
 - [A method for testing and validating executable statechart models](https://link.springer.com/article/10.1007/s10270-018-0676-3)
+- Credit to [Pankaj Parashar](https://css-tricks.com/password-strength-meter/) for the password 
+selector
 
 # Roadmap
 ## Roadmap v1.0
