@@ -1,4 +1,4 @@
-|Modelize your interface | Encode it in a state machine | Run the computed actions |
+|Modelize your interface | Encode the graph | The implementation is done for you! |
 |:---:|:---:|:---:|
 |![password submit fsm](assets/password%20submit%20fsm.png) |![password selector fsm transitions](assets/password%20selector%20transitions%20code.png)|![password selector](assets/password%20selector.png)
 
@@ -8,9 +8,8 @@
 
 | **Describe events progressing the machine**| **Get your tests generated for you!** |
 |:---:|:---:|
-| ![password selector test generation](assets/password%20selector%20test%20generation.png)| <img src="https://github.com/brucou/state-transducer/raw/WIP/assets/password%20selector%20test%20generated.png" width="450" />|
-
-**TODO** do it in html directly
+| ![password selector test generation](assets/password%20selector%20test%20generation.png)| <img 
+src="https://github.com/brucou/state-transducer/raw/WIP/assets/password%20selector%20test%20generated.png" width="450" heigth="200"/>|
 
 # Table of Contents
 - [Features](#features)
