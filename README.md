@@ -1,6 +1,9 @@
+|Modelize your interface | Encode it in a state machine | Run the computed actions |
+|---|---|---|
+|![password submit fsm](assets/password%20submit%20fsm.png) |![password selector fsm transitions](assets/password%20selector%20transitions%20code.png)|![password selector](assets/password%20selector.png)
+
 # Table of Contents
 - [Features](#features)
-- [A simple process](#a-simple-process)
 - [Examples](#examples)
 - [Motivation](#motivation)
 - [The link between state machines and user interfaces](#the-link-between-state-machines-and-user-interfaces)
@@ -30,11 +33,6 @@ function for tracing
 - **just a function!** : easy to integrate into any framework
 - **automatic test generation!** : write the machine, how to progress from one state to another, 
 and let the computer generate hundreds of tests for you
-
-# A simple process
-|Modelization | Implementation | Execution |
-|---|---|---|
-|![password submit fsm](assets/password%20submit%20fsm.png) |![password selector fsm transitions](assets/password%20selector%20transitions%20code.png)|![password selector](assets/password%20selector.png)
 
 # Examples
 - [password meter component](https://codesandbox.io/s/73wy8jwk86)
