@@ -6,9 +6,9 @@
 <img src="https://static.thenounproject.com/png/9997-200.png" width="300" />
 </div>
 
-| | **Describe events progressing the machine**| **Get your tests generated for you!** |
-|:---:|:---:|:---:|
-|![password submit fsm](assets/password%20submit%20fsm.png) | ![password selector test generation](assets/password%20selector%20test%20generation.png)| <img src="https://github.com/brucou/state-transducer/raw/WIP/assets/password%20selector%20test%20generated.png" width="450" />|
+| **Describe events progressing the machine**| **Get your tests generated for you!** |
+|:---:|:---:|
+| ![password selector test generation](assets/password%20selector%20test%20generation.png)| <img src="https://github.com/brucou/state-transducer/raw/WIP/assets/password%20selector%20test%20generated.png" width="450" />|
 
 **TODO** do it in html directly
 
