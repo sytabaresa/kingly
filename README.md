@@ -1,4 +1,4 @@
-|Modelize your interface | Encode the graph | The implementation is done for you! |
+|Modelize your interface | Encode the graph | Ready to run! |
 |:---:|:---:|:---:|
 |![password submit fsm](assets/password%20submit%20fsm.png) |![password selector fsm transitions](assets/password%20selector%20transitions%20code.png)|![password selector](assets/password%20selector.png)
 
@@ -9,6 +9,11 @@
 | **Describe events progressing the machine**| **Get your tests generated for you!** |
 |:---:|:---:|
 | ![password selector test generation](assets/password%20selector%20test%20generation.png)| <img src="https://github.com/brucou/state-transducer/raw/WIP/assets/password%20selector%20test%20generated.png" width="450" heigth="200"/>|
+
+[![npm version](https://badge.fury.io/js/state-transducer.svg)](https://badge.fury.io/js/state-transducer)
+![](https://img.shields.io/bundlephobia/minzip/state-transducer.svg)
+![](https://img.shields.io/github/license/brucou/state-transducer.svg)
+![Contributions welcome](https://img.shields.io/badge/contributions-welcome-orange.svg)
 
 # Table of Contents
 - [Features](#features)
@@ -35,7 +40,7 @@
   * [Terminology](#terminology)
 
 # Features
-- **small size** : treeshakeable implementation, 5k for the core, 8k including tracing and testing
+- **small size** : treeshakeable implementation, 5k for the core, 9k including tracing and testing
 - **small API** : one function for the state machine, one function for the test generation, one 
 function for tracing
 - **just a function!** : easy to integrate into any framework
