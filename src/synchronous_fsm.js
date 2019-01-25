@@ -451,7 +451,7 @@ export function mergeOutputsFn(arrayOutputs) {
 export function decorateWithEntryActions(fsm, entryActions, mergeOutputs) {
   if (!entryActions) return fsm
 
-  const { transitions, states, initialExtendedState, events } = fsm;
+  const { transitions, states, initialExtendedState, initialControlState, events } = fsm;
   const stateHashMap = getFsmStateList(states);
   const isValidEntryActions = Object.keys(entryActions).every(controlState => {
     return stateHashMap[controlState] != null;
@@ -473,6 +473,7 @@ export function decorateWithEntryActions(fsm, entryActions, mergeOutputs) {
 
     return {
       initialExtendedState,
+      initialControlState,
       states,
       events,
       transitions: decoratedTransitions

@@ -1,4 +1,6 @@
 # Now
+- !!! publish : bug in decorateWithEntryActions with new initControlState
+  - actually I ahve no tesdt for decorateWithEntryActions  so should add some
 - add a tutorial section in README:
   - modelization (show graph)
   - implementation (show transitions)
