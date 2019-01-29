@@ -6,8 +6,8 @@ import {
   mapOverTransitionsActions, updateHistory, wrap
 } from "./helpers";
 
-const noop = ()=>{};
-const emptyConsole = {log: noop, warn: noop, info:noop, debug:noop, error:noop, trace:noop};
+const noop = () => {};
+const emptyConsole = { log: noop, warn: noop, info: noop, debug: noop, error: noop, trace: noop };
 
 /**
  * Takes a list of identifiers (strings), adds init to it, and returns a hash whose properties are
@@ -129,14 +129,14 @@ export function build_state_enum(states) {
   return states_enum;
 }
 
-function hasInitTransition(transitions){
+function hasInitTransition(transitions) {
   return transitions.some(transition => {
     return transition.from === INIT_STATE && transition.event === INIT_EVENT
   })
 }
 
-function normalize_transitions(fsmDef){
-  const {initialControlState, transitions} = fsmDef;
+function normalize_transitions(fsmDef) {
+  const { initialControlState, transitions } = fsmDef;
   const initTransition = hasInitTransition(transitions);
 
   if (initTransition && initialControlState) {
@@ -147,16 +147,16 @@ function normalize_transitions(fsmDef){
   }
   if (initialControlState) {
     return transitions
-      .concat([{from: INIT_STATE, event:INIT_EVENT, to: initialControlState, action : ACTION_IDENTITY}])
+      .concat([{ from: INIT_STATE, event: INIT_EVENT, to: initialControlState, action: ACTION_IDENTITY }])
   }
-  else if (initTransition){
+  else if (initTransition) {
     return transitions
   }
 }
 
 // Alias for compatibility before deprecating entirely create_state_machine
-export function createStateMachine(fsmDef, settings){
-return create_state_machine(fsmDef, settings)
+export function createStateMachine(fsmDef, settings) {
+  return create_state_machine(fsmDef, settings)
 }
 
 /**
@@ -419,10 +419,6 @@ export function makeWebComponentFromFsm({
                                           options
                                         }) {
   class FsmComponent extends HTMLElement {
-    static get observedAttributes() {
-      return [];
-    }
-
     constructor() {
       super();
       const el = this;
@@ -450,12 +446,16 @@ export function makeWebComponentFromFsm({
       });
     }
 
+    static get observedAttributes() {
+      return [];
+    }
+
     connectedCallback() {
-      this.options.initialEvent &&      this.eventSubject.next(this.options.initialEvent);
+      this.options.initialEvent && this.eventSubject.next(this.options.initialEvent);
     }
 
     disconnectedCallback() {
-      this.options.terminalEvent &&      this.eventSubject.next(this.options.terminalEvent);
+      this.options.terminalEvent && this.eventSubject.next(this.options.terminalEvent);
       this.eventSubject.complete();
     }
 

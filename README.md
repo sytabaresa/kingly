@@ -704,6 +704,11 @@ Note in particular :
 
 There are plenty of additional examples in the [test directory](https://github.com/brucou/state-transducer/blob/master/test/hierarchy.specs.js).
 
+## makeWebComponentFromFsm :: TODO -> ()
+**TODO for v1.0**
+
+Register the machine as a web component.
+
 ## `traceFSM :: Env -> FSM_Def -> FSM_Def`
 ### Description
 This function converts a state machine `A` into a traced state machine `T(A)`. The traced state 
