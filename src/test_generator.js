@@ -24,6 +24,7 @@ const graphSettings = {
  * @returns {Array<TestCase>}
  */
 export function generateTestSequences(fsm, generators, settings) {
+  // TODO : or initial control state if defined
   const startingVertex = INIT_STATE;
   const tracedFSM = traceFSM({}, fsm);
   const fsmStates = tracedFSM.states;
@@ -63,6 +64,7 @@ export function generateTestSequences(fsm, generators, settings) {
   const visit = {
     initialPathTraversalState: {
       path: [],
+      // TODO : or initial control state if defined
       controlStateSequence: [INIT_STATE],
       inputSequence: [],
       outputSequence: [],

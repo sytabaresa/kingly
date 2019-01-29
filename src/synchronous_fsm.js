@@ -357,7 +357,7 @@ export function create_state_machine(fsmDef, settings) {
       } else return outputs;
     } else {
       // CASE : There is no transition associated to that event from that state
-      debug && console.error(`There is no transition associated to that event!`);
+      debug && console.error(`There is no transition associated to the event ${event} in state ${current_state}!`);
 
       return NO_OUTPUT;
     }
