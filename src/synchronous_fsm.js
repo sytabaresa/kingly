@@ -357,7 +357,7 @@ export function create_state_machine(fsmDef, settings) {
       } else return outputs;
     } else {
       // CASE : There is no transition associated to that event from that state
-      debug && console.error(`There is no transition associated to the event ${event} in state ${current_state}!`);
+      debug && console.error(`There is no transition associated to the event |${event}| in state |${current_state}|!`);
 
       return NO_OUTPUT;
     }
@@ -407,6 +407,67 @@ export function create_state_machine(fsmDef, settings) {
   return {
     yield: x => send_event(x, true),
   }.yield;
+}
+
+// outputSubject allows raising event which can be
+export function makeWebComponentFromFsm({
+                                          name,
+                                          eventSubjectFactory,
+                                          fsm,
+                                          commandHandlers,
+                                          effectHandlers,
+                                          options
+                                        }) {
+  class FsmComponent extends HTMLElement {
+    static get observedAttributes() {
+      return [];
+    }
+
+    constructor() {
+      super();
+      const el = this;
+      this.eventSubject = eventSubjectFactory();
+      this.outputSubject = eventSubjectFactory();
+      this.options = Object.assign({}, options);
+      const NO_ACTION = this.options.NO_ACTION || NO_OUTPUT;
+
+      // Set up execution of commands
+      this.eventSubject.subscribe(eventStruct => {
+        const actions = fsm(eventStruct);
+
+        if (actions === NO_ACTION) return;
+        actions.forEach(action => {
+          if (action === NO_ACTION) return;
+          const { command, params } = action;
+          commandHandlers[command](
+            this.eventSubject.next,
+            params,
+            effectHandlers,
+            el,
+            this.outputSubject
+          );
+        });
+      });
+    }
+
+    connectedCallback() {
+      this.options.initialEvent &&      this.eventSubject.next(this.options.initialEvent);
+    }
+
+    disconnectedCallback() {
+      this.options.terminalEvent &&      this.eventSubject.next(this.options.terminalEvent);
+      this.eventSubject.complete();
+    }
+
+    attributeChangedCallback(name, oldValue, newValue) {
+      // simulate a new creation every time an attribute is changed
+      // i.e. they are not expected to change
+      this.constructor();
+      this.connectedCallback();
+    }
+  }
+
+  return customElements.define(name, FsmComponent);
 }
 
 /**
