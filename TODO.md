@@ -1,4 +1,8 @@
 # Now
+- game demo with https://codeincomplete.com/posts/javascript-gauntlet-foundations/, also boulder 
+dash
+- also for webcomponenets README https://html.spec.whatwg.org/multipage/custom-elements.html#custom-element-conformance 
+- do the webcomponent wih a rendr property customizable
 - !!! publish : bug in decorateWithEntryActions with new initControlState
   - actually I ahve no tesdt for decorateWithEntryActions  so should add some
 - add a tutorial section in README:

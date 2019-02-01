@@ -420,6 +420,7 @@ export function makeWebComponentFromFsm({
                                         }) {
   class FsmComponent extends HTMLElement {
     constructor() {
+      if (name.split('-').length <= 1) throw `makeWebComponentFromFsm : web component's name MUST include a dash! Please review the name property passed as parameter to the function!`
       super();
       const el = this;
       this.eventSubject = eventSubjectFactory();

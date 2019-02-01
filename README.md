@@ -1,4 +1,4 @@
-|Modelize your interface | Encode the graph | Ready to run! |
+|Modelize your interface | Encode the graph | Run the generated machine! |
 |:---:|:---:|:---:|
 |![password submit fsm](assets/password%20submit%20fsm.png) |![password selector fsm transitions](assets/password%20selector%20transitions%20code.png)|![password selector](assets/password%20selector.png)
 
