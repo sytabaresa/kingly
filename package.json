@@ -5,7 +5,7 @@
   "description": "Extended Hierarchical State Transducer library",
   "repository": {
     "type": "git",
-    "url": "https://github.com/brucou"
+    "url": "https://github.com/brucou/state-transducer"
   },
   "keywords": [
     "state-machine",

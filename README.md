@@ -1,3 +1,12 @@
+|Modelize your interface | Encode the graph | Run the generated machine! |
+|---|---|---|
+|![password submit fsm](assets/password%20submit%20fsm.png) |![password selector fsm transitions](assets/password%20selector%20transitions%20code.png)|![password selector](assets/password%20selector.png)
+
+[![npm version](https://badge.fury.io/js/state-transducer.svg)](https://badge.fury.io/js/state-transducer)
+![](https://img.shields.io/bundlephobia/minzip/state-transducer.svg)
+![](https://img.shields.io/github/license/brucou/state-transducer.svg)
+![Contributions welcome](https://img.shields.io/badge/contributions-welcome-orange.svg)
+
 # Table of Contents
 - [Features](#features)
 - [A simple process](#a-simple-process)
@@ -30,11 +39,6 @@ function for tracing
 - **just a function!** : easy to integrate into any framework
 - **automatic test generation!** : write the machine, how to progress from one state to another, 
 and let the computer generate hundreds of tests for you
-
-# A simple process
-|Modelization | Implementation | Execution |
-|---|---|---|
-|![password submit fsm](assets/password%20submit%20fsm.png) |![password selector fsm transitions](assets/password%20selector%20transitions%20code.png)|![password selector](assets/password%20selector.png)
 
 # Examples
 - [password meter component](https://codesandbox.io/s/73wy8jwk86)
