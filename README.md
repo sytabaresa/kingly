@@ -193,13 +193,22 @@ For the modelization of a [much more complex user interface](https://sarimarton.
 Automated tests are close to completion. Contracts are so far not enforced. To run the 
 current automated tests, type in a terminal : `npm run test`
 
-# Integration with React
-The machine is just a function. As such it is pretty easy to integrate in any framework. As of 
-today, we provide the following integrations :
+# Integration with ui libraries
+The machine is just a function. As such it is pretty easy to integrate in any framework. In fact,
+ we have implemented the same interface behaviour over React, Vue, Svelte, Nerv, Ivi with the 
+ exact same fsm. By isolating your component behaviour in a fsm, you can delay the UI library 
+ choice to the last moment. 
+ 
+As of today, we officially provide the following integrations :
 
 - [integration with React](https://github.com/brucou/react-state-driven) 
   - using state machines allows to use React mostly as a DOM library and eliminates the need for 
   state management, HOC, hooks and other react advanced concepts.
+- [integration with Vue](https://github.com/brucou/vue-state-driven) 
+  - using state machines allows to use React mostly as a DOM library and eliminates the need for 
+  state management, HOC, hooks and other react advanced concepts.
+- integration with framework supporting webcomponents 
+  - provided by the factory function `makeWebComponentFromFsm`
 
 # API
 ## API design
