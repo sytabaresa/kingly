@@ -4,11 +4,15 @@ import { terser } from "rollup-plugin-terser";
 
 export default {
   input: 'src/index.js',
-  output: {
+  output: [{
     file: 'dist/transducer.umd.min.js',
     format: 'umd',
     name: 'StateTranducer',
-  },
+  },{
+    file: 'dist/transducer.es.min.js',
+    format: 'esm',
+    name: 'StateTranducer',
+  }],
   plugins: [
     resolve({
       // use "module" field for ES6 module if possible

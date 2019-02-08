@@ -78,5 +78,6 @@
   "dependencies": {
     "fp-rosetree": "^0.6.2",
     "graph-adt": "^0.7.0"
-  }
+  },
+  "browserslist": ["> 1%", "last 2 versions", "not ie <= 9"]
 }
