@@ -37,7 +37,7 @@
 - **small API** : one function for the state machine, one function for the test generation, one 
 function for tracing
 - **just a function!** : easy to integrate into any framework
-- **automatic test generation!** : write the machine, how to progress from one state to another, 
+- **[automatic test generation!](https://github.com/brucou/state-transducer-testing)** : write the machine, how to progress from one state to another, 
 and let the computer generate hundreds of tests for you
 
 # Examples
