@@ -6,8 +6,8 @@ import {
   mapOverTransitionsActions, updateHistory, wrap
 } from "./helpers";
 
-const noop = ()=>{};
-const emptyConsole = {log: noop, warn: noop, info:noop, debug:noop, error:noop, trace:noop};
+const noop = () => {};
+const emptyConsole = { log: noop, warn: noop, info: noop, debug: noop, error: noop, trace: noop };
 
 /**
  * Takes a list of identifiers (strings), adds init to it, and returns a hash whose properties are
@@ -129,14 +129,14 @@ export function build_state_enum(states) {
   return states_enum;
 }
 
-function hasInitTransition(transitions){
+function hasInitTransition(transitions) {
   return transitions.some(transition => {
     return transition.from === INIT_STATE && transition.event === INIT_EVENT
   })
 }
 
-function normalize_transitions(fsmDef){
-  const {initialControlState, transitions} = fsmDef;
+function normalize_transitions(fsmDef) {
+  const { initialControlState, transitions } = fsmDef;
   const initTransition = hasInitTransition(transitions);
 
   if (initTransition && initialControlState) {
@@ -147,16 +147,16 @@ function normalize_transitions(fsmDef){
   }
   if (initialControlState) {
     return transitions
-      .concat([{from: INIT_STATE, event:INIT_EVENT, to: initialControlState, action : ACTION_IDENTITY}])
+      .concat([{ from: INIT_STATE, event: INIT_EVENT, to: initialControlState, action: ACTION_IDENTITY }])
   }
-  else if (initTransition){
+  else if (initTransition) {
     return transitions
   }
 }
 
 // Alias for compatibility before deprecating entirely create_state_machine
-export function createStateMachine(fsmDef, settings){
-return create_state_machine(fsmDef, settings)
+export function createStateMachine(fsmDef, settings) {
+  return create_state_machine(fsmDef, settings)
 }
 
 /**
@@ -357,7 +357,7 @@ export function create_state_machine(fsmDef, settings) {
       } else return outputs;
     } else {
       // CASE : There is no transition associated to that event from that state
-      debug && console.error(`There is no transition associated to that event!`);
+      debug && console.warn(`There is no transition associated to the event |${event}| in state |${current_state}|!`);
 
       return NO_OUTPUT;
     }
@@ -409,6 +409,62 @@ export function create_state_machine(fsmDef, settings) {
   }.yield;
 }
 
+// outputSubject allows raising event which can be
+export function makeWebComponentFromFsm({
+                                          name,
+                                          eventSubjectFactory,
+                                          fsm,
+                                          commandHandlers,
+                                          effectHandlers,
+                                          options
+                                        }) {
+  class FsmComponent extends HTMLElement {
+    constructor() {
+      if (name.split('-').length <= 1) throw `makeWebComponentFromFsm : web component's name MUST include a dash! Please review the name property passed as parameter to the function!`
+      super();
+      const el = this;
+      this.eventSubject = eventSubjectFactory();
+      this.outputSubject = eventSubjectFactory();
+      this.options = Object.assign({}, options);
+      const NO_ACTION = this.options.NO_ACTION || NO_OUTPUT;
+
+      // Set up execution of commands
+      this.eventSubject.subscribe(eventStruct => {
+        const actions = fsm(eventStruct);
+
+        if (actions === NO_ACTION) return;
+        actions.forEach(action => {
+          if (action === NO_ACTION) return;
+          const { command, params } = action;
+          commandHandlers[command](this.eventSubject.next, params, effectHandlers, el, this.outputSubject);
+        });
+      });
+    }
+
+    static get observedAttributes() {
+      return [];
+    }
+
+    connectedCallback() {
+      this.options.initialEvent && this.eventSubject.next(this.options.initialEvent);
+    }
+
+    disconnectedCallback() {
+      this.options.terminalEvent && this.eventSubject.next(this.options.terminalEvent);
+      this.eventSubject.complete();
+    }
+
+    attributeChangedCallback(name, oldValue, newValue) {
+      // simulate a new creation every time an attribute is changed
+      // i.e. they are not expected to change
+      this.constructor();
+      this.connectedCallback();
+    }
+  }
+
+  return customElements.define(name, FsmComponent);
+}
+
 /**
  * Adds a `displayName` property corresponding to the action name to all given action factories. The idea is to use
  * the action name in some specific useful contexts (debugging, tracing, visualizing)
@@ -451,7 +507,7 @@ export function mergeOutputsFn(arrayOutputs) {
 export function decorateWithEntryActions(fsm, entryActions, mergeOutputs) {
   if (!entryActions) return fsm
 
-  const { transitions, states, initialExtendedState, events } = fsm;
+  const { transitions, states, initialExtendedState, initialControlState, events } = fsm;
   const stateHashMap = getFsmStateList(states);
   const isValidEntryActions = Object.keys(entryActions).every(controlState => {
     return stateHashMap[controlState] != null;
@@ -473,6 +529,7 @@ export function decorateWithEntryActions(fsm, entryActions, mergeOutputs) {
 
     return {
       initialExtendedState,
+      initialControlState,
       states,
       events,
       transitions: decoratedTransitions

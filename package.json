@@ -1,7 +1,7 @@
 {
   "name": "state-transducer",
   "sideEffects": false,
-    "version": "0.9.12",
+    "version": "0.11.0",
   "description": "Extended Hierarchical State Transducer library",
   "repository": {
     "type": "git",
@@ -24,12 +24,9 @@
     "dist/"
   ],
   "scripts": {
-    "prepublish": "npm run umd",
-    "serve": "nodemon index.js --exec babel-node",
-    "start": "watchify -d --transform babelify dist-node -o src/bundle.js -v",
-    "build": "babel src --source-maps --out-dir dist-node",
+    "prepublish": "npm run build",
     "test": "parcel test/parcel-index.html",
-    "umd": "rollup --sourcemap -c rollup.config.js"
+    "build": "rollup --sourcemap -c rollup.config.js"
   },
   "engines": {
     "node": "6.3.0"
@@ -76,7 +73,7 @@
     "watchify": "^3.8.0"
   },
   "dependencies": {
-    "fp-rosetree": "^0.6.2",
-    "graph-adt": "^0.7.0"
-  }
+    "fp-rosetree": "^0.6.2"
+  },
+  "browserslist": ["> 1%", "last 2 versions", "not ie <= 9"]
 }
