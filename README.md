@@ -15,7 +15,7 @@
 - [The link between state machines and user interfaces](#the-link-between-state-machines-and-user-interfaces)
 - [Install](#install)
 - [Tests](#tests)
-- [Integration with React](#integration-with-react)
+- [Integration with UI libraries](#integration-with-ui-libraries)
 - [API](#api)
   * [API design](#api-design)
   * [General concepts](#general-concepts)
