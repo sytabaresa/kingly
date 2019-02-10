@@ -736,7 +736,6 @@ such, all action factories will see their output wrapped. This means :
 - when the machine cannot find any transition for an event, hence any action to execute, 
 the traced machine will simply return `null`.
 
-
 Note also that `env` is not used for now, and could be used to parameterize the tracing.
 
 ### Contracts

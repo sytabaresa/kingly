@@ -1,6 +1,22 @@
 # Now
-- game demo with https://codeincomplete.com/posts/javascript-gauntlet-foundations/, also boulder 
-dash
+- Demos
+  - game demo with https://codeincomplete.com/posts/javascript-gauntlet-foundations/, also boulder 
+    dash
+  - simple game demo : snake with ivi
+     - https://github.com/localvoid/ivi-examples/tree/master/packages/apps/snake
+  - eshop nice demo (vue) : https://github.com/sdras/sample-vue-shop
+    - example of multi-step process
+  - good example of routing and animations : https://page-transitions.com/, https://github.com/sdras/page-transitions-travelapp
+- Promote
+  - finish react-state-driven then vue-state-driven
+  - vue-state-driven to put in awesome vue : https://github.com/sdras/awesome-vue
+    - https://github.com/sdras/awesome-vue#examples
+  - look if I can put react-state-driven in awesome react if any
+  - finish react-state-driven then write ivi component as ivi hook then publish to ivi example
+    - https://github.com/localvoid/ivi/tree/master/packages/ivi, https://github
+   .com/localvoid/ivi#apps
+  - put in svelte awesome : https://github.com/sveltejs/awesome 
+  
 - also for webcomponenets README https://html.spec.whatwg.org/multipage/custom-elements.html#custom-element-conformance 
 - do the webcomponent wih a rendr property customizable
 - !!! publish : bug in decorateWithEntryActions with new initControlState

@@ -135,7 +135,7 @@ function hasInitTransition(transitions) {
   })
 }
 
-function normalize_transitions(fsmDef) {
+export function normalizeTransitions(fsmDef) {
   const { initialControlState, transitions } = fsmDef;
   const initTransition = hasInitTransition(transitions);
 
@@ -174,7 +174,7 @@ export function create_state_machine(fsmDef, settings) {
     // transitions ,
     initialExtendedState,
   } = fsmDef;
-  const transitions = normalize_transitions(fsmDef);
+  const transitions = normalizeTransitions(fsmDef);
   const { updateState, debug } = settings;
   let console = debug ? debug.console : emptyConsole;
 
