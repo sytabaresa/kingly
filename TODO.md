@@ -1,5 +1,7 @@
 # Now
 - Demos
+  - use https://itnext.io/a-wicked-custom-elements-alternative-6d1504b5857f to have web 
+  components without needing custom elements!! 
   - game demo with https://codeincomplete.com/posts/javascript-gauntlet-foundations/, also boulder 
     dash
   - simple game demo : snake with ivi

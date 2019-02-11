@@ -140,10 +140,10 @@ export function normalizeTransitions(fsmDef) {
   const initTransition = hasInitTransition(transitions);
 
   if (initTransition && initialControlState) {
-    throw new Error(`create_state_machine > normalize_transitions : invalid machine configuration : defining an initial control state and an initial transition at the same time may lead to ambiguity and is forbidden!`)
+    throw new Error(`normalizeTransitions : invalid machine configuration : defining an initial control state and an initial transition at the same time may lead to ambiguity and is forbidden!`)
   }
   if (!initTransition && !initialControlState) {
-    throw new Error(`create_state_machine > normalize_transitions : invalid machine configuration : you must define EITHER an initial control state OR an initial transition! Else in which state is the machine supposed to start?`)
+    throw new Error(`normalizeTransitions : invalid machine configuration : you must define EITHER an initial control state OR an initial transition! Else in which state is the machine supposed to start?`)
   }
   if (initialControlState) {
     return transitions
@@ -155,8 +155,8 @@ export function normalizeTransitions(fsmDef) {
 }
 
 // Alias for compatibility before deprecating entirely create_state_machine
-export function createStateMachine(fsmDef, settings) {
-  return create_state_machine(fsmDef, settings)
+export function create_state_machine(fsmDef, settings) {
+  return createStateMachine(fsmDef, settings)
 }
 
 /**
@@ -167,7 +167,7 @@ export function createStateMachine(fsmDef, settings) {
  * available in state machine's scope
  * @returns {{yield : Function, start: Function}}
  */
-export function create_state_machine(fsmDef, settings) {
+export function createStateMachine(fsmDef, settings) {
   const {
     states: control_states,
     events,
@@ -605,10 +605,11 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
  * @param {FSM_Def} fsm
  */
 export function traceFSM(env, fsm) {
-  const { initialExtendedState, events, states, transitions } = fsm;
+  const { initialExtendedState, initialControlState, events, states, transitions } = fsm;
 
   return {
     initialExtendedState,
+    initialControlState,
     events,
     states,
     transitions: mapOverTransitionsActions((action, transition, guardIndex, transitionIndex) => {
