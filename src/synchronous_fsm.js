@@ -154,6 +154,11 @@ export function normalizeTransitions(fsmDef) {
   }
 }
 
+export function normalizeFsmDef(fsmDef){
+  return Object.assign({}, fsmDef, {transitions : normalizeTransitions(fsmDef)})
+}
+
+
 // Alias for compatibility before deprecating entirely create_state_machine
 export function create_state_machine(fsmDef, settings) {
   return createStateMachine(fsmDef, settings)
