@@ -9,7 +9,6 @@
 
 # Table of Contents
 - [Features](#features)
-- [A simple process](#a-simple-process)
 - [Examples](#examples)
 - [Motivation](#motivation)
 - [The link between state machines and user interfaces](#the-link-between-state-machines-and-user-interfaces)
@@ -20,11 +19,11 @@
   * [API design](#api-design)
   * [General concepts](#general-concepts)
   * [Transducer semantics](#transducer-semantics)
-  * [`createStateMachine :: FSM_Def -> Settings -> FSM`](#-create-state-machine----fsm-def----settings----fsm-)
+  * [`createStateMachine :: FSM_Def -> Settings -> FSM`](#-createstatemachine----fsm-def----settings----fsm-)
   * [`traceFSM :: Env -> FSM_Def -> FSM_Def`](#-tracefsm----env----fsm-def----fsm-def-)
 - [Possible API extensions](#possible-api-extensions)
 - [Visualization tools](#visualization-tools)
-- [References](#references)
+- [Credits](#credits)
 - [Roadmap](#roadmap)
 - [Who else uses state machines](#who-else-uses-state-machines)
 - [Annex](#annex)
@@ -117,7 +116,7 @@ updated state (i.e. a new control state, and a new extended state) and the actio
 the interfaced system.
 
 Let's take a very simple example to illustrate these equations. The user interface to 
-specify is a [password selector](https://cdn.dribbble.com/users/522131/screenshots/4467712/password_strength.png). Visually, the user interface consists of a passowrd input field 
+specify is a [password selector](https://cdn.dribbble.com/users/522131/screenshots/4467712/password_strength.png). Visually, the user interface consists of a password input field 
 and a submit password button. Its behaviour is the following :
 - the user types
 - for each new value of the password input, the input is displayed in green if the password is 
@@ -156,8 +155,8 @@ A state machine partial formulation :
 |**Weak**|`input: "a"`|typed `b`|display input in red|**Weak**|`input: "ab"`|
 |**Weak**|`input: "ab"`|clicked submit| - |**Weak**| `input: "ab"` |
 
-The corresponding implementation is by a function `fsm` with an encapsulated internal state of 
-`{control state : weak, extended state: {input : ''}}` such that, if the user types 'a2' and 
+The corresponding implementation is by a function `fsm` with an encapsulated initial internal state
+ of `{control state : weak, extended state: {input : ''}}` such that, if the user types 'a2' and 
 clicks submit :
 
 ```
@@ -194,7 +193,7 @@ current automated tests, type in a terminal : `npm run test`
 
 # Integration with UI libraries
 The machine is just a function. As such it is pretty easy to integrate in any framework. In fact,
- we have implemented the same interface behaviour over [React](https://codesandbox.io/s/kwn3lx2qx7), [Vue](https://codesandbox.io/s/4p1nnywy0), [Svelte](https://codesandbox.io/s/1oq26mwk73), [Inferno](https://codesandbox.io/s/9zjo5yx8po), [Nerv](https://codesandbox.io/s/o4vkwmw7y), [Ivi](https://codesandbox.io/s/3x9x5v4kq5) with 
+ we have implemented the same interface behaviour over [React](https://codesandbox.io/s/ym8vpqm7m9), [Vue](https://codesandbox.io/s/4p1nnywy0), [Svelte](https://codesandbox.io/s/1oq26mwk73), [Inferno](https://codesandbox.io/s/9zjo5yx8po), [Nerv](https://codesandbox.io/s/o4vkwmw7y), [Ivi](https://codesandbox.io/s/3x9x5v4kq5) with 
  the exact same fsm. By isolating your component behaviour in a fsm, you can delay the UI library 
  choice to the last moment. 
  
@@ -206,9 +205,11 @@ As of today, we officially provide the following integrations :
 - [integration with Vue](https://github.com/brucou/vue-state-driven) 
   - using state machines allows to use React mostly as a DOM library and eliminates the need for 
   state management, HOC, hooks and other react advanced concepts.
-- integration with framework supporting webcomponents (only supported in [browsers support custom 
-elements v1](https://caniuse.com/#feat=custom-elementsv1))
+- integration with framework supporting webcomponents (only supported in [browsers which support 
+custom elements v1](https://caniuse.com/#feat=custom-elementsv1))
   - provided by the factory function `makeWebComponentFromFsm`
+  - I am investigating whether the dependency on custom elements could be removed with the 
+  excellent [wicked elements](https://github.com/WebReflection/wicked-elements/tree/master/esm)
 
 # API
 ## API design
@@ -238,7 +239,7 @@ which in turn allows him to use any formalism to represent state - for instance 
 - no restriction is made on output of transducers, but inputs must follow some conventions (if a
  machine's output match those conventions, two such machines can be sequentially composed
 - parallel composition naturally occurs by feeding two state machines the same input(s))
-- as a result, reactive programming is naturally enabled. If inputs is a stream of 
+  - as a result, reactive programming is naturally enabled. If `inputs` is a stream of 
 well-formatted machine inputs, and `f` is the fsm, then the stream of outputs will be `inputs.map
 (f)`. It is so simple that we do not surface it at the API level
 
@@ -326,6 +327,13 @@ const transitions = [
   }
 ];
 
+const pwdFsmDef = {
+  initialControlState,
+  initialExtendedState,
+  states,
+  events,
+  transitions
+};
 ```
 
 where action factories mapped to a transition compute two things : 
@@ -575,87 +583,10 @@ important point is that the extended state should not be modified in place, i.e.
 
 ### Contracts
 - All [previously mentioned](https://github.com/brucou/state-transducer#contracts) contracts apply.
-- The `settings.updateState` property is mandatory. 
+- [Type contracts](https://github.com/brucou/state-transducer/blob/master/src/types.js)
+- The `settings.updateState` property is mandatory!
 - The `settings` property should not be modified after being passed as parameter (i.e. should be 
 a constant): it is not cloned and is passed to all relevant functions (guards, etc.)
-- The [key types](https://github.com/brucou/state-transducer/blob/master/src/types.js) contracts 
-are summarized here :
-
-```javascript
-/**
- * @typedef {Object} FSM_Def
- * @property {FSM_States} states Object whose every key is a control state admitted by the
- * specified state machine. The value associated to that key is unused in the present version of the library. The
- * hierarchy of the states correspond to property nesting in the `states` object
- * @property {Array<EventLabel>} events A list of event monikers the machine is configured to react to
- * @property {Array<Transition>} transitions An array of transitions the machine is allowed to take
- * @property {*} initialExtendedState The initial value for the machine's extended state
- */
-/**
- * @typedef {Object.<ControlState, *>} FSM_States
- */
-/**
- * @typedef {InconditionalTransition | ConditionalTransition} Transition
- */
-/**
- * @typedef {{from: ControlState, to: ControlState|HistoryState, event: EventLabel, action: ActionFactory}} InconditionalTransition
- *   Inconditional_Transition encodes transition with no guards attached. Every time the specified event occurs, and
- *   the machine is in the specified state, it will transition to the target control state, and invoke the action
- *   returned by the action factory
- */
-/**
- * @typedef {{from: ControlState, event: EventLabel, guards: Array<Condition>}} ConditionalTransition Transition for the
- * specified state is contingent to some guards being passed. Those guards are defined as an array.
- */
-/**
- * @typedef {{predicate: FSM_Predicate, to: ControlState|HistoryState, action: ActionFactory}} Condition On satisfying the
- * specified predicate, the received event data will trigger the transition to the specified target control state
- * and invoke the action created by the specified action factory, leading to an update of the internal state of the
- * extended state machine and possibly an output to the state machine client.
- */
-/**
- * @typedef {function(ExtendedState, EventData, FSM_Settings) : Actions} ActionFactory
- */
-/**
- * @typedef {{updates: ExtendedStateUpdate, outputs: Array<MachineOutput> | NO_OUTPUT}} Actions The actions
- * to be performed by the state machine in response to a transition. `updates` represents the state update for
- * the variables of the extended state machine. `output` represents the output of the state machine passed to the
- * API caller.
- */
-/** @typedef {function (ExtendedState, EventData) : Boolean} FSM_Predicate */
-/** @typedef {{updateState :: Function(ExtendedState, ExtendedStateUpdate) : ExtendedState, ...}} FSM_Settings */
-/**
- * @typedef {Object.<EventLabel, EventData>} LabelledEvent extended state for a given state machine
- */
-/**
- * @typedef {function(historyType: HistoryType, controlState: ControlState): HistoryState} HistoryStateFactory
- */
-/**
- * @typedef {{type:{}, [HistoryType]: ControlState}} HistoryState
- */
-/**
- * @typedef {Object.<HistoryType, HistoryDict>} History history object containing deeep and shallow history states
- * for all relevant control states
- */
-/**
- * @typedef {Object.<ControlState, ControlState>} HistoryDict Maps a compound control state to its history state
- */
-/**
- * @typedef {DEEP | SHALLOW} HistoryType
- */
-/** @typedef {String} ControlState Name of the control state */
-/** @typedef {String} EventLabel */
-/**
- * @typedef {*} EventData
- */
-/**
- * @typedef {*} ExtendedState extended state for a given state machine
- */
-/**
- * @typedef {*} ExtendedStateUpdate
- */
-/** @typedef {* | NO_OUTPUT} MachineOutput well it is preferrable that that be an object instead of a primitive */
-```
 
 ### Implementation example
 We are going to show the definition for the following hierrchical state machine :
@@ -739,10 +670,10 @@ the traced machine will simply return `null`.
 Note also that `env` is not used for now, and could be used to parameterize the tracing.
 
 ### Contracts
-Types contracts, nothing special.
+- [Type contracts](https://github.com/brucou/state-transducer/blob/master/src/types.js)
 
 ### Implementation example
-Cf. tests
+Cf. [tests](https://github.com/brucou/state-transducer/blob/master/test/fsm_trace.specs.js)
 
 # Possible API extensions
 Because of the API design choices, it is possible to realize the possible extensions without 
@@ -792,12 +723,10 @@ Automated visualization works well with simple graphs, but seems to encounter tr
  such workflow. The [`yed`](https://www.yworks.com/products/yed) orthogonal and flowchart layout 
  seem to give pretty good results.
 
-# References
-- [the ultimate guide to FSM in games](https://www.researchgate.net/publication/284383920_The_Ultimate_Guide_to_FSMs_in_Games)
-- [artificial intelligence - state machines](http://aiwisdom.com/ai_fsm.html)
-- [A method for testing and validating executable statechart models](https://link.springer.com/article/10.1007/s10270-018-0676-3)
+# Credits
 - Credit to [Pankaj Parashar](https://css-tricks.com/password-strength-meter/) for the password 
 selector
+- Credit to [Sari Marton](https://github.com/sarimarton/) for the [original version](https://github.com/sarimarton/tmdb-ui-cyclejs) of the movie search app
 
 # Roadmap
 ## Roadmap v1.0
@@ -848,16 +777,11 @@ be traced to the code that implements it (!). Requirements modeled by state-mach
  to formal verification and validation. 
 
 State machines have also been used extensively in [games of reasonable complexity](http://howtomakeanrpg.com/a/state-machines.html), and [tutorials](https://www.gamedev.net/articles/programming/general-and-gameplay-programming/state-machines-in-games-r2982/) abound
- on the subject. The driving factors are again two. First, the basic problem for AI to solve 
- here is : given the state of the world, what should I do? Because game character behavior can be
-  modeled (in most cases) as a sequence of different character "mental states", where change in 
-  state is driven by the actions of the player or other characters, or possibly some features 
-  of the game world, game programmers often find that state machines are a natural choice for 
-  defining character AI.  Second, it is a very accessible and affordable tool vs. alternatives. The 
-  "decision-action" model is [straightforward enough to appeal to the nonprogrammers](https://www.researchgate.net/publication/284383920_The_Ultimate_Guide_to_FSMs_in_Games) on the game 
-  development team (such as level designers), yet impressively powerful. FSMs also lend 
-  themselves to being quickly sketched out during design and prototyping, and even better, they 
-  can be easily and efficiently implemented. 
+ on the subject. Fu and Houlette, in 
+ [AI Game Programming Wisdom 2](https://www.researchgate.net/publication/284383920_The_Ultimate_Guide_to_FSMs_in_Games)
+  summarized the rationale : "Behavior modeling techniques based on state-machines are very 
+  popular in the gaming industry because they are easy to implement, computationally efficient, 
+  an intuitive representation of behavior, accessible to subject matter experts in addition to programmers, relatively easy to maintain, and can be developed in a number of commercial integrated development environments". 
 
 More prosaically, did you know that ES6 generators compile down to ES5 state machines where no 
 native option is available? Facebook's [`regenerator`](https://github.com/facebook/regenerator) 

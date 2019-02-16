@@ -199,8 +199,6 @@ export function getFsmStateList(states) {
   };
   const stateHashMap = traverseObj(traverse, states);
 
-  // add history states
-  stateHashMap.constructor
   return stateHashMap
 }
 

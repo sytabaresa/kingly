@@ -1,91 +1,130 @@
-// TODO : write contracts!!, but put them as AOP, i.e. in an auxiliary function like trace, or put them in trace??
+// TODO : write contracts!!
 import { getFsmStateList } from "./helpers"
-
-const contracts = {
-  states: [
-    {
-      select: (fsmDef, settings) => void 0,
-      predicate: (states, settings) => {},
-      isRecoverable: void false,
-      name: void ""
-    }
-  ],
-  events: [],
-  transitions: [],
-  initialExtendedState: [],
-  settings : [],
-  fsm: []
-};
-
-/**
- *
- * @param {Object.<ContractSection, Array<Contract>>} contracts
- * @param {String} contractTarget
- * @returns {function(*=): {isFulfilled: boolean, failingContracts: Array}}
- */
-function makeContractHandler(contracts, contractTarget) {
-  return function contractHandler(args) {
-    const contractSections = Object.keys(contracts);
-    const failingContracts = [];
-    const isFulfilled = contractSections.every(contractSection => {
-      const sectionContracts = contracts[contractSection];
-
-      return sectionContracts.every(contract => {
-        const { name: contractName, select, predicate, isRecoverable } = contract;
-        const contractArgs = select.apply(null, args);
-        const {isFulfilled, blame} = predicate.apply(null, contractArgs);
-
-        if (isFulfilled) return true
-        else if (isRecoverable) {
-          const blameMessageHeader = `${contractTarget} FAILS ${contractSection} / ${contractName} !`;
-          const { message, info } = blame || {};
-          failingContracts.push({ name: contractName, message, info });
-          console.warn(blameMessageHeader);
-          console.info(message, info);
-
-          return false
-        }
-        else {
-          const blameMessageHeader = `${contractTarget} FAILS contract ${contractName}!`;
-          const { message, info } = blame || {};
-          failingContracts.push({ name: contractName, message, info });
-          console.error(blameMessageHeader);
-          console.info(message, info);
-
-          throw [blameMessageHeader, `check console for information!`].join('\n')
-        }
-      })
-    });
-
-    return { isFulfilled, failingContracts }
-  }
-}
+import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
+import { INIT_STATE } from "./properties"
 
 // Contracts
 /**
  * State names must be unique
  * @type {Contract}
  */
-const noDuplicatedStates = {
+export const noDuplicatedStates = {
   name: 'noDuplicatedStates',
-  isRecoverable: false,
-  select: (fsmDef, settings) => ([fsmDef.states, fsmDef.settings]),
-  predicate: (states, settings) => {
-    const stateList = getFsmStateList(states);
+  shouldThrow: false,
+  predicate: (fsmDef, settings) => {
+    const { getLabel } = objectTreeLenses;
+    const traverse = {
+      strategy: PRE_ORDER,
+      seed: { duplicatedStates: [], statesHashMap: {} },
+      visit: (acc, traversalState, tree) => {
+        const { duplicatedStates, statesHashMap } = acc;
+        const treeLabel = getLabel(tree);
+        const controlState = Object.keys(treeLabel)[0];
+        if (controlState in statesHashMap) {
+          return {
+            duplicatedStates: duplicatedStates.concat(controlState),
+            statesHashMap
+          }
+        }
+        else {
+          return {
+            duplicatedStates,
+            statesHashMap: (statesHashMap[controlState] = "", statesHashMap)
+          }
+        }
+      }
+    }
 
-    // TODO : do an every tree traversal in fp-rosetree
-    // so I can traverse the obj and stop when encountered duplicated states
+    const { duplicatedStates } = traverseObj(traverse, fsmDef.states);
 
-    const message = `state names must be unique`
+    const isFulfilled = duplicatedStates.length === 0;
     return {
       isFulfilled,
-      blame : {
-        message,
-        info
+      blame: {
+        message: `State names must be unique! Found duplicated state names. Cf. log`,
+        info: { duplicatedStates }
       }
     }
   },
 };
+
+// S1. State name cannot be a reserved state name (for now only INIT_STATE)
+export const noReservedStates = {
+  name: 'noReservedStates',
+  shouldThrow: false,
+  predicate: (fsmDef, settings, { stateList }) => {
+    return {
+      isFulfilled: stateList.indexOf(INIT_STATE) === -1,
+      blame: {
+        message: `You cannot use a reserved control state name for any of the configured control states for the machine! Cf. log`,
+        info: { reservedStates: [INIT_STATE], stateList }
+      }
+    }
+  },
+};
+
+// S4. At least one control state (other than the initial state) muat be declared
+export const atLeastOneState = {
+  name: 'atLeastOneState',
+  shouldThrow: false,
+  predicate: (fsmDef, settings, {stateList}) => {
+    return {
+      isFulfilled: stateList.length > 0,
+      blame: {
+        message: `Machine configuration must define at least one control state! Cf. log`,
+        info: { stateList }
+      }
+    }
+  },
+};
+
+const fsmContracts = {
+  computed: (fsmDef, settings) => {
+    return {
+      stateList: Object.keys(getFsmStateList(fsmDef.states))
+    }
+  },
+  description: 'FSM structure',
+  contracts: [noDuplicatedStates, noReservedStates, atLeastOneState],
+};
+
+/**
+ * Takes a series of contracts grouped considered as a unit, run them, and return the results. Some contracts may
+ * throw. If no contract throws, the returned value include a list of the failing contracts if any. A failing
+ * contract data structure include relevant information about the failing contract, in particular the contract name,
+ * the associated error message and additional info expliciting the error message.
+ * @returns {function(...[*]=): {isFulfilled: boolean, failingContracts: Array}}
+ * @param {{computed : function, description: string, contracts: Array<*>} contractsDef
+ */
+function makeContractHandler(contractsDef) {
+  const contractsDescription = contractsDef.description;
+
+  return function checkContracts(...args) {
+    const failingContracts = [];
+    const computedArgs = contractsDef.computed.apply(null, args);
+    const isFulfilled = contractsDef.contracts.every(contract => {
+      const { name: contractName, select, predicate, shouldThrow } = contract;
+      const fullArgs = args.concat(computedArgs);
+      const { isFulfilled, blame } = predicate.apply(null, fullArgs);
+      const blameMessageHeader = `${contractsDescription} FAILS ${contractName}!`;
+      const { message, info } = blame || {};
+
+      if (isFulfilled) return true
+      else {
+        failingContracts.push({ name: contractName, message, info });
+        console.error(blameMessageHeader);
+        console.error([contractName, message].join(': '));
+        console.debug('Supporting error data:', info);
+
+        if (shouldThrow) throw new Error([blameMessageHeader, `check console for information!`].join('\n'))
+      }
+    })
+
+    return { isFulfilled, failingContracts }
+  }
+}
+
+export const fsmContractChecker = makeContractHandler(fsmContracts);
 
 // NOTE contracts execution may be order sensitive, or reuse contracts in contracts??
 
@@ -100,21 +139,24 @@ const noDuplicatedStates = {
 // . We write A !!< B if A is a substate of B, and A is also an atomic state
 // . We write A -ev-> B to denote a transition from A to B triggered by `ev`
 
-// S0. `FsmDef.states` must be an array of strings
-// TO ENFORCE
+// S0. `FsmDef.states` must be an object
+// NOT ENFORCED
 // S1. State name cannot be a reserved state name (for now only INIT_STATE)
-// TO ENFORCE
+// TO ENFORCE: DONE
 // S2. State names must be unique
-// TO ENFORCE
+// TO ENFORCE;: DONE
 // S3. State names must conform to the same nomenclature than javascript variable identifiers
 // - cannot be empty strings,
 // - cannot start with a number
 // NOT ENFORCED
-// S4. At least one control state other than the initial state muat be declared
+// S4. At least one control state (other than the initial state) muat be declared
+// TO ENFORCE;: DONE
 
 // Events
 // E0. `fsmDef.events` msut be an array of strings
+// TO ENFORCE: PENDING
 // E1. Event names passed to configure the state machine must be unique
+// NOT ENFORCED
 
 // Transitions
 // T1. There must be configured at least one transition away from the initial state

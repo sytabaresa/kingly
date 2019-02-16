@@ -1,7 +1,9 @@
 # Now
 - Demos
   - use https://itnext.io/a-wicked-custom-elements-alternative-6d1504b5857f to have web 
-  components without needing custom elements!! 
+  components without needing custom elements!!
+  - mario game : https://github.com/mahsu/MariOCaml/blob/master/director.ml and https://github.com/reasonml-community/Mareo 
+  - could also reuse shop microfrontends : https://micro-frontends.org/
   - game demo with https://codeincomplete.com/posts/javascript-gauntlet-foundations/, also boulder 
     dash
   - simple game demo : snake with ivi
@@ -9,6 +11,7 @@
   - eshop nice demo (vue) : https://github.com/sdras/sample-vue-shop
     - example of multi-step process
   - good example of routing and animations : https://page-transitions.com/, https://github.com/sdras/page-transitions-travelapp
+
 - Promote
   - finish react-state-driven then vue-state-driven
   - vue-state-driven to put in awesome vue : https://github.com/sdras/awesome-vue
@@ -18,7 +21,7 @@
     - https://github.com/localvoid/ivi/tree/master/packages/ivi, https://github
    .com/localvoid/ivi#apps
   - put in svelte awesome : https://github.com/sveltejs/awesome 
-  
+
 - also for webcomponenets README https://html.spec.whatwg.org/multipage/custom-elements.html#custom-element-conformance 
 - do the webcomponent wih a rendr property customizable
 - !!! publish : bug in decorateWithEntryActions with new initControlState

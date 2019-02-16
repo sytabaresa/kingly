@@ -5,6 +5,7 @@ import {
   arrayizeOutput, computeHistoryMaps, get_fn_name, getFsmStateList, initHistoryDataStructure, keys,
   mapOverTransitionsActions, updateHistory, wrap
 } from "./helpers";
+import { fsmContractChecker } from "./contracts"
 
 const noop = () => {};
 const emptyConsole = { log: noop, warn: noop, info: noop, debug: noop, error: noop, trace: noop };
@@ -181,6 +182,12 @@ export function createStateMachine(fsmDef, settings) {
   } = fsmDef;
   const transitions = normalizeTransitions(fsmDef);
   const { updateState, debug } = settings;
+
+  if (debug && debug.checkContracts) {
+    const {failingContracts} = fsmContractChecker(fsmDef, settings);
+    if (failingContracts.length > 0) throw new Error(`createStateMachine: called with wrong parameters! Cf. logs for failing contracts.`)
+  }
+
   let console = debug ? debug.console : emptyConsole;
 
   const _events = build_event_enum(events);
