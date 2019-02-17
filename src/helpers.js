@@ -406,3 +406,10 @@ export function computeHistoryState(states, controlStateSequence, historyType, h
 
   return history[historyType][historyParentState]
 }
+
+export function findInitTransition(transitions) {
+  return transitions.find(transition => {
+    return transition.from === INIT_STATE && transition.event === INIT_EVENT
+  })
+}
+

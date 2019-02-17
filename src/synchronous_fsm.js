@@ -2,7 +2,7 @@ import {
   ACTION_IDENTITY, AUTO_EVENT, DEEP, history_symbol, INIT_EVENT, INIT_STATE, NO_OUTPUT, SHALLOW, STATE_PROTOTYPE_NAME
 } from "./properties";
 import {
-  arrayizeOutput, computeHistoryMaps, get_fn_name, getFsmStateList, initHistoryDataStructure, keys,
+  arrayizeOutput, computeHistoryMaps, findInitTransition, get_fn_name, getFsmStateList, initHistoryDataStructure, keys,
   mapOverTransitionsActions, updateHistory, wrap
 } from "./helpers";
 import { fsmContractChecker } from "./contracts"
@@ -130,22 +130,10 @@ export function build_state_enum(states) {
   return states_enum;
 }
 
-function hasInitTransition(transitions) {
-  return transitions.some(transition => {
-    return transition.from === INIT_STATE && transition.event === INIT_EVENT
-  })
-}
-
 export function normalizeTransitions(fsmDef) {
   const { initialControlState, transitions } = fsmDef;
-  const initTransition = hasInitTransition(transitions);
+  const initTransition = findInitTransition(transitions);
 
-  if (initTransition && initialControlState) {
-    throw new Error(`normalizeTransitions : invalid machine configuration : defining an initial control state and an initial transition at the same time may lead to ambiguity and is forbidden!`)
-  }
-  if (!initTransition && !initialControlState) {
-    throw new Error(`normalizeTransitions : invalid machine configuration : you must define EITHER an initial control state OR an initial transition! Else in which state is the machine supposed to start?`)
-  }
   if (initialControlState) {
     return transitions
       .concat([{ from: INIT_STATE, event: INIT_EVENT, to: initialControlState, action: ACTION_IDENTITY }])
@@ -155,8 +143,8 @@ export function normalizeTransitions(fsmDef) {
   }
 }
 
-export function normalizeFsmDef(fsmDef){
-  return Object.assign({}, fsmDef, {transitions : normalizeTransitions(fsmDef)})
+export function normalizeFsmDef(fsmDef) {
+  return Object.assign({}, fsmDef, { transitions: normalizeTransitions(fsmDef) })
 }
 
 
@@ -171,7 +159,7 @@ export function create_state_machine(fsmDef, settings) {
  * @param {FSM_Def} fsmDef
  * @param {FSM_Settings} settings contains mandatory settings, and any extra settings the API user wants to make
  * available in state machine's scope
- * @returns {{yield : Function, start: Function}}
+ * @return {function(*=)}
  */
 export function createStateMachine(fsmDef, settings) {
   const {
@@ -184,11 +172,11 @@ export function createStateMachine(fsmDef, settings) {
   const { updateState, debug } = settings;
 
   if (debug && debug.checkContracts) {
-    const {failingContracts} = fsmContractChecker(fsmDef, settings);
+    const { failingContracts } = fsmContractChecker(fsmDef, settings);
     if (failingContracts.length > 0) throw new Error(`createStateMachine: called with wrong parameters! Cf. logs for failing contracts.`)
   }
 
-  let console = debug ? debug.console : emptyConsole;
+  let console = debug && debug.console ? debug.console : emptyConsole;
 
   const _events = build_event_enum(events);
 
@@ -242,22 +230,14 @@ export function createStateMachine(fsmDef, settings) {
       is_auto_state[from] = true;
     }
 
-    from_proto[event] = arr_predicate.reduce(
-      function (acc, guard, index) {
-        let action = guard.action;
-        if (!action) {
-          action = ACTION_IDENTITY
-        }
+    from_proto[event] = arr_predicate.reduce((acc, guard, index) =>{
+        const action = guard.action || ACTION_IDENTITY;
         const condition_checking_fn = (function (guard, settings) {
           let condition_suffix = "";
           // We add the `current_state` because the current state might be different from the `from`
           // field here This is the case for instance when we are in a substate, but through
           // prototypal inheritance it is the handler of the prototype which is called
-          const condition_checking_fn = function (
-            extendedState_,
-            event_data,
-            current_state
-          ) {
+          const condition_checking_fn = function (extendedState_, event_data, current_state) {
             from = current_state || from;
             const { predicate, to } = guard;
             condition_suffix = predicate ? "_checking_condition_" + index : "";
@@ -294,11 +274,7 @@ export function createStateMachine(fsmDef, settings) {
           return condition_checking_fn;
         })(guard, settings);
 
-        return function arr_predicate_reduce_fn(
-          extendedState_,
-          event_data,
-          current_state
-        ) {
+        return function arr_predicate_reduce_fn(extendedState_, event_data, current_state) {
           const condition_checked = acc(extendedState_, event_data, current_state);
           return condition_checked.stop
             ? condition_checked
@@ -344,7 +320,11 @@ export function createStateMachine(fsmDef, settings) {
       debug && console.log("found event handler!");
       debug && console.info("WHEN EVENT ", event);
       /* OUT : this event handler modifies the extendedState and possibly other data structures */
-      const outputs = arrayizeOutput(event_handler(extendedState, event_data, current_state).outputs);
+      // TODO : check that stop === true (means we fulfulled one guard in the transition!
+      const {stop, outputs:rawOutputs} = event_handler(extendedState, event_data, current_state);
+      debug && !stop && console.warn("No guards have been fulfilled! We recommend to configure guards explicitly to" +
+        " cover the full state space!")
+      const outputs = arrayizeOutput(rawOutputs);
 
       // we read it anew as the execution of the event handler may have changed it
       const new_current_state = hash_states[INIT_STATE].current_state_name;
@@ -416,15 +396,14 @@ export function createStateMachine(fsmDef, settings) {
 
   start();
 
-  return {
-    yield: x => send_event(x, true),
-  }.yield;
+  // NOTE : yield is a reserved JavaScript word so using yyield
+  return function yyield(x) { return send_event(x, true)}
 }
 
 // outputSubject allows raising event which can be
 export function makeWebComponentFromFsm({
                                           name,
-                                          eventSubjectFactory,
+                                          subjectFactory,
                                           fsm,
                                           commandHandlers,
                                           effectHandlers,
@@ -435,8 +414,8 @@ export function makeWebComponentFromFsm({
       if (name.split('-').length <= 1) throw `makeWebComponentFromFsm : web component's name MUST include a dash! Please review the name property passed as parameter to the function!`
       super();
       const el = this;
-      this.eventSubject = eventSubjectFactory();
-      this.outputSubject = eventSubjectFactory();
+      this.eventSubject = subjectFactory();
+      this.outputSubject = subjectFactory();
       this.options = Object.assign({}, options);
       const NO_ACTION = this.options.NO_ACTION || NO_OUTPUT;
 

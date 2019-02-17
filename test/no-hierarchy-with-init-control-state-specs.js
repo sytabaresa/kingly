@@ -124,7 +124,7 @@ QUnit.test("initial control state, event, no action, false guard", function exec
     initialExtendedState: initialExtendedState,
     initialControlState: 'A'
   };
-  const settings = default_settings;
+  const settings = Object.assign({}, default_settings, {debug : {checkContracts: true}});
   const fsm = create_state_machine(fsmDef, settings);
   const result = fsm({ ev: initialExtendedState });
   assert.deepEqual(result, NO_OUTPUT, `event starts the state machine`);
@@ -159,10 +159,10 @@ QUnit.test("no initial control state, no initial transition, event, no action, t
       // initialControlState: 'A',
       initialExtendedState: initialExtendedState
     };
-    const settings = default_settings;
+    const settings = Object.assign({}, default_settings, {debug : {checkContracts: true}});
     const fsm = create_state_machine(fsmDef, settings);
     const result = fsm({ ev: initialExtendedState });
-    }, /invalid/, `Throws if no configuration for starting the machine `);
+    }, /FAILS/, `Throws if no configuration for starting the machine `);
 });
 
 QUnit.test("no initial control state, no initial transition, event, no action, true guard", function exec_test(assert) {
@@ -177,10 +177,10 @@ QUnit.test("no initial control state, no initial transition, event, no action, t
       initialControlState: 'A',
       initialExtendedState: initialExtendedState
     };
-    const settings = default_settings;
+    const settings = Object.assign({}, default_settings, {debug : {checkContracts: true}});
     const fsm = create_state_machine(fsmDef, settings);
     const result = fsm({ ev: initialExtendedState });
-    }, /invalid/, `Throws if invalid configuration for starting the machine `);
+    }, /FAILS/, `Throws if invalid configuration for starting the machine `);
 });
 
 QUnit.test("initial control state, event, action, false guard", function exec_test(assert) {

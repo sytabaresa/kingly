@@ -1,7 +1,7 @@
 // TODO : write contracts!!
-import { getFsmStateList } from "./helpers"
+import { findInitTransition, getFsmStateList } from "./helpers"
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
-import { INIT_STATE } from "./properties"
+import { INIT_EVENT, INIT_STATE } from "./properties"
 
 // Contracts
 /**
@@ -67,7 +67,7 @@ export const noReservedStates = {
 export const atLeastOneState = {
   name: 'atLeastOneState',
   shouldThrow: false,
-  predicate: (fsmDef, settings, {stateList}) => {
+  predicate: (fsmDef, settings, { stateList }) => {
     return {
       isFulfilled: stateList.length > 0,
       blame: {
@@ -78,14 +78,89 @@ export const atLeastOneState = {
   },
 };
 
+// E0. `fsmDef.events` msut be an array of strings
+export const eventsAreStrings = {
+  name: 'eventsAreStrings',
+  shouldThrow: false,
+  predicate: (fsmDef, settings) => {
+    return {
+      isFulfilled: fsmDef.events.every(x => typeof x === 'string'),
+      blame: {
+        message: `Events must be an array of strings!`,
+        info: { events: fsmDef.events }
+      }
+    }
+  },
+};
+
+export const validInitialConfig = {
+  name: 'validInitialConfig',
+  shouldThrow: true,
+  predicate: (fsmDef, settings, { initTransition }) => {
+    const { initialControlState, transitions } = fsmDef;
+
+    if (initTransition && initialControlState) {
+      return {
+        isFulfilled: false,
+        blame: {
+          message: `Invalid machine configuration : defining an initial control state and an initial transition at the same time may lead to ambiguity and is forbidden!`,
+          info: { initialControlState, initTransition }
+        }
+      }
+    }
+    else if (!initTransition && !initialControlState) {
+      return {
+        isFulfilled: false,
+        blame: {
+          message: `Invalid machine configuration : you must define EITHER an initial control state OR an initial transition! Else in which state is the machine supposed to start?`,
+          info: { initialControlState, initTransition }
+        }
+      }
+    }
+    else return {
+        isFulfilled: true,
+        blame: void 0
+      }
+  },
+};
+
+// T1. There must be configured at least one transition away from the initial state
+// T2. A transition away from the initial state can only be triggered by the initial event
+export const validInitialTransition = {
+  name: 'validInitialTransition',
+  shouldThrow: false,
+  predicate: (fsmDef, settings, { initTransition }) => {
+    const { initialControlState, transitions } = fsmDef;
+    // Find transitions from INIT_STATE
+    // Can only be one
+    // That one must have INIT_EVENT
+    const initTransitions = transitions.reduce((acc, transition) => {
+      transition.from === INIT_STATE && acc.push(transition);
+      return acc
+    }, []);
+    const isFulfilled =
+      (initialControlState && !initTransition) ||
+      (!initialControlState && initTransition && initTransitions.length === 1 && initTransition.event === INIT_EVENT);
+
+    return {
+      isFulfilled,
+      blame: {
+        message: `Invalid configuration for initial transition! Cf. log`,
+        info: { initTransition, initTransitions, initialControlState }
+      }
+    }
+  },
+};
+
 const fsmContracts = {
   computed: (fsmDef, settings) => {
     return {
-      stateList: Object.keys(getFsmStateList(fsmDef.states))
+      stateList: Object.keys(getFsmStateList(fsmDef.states)),
+      initTransition: findInitTransition(fsmDef.transitions)
     }
   },
   description: 'FSM structure',
-  contracts: [noDuplicatedStates, noReservedStates, atLeastOneState],
+  contracts: [noDuplicatedStates, noReservedStates, atLeastOneState, eventsAreStrings, validInitialConfig, validInitialTransition],
 };
 
 /**
@@ -162,13 +237,11 @@ export const fsmContractChecker = makeContractHandler(fsmContracts);
 // T1. There must be configured at least one transition away from the initial state
 // Reason : the machine, to be meaningful, must progress
 // Recoverable
+// TO ENFORCE : DONE
 // T2. A transition away from the initial state can only be triggered by the initial event
-// TO ENFORCE
-// T3. A transition away from the initial state and triggered by the initial event SHOULD pass the initial extended
-// state as event data
-// NOT ENFORCED, Recoverable
+// TO ENFORCE : DONE
 // T4. If several guards are defined for the initial state, then one of those guards should be fulfilled
-// NOT ENFORCED
+// NOT ENFORCED - cannot be enforced by external contracts but embedded contracts
 // T5. Every compound state A must have a valid transition A -INIT-> defined
 // T6. Every compound state NOT the initial state must have a valid INCONDITIONAL transition A -INIT-> defined
 // T7a. Every compound state NOT the initial state must have a valid INCONDITIONAL transition A -INIT-> defined which

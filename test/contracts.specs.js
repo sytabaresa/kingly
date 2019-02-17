@@ -1,7 +1,9 @@
 import * as QUnit from "qunitjs"
 import { ACTION_IDENTITY, INIT_EVENT, INIT_STATE } from "../src"
 import { applyJSONpatch } from "./fsm_trace.specs"
-import { atLeastOneState, fsmContractChecker, noDuplicatedStates, noReservedStates } from "../src/contracts"
+import {
+  atLeastOneState, fsmContractChecker, noDuplicatedStates, noReservedStates, validInitialTransition
+} from "../src/contracts"
 
 const default_settings = {
   updateState : applyJSONpatch,
@@ -67,4 +69,25 @@ QUnit.test("fsmContracts(fsmDef, settings): at least one state", function exec_t
   const {stateList} = info;
   assert.deepEqual(isFulfilled, false, `Fails at least one contract`);
   assert.deepEqual(stateList, [], message);
+});
+
+QUnit.test("fsmContracts(fsmDef, settings): two initial transitions", function exec_test(assert) {
+  const fsmDef = {
+    states: { A: '', B:''},
+    events: ['ev'],
+    transitions: [
+      { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY },
+      { from: INIT_STATE, to: 'B', event: INIT_EVENT, action: ACTION_IDENTITY },
+      { from: 'A', to: 'B', event: 'ev', action: ACTION_IDENTITY }
+    ],
+    initialExtendedState: {}
+  };
+  const settings = default_settings;
+
+  const {isFulfilled, failingContracts} = fsmContractChecker(fsmDef, settings);
+  const failureInfo = failingContracts.find(x => x.name === validInitialTransition.name);
+  const {message, info} = failureInfo;
+  const {initTransition, initTransitions, initialControlState} = info;
+  assert.deepEqual(isFulfilled, false, `Fails at least one contract`);
+  assert.deepEqual(initTransitions.length, 2, message);
 });

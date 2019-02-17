@@ -1,5 +1,5 @@
 import * as QUnit from "qunitjs"
-import { F, T } from "ramda"
+import { F } from "ramda"
 import { ACTION_IDENTITY, create_state_machine, INIT_EVENT, INIT_STATE } from "../src"
 import { applyPatch } from "json-patch-es6"
 import { assertContract, isArrayUpdateOperations } from "../test/helpers"
@@ -89,6 +89,8 @@ QUnit.test("debug settings, event, no action, false guard", function exec_test(a
         }
       }],
       "log", ["found event handler!"],
-      "info", ["WHEN EVENT ", "ev"]],
-    `console displays something`);
+      "info", ["WHEN EVENT ", "ev"],
+      "warn", ["No guards have been fulfilled! We recommend to configure guards explicitly to cover the full state space!"]
+    ],
+      `console displays something`);
 });
