@@ -77,7 +77,7 @@ QUnit.test("debug settings, event, no action, false guard", function exec_test(a
       "log", ["found event handler!"],
       "info", ["WHEN EVENT ", "init"],
       "info", ["IN STATE ", "nok"],
-      "info", ["CASE : automatic transition"],
+      "info", ["CASE : guard alwaysTruefor transition is fulfilled"],
       "info", ["THEN : we execute the action ACTION_IDENTITY"],
       "info", ["left state", "-nok-"],
       "info", ["AND TRANSITION TO STATE", "A"],

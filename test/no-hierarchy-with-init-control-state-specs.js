@@ -124,7 +124,7 @@ QUnit.test("initial control state, event, no action, false guard", function exec
     initialExtendedState: initialExtendedState,
     initialControlState: 'A'
   };
-  const settings = Object.assign({}, default_settings, {debug : {checkContracts: true}});
+  const settings = Object.assign({}, default_settings, {debug : {checkContracts: false}});
   const fsm = create_state_machine(fsmDef, settings);
   const result = fsm({ ev: initialExtendedState });
   assert.deepEqual(result, NO_OUTPUT, `event starts the state machine`);

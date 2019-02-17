@@ -8,6 +8,7 @@ import {
 import { fsmContractChecker } from "./contracts"
 
 const noop = () => {};
+const alwaysTrue = () => true;
 const emptyConsole = { log: noop, warn: noop, info: noop, debug: noop, error: noop, trace: noop };
 
 /**
@@ -206,10 +207,10 @@ export function createStateMachine(fsmDef, settings) {
     let { from, to, action, event, guards: arr_predicate } = transition;
     // CASE : ZERO OR ONE condition set
     if (!arr_predicate)
-      arr_predicate = [{ predicate: arr_predicate, to: to, action: action }];
+      arr_predicate = [{ predicate: alwaysTrue, to: to, action: action }];
 
     // CASE : transition has a init event
-    // NOTE : there should ever only be one, but we don't enforce it for now
+    // NOTE : there should ever only be one, but we don't enforce it here
     if (event === INIT_EVENT) {
       is_init_state[from] = true;
     }

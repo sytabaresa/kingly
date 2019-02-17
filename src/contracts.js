@@ -1,5 +1,5 @@
 // TODO : write contracts!!
-import { findInitTransition, getFsmStateList } from "./helpers"
+import { findInitTransition, getStatesPath, getStatesTransitionsMap, getStatesType } from "./helpers"
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
 import { INIT_EVENT, INIT_STATE } from "./properties"
 
@@ -52,12 +52,12 @@ export const noDuplicatedStates = {
 export const noReservedStates = {
   name: 'noReservedStates',
   shouldThrow: false,
-  predicate: (fsmDef, settings, { stateList }) => {
+  predicate: (fsmDef, settings, { statesType }) => {
     return {
-      isFulfilled: stateList.indexOf(INIT_STATE) === -1,
+      isFulfilled: Object.keys(statesType).indexOf(INIT_STATE) === -1,
       blame: {
         message: `You cannot use a reserved control state name for any of the configured control states for the machine! Cf. log`,
-        info: { reservedStates: [INIT_STATE], stateList }
+        info: { reservedStates: [INIT_STATE], statesType }
       }
     }
   },
@@ -67,12 +67,12 @@ export const noReservedStates = {
 export const atLeastOneState = {
   name: 'atLeastOneState',
   shouldThrow: false,
-  predicate: (fsmDef, settings, { stateList }) => {
+  predicate: (fsmDef, settings, { statesType }) => {
     return {
-      isFulfilled: stateList.length > 0,
+      isFulfilled: Object.keys(statesType).length > 0,
       blame: {
         message: `Machine configuration must define at least one control state! Cf. log`,
-        info: { stateList }
+        info: { statesType }
       }
     }
   },
@@ -126,6 +126,8 @@ export const validInitialConfig = {
 
 // T1. There must be configured at least one transition away from the initial state
 // T2. A transition away from the initial state can only be triggered by the initial event
+// T7b. The initial state must have a valid transition INIT_STATE -INIT-> defined which does not have a history
+// state as target
 export const validInitialTransition = {
   name: 'validInitialTransition',
   shouldThrow: false,
@@ -140,7 +142,7 @@ export const validInitialTransition = {
     }, []);
     const isFulfilled =
       (initialControlState && !initTransition) ||
-      (!initialControlState && initTransition && initTransitions.length === 1 && initTransition.event === INIT_EVENT);
+      (!initialControlState && initTransition && initTransitions.length === 1 && initTransition.event === INIT_EVENT && typeof initTransition.to === 'string');
 
     return {
       isFulfilled,
@@ -152,15 +154,90 @@ export const validInitialTransition = {
   },
 };
 
+// T5. Every compound state NOT the initial state A must have a valid transition A -INIT-> defined
+// T6. Every compound state NOT the initial state must have a valid INCONDITIONAL transition A -INIT-> defined
+// T7a. Every compound state NOT the initial state must have a valid INCONDITIONAL transition A -INIT-> defined which
+// does not have a history state as target
+// NOTE: actually we could limit it to history state of the containing compound state to avoid infinity loop
+// T8. Every compound state NOT the initial state must have a valid INCONDITIONAL transition A -INIT-> defined which
+// does not have the history state as target and has a target control state that is one of its substates (no
+// out-of-hierarchy INIT transitions)
+export const validInitialTransitionForCompoundState = {
+  name: 'validInitialTransitionForCompoundState',
+  shouldThrow: false,
+  predicate: (fsmDef, settings, { statesTransitionsMap, statesType, statesPath }) => {
+    // The compound states below does not include the initial state by construction
+    const compoundStates = Object.keys(statesType).filter(controlState => statesType[controlState]);
+    const initTransitions = compoundStates.map(
+      compoundState => statesTransitionsMap[compoundState] && statesTransitionsMap[compoundState][INIT_EVENT]);
+
+    const allHaveInitTransitions = initTransitions.every(Boolean);
+
+    if (!allHaveInitTransitions) {
+      return {
+        isFulfilled: false,
+        blame: {
+          message: `Found at least one compound state without an entry transition! Cf. log`,
+          info: {
+            hasEntryTransitions: compoundStates.map(
+              state => ({ [state]: !!(statesTransitionsMap[state] && statesTransitionsMap[state][INIT_EVENT]) }))
+          }
+        }
+      }
+    }
+
+    const allHaveValidInitTransitions = allHaveInitTransitions &&
+      initTransitions.every(initTransition => {
+        const { guards, to } = initTransition;
+        // T6 and T7a
+        return !guards && typeof to === 'string'
+      });
+    if (!allHaveValidInitTransitions) {
+      return {
+        isFulfilled: false,
+        blame: {
+          message: `Found at least one compound state with an invalid entry transition! Entry transitions for compound states must be inconditional and the associated target control state cannot be a history pseudo-state. Cf. log`,
+          info: { entryTransitions: initTransitions }
+        }
+      }
+    }
+    ;
+
+    const allHaveTargetStatesWithinHierarchy = allHaveValidInitTransitions &&
+      initTransitions.every(initTransition => {
+        const { from, to } = initTransition;
+
+        // Don't forget to also eliminate the case when from = to
+        return from !== to && statesPath[to].startsWith(statesPath[from])
+      });
+    if (!allHaveTargetStatesWithinHierarchy) {
+      return {
+        isFulfilled: false,
+        blame: {
+          message: `Found at least one compound state with an invalid entry transition! Entry transitions for compound states must have a target state which is strictly below the compound state in the state hierarchy! `,
+          info: { states: fsmDef.states, statesPath, entryTransitions: initTransitions }
+        }
+      }
+    }
+
+    return {
+      isFulfilled: true,
+      blame: void 0
+    }
+  },
+};
+
 const fsmContracts = {
   computed: (fsmDef, settings) => {
     return {
-      stateList: Object.keys(getFsmStateList(fsmDef.states)),
-      initTransition: findInitTransition(fsmDef.transitions)
+      statesType: getStatesType(fsmDef.states),
+      initTransition: findInitTransition(fsmDef.transitions),
+      statesTransitionsMap: getStatesTransitionsMap(fsmDef.transitions),
+      statesPath: getStatesPath(fsmDef.states)
     }
   },
   description: 'FSM structure',
-  contracts: [noDuplicatedStates, noReservedStates, atLeastOneState, eventsAreStrings, validInitialConfig, validInitialTransition],
+  contracts: [noDuplicatedStates, noReservedStates, atLeastOneState, eventsAreStrings, validInitialConfig, validInitialTransition, validInitialTransitionForCompoundState],
 };
 
 /**
@@ -241,13 +318,13 @@ export const fsmContractChecker = makeContractHandler(fsmContracts);
 // T2. A transition away from the initial state can only be triggered by the initial event
 // TO ENFORCE : DONE
 // T4. If several guards are defined for the initial state, then one of those guards should be fulfilled
-// NOT ENFORCED - cannot be enforced by external contracts but embedded contracts
+// NOT ENFORCED - that eddge case is not explicitly but if we are lucky should be enforced through the general case
 // T5. Every compound state A must have a valid transition A -INIT-> defined
 // T6. Every compound state NOT the initial state must have a valid INCONDITIONAL transition A -INIT-> defined
 // T7a. Every compound state NOT the initial state must have a valid INCONDITIONAL transition A -INIT-> defined which
 // does not have a history state as target
 // T7b. The initial state must have a valid transition INIT_STATE -INIT-> defined which does not have a history
-// state as target
+// state as target : DONE
 // NOTE: actually we could limit it to history state of the containing compound state to avoid infinity loop
 // T8. Every compound state NOT the initial state must have a valid INCONDITIONAL transition A -INIT-> defined which
 // does not have the history state as target and has a target control state that is one of its substates (no
@@ -265,7 +342,7 @@ export const fsmContractChecker = makeContractHandler(fsmContracts);
 // T13. Guards for a transition A -ev-> * must be : 1. non-overlapping, i.e. no two guards can be true at the same
 // time for any value handled by the state machine, 2. at least one guard must be fulfilled at all time. In short,
 // guards must partition the state space.
-// NOT ENFORCED... no two records with identical `(from, event, predicate)` mm no that is lame
+// NOT ENFORCED. Cf T4
 // T14. Conflicting transitions are not allowed, i.e. A -ev-> B and A < OUTER_A is not compatible with OUTER_A
 // -ev->C. The event `ev` could trigger a transition towards either B or C
 // T15. Init transitions can only occur from compound states or the initial state, i.e. A -INIT-> B iff A is a compound
@@ -307,13 +384,12 @@ export const fsmContractChecker = makeContractHandler(fsmContracts);
 // returning to the same state)
 // ENFORCED by T13, T4, T10, necessary for generative testing
 // TODO : I am here, and later complete with contracts in TODO
-// TODO : impl. have a select function per section which will pass preprocessed parameters (for instance
-// preprocessed sate object, so I don't recompute everytime
 // B7. There is only one 'dead' state, the final state. Any other state should feature transitions which progress
 // the state machine.
-// NOT ENFORCED
+// NOT ENFORCED. Not very important in practice. Several final states may also appear, though it is weird
+// ROADMAP : distingush a true final state. When final state receive event, throw? Not important in practice
 // B8. It is possible to reach any states
-// NOT ENFORCED
+// NOT ENFORCED. Just a warning to issue. reachable states requires a graph structure, and a traversal
 
 
 // Settings

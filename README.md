@@ -521,6 +521,9 @@ determine the starting control state for the machine
   - the action on that transition is the *identity* action 
 
 #### Semantical contracts
+- The machine behaviour is as explicit as possible
+  - if a transition is taken, and has guards configured, one of those guards must be fulfilled, i
+  .e. guards must cover the entire state space when they exist
 - A transition evaluation must end
   - eventless transitions must progress the state machine
     - at least one guard must be fulfilled, otherwise we would remain forever in the same state
@@ -560,6 +563,17 @@ determine the starting control state for the machine
 
 [^x]: There are however semantics which allow such transitions, thus possibilitating event bubbling.
 
+Those contracts ensure a good behaviour of the state machine. and we recommend that they all be 
+observed. However, some of them are not enforced :
+
+- we can only check at runtime that transition with guards fulfill at least one of those guards. 
+In these cases, we only issue a warning, as this is not a fatal error. This leaves some 
+flexibility to have a shorter machine configuration. Note that we recommend explicitness and 
+disambiguity vs. conciseness. 
+- purity of functions cannot be checked, even at runtime
+
+Contracts enforcement can be parameterized with `settings.debug.checkContracts`.
+ 
 ## `createStateMachine :: FSM_Def -> Settings -> FSM`
 ### Description
 This FSM factory function takes the parameters defining the behaviour of the state transducer, 

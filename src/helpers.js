@@ -202,6 +202,54 @@ export function getFsmStateList(states) {
   return stateHashMap
 }
 
+export function getStatesType(statesTree) {
+  const { getLabel, isLeafLabel } = objectTreeLenses;
+
+  const traverse = {
+    strategy: PRE_ORDER,
+    seed: {},
+    visit: (acc, traversalState, tree) => {
+      const treeLabel = getLabel(tree);
+      const controlState = Object.keys(treeLabel)[0];
+
+      // true iff control state is a compound state
+      return isLeafLabel(treeLabel)
+        ? (acc[controlState] = false, acc)
+        : (acc[controlState] = true, acc)
+    }
+  };
+
+  return traverseObj(traverse, statesTree);
+}
+
+export function getStatesPath(statesTree){
+  const { getLabel } = objectTreeLenses;
+
+  const traverse = {
+    strategy: PRE_ORDER,
+    seed: {},
+    visit: (acc, traversalState, tree) => {
+      const pathStr = traversalState.get(tree).path.join('.');
+      const treeLabel = getLabel(tree);
+      const controlState = Object.keys(treeLabel)[0];
+
+      return (acc[controlState] = pathStr, acc)
+    }
+  };
+
+  return traverseObj(traverse, statesTree);
+}
+
+export function getStatesTransitionsMap(transitions) {
+  // Map a control state to the transitions which it as origin
+  return transitions.reduce((acc, transition) => {
+    const { from, event } = transition;
+    acc[from] = acc[from] || {};
+    acc[from][event] = transition;
+    return acc
+  }, {})
+}
+
 export function computeHistoryMaps(control_states) {
   if (Object.keys(control_states).length === 0) {throw `computeHistoryMaps : passed empty control states parameter?`}
 
