@@ -31,12 +31,17 @@
   * [Terminology](#terminology)
 
 # Features
+This library enables you to write user interfaces as state machines. You specify the machine. The
+ library computes an executable version of that machine. You use that to run your interface. 
+ It integrates easily with any or no framework. Tests can be automatically generated.
+
+Salient features :
+
 - **small size** : treeshakeable implementation, down from 7kB
 - **small API** : one function for the state machine, one function for the test generation, one 
 function for tracing
 - **just a function!** : easy to integrate into any framework
-- **[automatic test generation!](https://github.com/brucou/state-transducer-testing)** : write the machine, how to progress from one state to another, 
-and let the computer generate hundreds of tests for you
+- **[automatic test generation!](https://github.com/brucou/state-transducer-testing)** : write the machine, how to progress from one state to another, and let the computer generate hundreds of tests for you
 
 # Examples
 - [password meter component](https://codesandbox.io/s/73wy8jwk86)

@@ -250,6 +250,16 @@ export function getStatesTransitionsMap(transitions) {
   }, {})
 }
 
+export function getStatesTransitionsMaps(transitions) {
+  // Map a control state to the transitions which it as origin
+  return transitions.reduce((acc, transition) => {
+    const { from, event } = transition;
+    acc[from] = acc[from] || {};
+    acc[from][event] = acc[from][event] ? acc[from][event].concat(transition) : [transition];
+    return acc
+  }, {})
+}
+
 export function computeHistoryMaps(control_states) {
   if (Object.keys(control_states).length === 0) {throw `computeHistoryMaps : passed empty control states parameter?`}
 

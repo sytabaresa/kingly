@@ -1,5 +1,7 @@
 // TODO : write contracts!!
-import { findInitTransition, getStatesPath, getStatesTransitionsMap, getStatesType } from "./helpers"
+import {
+  findInitTransition, getStatesPath, getStatesTransitionsMap, getStatesTransitionsMaps, getStatesType
+} from "./helpers"
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
 import { INIT_EVENT, INIT_STATE } from "./properties"
 
@@ -154,6 +156,32 @@ export const validInitialTransition = {
   },
 };
 
+// T15. Init transitions can only occur from compound states or the initial state, i.e. A -INIT-> B iff A is a compound
+// state or A is the initial state
+export const initEventOnlyInCompoundStates = {
+  name: 'initEventOnlyInCompoundStates',
+  shouldThrow: false,
+  predicate: (fsmDef, settings, { statesTransitionsMap, statesType, statesPath }) => {
+    // The compound states below does not include the initial state by construction
+    const atomicStates = Object.keys(statesType).filter(controlState => !statesType[controlState]);
+    const atomicInitTransitions = atomicStates.map(
+      atomicState => ({
+        [atomicState]: statesTransitionsMap[atomicState] && statesTransitionsMap[atomicState][INIT_EVENT]
+      })
+    ).filter(obj => Object.values(obj)[0]);
+
+    const hasInitEventOnlyInCompoundStates = atomicInitTransitions.length === 0
+
+    return {
+      isFulfilled: hasInitEventOnlyInCompoundStates,
+      blame: {
+        message: `Found at least one atomic state with an entry transition! That is forbidden! Cf. log`,
+        info: { initTransitions: atomicInitTransitions }
+      }
+    }
+  },
+};
+
 // T5. Every compound state NOT the initial state A must have a valid transition A -INIT-> defined
 // T6. Every compound state NOT the initial state must have a valid INCONDITIONAL transition A -INIT-> defined
 // T7a. Every compound state NOT the initial state must have a valid INCONDITIONAL transition A -INIT-> defined which
@@ -227,17 +255,76 @@ export const validInitialTransitionForCompoundState = {
   },
 };
 
+// T11. If there is an eventless transition A -eventless-> B, there cannot be a competing A -ev-> X
+export const validEventLessTransitions = {
+  name: 'validEventLessTransitions',
+  shouldThrow: false,
+  predicate: (fsmDef, settings, { statesTransitionsMap, statesType, statesPath }) => {
+    // The compound states below does not include the initial state by construction
+    const stateList = Object.keys(statesType);
+    const failingOriginControlStates = stateList.map(state => {
+      return {
+        [state]: statesTransitionsMap[state] &&
+        `${void 0}` in statesTransitionsMap[state] &&
+        Object.keys(statesTransitionsMap[state]).length !== 1
+      }
+    }).filter(obj => Object.values(obj)[0] !== void 0 && Object.values(obj)[0]);
+
+    const isFulfilled = failingOriginControlStates.length === 0;
+
+    return {
+      isFulfilled,
+      blame: {
+        message: `Found at least one control state without both an eventless transition and a competing transition! Cf. log`,
+        info: { failingOriginControlStates }
+      }
+    }
+  },
+};
+
+// TODO : test
+// T12. All transitions A -ev-> * must have the same transition index, i.e. all associated guards must be together
+// in a single array and there cannot be two transition rows showcasing A -ev-> * transitions
+export const allStateTransitionsOnOneSingleRow = {
+  name: 'allStateTransitionsOnOneSingleRow',
+  shouldThrow: false,
+  predicate: (fsmDef, settings, { statesTransitionsMaps, statesType }) => {
+    const stateList = Object.keys(statesTransitionsMaps);
+    const statesTransitionsInfo = stateList.reduce((acc, state) => {
+      // TODO I am here
+      const events = Object.keys(statesTransitionsMaps[state]);
+      const wrongEventConfig = events.filter(event => statesTransitionsMaps[state][event].length > 1);
+      if (wrongEventConfig.length > 0) {
+        acc[state] = wrongEventConfig;
+      }
+
+      return acc
+    }, {});
+
+    const isFulfilled = Object.keys(statesTransitionsInfo).length === 0;
+
+    return {
+      isFulfilled,
+      blame: {
+        message: `Found at least one control state and one event for which the associated transition are not condensated under a unique row! Cf. log`,
+        info: { statesTransitionsInfo }
+      }
+    }
+  },
+};
+
 const fsmContracts = {
   computed: (fsmDef, settings) => {
     return {
       statesType: getStatesType(fsmDef.states),
       initTransition: findInitTransition(fsmDef.transitions),
       statesTransitionsMap: getStatesTransitionsMap(fsmDef.transitions),
+      statesTransitionsMaps: getStatesTransitionsMaps(fsmDef.transitions),
       statesPath: getStatesPath(fsmDef.states)
     }
   },
   description: 'FSM structure',
-  contracts: [noDuplicatedStates, noReservedStates, atLeastOneState, eventsAreStrings, validInitialConfig, validInitialTransition, validInitialTransitionForCompoundState],
+  contracts: [noDuplicatedStates, noReservedStates, atLeastOneState, eventsAreStrings, validInitialConfig, validInitialTransition, initEventOnlyInCompoundStates, validInitialTransitionForCompoundState, validEventLessTransitions, allStateTransitionsOnOneSingleRow],
 };
 
 /**
@@ -333,7 +420,7 @@ export const fsmContractChecker = makeContractHandler(fsmContracts);
 // history
 // ENFORCE, NOT IMPLEMENTED TODO in ROADMAP!!! impact on test generation
 // T10. A transition A -eventless-> B may have several or no guards, but at least one must be fulfilled
-// NOT ENFORCED, NOT IMPLEMENTED
+// NOT ENFORCED, immplemenation must be embedded in code
 // T11. If there is an eventless transition A -eventless-> B, there cannot be a competing A -ev-> X
 // ENFORCE
 // T12. All transitions A -ev-> * must have the same transition index, i.e. all associated guards must be together
@@ -347,6 +434,8 @@ export const fsmContractChecker = makeContractHandler(fsmContracts);
 // -ev->C. The event `ev` could trigger a transition towards either B or C
 // T15. Init transitions can only occur from compound states or the initial state, i.e. A -INIT-> B iff A is a compound
 // state or A is the initial state
+// T16. History states must be target states, and compound states
+// TODO : update readme with contracts enforced, also add those who I forgot here
 
 // Guards
 // G0. Guards are functions

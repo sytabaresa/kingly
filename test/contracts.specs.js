@@ -1,11 +1,12 @@
 import * as QUnit from "qunitjs"
 import { ACTION_IDENTITY, INIT_EVENT, INIT_STATE } from "../src"
-import { applyJSONpatch } from "./fsm_trace.specs"
 import {
-  atLeastOneState, fsmContractChecker, noDuplicatedStates, noReservedStates, validInitialTransition,
-  validInitialTransitionForCompoundState
+  allStateTransitionsOnOneSingleRow,
+  atLeastOneState, fsmContractChecker, initEventOnlyInCompoundStates, noDuplicatedStates, noReservedStates,
+  validEventLessTransitions,
+  validInitialTransition, validInitialTransitionForCompoundState
 } from "../src/contracts"
-import { formatMap, formatResult } from "./helpers"
+import { applyJSONpatch, formatResult } from "./helpers"
 
 const default_settings = {
   updateState: applyJSONpatch,
@@ -125,7 +126,7 @@ QUnit.test("fsmContracts(fsmDef, settings): compound states - invalid init trans
     transitions: [
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY },
       { from: 'C', to: 'B', event: 'ev', action: ACTION_IDENTITY },
-      { from: 'A', event: INIT_EVENT, guards : [{to: 'B', action: ACTION_IDENTITY , predicate: ()=>true}]}
+      { from: 'A', event: INIT_EVENT, guards: [{ to: 'B', action: ACTION_IDENTITY, predicate: () => true }] }
     ],
     initialExtendedState: {}
   };
@@ -216,5 +217,86 @@ QUnit.test("fsmContracts(fsmDef, settings): compound states - invalid init trans
     "A": "0.0",
     "B": "0.0.0",
     "C": "0.1"
+  }, message);
+});
+
+QUnit.test(`fsmContracts(fsmDef, settings): init events only in compound states `, function exec_test(assert) {
+  const fsmDef = {
+    states: { A: { B: '' }, C: '' },
+    events: ['ev'],
+    transitions: [
+      { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY },
+      { from: 'B', to: 'C', event: INIT_EVENT, action: ACTION_IDENTITY },
+      { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
+    ],
+    initialExtendedState: {}
+  };
+  const settings = default_settings;
+
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings);
+  const failureInfo = failingContracts.find(x => x.name === initEventOnlyInCompoundStates.name);
+  const { message, info } = failureInfo;
+  const { initTransitions } = info;
+  assert.deepEqual(isFulfilled, false, `Fails at least one contract`);
+  assert.deepEqual(initTransitions.map(formatResult), [
+    {
+      "B": {
+        "action": "ACTION_IDENTITY",
+        "event": "init",
+        "from": "B",
+        "to": "C"
+      }
+    }
+  ], message);
+});
+
+QUnit.test(`fsmContracts(fsmDef, settings): valid eventless transitions`, function exec_test(assert) {
+  const fsmDef = {
+    states: { A: { B: '' }, C: '' },
+    events: ['ev'],
+    transitions: [
+      { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY },
+      { from: 'B', to: 'C', event: void 0, action: ACTION_IDENTITY },
+      { from: 'B', to: 'A', event: 'anything', action: ACTION_IDENTITY },
+      { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
+    ],
+    initialExtendedState: {}
+  };
+  const settings = default_settings;
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings);
+  const failureInfo = failingContracts.find(x => x.name === validEventLessTransitions.name);
+  const { message, info } = failureInfo;
+  const { failingOriginControlStates } = info;
+  assert.deepEqual(isFulfilled, false, `Fails at least one contract`);
+  assert.deepEqual(failingOriginControlStates.map(formatResult), [
+    {
+      "B": true
+    }
+  ], message);
+});
+
+QUnit.test(`fsmContracts(fsmDef, settings): all state transitions defined in one row`, function exec_test(assert) {
+  const fsmDef = {
+    states: { A: { B: '' }, C: '' },
+    events: ['ev'],
+    transitions: [
+      { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY },
+      { from: 'B', to: 'C', event: 'anything', action: ACTION_IDENTITY },
+      { from: 'B', to: 'A', event: 'anything', action: ACTION_IDENTITY },
+      { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
+    ],
+    initialExtendedState: {}
+  };
+  const settings = default_settings;
+  debugger
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings);
+  const failureInfo = failingContracts.find(x => x.name === allStateTransitionsOnOneSingleRow.name);
+  const { message, info } = failureInfo;
+  const { statesTransitionsInfo } = info;
+  assert.deepEqual(isFulfilled, false, `Fails at least one contract`);
+  assert.deepEqual(statesTransitionsInfo, {
+    "B": [
+      "anything"
+    ]
   }, message);
 });
