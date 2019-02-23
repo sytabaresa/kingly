@@ -162,7 +162,7 @@ QUnit.test("no initial control state, no initial transition, event, no action, t
     const settings = Object.assign({}, default_settings, {debug : {checkContracts: true}});
     const fsm = create_state_machine(fsmDef, settings);
     const result = fsm({ ev: initialExtendedState });
-    }, /FAILS/, `Throws if no configuration for starting the machine `);
+    }, /failing/, `Throws if no configuration for starting the machine `);
 });
 
 QUnit.test("no initial control state, no initial transition, event, no action, true guard", function exec_test(assert) {
@@ -180,7 +180,7 @@ QUnit.test("no initial control state, no initial transition, event, no action, t
     const settings = Object.assign({}, default_settings, {debug : {checkContracts: true}});
     const fsm = create_state_machine(fsmDef, settings);
     const result = fsm({ ev: initialExtendedState });
-    }, /FAILS/, `Throws if invalid configuration for starting the machine `);
+    }, /failing/, `Throws if invalid configuration for starting the machine `);
 });
 
 QUnit.test("initial control state, event, action, false guard", function exec_test(assert) {

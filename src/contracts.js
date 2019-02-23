@@ -1,6 +1,8 @@
-// TODO : write contracts!!
 import {
-  findInitTransition, getStatesPath, getStatesTransitionsMap, getStatesTransitionsMaps, getStatesType
+  findInitTransition, getAncestorMap, getEventTransitionsMaps, getHistoryUnderlyingState, getStatesPath,
+  getStatesTransitionsMap,
+  getStatesTransitionsMaps,
+  getStatesType, isHistoryControlState
 } from "./helpers"
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
 import { INIT_EVENT, INIT_STATE } from "./properties"
@@ -97,7 +99,7 @@ export const eventsAreStrings = {
 
 export const validInitialConfig = {
   name: 'validInitialConfig',
-  shouldThrow: true,
+  shouldThrow: false,
   predicate: (fsmDef, settings, { initTransition }) => {
     const { initialControlState, transitions } = fsmDef;
 
@@ -282,16 +284,14 @@ export const validEventLessTransitions = {
   },
 };
 
-// TODO : test
 // T12. All transitions A -ev-> * must have the same transition index, i.e. all associated guards must be together
 // in a single array and there cannot be two transition rows showcasing A -ev-> * transitions
 export const allStateTransitionsOnOneSingleRow = {
   name: 'allStateTransitionsOnOneSingleRow',
   shouldThrow: false,
-  predicate: (fsmDef, settings, { statesTransitionsMaps, statesType }) => {
+  predicate: (fsmDef, settings, { statesTransitionsMaps }) => {
     const stateList = Object.keys(statesTransitionsMaps);
     const statesTransitionsInfo = stateList.reduce((acc, state) => {
-      // TODO I am here
       const events = Object.keys(statesTransitionsMaps[state]);
       const wrongEventConfig = events.filter(event => statesTransitionsMaps[state][event].length > 1);
       if (wrongEventConfig.length > 0) {
@@ -313,6 +313,118 @@ export const allStateTransitionsOnOneSingleRow = {
   },
 };
 
+// T14. Conflicting transitions are not allowed, i.e. A -ev-> B and A < OUTER_A is not compatible with OUTER_A
+// -ev->C. The event `ev` could trigger a transition towards either B or C
+export const noConflictingTransitionsWithAncestorState = {
+  name: 'noConflictingTransitionsWithAncestorState',
+  shouldThrow: false,
+  predicate: (fsmDef, settings, { statesTransitionsMaps, eventTransitionsMaps, ancestorMap }) => {
+    const eventList = Object.keys(eventTransitionsMaps);
+    const eventTransitionsInfo = eventList.reduce((acc, event) => {
+      const states = Object.keys(eventTransitionsMaps[event]);
+      // The wrongly configured states are those which have an ancestor also in the transition map for the same event
+      const wrongStateConfig = states
+        .filter(state => state !== INIT_STATE)
+        .map(state => ancestorMap[state] && {[state] : ancestorMap[state].find(
+        ancestorState => states.indexOf(ancestorState) > -1
+      )})
+        // removing cases : undefined and {[state]: undefined}
+        .filter(obj => {
+          return obj && Object.values(obj).filter(Boolean).length > 0
+        })
+      ;
+      if (wrongStateConfig.length > 0) {
+        acc[event] = wrongStateConfig;
+      }
+
+      return acc
+    }, {});
+
+    const isFulfilled = Object.keys(eventTransitionsInfo).length === 0;
+
+    return {
+      isFulfilled,
+      blame: {
+        message: `Found two conflicting transitions! A -ev-> X, and B -ev-> Y leads to ambiguity if A < B or B < A. Cf. log`,
+        info: { eventTransitionsInfo }
+      }
+    }
+  },
+};
+
+// T16.a History states must be target states
+export const isHistoryStatesTargetStates = {
+  name: 'isHistoryStatesTargetStates',
+  shouldThrow: false,
+  predicate: (fsmDef, settings, { statesTransitionsMaps }) => {
+    const wrongHistoryStates = fsmDef.transitions.reduce((acc, transition) => {
+      return isHistoryControlState(transition.from)
+      ? acc.concat(transition)
+        : acc
+    },[]);
+
+    const isFulfilled = Object.keys(wrongHistoryStates ).length === 0;
+
+    return {
+      isFulfilled,
+      blame: {
+        message: `Found a history pseudo state configured as the origin control state for a transition. History pseudo states should only be target control states. Cf. log`,
+        info: { wrongHistoryStates}
+      }
+    }
+  },
+};
+
+// T16.b History states must be compound states
+// TODO : I am here
+export const isHistoryStatesCompoundStates = {
+  name: 'isHistoryStatesCompoundStates',
+  shouldThrow: false,
+  predicate: (fsmDef, settings, { statesTransitionsMaps, statesType }) => {
+    const stateList = Object.keys(statesTransitionsMaps);
+    const wrongHistoryStates = stateList.map(originState => {
+      if (originState === INIT_STATE) return []
+
+      const events = Object.keys(statesTransitionsMaps[originState]);
+
+      return events.reduce((acc, event) => {
+        // I should only ever have one transition, that is checked in another contract
+        // !! if there are several transitions, we may have a false positive, but that is ok
+        // When the other contract will fail and the issue will be solved, and app will be rerun,
+        // this will be recomputed correctly
+        const transition = statesTransitionsMaps[originState][event][0];
+        const {guards, to} = transition;
+        if (!guards){
+          // Reminder: statesType[controlState] === true iff controlState is compound state
+          return isHistoryControlState(to) && !statesType[getHistoryUnderlyingState(to)]
+          ? acc.concat(transition)
+            : acc
+        }
+        else {
+          return guards.reduce((acc,guard )=> {
+            const {to} = guard;
+
+            return isHistoryControlState(to) && !statesType[getHistoryUnderlyingState(to)]
+              ? acc.concat(transition)
+              : acc
+          }, acc)
+        }
+        }, [])
+    })
+      .reduce((acc, x) => acc.concat(x), []);
+
+    const isFulfilled = Object.keys(wrongHistoryStates ).length === 0;
+
+    return {
+      isFulfilled,
+      blame: {
+        message: `Found a history pseudo state connected to an atomic state! History pseudo states only refer to compound states. Cf. log`,
+        info: { wrongHistoryStates, states: fsmDef.states}
+      }
+    }
+  },
+};
+
 const fsmContracts = {
   computed: (fsmDef, settings) => {
     return {
@@ -320,11 +432,13 @@ const fsmContracts = {
       initTransition: findInitTransition(fsmDef.transitions),
       statesTransitionsMap: getStatesTransitionsMap(fsmDef.transitions),
       statesTransitionsMaps: getStatesTransitionsMaps(fsmDef.transitions),
+      eventTransitionsMaps: getEventTransitionsMaps(fsmDef.transitions),
+      ancestorMap: getAncestorMap(fsmDef.states),
       statesPath: getStatesPath(fsmDef.states)
     }
   },
   description: 'FSM structure',
-  contracts: [noDuplicatedStates, noReservedStates, atLeastOneState, eventsAreStrings, validInitialConfig, validInitialTransition, initEventOnlyInCompoundStates, validInitialTransitionForCompoundState, validEventLessTransitions, allStateTransitionsOnOneSingleRow],
+  contracts: [noDuplicatedStates, noReservedStates, atLeastOneState, eventsAreStrings, validInitialConfig, validInitialTransition, initEventOnlyInCompoundStates, validInitialTransitionForCompoundState, validEventLessTransitions, allStateTransitionsOnOneSingleRow, noConflictingTransitionsWithAncestorState, isHistoryStatesTargetStates, isHistoryStatesCompoundStates],
 };
 
 /**
@@ -422,10 +536,10 @@ export const fsmContractChecker = makeContractHandler(fsmContracts);
 // T10. A transition A -eventless-> B may have several or no guards, but at least one must be fulfilled
 // NOT ENFORCED, immplemenation must be embedded in code
 // T11. If there is an eventless transition A -eventless-> B, there cannot be a competing A -ev-> X
-// ENFORCE
+// ENFORCE: DONE
 // T12. All transitions A -ev-> * must have the same transition index, i.e. all associated guards must be together
 // in a single array and there cannot be two transition rows showcasing A -ev-> * transitions
-// ENFORCE
+// ENFORCE: DONE
 // T13. Guards for a transition A -ev-> * must be : 1. non-overlapping, i.e. no two guards can be true at the same
 // time for any value handled by the state machine, 2. at least one guard must be fulfilled at all time. In short,
 // guards must partition the state space.
@@ -434,7 +548,9 @@ export const fsmContractChecker = makeContractHandler(fsmContracts);
 // -ev->C. The event `ev` could trigger a transition towards either B or C
 // T15. Init transitions can only occur from compound states or the initial state, i.e. A -INIT-> B iff A is a compound
 // state or A is the initial state
+// ENFORCE: DONE
 // T16. History states must be target states, and compound states
+// ENFORCE: DONE
 // TODO : update readme with contracts enforced, also add those who I forgot here
 
 // Guards
@@ -479,7 +595,9 @@ export const fsmContractChecker = makeContractHandler(fsmContracts);
 // ROADMAP : distingush a true final state. When final state receive event, throw? Not important in practice
 // B8. It is possible to reach any states
 // NOT ENFORCED. Just a warning to issue. reachable states requires a graph structure, and a traversal
-
+// TODO : warning if events declared but not found in transitions
+// TODO : warning if event found but not declared
+// TODO : same for states
 
 // Settings
 // S1. `settings.updateState` must be a pure function

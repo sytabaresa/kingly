@@ -1,8 +1,11 @@
 import * as QUnit from "qunitjs"
-import { ACTION_IDENTITY, INIT_EVENT, INIT_STATE } from "../src"
+import { ACTION_IDENTITY, DEEP, historyState, INIT_EVENT, INIT_STATE } from "../src"
 import {
   allStateTransitionsOnOneSingleRow,
-  atLeastOneState, fsmContractChecker, initEventOnlyInCompoundStates, noDuplicatedStates, noReservedStates,
+  atLeastOneState, fsmContractChecker, initEventOnlyInCompoundStates, isHistoryStatesCompoundStates,
+  isHistoryStatesTargetStates,
+  noConflictingTransitionsWithAncestorState,
+  noDuplicatedStates, noReservedStates,
   validEventLessTransitions,
   validInitialTransition, validInitialTransitionForCompoundState
 } from "../src/contracts"
@@ -288,7 +291,6 @@ QUnit.test(`fsmContracts(fsmDef, settings): all state transitions defined in one
     initialExtendedState: {}
   };
   const settings = default_settings;
-  debugger
   const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings);
   const failureInfo = failingContracts.find(x => x.name === allStateTransitionsOnOneSingleRow.name);
   const { message, info } = failureInfo;
@@ -300,3 +302,95 @@ QUnit.test(`fsmContracts(fsmDef, settings): all state transitions defined in one
     ]
   }, message);
 });
+
+QUnit.test(`fsmContracts(fsmDef, settings): no conflicting transition between two control states hierarchically related`, function exec_test(assert) {
+  const fsmDef = {
+    states: { A: { B: '' }, C: '' },
+    events: ['ev'],
+    transitions: [
+      { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY },
+      { from: 'A', to: 'C', event: 'anything', action: ACTION_IDENTITY },
+      { from: 'B', to: 'A', event: 'anything', action: ACTION_IDENTITY },
+      { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
+    ],
+    initialExtendedState: {}
+  };
+  const settings = default_settings;
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings);
+  const failureInfo = failingContracts.find(x => x.name === noConflictingTransitionsWithAncestorState.name);
+  const { message, info } = failureInfo;
+  const { eventTransitionsInfo } = info;
+  assert.deepEqual(isFulfilled, false, `Fails at least one contract`);
+  assert.deepEqual(eventTransitionsInfo, {
+    "anything": [
+      {
+        "B": "A"
+      }
+    ]
+  }, message);
+});
+
+QUnit.test(`fsmContracts(fsmDef, settings): no history pseudo state can be an origin state`, function exec_test(assert) {
+  const states = { A: { B: '' }, C: '' };
+  const fsmDef = {
+    states,
+    events: ['ev', 'anything'],
+    transitions: [
+      { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY },
+      { from: historyState(DEEP, 'A'), to: 'C', event: 'anything', action: ACTION_IDENTITY },
+      { from: 'B', to: 'A', event: 'ev', action: ACTION_IDENTITY },
+      { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
+    ],
+    initialExtendedState: {}
+  };
+  const settings = default_settings;
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings);
+  const failureInfo = failingContracts.find(x => x.name === isHistoryStatesTargetStates.name);
+  const { message, info } = failureInfo;
+  const { wrongHistoryStates } = info;
+  assert.deepEqual(isFulfilled, false, `Fails at least one contract`);
+  assert.deepEqual(wrongHistoryStates.map(formatResult), [
+    {
+      "action": "ACTION_IDENTITY",
+      "event": "anything",
+      "from": {
+        "deep": "A"
+      },
+      "to": "C"
+    }
+  ], message);
+});
+
+QUnit.test(`fsmContracts(fsmDef, settings): no history pseudo state can be an atomic state`, function exec_test(assert) {
+  // TODO : I am here
+  const states = { A: { B: '' }, C: '' };
+  const fsmDef = {
+    states,
+    events: ['ev', 'anything'],
+    transitions: [
+      { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY },
+      { from: 'C', to: historyState(DEEP, 'B'), event: 'anything', action: ACTION_IDENTITY },
+      { from: 'B', to: 'A', event: 'ev', action: ACTION_IDENTITY },
+      { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
+    ],
+    initialExtendedState: {}
+  };
+  const settings = default_settings;
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings);
+  const failureInfo = failingContracts.find(x => x.name === isHistoryStatesCompoundStates.name);
+  const { message, info } = failureInfo;
+  const { wrongHistoryStates } = info;
+  assert.deepEqual(isFulfilled, false, `Fails at least one contract`);
+  assert.deepEqual(wrongHistoryStates.map(formatResult), [
+    {
+      "action": "ACTION_IDENTITY",
+      "event": "anything",
+      "from": "C",
+      "to": {
+        "deep": "B"
+      }
+    }
+  ], message);
+});
+
+// TODO : don't forget to have a test with several failing contracts, maybe remove the throw = true?

@@ -1,5 +1,6 @@
 import {
-  ACTION_IDENTITY, create_state_machine, INIT_EVENT, INIT_STATE, makeHistoryStates, NO_OUTPUT, SHALLOW, DEEP, traceFSM
+  ACTION_IDENTITY, create_state_machine, INIT_EVENT, INIT_STATE, NO_OUTPUT, SHALLOW, DEEP, traceFSM,
+  historyState
 } from "../src"
 import { formatResult } from "./helpers"
 import * as QUnit from "qunitjs"
@@ -626,7 +627,6 @@ QUnit.test("shallow history transitions, event CASCADING transitions", function 
   const INNER_T = 'inner_t';
   const Z = 'z';
   const states = { [OUTER]: { [INNER]: { [INNER_S]: '', [INNER_T]: '' }, [OUTER_A]: '', [OUTER_B]: '' }, [Z]: '' };
-  const hs = makeHistoryStates(states);
   const fsmDef = {
     states,
     events: [EVENT1, EVENT2, EVENT3, EVENT4],
@@ -644,12 +644,12 @@ QUnit.test("shallow history transitions, event CASCADING transitions", function 
         from: Z, event: EVENT4, guards: [
           {
             predicate: function isDeep(x, e) {return x.history === DEEP},
-            to: hs(DEEP, OUTER),
+            to: historyState(DEEP, OUTER),
             action: incCounter
           },
           {
             predicate: function isShallow(x, e) {return x.history !== DEEP},
-            to: hs(SHALLOW, OUTER),
+            to: historyState(SHALLOW, OUTER),
             action: incCounter
           }
         ]
@@ -685,7 +685,6 @@ QUnit.test("deep history transitions, event CASCADING transitions", function exe
   const INNER_T = 'inner_t';
   const Z = 'z';
   const states = { [OUTER]: { [INNER]: { [INNER_S]: '', [INNER_T]: '' }, [OUTER_A]: '', [OUTER_B]: '' }, [Z]: '' };
-  const hs = makeHistoryStates(states);
   const fsmDef = {
     states,
     events: [EVENT1, EVENT2, EVENT3, EVENT4],
@@ -703,12 +702,12 @@ QUnit.test("deep history transitions, event CASCADING transitions", function exe
         from: Z, event: EVENT4, guards: [
           {
             predicate: function isDeep(x, e) {return x.history === DEEP},
-            to: hs(DEEP, OUTER),
+            to: historyState(DEEP, OUTER),
             action: incCounter
           },
           {
             predicate: function isShallow(x, e) {return x.history !== DEEP},
-            to: hs(SHALLOW, OUTER),
+            to: historyState(SHALLOW, OUTER),
             action: incCounter
           }
         ]
@@ -744,7 +743,6 @@ QUnit.test("with trace : shallow history transitions, event CASCADING transition
   const INNER_T = 'inner_t';
   const Z = 'z';
   const states = { [OUTER]: { [INNER]: { [INNER_S]: '', [INNER_T]: '' }, [OUTER_A]: '', [OUTER_B]: '' }, [Z]: '' };
-  const hs = makeHistoryStates(states);
   const fsmDef = {
     states,
     events: [EVENT1, EVENT2, EVENT3, EVENT4],
@@ -762,12 +760,12 @@ QUnit.test("with trace : shallow history transitions, event CASCADING transition
         from: Z, event: EVENT4, guards: [
           {
             predicate: function isDeep(x, e) {return x.history === DEEP},
-            to: hs(DEEP, OUTER),
+            to: historyState(DEEP, OUTER),
             action: incCounter
           },
           {
             predicate: function isShallow(x, e) {return x.history !== DEEP},
-            to: hs(SHALLOW, OUTER),
+            to: historyState(SHALLOW, OUTER),
             action: incCounter
           }
         ]
@@ -1003,7 +1001,6 @@ QUnit.test("with trace : shallow history transitions, event CASCADING transition
           },
           "targetControlState": {
             "shallow": "OUTER",
-            "type": {}
           },
           "transitionIndex": 8
         },
@@ -1048,7 +1045,6 @@ QUnit.test("with trace : deep history transitions, event CASCADING transitions",
   const INNER_T = 'inner_t';
   const Z = 'z';
   const states = { [OUTER]: { [INNER]: { [INNER_S]: '', [INNER_T]: '' }, [OUTER_A]: '', [OUTER_B]: '' }, [Z]: '' };
-  const hs = makeHistoryStates(states);
   const fsmDef = {
     states,
     events: [EVENT1, EVENT2, EVENT3, EVENT4],
@@ -1066,12 +1062,12 @@ QUnit.test("with trace : deep history transitions, event CASCADING transitions",
         from: Z, event: EVENT4, guards: [
           {
             predicate: function isDeep(x, e) {return x.history === DEEP},
-            to: hs(DEEP, OUTER),
+            to: historyState(DEEP, OUTER),
             action: incCounter
           },
           {
             predicate: function isShallow(x, e) {return x.history !== DEEP},
-            to: hs(SHALLOW, OUTER),
+            to: historyState(SHALLOW, OUTER),
             action: incCounter
           }
         ]
@@ -1307,7 +1303,6 @@ QUnit.test("with trace : deep history transitions, event CASCADING transitions",
           },
           "targetControlState": {
             "deep": "OUTER",
-            "type": {}
           },
           "transitionIndex": 8
         }
@@ -1324,7 +1319,6 @@ QUnit.test("shallow history transitions FROM INSIDE, event CASCADING transitions
   const INNER_T = 'inner_t';
   const Z = 'z';
   const states = { [OUTER]: { [INNER]: { [INNER_S]: '', [INNER_T]: '' }, [OUTER_A]: '', [OUTER_B]: '' }, [Z]: '' };
-  const hs = makeHistoryStates(states);
   const fsmDef = {
     states,
     events: [EVENT1, EVENT2, EVENT3, EVENT4],
@@ -1340,12 +1334,12 @@ QUnit.test("shallow history transitions FROM INSIDE, event CASCADING transitions
         from: INNER_T, event: EVENT4, guards: [
           {
             predicate: function isDeep(x, e) {return x.history === DEEP},
-            to: hs(DEEP, OUTER),
+            to: historyState(DEEP, OUTER),
             action: incCounterTwice
           },
           {
             predicate: function isShallow(x, e) {return x.history !== DEEP},
-            to: hs(SHALLOW, OUTER),
+            to: historyState(SHALLOW, OUTER),
             action: incCounterTwice
           }
         ]
@@ -1356,12 +1350,12 @@ QUnit.test("shallow history transitions FROM INSIDE, event CASCADING transitions
         from: Z, event: EVENT4, guards: [
           {
             predicate: function isDeep(x, e) {return x.history === DEEP},
-            to: hs(DEEP, OUTER),
+            to: historyState(DEEP, OUTER),
             action: incCounter
           },
           {
             predicate: function isShallow(x, e) {return x.history !== DEEP},
-            to: hs(SHALLOW, OUTER),
+            to: historyState(SHALLOW, OUTER),
             action: incCounter
           }
         ]
@@ -1396,7 +1390,6 @@ QUnit.test("deep history transitions FROM INSIDE, event CASCADING transitions", 
   const INNER_T = 'inner_t';
   const Z = 'z';
   const states = { [OUTER]: { [INNER]: { [INNER_S]: '', [INNER_T]: '' }, [OUTER_A]: '', [OUTER_B]: '' }, [Z]: '' };
-  const hs = makeHistoryStates(states);
   const fsmDef = {
     states,
     events: [EVENT1, EVENT2, EVENT3, EVENT4],
@@ -1412,12 +1405,12 @@ QUnit.test("deep history transitions FROM INSIDE, event CASCADING transitions", 
         from: INNER_T, event: EVENT4, guards: [
           {
             predicate: function isDeep(x, e) {return x.history === DEEP},
-            to: hs(DEEP, OUTER),
+            to: historyState(DEEP, OUTER),
             action: incCounterTwice
           },
           {
             predicate: function isShallow(x, e) {return x.history !== DEEP},
-            to: hs(SHALLOW, OUTER),
+            to: historyState(SHALLOW, OUTER),
             action: incCounterTwice
           }
         ]
@@ -1428,12 +1421,12 @@ QUnit.test("deep history transitions FROM INSIDE, event CASCADING transitions", 
         from: Z, event: EVENT4, guards: [
           {
             predicate: function isDeep(x, e) {return x.history === DEEP},
-            to: hs(DEEP, OUTER),
+            to: historyState(DEEP, OUTER),
             action: incCounter
           },
           {
             predicate: function isShallow(x, e) {return x.history !== DEEP},
-            to: hs(SHALLOW, OUTER),
+            to: historyState(SHALLOW, OUTER),
             action: incCounter
           }
         ]

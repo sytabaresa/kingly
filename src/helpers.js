@@ -244,6 +244,9 @@ export function getStatesTransitionsMap(transitions) {
   // Map a control state to the transitions which it as origin
   return transitions.reduce((acc, transition) => {
     const { from, event } = transition;
+    // NOTE: that should never be, but we need to be defensive here to keep semantics
+    if (isHistoryControlState(from)) return acc
+
     acc[from] = acc[from] || {};
     acc[from][event] = transition;
     return acc
@@ -254,10 +257,50 @@ export function getStatesTransitionsMaps(transitions) {
   // Map a control state to the transitions which it as origin
   return transitions.reduce((acc, transition) => {
     const { from, event } = transition;
+    // NOTE: that should never be, but we need to be defensive here to keep semantics
+    if (isHistoryControlState(from)) return acc
+
     acc[from] = acc[from] || {};
     acc[from][event] = acc[from][event] ? acc[from][event].concat(transition) : [transition];
     return acc
   }, {})
+}
+
+export function getEventTransitionsMaps(transitions) {
+  // Map an event to the origin control states of the transitions it triggers
+  return transitions.reduce((acc, transition) => {
+    const { from, event } = transition;
+    // NOTE: that should never be, but we need to be defensive here to keep semantics
+    if (isHistoryControlState(from)) return acc
+
+    acc[event] = acc[event] || {};
+    acc[event][from] = acc[event][from] ? acc[event][from].concat(transition) : [transition];
+    return acc
+  }, {})
+}
+
+export function getAncestorMap(statesTree){
+  const { getLabel, getChildren } = objectTreeLenses;
+
+  const traverse = {
+    strategy: PRE_ORDER,
+    seed: {},
+    visit: (acc, traversalState, tree) => {
+      const treeLabel = getLabel(tree);
+      const controlState = Object.keys(treeLabel)[0];
+      const children = getChildren(tree)
+      const childrenControlStates = children.map(tree => Object.keys(getLabel(tree))[0]);
+
+      childrenControlStates.forEach(state => {
+        acc[state] = acc[state] || [];
+        acc[state] = acc[state].concat(controlState);
+      });
+
+      return acc
+    }
+  };
+
+  return traverseObj(traverse, statesTree);
 }
 
 export function computeHistoryMaps(control_states) {
@@ -383,6 +426,10 @@ export function isDeepHistory(to) {
 
 export function getHistoryType(history) {
   return history[DEEP] ? DEEP : SHALLOW
+}
+
+export function getHistoryUnderlyingState(history){
+  return history[getHistoryType(history)]
 }
 
 export function isHistoryStateEdge(edge) {

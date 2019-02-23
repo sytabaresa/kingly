@@ -2,7 +2,8 @@ import {
   ACTION_IDENTITY, AUTO_EVENT, DEEP, history_symbol, INIT_EVENT, INIT_STATE, NO_OUTPUT, SHALLOW, STATE_PROTOTYPE_NAME
 } from "./properties";
 import {
-  arrayizeOutput, computeHistoryMaps, findInitTransition, get_fn_name, getFsmStateList, initHistoryDataStructure, keys,
+  arrayizeOutput, computeHistoryMaps, findInitTransition, get_fn_name, getFsmStateList, initHistoryDataStructure,
+  isHistoryControlState, keys,
   mapOverTransitionsActions, updateHistory, wrap
 } from "./helpers";
 import { fsmContractChecker } from "./contracts"
@@ -370,7 +371,7 @@ export function createStateMachine(fsmDef, settings) {
     let state_to;
     let state_to_name;
     // CASE : history state (H)
-    if (typeof to === "object" && to.type === history_symbol) {
+    if (isHistoryControlState(to)) {
       const history_type = to.deep ? DEEP : to.shallow ? SHALLOW : void 0;
       const history_target = to[history_type];
       // Edge case : history state (H) && no history (i.e. first time state is entered), target state
@@ -656,4 +657,10 @@ export function makeHistoryStates(states) {
       type: history_symbol
     }
   }
+}
+
+export function historyState(historyType, controlState) {
+    return {
+      [historyType]: controlState
+    }
 }
