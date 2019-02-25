@@ -500,12 +500,66 @@ export const haveTransitionsValidTypes = {
   },
 }
 
-// TODO : warning if events declared but not found in transitions
-// TODO : warning if event found but not declared
-// TODO : same for states
+// TODO : test it
+// T19a. warning if event triggers transitions but not declared
+// T19b. warning if event declared but does not trigger transition
+export const areEventsDeclared = {
+  name: 'areEventsDeclared',
+  shouldThrow: false,
+  predicate: (fsmDef, settings, { eventTransitionsMaps }) => {
+    const eventList = Object.keys(eventTransitionsMaps);
+    const declaredEventList = fsmDef.events;
+    const eventsDeclaredButNotTriggeringTransitions = declaredEventList
+      .map(declaredEvent => eventList.indexOf(declaredEvent) === -1 && declaredEvent)
+      .filter(Boolean);
+    const eventsNotDeclaredButTriggeringTransitions = eventList
+      .map(triggeringEvent => declaredEventList.indexOf(triggeringEvent) === -1 && triggeringEvent)
+      .filter(Boolean);
+
+    const isFulfilled = eventsDeclaredButNotTriggeringTransitions.length === 0
+      && eventsNotDeclaredButTriggeringTransitions.length === 0;
+
+    return {
+      isFulfilled,
+      blame: {
+        message: `All declared events must be used in transitions. All events used in transition must be declared! Cf. log`,
+        info: { eventsDeclaredButNotTriggeringTransitions,  eventsNotDeclaredButTriggeringTransitions}
+      }
+    }
+  },
+};
+
+// TODO : test it
+// T20a. warning if event triggers transitions but not declared
+// T20b. warning if event declared but does not trigger transition
+export const areStatesDeclared = {
+  name: 'areStatesDeclared',
+  shouldThrow: false,
+  predicate: (fsmDef, settings, { statesTransitionsMaps, statesType }) => {
+    const stateList = Object.keys(statesTransitionsMaps);
+    const declaredStateList = Object.keys(statesType);
+    const statesDeclaredButNotTriggeringTransitions = declaredStateList
+      .map(declaredState => stateList.indexOf(declaredState) === -1 && declaredState)
+      .filter(Boolean);
+    const statesNotDeclaredButTriggeringTransitions = stateList
+      .map(stateInTransition => declaredStateList.indexOf(stateInTransition) === -1 && stateInTransition)
+      .filter(Boolean);
+
+    const isFulfilled = statesDeclaredButNotTriggeringTransitions.length === 0
+      && statesDeclaredButNotTriggeringTransitions.length === 0;
+
+    return {
+      isFulfilled,
+      blame: {
+        message: `All declared states must be used in transitions. All states used in transition must be declared! Cf. log`,
+        info: { statesDeclaredButNotTriggeringTransitions,  statesNotDeclaredButTriggeringTransitions}
+      }
+    }
+  },
+};
+
 // TODO : check initial control state is a defined state in states
 // TODO : S1
-// TODO : complete README with table ENFORCED : Y/N, or just - [ ]
 // TODO : there are no incoming transitions to the reserved initial state, check if implemented or not
 // TODO : check again there is no guard on the initial transition or remove it from the README, but I should check
 // the action is identity, I should allow the guard though.
@@ -513,6 +567,7 @@ export const haveTransitionsValidTypes = {
 // defined for predicate by referential equality.
 // TODO: check that we have this implicityly : Compound states must not have eventless transitions defined on them
 // (would introduce ambiguity with the INIT transition)
+// TODO : complete README with table ENFORCED : Y/N, or just - [ ]
 
 const fsmContracts = {
   computed: (fsmDef, settings) => {
@@ -528,7 +583,7 @@ const fsmContracts = {
     }
   },
   description: 'FSM structure',
-  contracts: [noDuplicatedStates, noReservedStates, atLeastOneState, eventsAreStrings, validInitialConfig, validInitialTransition, initEventOnlyInCompoundStates, validInitialTransitionForCompoundState, validEventLessTransitions, allStateTransitionsOnOneSingleRow, noConflictingTransitionsWithAncestorState, isHistoryStatesExisting, isHistoryStatesTargetStates, isHistoryStatesCompoundStates, haveTransitionsValidTypes],
+  contracts: [noDuplicatedStates, noReservedStates, atLeastOneState, eventsAreStrings, validInitialConfig, validInitialTransition, initEventOnlyInCompoundStates, validInitialTransitionForCompoundState, validEventLessTransitions, allStateTransitionsOnOneSingleRow, noConflictingTransitionsWithAncestorState, isHistoryStatesExisting, isHistoryStatesTargetStates, isHistoryStatesCompoundStates, haveTransitionsValidTypes, areEventsDeclared, areStatesDeclared],
 };
 
 /**
