@@ -1,8 +1,8 @@
 import {
-  findInitTransition, getAncestorMap, getEventTransitionsMaps, getHistoryUnderlyingState, getStatesPath,
-  getStatesTransitionsMap,
-  getStatesTransitionsMaps,
-  getStatesType, isHistoryControlState
+  everyTransition, findInitTransition, getAncestorMap, getEventTransitionsMaps, getHistoryStatesMap,
+  getHistoryUnderlyingState, getStatesPath, getStatesTransitionsMap, getStatesTransitionsMaps, getStatesType,
+  isActionFactory,
+  isControlState, isEvent, isFunction, isHistoryControlState, reduceTransitions
 } from "./helpers"
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
 import { INIT_EVENT, INIT_STATE } from "./properties"
@@ -325,9 +325,11 @@ export const noConflictingTransitionsWithAncestorState = {
       // The wrongly configured states are those which have an ancestor also in the transition map for the same event
       const wrongStateConfig = states
         .filter(state => state !== INIT_STATE)
-        .map(state => ancestorMap[state] && {[state] : ancestorMap[state].find(
-        ancestorState => states.indexOf(ancestorState) > -1
-      )})
+        .map(state => ancestorMap[state] && {
+          [state]: ancestorMap[state].find(
+            ancestorState => states.indexOf(ancestorState) > -1
+          )
+        })
         // removing cases : undefined and {[state]: undefined}
         .filter(obj => {
           return obj && Object.values(obj).filter(Boolean).length > 0
@@ -359,24 +361,23 @@ export const isHistoryStatesTargetStates = {
   predicate: (fsmDef, settings, { statesTransitionsMaps }) => {
     const wrongHistoryStates = fsmDef.transitions.reduce((acc, transition) => {
       return isHistoryControlState(transition.from)
-      ? acc.concat(transition)
+        ? acc.concat(transition)
         : acc
-    },[]);
+    }, []);
 
-    const isFulfilled = Object.keys(wrongHistoryStates ).length === 0;
+    const isFulfilled = Object.keys(wrongHistoryStates).length === 0;
 
     return {
       isFulfilled,
       blame: {
         message: `Found a history pseudo state configured as the origin control state for a transition. History pseudo states should only be target control states. Cf. log`,
-        info: { wrongHistoryStates}
+        info: { wrongHistoryStates }
       }
     }
   },
 };
 
 // T16.b History states must be compound states
-// TODO : I am here
 export const isHistoryStatesCompoundStates = {
   name: 'isHistoryStatesCompoundStates',
   shouldThrow: false,
@@ -393,37 +394,125 @@ export const isHistoryStatesCompoundStates = {
         // When the other contract will fail and the issue will be solved, and app will be rerun,
         // this will be recomputed correctly
         const transition = statesTransitionsMaps[originState][event][0];
-        const {guards, to} = transition;
-        if (!guards){
+        const { guards, to } = transition;
+        if (!guards) {
           // Reminder: statesType[controlState] === true iff controlState is compound state
           return isHistoryControlState(to) && !statesType[getHistoryUnderlyingState(to)]
-          ? acc.concat(transition)
+            ? acc.concat(transition)
             : acc
         }
         else {
-          return guards.reduce((acc,guard )=> {
-            const {to} = guard;
+          return guards.reduce((acc, guard) => {
+            const { to } = guard;
 
             return isHistoryControlState(to) && !statesType[getHistoryUnderlyingState(to)]
               ? acc.concat(transition)
               : acc
           }, acc)
         }
-        }, [])
+      }, [])
     })
       .reduce((acc, x) => acc.concat(x), []);
 
-    const isFulfilled = Object.keys(wrongHistoryStates ).length === 0;
+    const isFulfilled = Object.keys(wrongHistoryStates).length === 0;
 
     return {
       isFulfilled,
       blame: {
         message: `Found a history pseudo state connected to an atomic state! History pseudo states only refer to compound states. Cf. log`,
-        info: { wrongHistoryStates, states: fsmDef.states}
+        info: { wrongHistoryStates, states: fsmDef.states }
       }
     }
   },
 };
+
+// T17 An history state must refer to an existing state
+export const isHistoryStatesExisting = {
+  name: 'isHistoryStatesExisting',
+  shouldThrow: false,
+  predicate: (fsmDef, settings, { historyStatesMap, statesType }) => {
+    const wrongHistoryStates = Array.from(historyStatesMap.entries())
+      .map(([historyState, transition]) => {
+        if (!everyTransition(flatTransition => flatTransition.to in statesType, transition)) {
+          return { historyState, transition }
+        }
+        else return void 0
+      })
+      .filter(Boolean);
+
+    const howMany = Object.keys(wrongHistoryStates).length;
+    const isFulfilled = howMany === 0;
+
+    return {
+      isFulfilled,
+      blame: {
+        message: `Found ${howMany} history pseudo statex referring to a control state that is not declared! Check the states property of the state machine definition.`,
+        info: { wrongHistoryStates, states: fsmDef.states }
+      }
+    }
+  },
+};
+
+export function isInconditionalTransition(transition) {
+  const { from, event, guards, to, actions } = transition;
+
+  return typeof guards === void 0 && to && isControlState(from) && isEvent(event) && isControlState(to) && isActionFactory(actions)
+}
+
+export function isValidGuard(guard) {
+  const {to, predicate, actions} = guard;
+
+  return to && isControlState(to) && isFunction(predicate) && isActionFactory(actions)
+}
+
+export function areCconditionalTransitions(transition) {
+  const { from, event, guards, to } = transition;
+
+  return guards && Array.isArray(guards) && !to && isControlState(from) && isEvent(event) && guards.every(isValidGuard)
+}
+
+// TODO : test it
+// T18. Transitions have a valid format, and are either inconditional (no guards) or conditional
+// events are strings
+// guards are functions
+// action factories are functions
+export const haveTransitionsValidTypes = {
+  name: 'haveTransitionsValidTypes',
+  shouldThrow: false,
+  predicate: (fsmDef, settings, { historyStatesMap, statesType }) => {
+    const { transitions } = fsmDef;
+    const wrongTransitions = transitions
+      .map((transition, transitionIndex) => {
+        return !isInconditionalTransition(transition) && !areCconditionalTransitions(transition) && {transition, index : transitionIndex}
+      })
+      .filter(Boolean)
+
+    const howMany = Object.keys(wrongTransitions).length;
+    const isFulfilled = howMany === 0;
+
+    return {
+      isFulfilled,
+      blame: {
+        message: `Found ${howMany} transitions with invalid format! Check logs for more details.`,
+        info: { wrongTransitions, transitions }
+      }
+    }
+  },
+}
+
+// TODO : warning if events declared but not found in transitions
+// TODO : warning if event found but not declared
+// TODO : same for states
+// TODO : check initial control state is a defined state in states
+// TODO : S1
+// TODO : complete README with table ENFORCED : Y/N, or just - [ ]
+// TODO : there are no incoming transitions to the reserved initial state, check if implemented or not
+// TODO : check again there is no guard on the initial transition or remove it from the README, but I should check
+// the action is identity, I should allow the guard though.
+// TODO : put as non enforced . there cannot be two transitions with the same `(from, event, predicate)` - sameness
+// defined for predicate by referential equality.
+// TODO: check that we have this implicityly : Compound states must not have eventless transitions defined on them
+// (would introduce ambiguity with the INIT transition)
 
 const fsmContracts = {
   computed: (fsmDef, settings) => {
@@ -434,11 +523,12 @@ const fsmContracts = {
       statesTransitionsMaps: getStatesTransitionsMaps(fsmDef.transitions),
       eventTransitionsMaps: getEventTransitionsMaps(fsmDef.transitions),
       ancestorMap: getAncestorMap(fsmDef.states),
-      statesPath: getStatesPath(fsmDef.states)
+      statesPath: getStatesPath(fsmDef.states),
+      historyStatesMap: getHistoryStatesMap(fsmDef.transitions),
     }
   },
   description: 'FSM structure',
-  contracts: [noDuplicatedStates, noReservedStates, atLeastOneState, eventsAreStrings, validInitialConfig, validInitialTransition, initEventOnlyInCompoundStates, validInitialTransitionForCompoundState, validEventLessTransitions, allStateTransitionsOnOneSingleRow, noConflictingTransitionsWithAncestorState, isHistoryStatesTargetStates, isHistoryStatesCompoundStates],
+  contracts: [noDuplicatedStates, noReservedStates, atLeastOneState, eventsAreStrings, validInitialConfig, validInitialTransition, initEventOnlyInCompoundStates, validInitialTransitionForCompoundState, validEventLessTransitions, allStateTransitionsOnOneSingleRow, noConflictingTransitionsWithAncestorState, isHistoryStatesExisting, isHistoryStatesTargetStates, isHistoryStatesCompoundStates, haveTransitionsValidTypes],
 };
 
 /**
@@ -455,14 +545,14 @@ function makeContractHandler(contractsDef) {
   return function checkContracts(...args) {
     const failingContracts = [];
     const computedArgs = contractsDef.computed.apply(null, args);
-    const isFulfilled = contractsDef.contracts.every(contract => {
+    const isFulfilled = contractsDef.contracts.reduce((acc, contract) => {
       const { name: contractName, select, predicate, shouldThrow } = contract;
       const fullArgs = args.concat(computedArgs);
       const { isFulfilled, blame } = predicate.apply(null, fullArgs);
       const blameMessageHeader = `${contractsDescription} FAILS ${contractName}!`;
       const { message, info } = blame || {};
 
-      if (isFulfilled) return true
+      if (isFulfilled) return acc
       else {
         failingContracts.push({ name: contractName, message, info });
         console.error(blameMessageHeader);
@@ -470,8 +560,11 @@ function makeContractHandler(contractsDef) {
         console.debug('Supporting error data:', info);
 
         if (shouldThrow) throw new Error([blameMessageHeader, `check console for information!`].join('\n'))
+        else {
+          return false
+        }
       }
-    })
+    }, true)
 
     return { isFulfilled, failingContracts }
   }
@@ -588,16 +681,12 @@ export const fsmContractChecker = makeContractHandler(fsmContracts);
 // B6. If an event is configured to be processed by the state machine, it must progress the machine (possibly
 // returning to the same state)
 // ENFORCED by T13, T4, T10, necessary for generative testing
-// TODO : I am here, and later complete with contracts in TODO
 // B7. There is only one 'dead' state, the final state. Any other state should feature transitions which progress
 // the state machine.
 // NOT ENFORCED. Not very important in practice. Several final states may also appear, though it is weird
 // ROADMAP : distingush a true final state. When final state receive event, throw? Not important in practice
 // B8. It is possible to reach any states
 // NOT ENFORCED. Just a warning to issue. reachable states requires a graph structure, and a traversal
-// TODO : warning if events declared but not found in transitions
-// TODO : warning if event found but not declared
-// TODO : same for states
 
 // Settings
 // S1. `settings.updateState` must be a pure function

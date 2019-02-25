@@ -186,3 +186,26 @@ From Test case generation approach for industrial automation systems 2011
  Furthermore, “the process of deriving tests tends to be unstructured, not reproducible, not documented,
 lacking detailed rationales for the test design, and dependent on the ingenuity of single 
 engineers” [7].  in Review of Model-Based Testing Approaches
+
+# DSL for state machines
+- I can use template literals!!! pass action functions in ${} it works!!! incredible
+
+Guards:
+---
+function xxx()
+---
+
+Actions :
+---
+function xxx(){}
+test if closure can be used this is evaluated so probably ??
+---
+Given ST1, When EV And guard THEN xxx
+or 
+ST1 => ST2 when EV AND guard
+ST1 => ST2 on EV if guard
+ST1:
+  EV when guard => ST2
+    DO actions 
+
+amazing world

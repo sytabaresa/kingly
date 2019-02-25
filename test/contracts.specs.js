@@ -3,6 +3,7 @@ import { ACTION_IDENTITY, DEEP, historyState, INIT_EVENT, INIT_STATE } from "../
 import {
   allStateTransitionsOnOneSingleRow,
   atLeastOneState, fsmContractChecker, initEventOnlyInCompoundStates, isHistoryStatesCompoundStates,
+  isHistoryStatesExisting,
   isHistoryStatesTargetStates,
   noConflictingTransitionsWithAncestorState,
   noDuplicatedStates, noReservedStates,
@@ -362,7 +363,6 @@ QUnit.test(`fsmContracts(fsmDef, settings): no history pseudo state can be an or
 });
 
 QUnit.test(`fsmContracts(fsmDef, settings): no history pseudo state can be an atomic state`, function exec_test(assert) {
-  // TODO : I am here
   const states = { A: { B: '' }, C: '' };
   const fsmDef = {
     states,
@@ -393,4 +393,38 @@ QUnit.test(`fsmContracts(fsmDef, settings): no history pseudo state can be an at
   ], message);
 });
 
-// TODO : don't forget to have a test with several failing contracts, maybe remove the throw = true?
+QUnit.test(`fsmContracts(fsmDef, settings): history pseudo state has to refer to a known state`, function exec_test(assert) {
+  const states = { A: { B: '' }, C: '' };
+  const fsmDef = {
+    states,
+    events: ['ev', 'anything'],
+    transitions: [
+      { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY },
+      { from: 'C', to: historyState(DEEP, 'X'), event: 'anything', action: ACTION_IDENTITY },
+      { from: 'B', to: 'A', event: 'ev', action: ACTION_IDENTITY },
+      { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
+    ],
+    initialExtendedState: {}
+  };
+  const settings = default_settings;
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings);
+  const failureInfo = failingContracts.find(x => x.name === isHistoryStatesExisting.name);
+  const { message, info } = failureInfo;
+  const { wrongHistoryStates } = info;
+  assert.deepEqual(isFulfilled, false, `Fails at least one contract`);
+  assert.deepEqual(wrongHistoryStates.map(formatResult), [
+    {
+      "historyState": {
+        "deep": "X"
+      },
+      "transition": {
+        "action": "ACTION_IDENTITY",
+        "event": "anything",
+        "from": "C",
+        "to": {
+          "deep": "X"
+        }
+      }
+    }
+  ], message);
+});

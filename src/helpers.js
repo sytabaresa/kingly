@@ -2,14 +2,30 @@
 import { DEEP, HISTORY_PREFIX, HISTORY_STATE_NAME, INIT_EVENT, INIT_STATE, NO_OUTPUT, SHALLOW } from "./properties"
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
 
-export function make_states(stateList){
+export function isFunction(x){
+  return typeof x === 'function'
+}
+
+export function isControlState(x){
+  return typeof x === 'string' || isHistoryControlState(x)
+}
+
+export function isEvent(x){
+  return typeof x === 'string'
+}
+
+export function isActionFactory(x){
+  return typeof x === 'function'
+}
+
+export function make_states(stateList) {
   return stateList.reduce((acc, state) => {
-    acc[state]="";
+    acc[state] = "";
     return acc
   }, {})
 }
 
-export function make_events(eventList){
+export function make_events(eventList) {
   return eventList
 }
 
@@ -222,7 +238,7 @@ export function getStatesType(statesTree) {
   return traverseObj(traverse, statesTree);
 }
 
-export function getStatesPath(statesTree){
+export function getStatesPath(statesTree) {
   const { getLabel } = objectTreeLenses;
 
   const traverse = {
@@ -279,7 +295,31 @@ export function getEventTransitionsMaps(transitions) {
   }, {})
 }
 
-export function getAncestorMap(statesTree){
+export function getHistoryStatesMap(transitions) {
+  return transitions.reduce((map, transition) => {
+    const { from, event, guards, to } = transition;
+    // NOTE: that should never be, but we need to be defensive here to keep semantics
+    if (isHistoryControlState(from)) {
+      map.set(from, transition)
+    }
+    else if (!guards && to && isHistoryControlState(to)) {
+      map.set(to, transition)
+    }
+    else if (guards && !to) {
+      guards.forEach(guard => {
+        const { to } = guard;
+
+        if (isHistoryControlState(to)) {
+          map.set(to, transition)
+        }
+      })
+    }
+
+    return map
+  }, new Map())
+}
+
+export function getAncestorMap(statesTree) {
   const { getLabel, getChildren } = objectTreeLenses;
 
   const traverse = {
@@ -390,6 +430,12 @@ export function reduceTransitions(reduceFn, seed, transitions) {
   return result
 }
 
+export function everyTransition(pred, transition) {
+  return reduceTransitions( (acc, flatTransition) => {
+    return acc && pred(flatTransition)
+  }, true, [transition])
+}
+
 export function computeTimesCircledOn(edgePath, edge) {
   return edgePath.reduce((acc, edgeInEdgePath) => edgeInEdgePath === edge ? acc + 1 : acc, 0);
 }
@@ -428,7 +474,7 @@ export function getHistoryType(history) {
   return history[DEEP] ? DEEP : SHALLOW
 }
 
-export function getHistoryUnderlyingState(history){
+export function getHistoryUnderlyingState(history) {
   return history[getHistoryType(history)]
 }
 
@@ -517,4 +563,3 @@ export function findInitTransition(transitions) {
     return transition.from === INIT_STATE && transition.event === INIT_EVENT
   })
 }
-
