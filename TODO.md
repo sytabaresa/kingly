@@ -11,6 +11,14 @@
   - eshop nice demo (vue) : https://github.com/sdras/sample-vue-shop
     - example of multi-step process
   - good example of routing and animations : https://page-transitions.com/, https://github.com/sdras/page-transitions-travelapp
+  - chess game
+  Programs : https://reactjsexample.com/chess-game-with-react-js/, https://www.techighness.com/post/develop-two-player-chess-game-with-react-js/
+    - use redux, supposedly super well written,
+    - none of them do check, checkmate, etc. probably because lots of if... so do it as a 
+    modification and write articles about it
+    - true chess with stock fish API but have server side... underwaterchess.com , https://www.reddit.com/r/reactjs/comments/53th5k/online_chess_made_with_react_and_redux/   
+    -    or https://pusher.com/tutorials/realtime-chess-game-react (real time chat on top)
+    - or pacman : https://github.com/platzhersh/pacman-canvas, from https://superdevresources.com/open-source-html5-games/
 
 - Promote
   - finish react-state-driven then vue-state-driven

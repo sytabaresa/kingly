@@ -7,15 +7,15 @@ export function isFunction(x){
 }
 
 export function isControlState(x){
-  return typeof x === 'string' || isHistoryControlState(x)
+  return x && typeof x === 'string' || isHistoryControlState(x)
 }
 
 export function isEvent(x){
-  return typeof x === 'string'
+  return x && typeof x === 'string'
 }
 
 export function isActionFactory(x){
-  return typeof x === 'function'
+  return x && typeof x === 'function'
 }
 
 export function make_states(stateList) {
@@ -296,27 +296,27 @@ export function getEventTransitionsMaps(transitions) {
 }
 
 export function getHistoryStatesMap(transitions) {
-  return transitions.reduce((map, transition) => {
-    const { from, event, guards, to } = transition;
-    // NOTE: that should never be, but we need to be defensive here to keep semantics
+  return reduceTransitions((map, flatTransition, guardIndex, transitionIndex) => {
+    const { from, event, to, action, predicate, gen} = flatTransition;
     if (isHistoryControlState(from)) {
-      map.set(from, transition)
+      const underlyingControlState = getHistoryUnderlyingState(from);
+      map.set(underlyingControlState, (map.get(underlyingControlState)||[]).concat([flatTransition]));
     }
-    else if (!guards && to && isHistoryControlState(to)) {
-      map.set(to, transition)
-    }
-    else if (guards && !to) {
-      guards.forEach(guard => {
-        const { to } = guard;
-
-        if (isHistoryControlState(to)) {
-          map.set(to, transition)
-        }
-      })
+    else if (isHistoryControlState(to)) {
+      const underlyingControlState = getHistoryUnderlyingState(to);
+      map.set(underlyingControlState, (map.get(underlyingControlState)||[]).concat([flatTransition]));
     }
 
     return map
-  }, new Map())
+  }, new Map(), transitions);
+}
+
+export function getTargetStatesMap(transitions) {
+  return reduceTransitions((map, flatTransition, guardIndex, transitionIndex) => {
+    const {to} = flatTransition;
+    map.set(to, (map.get(to) || []).concat([flatTransition]));
+    return map
+  }, new Map(), transitions);
 }
 
 export function getAncestorMap(statesTree) {

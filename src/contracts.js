@@ -1,17 +1,15 @@
 import {
   everyTransition, findInitTransition, getAncestorMap, getEventTransitionsMaps, getHistoryStatesMap,
   getHistoryUnderlyingState, getStatesPath, getStatesTransitionsMap, getStatesTransitionsMaps, getStatesType,
-  isActionFactory,
-  isControlState, isEvent, isFunction, isHistoryControlState, reduceTransitions
+  getTargetStatesMap,
+  isActionFactory, isControlState, isEvent, isFunction, isHistoryControlState
 } from "./helpers"
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
-import { INIT_EVENT, INIT_STATE } from "./properties"
+import { ACTION_IDENTITY, INIT_EVENT, INIT_STATE } from "./properties"
 
 // Contracts
-/**
- * State names must be unique
- * @type {Contract}
- */
+
+// S2. State names must be unique
 export const noDuplicatedStates = {
   name: 'noDuplicatedStates',
   shouldThrow: false,
@@ -82,6 +80,32 @@ export const atLeastOneState = {
   },
 };
 
+// S5. check initial control state is a defined state in states
+export const isInitialControlStateDeclared = {
+  name: 'isInitialControlStateDeclared',
+  shouldThrow: false,
+  predicate: (fsmDef, settings, { initTransition , statesType}) => {
+    const { initialControlState, transitions } = fsmDef;
+    const stateList = Object.keys(statesType);
+    if (initialControlState) {
+      return {
+        isFulfilled: stateList.indexOf(initialControlState) > -1,
+        blame: {
+          message: `Configured initial control state must be a declared state. Cf. log`,
+          info: { initialControlState, states: stateList }
+        }
+      }
+    }
+    else {
+      return {
+        isFulfilled: true,
+        blame: void 0
+      }
+    }
+
+  },
+};
+
 // E0. `fsmDef.events` msut be an array of strings
 export const eventsAreStrings = {
   name: 'eventsAreStrings',
@@ -132,21 +156,30 @@ export const validInitialConfig = {
 // T2. A transition away from the initial state can only be triggered by the initial event
 // T7b. The initial state must have a valid transition INIT_STATE -INIT-> defined which does not have a history
 // state as target
+// TODO : test it
+// T23. We allow conditional initial transitions, but what about the action ? should it be always identity? We
+// can't run any actions. We can update internal state, but we can't trace it, so we loose tracing properties and
+// debugging!. So enforce ACTIONS to be identity
 export const validInitialTransition = {
   name: 'validInitialTransition',
   shouldThrow: false,
   predicate: (fsmDef, settings, { initTransition }) => {
     const { initialControlState, transitions } = fsmDef;
-    // Find transitions from INIT_STATE
-    // Can only be one
-    // That one must have INIT_EVENT
     const initTransitions = transitions.reduce((acc, transition) => {
       transition.from === INIT_STATE && acc.push(transition);
       return acc
     }, []);
+    // DOC : or not, we allow conditional init transitions!! allow to set the initial state depending on settings!
     const isFulfilled =
       (initialControlState && !initTransition) ||
-      (!initialControlState && initTransition && initTransitions.length === 1 && initTransition.event === INIT_EVENT && typeof initTransition.to === 'string');
+      (!initialControlState && initTransition && initTransitions.length === 1 && initTransition.event === INIT_EVENT
+        && (
+          isInconditionalTransition(initTransition) && initTransition.actions === ACTION_IDENTITY
+          || areCconditionalTransitions(initTransition) && initTransition.guards.every(guard =>
+            guard.actions === ACTION_IDENTITY
+          )
+        )
+      );
 
     return {
       isFulfilled,
@@ -238,7 +271,9 @@ export const validInitialTransitionForCompoundState = {
         const { from, to } = initTransition;
 
         // Don't forget to also eliminate the case when from = to
-        return from !== to && statesPath[to].startsWith(statesPath[from])
+        // Also note that wwe check that `to` is in statesPath as one is derived from states in transitions, and the
+        // other from declared states
+        return from !== to && statesPath[to] && statesPath[to].startsWith(statesPath[from])
       });
     if (!allHaveTargetStatesWithinHierarchy) {
       return {
@@ -258,6 +293,9 @@ export const validInitialTransitionForCompoundState = {
 };
 
 // T11. If there is an eventless transition A -eventless-> B, there cannot be a competing A -ev-> X
+// TODO : test it
+// T24. Check that we have this implicitly : Compound states must not have eventless transitions
+// defined on them (would introduce ambiguity with the INIT transition).
 export const validEventLessTransitions = {
   name: 'validEventLessTransitions',
   shouldThrow: false,
@@ -431,23 +469,20 @@ export const isHistoryStatesExisting = {
   name: 'isHistoryStatesExisting',
   shouldThrow: false,
   predicate: (fsmDef, settings, { historyStatesMap, statesType }) => {
-    const wrongHistoryStates = Array.from(historyStatesMap.entries())
-      .map(([historyState, transition]) => {
-        if (!everyTransition(flatTransition => flatTransition.to in statesType, transition)) {
-          return { historyState, transition }
-        }
-        else return void 0
+    const invalidTransitions = Array.from(historyStatesMap.entries())
+      .map(([historyState, flatTransitions]) => {
+        return !(historyState in statesType) && {historyState, flatTransitions}
       })
       .filter(Boolean);
 
-    const howMany = Object.keys(wrongHistoryStates).length;
+    const howMany = Object.keys(invalidTransitions).length;
     const isFulfilled = howMany === 0;
 
     return {
       isFulfilled,
       blame: {
-        message: `Found ${howMany} history pseudo statex referring to a control state that is not declared! Check the states property of the state machine definition.`,
-        info: { wrongHistoryStates, states: fsmDef.states }
+        message: `Found ${howMany} history pseudo state referring to a control state that is not declared! Check the states property of the state machine definition.`,
+        info: { invalidTransitions, states: fsmDef.states }
       }
     }
   },
@@ -460,7 +495,7 @@ export function isInconditionalTransition(transition) {
 }
 
 export function isValidGuard(guard) {
-  const {to, predicate, actions} = guard;
+  const { to, predicate, actions } = guard;
 
   return to && isControlState(to) && isFunction(predicate) && isActionFactory(actions)
 }
@@ -479,11 +514,14 @@ export function areCconditionalTransitions(transition) {
 export const haveTransitionsValidTypes = {
   name: 'haveTransitionsValidTypes',
   shouldThrow: false,
-  predicate: (fsmDef, settings, { historyStatesMap, statesType }) => {
+  predicate: (fsmDef) => {
     const { transitions } = fsmDef;
     const wrongTransitions = transitions
       .map((transition, transitionIndex) => {
-        return !isInconditionalTransition(transition) && !areCconditionalTransitions(transition) && {transition, index : transitionIndex}
+        return !isInconditionalTransition(transition) && !areCconditionalTransitions(transition) && {
+          transition,
+          index: transitionIndex
+        }
       })
       .filter(Boolean)
 
@@ -500,9 +538,6 @@ export const haveTransitionsValidTypes = {
   },
 }
 
-// TODO : test it
-// T19a. warning if event triggers transitions but not declared
-// T19b. warning if event declared but does not trigger transition
 export const areEventsDeclared = {
   name: 'areEventsDeclared',
   shouldThrow: false,
@@ -514,7 +549,8 @@ export const areEventsDeclared = {
       .filter(Boolean);
     const eventsNotDeclaredButTriggeringTransitions = eventList
       .map(triggeringEvent => declaredEventList.indexOf(triggeringEvent) === -1 && triggeringEvent)
-      .filter(Boolean);
+      .filter(Boolean)
+      .filter(ev => ev !== INIT_EVENT);
 
     const isFulfilled = eventsDeclaredButNotTriggeringTransitions.length === 0
       && eventsNotDeclaredButTriggeringTransitions.length === 0;
@@ -523,15 +559,12 @@ export const areEventsDeclared = {
       isFulfilled,
       blame: {
         message: `All declared events must be used in transitions. All events used in transition must be declared! Cf. log`,
-        info: { eventsDeclaredButNotTriggeringTransitions,  eventsNotDeclaredButTriggeringTransitions}
+        info: { eventsDeclaredButNotTriggeringTransitions, eventsNotDeclaredButTriggeringTransitions }
       }
     }
   },
 };
 
-// TODO : test it
-// T20a. warning if event triggers transitions but not declared
-// T20b. warning if event declared but does not trigger transition
 export const areStatesDeclared = {
   name: 'areStatesDeclared',
   shouldThrow: false,
@@ -542,7 +575,8 @@ export const areStatesDeclared = {
       .map(declaredState => stateList.indexOf(declaredState) === -1 && declaredState)
       .filter(Boolean);
     const statesNotDeclaredButTriggeringTransitions = stateList
-      .map(stateInTransition => declaredStateList.indexOf(stateInTransition) === -1 && stateInTransition)
+      .map(stateInTransition =>
+        stateInTransition !== INIT_STATE && declaredStateList.indexOf(stateInTransition) === -1 && stateInTransition)
       .filter(Boolean);
 
     const isFulfilled = statesDeclaredButNotTriggeringTransitions.length === 0
@@ -552,22 +586,46 @@ export const areStatesDeclared = {
       isFulfilled,
       blame: {
         message: `All declared states must be used in transitions. All states used in transition must be declared! Cf. log`,
-        info: { statesDeclaredButNotTriggeringTransitions,  statesNotDeclaredButTriggeringTransitions}
+        info: { statesDeclaredButNotTriggeringTransitions, statesNotDeclaredButTriggeringTransitions }
       }
     }
   },
 };
 
-// TODO : check initial control state is a defined state in states
-// TODO : S1
-// TODO : there are no incoming transitions to the reserved initial state, check if implemented or not
-// TODO : check again there is no guard on the initial transition or remove it from the README, but I should check
-// the action is identity, I should allow the guard though.
+// TODO : test it
+// T25. SS1
+export const isValidSettings = {
+  name: 'isValidSettings',
+  shouldThrow: false,
+  predicate: (fsmDef, settings) => {
+    if (!settings) {
+      return {
+        isFulfilled: false,
+        blame: {
+          message: `Settings for the state machine must be defined! You passed a falsy value for settings!`,
+          info: { settings}
+        }
+      }
+    }
+    else {
+      const {updateState}= settings;
+      return {
+        isFulfilled: isFunction(updateState),
+        blame: {
+          message: `settings.updateState must be a function!`,
+          info: { settings}
+        }
+      }
+    }
+  },
+};
+
+// TODO L I am in T22, helper fucntion done and getTargetStatesMap included in fsmContracts
+// TODO : T22. There are no incoming transitions to the reserved initial state, check if implemented or not, prob. not
+// TODO : complete README with table ENFORCED : Y/N, or just - [ ]
 // TODO : put as non enforced . there cannot be two transitions with the same `(from, event, predicate)` - sameness
 // defined for predicate by referential equality.
-// TODO: check that we have this implicityly : Compound states must not have eventless transitions defined on them
-// (would introduce ambiguity with the INIT transition)
-// TODO : complete README with table ENFORCED : Y/N, or just - [ ]
+//
 
 const fsmContracts = {
   computed: (fsmDef, settings) => {
@@ -580,10 +638,11 @@ const fsmContracts = {
       ancestorMap: getAncestorMap(fsmDef.states),
       statesPath: getStatesPath(fsmDef.states),
       historyStatesMap: getHistoryStatesMap(fsmDef.transitions),
+      targetStatesMap: getTargetStatesMap(fsmDef.transitions)
     }
   },
   description: 'FSM structure',
-  contracts: [noDuplicatedStates, noReservedStates, atLeastOneState, eventsAreStrings, validInitialConfig, validInitialTransition, initEventOnlyInCompoundStates, validInitialTransitionForCompoundState, validEventLessTransitions, allStateTransitionsOnOneSingleRow, noConflictingTransitionsWithAncestorState, isHistoryStatesExisting, isHistoryStatesTargetStates, isHistoryStatesCompoundStates, haveTransitionsValidTypes, areEventsDeclared, areStatesDeclared],
+  contracts: [isValidSettings, haveTransitionsValidTypes, noDuplicatedStates, noReservedStates, atLeastOneState, eventsAreStrings, validInitialConfig, validInitialTransition, initEventOnlyInCompoundStates, validInitialTransitionForCompoundState, validEventLessTransitions, allStateTransitionsOnOneSingleRow, noConflictingTransitionsWithAncestorState, isHistoryStatesExisting, isHistoryStatesTargetStates, isHistoryStatesCompoundStates, areEventsDeclared, areStatesDeclared, isInitialControlStateDeclared],
 };
 
 /**
