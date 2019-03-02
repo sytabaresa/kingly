@@ -1,8 +1,7 @@
 import {
-  everyTransition, findInitTransition, getAncestorMap, getEventTransitionsMaps, getHistoryStatesMap,
-  getHistoryUnderlyingState, getStatesPath, getStatesTransitionsMap, getStatesTransitionsMaps, getStatesType,
-  getTargetStatesMap,
-  isActionFactory, isControlState, isEvent, isFunction, isHistoryControlState
+  findInitTransition, getAncestorMap, getEventTransitionsMaps, getHistoryStatesMap, getHistoryUnderlyingState,
+  getStatesPath, getStatesTransitionsMap, getStatesTransitionsMaps, getStatesType, getTargetStatesMap, isActionFactory,
+  isControlState, isEvent, isFunction, isHistoryControlState
 } from "./helpers"
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
 import { ACTION_IDENTITY, INIT_EVENT, INIT_STATE } from "./properties"
@@ -84,7 +83,7 @@ export const atLeastOneState = {
 export const isInitialControlStateDeclared = {
   name: 'isInitialControlStateDeclared',
   shouldThrow: false,
-  predicate: (fsmDef, settings, { initTransition , statesType}) => {
+  predicate: (fsmDef, settings, { initTransition, statesType }) => {
     const { initialControlState, transitions } = fsmDef;
     const stateList = Object.keys(statesType);
     if (initialControlState) {
@@ -156,7 +155,6 @@ export const validInitialConfig = {
 // T2. A transition away from the initial state can only be triggered by the initial event
 // T7b. The initial state must have a valid transition INIT_STATE -INIT-> defined which does not have a history
 // state as target
-// TODO : test it
 // T23. We allow conditional initial transitions, but what about the action ? should it be always identity? We
 // can't run any actions. We can update internal state, but we can't trace it, so we loose tracing properties and
 // debugging!. So enforce ACTIONS to be identity
@@ -174,9 +172,9 @@ export const validInitialTransition = {
       (initialControlState && !initTransition) ||
       (!initialControlState && initTransition && initTransitions.length === 1 && initTransition.event === INIT_EVENT
         && (
-          isInconditionalTransition(initTransition) && initTransition.actions === ACTION_IDENTITY
+          isInconditionalTransition(initTransition) && initTransition.action === ACTION_IDENTITY
           || areCconditionalTransitions(initTransition) && initTransition.guards.every(guard =>
-            guard.actions === ACTION_IDENTITY
+            guard.action === ACTION_IDENTITY
           )
         )
       );
@@ -293,7 +291,6 @@ export const validInitialTransitionForCompoundState = {
 };
 
 // T11. If there is an eventless transition A -eventless-> B, there cannot be a competing A -ev-> X
-// TODO : test it
 // T24. Check that we have this implicitly : Compound states must not have eventless transitions
 // defined on them (would introduce ambiguity with the INIT transition).
 export const validEventLessTransitions = {
@@ -471,7 +468,7 @@ export const isHistoryStatesExisting = {
   predicate: (fsmDef, settings, { historyStatesMap, statesType }) => {
     const invalidTransitions = Array.from(historyStatesMap.entries())
       .map(([historyState, flatTransitions]) => {
-        return !(historyState in statesType) && {historyState, flatTransitions}
+        return !(historyState in statesType) && { historyState, flatTransitions }
       })
       .filter(Boolean);
 
@@ -489,24 +486,24 @@ export const isHistoryStatesExisting = {
 };
 
 export function isInconditionalTransition(transition) {
-  const { from, event, guards, to, actions } = transition;
+  const { from, event, guards, to, action } = transition;
 
-  return typeof guards === void 0 && to && isControlState(from) && isEvent(event) && isControlState(to) && isActionFactory(actions)
+  return typeof guards === `${void 0}` && to && isControlState(from) && isEvent(event) && isControlState(to) && isActionFactory(action)
 }
 
 export function isValidGuard(guard) {
-  const { to, predicate, actions } = guard;
+  const { to, predicate, action } = guard;
 
-  return to && isControlState(to) && isFunction(predicate) && isActionFactory(actions)
+  return to && isControlState(to) && isFunction(predicate) && isActionFactory(action)
 }
 
 export function areCconditionalTransitions(transition) {
   const { from, event, guards, to } = transition;
 
-  return guards && Array.isArray(guards) && !to && isControlState(from) && isEvent(event) && guards.every(isValidGuard)
+  return guards && Array.isArray(guards) && guards.length > 0
+    && !to && isControlState(from) && isEvent(event) && guards.every(isValidGuard)
 }
 
-// TODO : test it
 // T18. Transitions have a valid format, and are either inconditional (no guards) or conditional
 // events are strings
 // guards are functions
@@ -592,7 +589,6 @@ export const areStatesDeclared = {
   },
 };
 
-// TODO : test it
 // T25. SS1
 export const isValidSettings = {
   name: 'isValidSettings',
@@ -603,29 +599,52 @@ export const isValidSettings = {
         isFulfilled: false,
         blame: {
           message: `Settings for the state machine must be defined! You passed a falsy value for settings!`,
-          info: { settings}
+          info: { settings }
         }
       }
     }
     else {
-      const {updateState}= settings;
+      const { updateState } = settings;
       return {
         isFulfilled: isFunction(updateState),
         blame: {
           message: `settings.updateState must be a function!`,
-          info: { settings}
+          info: { settings }
         }
       }
     }
   },
 };
 
-// TODO L I am in T22, helper fucntion done and getTargetStatesMap included in fsmContracts
-// TODO : T22. There are no incoming transitions to the reserved initial state, check if implemented or not, prob. not
-// TODO : complete README with table ENFORCED : Y/N, or just - [ ]
-// TODO : put as non enforced . there cannot be two transitions with the same `(from, event, predicate)` - sameness
-// defined for predicate by referential equality.
-//
+// T22. There are no incoming transitions to the reserved initial state, check if implemented or not, prob. not
+export const isInitialStateOriginState = {
+  name: 'isInitialStateOriginState',
+  shouldThrow: false,
+  predicate: (fsmDef, settings, {targetStatesMap}) => {
+
+    if (Array.from(targetStatesMap.keys()).indexOf(INIT_STATE) > -1) {
+      return {
+        isFulfilled: false,
+        blame: {
+          message: `Found at least one transition with the initial state as target state! CF. log`,
+          info: { targetStates : Array.from(targetStatesMap.keys()), transitions  : fsmDef.transitions }
+        }
+      }
+    }
+    else {
+      return {
+        isFulfilled: true,
+        blame: void 0
+      }
+    }
+  },
+};
+
+// TODO - eventless self-transitions are forbidden (while theoretically possible, the feature is of
+// little practical value, though being a possible source of ambiguity or infinite loops)
+// TODO : add tryCatch for catching exception for predicates, actions, updateState any user provided function, only
+// if debug is set,
+// TODO: make a test which shows how updates and output are aggregated when seeral of them on a transition
 
 const fsmContracts = {
   computed: (fsmDef, settings) => {
@@ -642,7 +661,7 @@ const fsmContracts = {
     }
   },
   description: 'FSM structure',
-  contracts: [isValidSettings, haveTransitionsValidTypes, noDuplicatedStates, noReservedStates, atLeastOneState, eventsAreStrings, validInitialConfig, validInitialTransition, initEventOnlyInCompoundStates, validInitialTransitionForCompoundState, validEventLessTransitions, allStateTransitionsOnOneSingleRow, noConflictingTransitionsWithAncestorState, isHistoryStatesExisting, isHistoryStatesTargetStates, isHistoryStatesCompoundStates, areEventsDeclared, areStatesDeclared, isInitialControlStateDeclared],
+  contracts: [isValidSettings, isInitialControlStateDeclared, isInitialStateOriginState, eventsAreStrings, haveTransitionsValidTypes, noDuplicatedStates, noReservedStates, atLeastOneState, areEventsDeclared, areStatesDeclared, validInitialConfig, validInitialTransition, initEventOnlyInCompoundStates, validInitialTransitionForCompoundState, validEventLessTransitions, allStateTransitionsOnOneSingleRow, noConflictingTransitionsWithAncestorState, isHistoryStatesExisting, isHistoryStatesTargetStates, isHistoryStatesCompoundStates],
 };
 
 /**
@@ -739,7 +758,8 @@ export const fsmContractChecker = makeContractHandler(fsmContracts);
 // out-of-hierarchy INIT transitions)
 // T9. A valid transition to a history state must transition to the history state containing parent, if there is no
 // history
-// ENFORCE, NOT IMPLEMENTED TODO in ROADMAP!!! impact on test generation
+// ENFORCE, NOT IMPLEMENTED
+// NOTE : why? should count as default entering the state i.e. take the INIT transition ? or error?
 // T10. A transition A -eventless-> B may have several or no guards, but at least one must be fulfilled
 // NOT ENFORCED, immplemenation must be embedded in code
 // T11. If there is an eventless transition A -eventless-> B, there cannot be a competing A -ev-> X
@@ -758,7 +778,6 @@ export const fsmContractChecker = makeContractHandler(fsmContracts);
 // ENFORCE: DONE
 // T16. History states must be target states, and compound states
 // ENFORCE: DONE
-// TODO : update readme with contracts enforced, also add those who I forgot here
 
 // Guards
 // G0. Guards are functions

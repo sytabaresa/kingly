@@ -2,19 +2,19 @@
 import { DEEP, HISTORY_PREFIX, HISTORY_STATE_NAME, INIT_EVENT, INIT_STATE, NO_OUTPUT, SHALLOW } from "./properties"
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
 
-export function isFunction(x){
+export function isFunction(x) {
   return typeof x === 'function'
 }
 
-export function isControlState(x){
+export function isControlState(x) {
   return x && typeof x === 'string' || isHistoryControlState(x)
 }
 
-export function isEvent(x){
+export function isEvent(x) {
   return x && typeof x === 'string'
 }
 
-export function isActionFactory(x){
+export function isActionFactory(x) {
   return x && typeof x === 'function'
 }
 
@@ -267,6 +267,7 @@ export function getStatesTransitionsMap(transitions) {
     acc[from][event] = transition;
     return acc
   }, {})
+  || {}
 }
 
 export function getStatesTransitionsMaps(transitions) {
@@ -280,6 +281,7 @@ export function getStatesTransitionsMaps(transitions) {
     acc[from][event] = acc[from][event] ? acc[from][event].concat(transition) : [transition];
     return acc
   }, {})
+  || {}
 }
 
 export function getEventTransitionsMaps(transitions) {
@@ -293,30 +295,33 @@ export function getEventTransitionsMaps(transitions) {
     acc[event][from] = acc[event][from] ? acc[event][from].concat(transition) : [transition];
     return acc
   }, {})
+  || {}
 }
 
 export function getHistoryStatesMap(transitions) {
   return reduceTransitions((map, flatTransition, guardIndex, transitionIndex) => {
-    const { from, event, to, action, predicate, gen} = flatTransition;
+    const { from, event, to, action, predicate, gen } = flatTransition;
     if (isHistoryControlState(from)) {
       const underlyingControlState = getHistoryUnderlyingState(from);
-      map.set(underlyingControlState, (map.get(underlyingControlState)||[]).concat([flatTransition]));
+      map.set(underlyingControlState, (map.get(underlyingControlState) || []).concat([flatTransition]));
     }
     else if (isHistoryControlState(to)) {
       const underlyingControlState = getHistoryUnderlyingState(to);
-      map.set(underlyingControlState, (map.get(underlyingControlState)||[]).concat([flatTransition]));
+      map.set(underlyingControlState, (map.get(underlyingControlState) || []).concat([flatTransition]));
     }
 
     return map
-  }, new Map(), transitions);
+  }, new Map(), transitions)
+    || {};
 }
 
 export function getTargetStatesMap(transitions) {
   return reduceTransitions((map, flatTransition, guardIndex, transitionIndex) => {
-    const {to} = flatTransition;
-    map.set(to, (map.get(to) || []).concat([flatTransition]));
-    return map
-  }, new Map(), transitions);
+      const { to } = flatTransition;
+      map.set(to, (map.get(to) || []).concat([flatTransition]));
+      return map
+    }, new Map(), transitions)
+    || {};
 }
 
 export function getAncestorMap(statesTree) {
@@ -431,7 +436,7 @@ export function reduceTransitions(reduceFn, seed, transitions) {
 }
 
 export function everyTransition(pred, transition) {
-  return reduceTransitions( (acc, flatTransition) => {
+  return reduceTransitions((acc, flatTransition) => {
     return acc && pred(flatTransition)
   }, true, [transition])
 }

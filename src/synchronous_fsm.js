@@ -3,8 +3,7 @@ import {
 } from "./properties";
 import {
   arrayizeOutput, computeHistoryMaps, findInitTransition, get_fn_name, getFsmStateList, initHistoryDataStructure,
-  isHistoryControlState, keys,
-  mapOverTransitionsActions, updateHistory, wrap
+  isHistoryControlState, keys, mapOverTransitionsActions, updateHistory, wrap
 } from "./helpers";
 import { fsmContractChecker } from "./contracts"
 
@@ -149,7 +148,6 @@ export function normalizeFsmDef(fsmDef) {
   return Object.assign({}, fsmDef, { transitions: normalizeTransitions(fsmDef) })
 }
 
-
 // Alias for compatibility before deprecating entirely create_state_machine
 export function create_state_machine(fsmDef, settings) {
   return createStateMachine(fsmDef, settings)
@@ -232,7 +230,7 @@ export function createStateMachine(fsmDef, settings) {
       is_auto_state[from] = true;
     }
 
-    from_proto[event] = arr_predicate.reduce((acc, guard, index) =>{
+    from_proto[event] = arr_predicate.reduce((acc, guard, index) => {
         const action = guard.action || ACTION_IDENTITY;
         const condition_checking_fn = (function (guard, settings) {
           let condition_suffix = "";
@@ -322,8 +320,7 @@ export function createStateMachine(fsmDef, settings) {
       debug && console.log("found event handler!");
       debug && console.info("WHEN EVENT ", event);
       /* OUT : this event handler modifies the extendedState and possibly other data structures */
-      // TODO : check that stop === true (means we fulfulled one guard in the transition!
-      const {stop, outputs:rawOutputs} = event_handler(extendedState, event_data, current_state);
+      const { stop, outputs: rawOutputs } = event_handler(extendedState, event_data, current_state);
       debug && !stop && console.warn("No guards have been fulfilled! We recommend to configure guards explicitly to" +
         " cover the full state space!")
       const outputs = arrayizeOutput(rawOutputs);
@@ -403,14 +400,7 @@ export function createStateMachine(fsmDef, settings) {
 }
 
 // outputSubject allows raising event which can be
-export function makeWebComponentFromFsm({
-                                          name,
-                                          subjectFactory,
-                                          fsm,
-                                          commandHandlers,
-                                          effectHandlers,
-                                          options
-                                        }) {
+export function makeWebComponentFromFsm({ name, ubjectFactory, fsm, commandHandlers, effectHandlers, options }) {
   class FsmComponent extends HTMLElement {
     constructor() {
       if (name.split('-').length <= 1) throw `makeWebComponentFromFsm : web component's name MUST include a dash! Please review the name property passed as parameter to the function!`
@@ -478,7 +468,6 @@ export function makeNamedActionsFactory(namedActionSpecs) {
  * Every action return T or [T], and we want in output [T] always
  * mergeOutputsFn([a, [b]) = mergeOutputsFn([a,b]) = mergeOutputsFn([[a],b) = mergeOutputsFn([[a],[b]]) = [a,b]
  * If we wanted to pass [a] as value we would have to do mergeOutputsFn([[[a]],[b]]) to get [[a],b]
- * TODO : DOC it
  * @param arrayOutputs
  * @returns {*}
  */
@@ -660,7 +649,7 @@ export function makeHistoryStates(states) {
 }
 
 export function historyState(historyType, controlState) {
-    return {
-      [historyType]: controlState
-    }
+  return {
+    [historyType]: controlState
+  }
 }

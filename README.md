@@ -491,16 +491,23 @@ history state, transition is towards the last seen state for the entered compoun
 ### Contracts
 
 #### Format
-- state names must be unique and conform to the same nomenclature than javascript variable 
-identifiers (cannot be empty strings, cannot start with a number, etc.)
+- state names (from `fsmDef.states`) must be unique and be JavaScript strings
+- event names (from `fsmDef.events`) must be unique and be JavaScript strings
+- reserved states (like `INIT_STATE`) cannot be used when defining transitions
+- at least one control state must be declared in `fsmDef.states`
 - all transitions must be valid :
+  - the transition syntax must be followed (cf. types)
   - all states referenced in the `transitions` data structure must be defined in the `states` data 
   structure
-  - the transition syntax must be followed (cf. types)
   - all transitions must define an action (even if that action does not modify the extended state
    or returns `NO_OUTPUT`)
-- all action factories must fill in the `updates` and `outputs` property (no syntax sugar)
+- all action factories must fill in the `updates` and `outputs` property (no syntax sugar) (**NOT
+ ENFORCED**)
   - NO_OUTPUT must be used to indicate the absence of outputs
+- all transitions for a given origin control state and triggering event must be defined in one 
+row of `fsmDef.transitions`
+- `fsmDef.settings` must include a `updateState` function covering the state machine's extended 
+state update concern.
 
 #### Initial event and initial state
 By initial transition, we mean the transition with origin the machine's default initial state.
@@ -509,10 +516,6 @@ By initial transition, we mean the transition with origin the machine's default 
   - by way of a starting control state defined at configuration time
   - by way of a initial transition at configuration time
 - ~~the init event has the initial extended state as event data~~
-- the initial event can only be sent internally (external initial events will be ignored, and the 
-machine will return `NO_OUTPUT`)
-- the state machine starts in the reserved initial state
-- there are no incoming transitions to the reserved initial state
 - ~~The machine cannot stay blocked in the initial control state. This means that at least one 
 transition must be configured and be executed between the initial control state and another state
 .   This is turn means :~~
@@ -520,10 +523,31 @@ transition must be configured and be executed between the initial control state 
   - ~~at least one transition out of the initial control state must be configured~~
   - ~~of all guards for such transitions, if any, at least one must be fulfilled to enable a 
   transition away from the initial control state~~
-- there is exactly one initial transition, with unambiguous target state, whose only effect is to 
-determine the starting control state for the machine 
-  - there is no guard on that transition
-  - the action on that transition is the *identity* action 
+- there is exactly one initial transition, whose only effect is to determine the starting 
+control state for the machine
+  - the action on any such transitions is the *identity* action
+  - the control state resulting from the initial transition may be guarded by configuring 
+  `guards` for the initial transition
+- there are no incoming transitions to the reserved initial state
+
+Additionally the following applies :
+- the initial event can only be sent internally (external initial events will be ignored, and the 
+machine will return `NO_OUTPUT`)
+- the state machine starts in the reserved initial state
+
+#### Coherence
+- the initial control state (`fsmDef.initialControlState`) must be a state declared in `fsmDef.
+states`
+- transitions featuring the initial event (`INIT_EVENT`) are only allowed for transitions involving 
+compound states
+  - e.g. A -INIT_EVENT-> B iff A is a compound state or A is the initial state
+- all states declared in `fsmDef.states` must be used as target or origin of transitions in 
+`fsmDef.transitions`
+- all events declared in `fsmDef.events` must be used as triggering events of transitions in 
+`fsmDef.transitions`
+- history pseudo states must be target states and refer to a given declared compound state
+- there cannot be two transitions with the same `(from, event, predicate)` - sameness defined for
+ predicate by referential equality (**NOT ENFORCED**)
 
 #### Semantical contracts
 - The machine behaviour is as explicit as possible
@@ -539,21 +563,20 @@ determine the starting control state for the machine
     - ~~note that there is not really a strong rationale for eventless self-transition, I recommend 
       just staying away from it~~
 - the machine is deterministic and unambiguous
-  - **NOTE TO SELF**: absolutely enforce that contract
   - to a (from, event) couple, there can only correspond one row in the `transitions` array of the 
   state machine (but there can be several guards in that row)
       - (particular case) eventless transitions must not be contradicted by event-ful transitions
+      - e.g. if there is an eventless transition `A -eventless-> B`, there cannot be a competing 
+      `A -ev-> X`
   - A -ev> B and A < OUTER_A with OUTER_A -ev>C !! : there are two valid transitions triggered by
      `ev`. Such transitions would unduely complicate the input testing generation, and decrease 
      the readability of the machine so we forbid such transitions[^x]
-  - there cannot be two transitions with the same `(from, event, predicate)` - sameness defined for
-     predicate by referential equality
 - no transitions from the history state (history state is only a target state)
-- A transition evaluation must end in an atomic state
-  - Initial states must be defined for every compound state 
-  - Every compound state must have eactly one INIT transition, i.e. a transition whose 
-  triggering event is `INIT_EVENT`. That transition must have a target state which is a substate 
-  of the compound state (no hierarchy crossing)
+- A transition evaluation must always end (!), and end in an atomic state
+  - Every compound state must have eactly one inconditional (unguarded) INIT transition, i.e. a 
+  transition whose triggering event is `INIT_EVENT`. That transition must have a target state 
+  which is a substate of the compound state (no hierarchy crossing), and which is not a history 
+  pseudo state
   - Compound states must not have eventless transitions defined on them (would introduce 
   ambiguity with the INIT transition)
   - (the previous conditions ensure that there is always a way down the hierarchy for compound 
@@ -569,7 +592,7 @@ determine the starting control state for the machine
 [^x]: There are however semantics which allow such transitions, thus possibilitating event bubbling.
 
 Those contracts ensure a good behaviour of the state machine. and we recommend that they all be 
-observed. However, some of them are not enforced :
+observed. However, some of them are not easily enforcable :
 
 - we can only check at runtime that transition with guards fulfill at least one of those guards. 
 In these cases, we only issue a warning, as this is not a fatal error. This leaves some 
@@ -765,6 +788,9 @@ selector
 - [ ] showcase property-based testing
 - [ ] add cloning API
 - [ ] add reset API
+- [ ] decide definitively on tricky semantic cases
+  - transitionning to history states when there is no history
+  - event delegation 
 
 ## Roadmap v1.2
 - [ ] support for live, interactive debugging

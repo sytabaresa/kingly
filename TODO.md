@@ -17,10 +17,12 @@
     - none of them do check, checkmate, etc. probably because lots of if... so do it as a 
     modification and write articles about it
     - true chess with stock fish API but have server side... underwaterchess.com , https://www.reddit.com/r/reactjs/comments/53th5k/online_chess_made_with_react_and_redux/   
+    - then do chess with components to see how machines change with component (maintainability!!) https://github.com/vitogit/vue-chessboard-examples
     -    or https://pusher.com/tutorials/realtime-chess-game-react (real time chat on top)
     - or pacman : https://github.com/platzhersh/pacman-canvas, from https://superdevresources.com/open-source-html5-games/
 
 - Promote
+  - add on reactjs example?
   - finish react-state-driven then vue-state-driven
   - vue-state-driven to put in awesome vue : https://github.com/sdras/awesome-vue
     - https://github.com/sdras/awesome-vue#examples
