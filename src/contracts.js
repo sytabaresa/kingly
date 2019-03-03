@@ -1,6 +1,7 @@
 import {
   findInitTransition, getAncestorMap, getEventTransitionsMaps, getHistoryStatesMap, getHistoryUnderlyingState,
   getStatesPath, getStatesTransitionsMap, getStatesTransitionsMaps, getStatesType, getTargetStatesMap, isActionFactory,
+  isAtomicState,
   isControlState, isEvent, isFunction, isHistoryControlState
 } from "./helpers"
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
@@ -640,11 +641,42 @@ export const isInitialStateOriginState = {
   },
 };
 
-// TODO - eventless self-transitions are forbidden (while theoretically possible, the feature is of
+// T23. eventless self-transitions are forbidden (while theoretically possible, the feature is of
 // little practical value, though being a possible source of ambiguity or infinite loops)
+// A -_> A impossible on compound states because there is A -INIT-> X
+// so only possibility is A -_> A with A atomic state
+export const isValidSelfTransition = {
+  name: 'isValidSelfTransition',
+  shouldThrow: false,
+  predicate: (fsmDef, settings, {targetStatesMap, statesType}) => {
+    const targetStates = Array.from(targetStatesMap.keys());
+    const wrongSelfTransitions = targetStates
+      .map(targetState => {
+        const flatTransitions = targetStatesMap.get(targetState);
+        return flatTransitions
+          .map(flatTransition => {
+          const {from, event} = flatTransition;
+          if (targetState in statesType && !statesType[targetState] && from && from === targetState && !event) {
+            return {state : targetState, flatTransition}
+          }
+        })
+          .filter(Boolean)
+      })
+      .filter(x => x.length > 0);
+
+    return {
+      isFulfilled: wrongSelfTransitions.length === 0,
+      blame: {
+        message: `Found at least one eventless self-transition involving an atomic state! This is forbidden to avoid infinity loop! Cf. log`,
+        info: { wrongSelfTransitions }
+      }
+    }
+  },
+};
+
 // TODO : add tryCatch for catching exception for predicates, actions, updateState any user provided function, only
 // if debug is set,
-// TODO: make a test which shows how updates and output are aggregated when seeral of them on a transition
+// TODO: make a test which shows how updates and output are aggregated when several of them on a transition
 
 const fsmContracts = {
   computed: (fsmDef, settings) => {
@@ -661,7 +693,7 @@ const fsmContracts = {
     }
   },
   description: 'FSM structure',
-  contracts: [isValidSettings, isInitialControlStateDeclared, isInitialStateOriginState, eventsAreStrings, haveTransitionsValidTypes, noDuplicatedStates, noReservedStates, atLeastOneState, areEventsDeclared, areStatesDeclared, validInitialConfig, validInitialTransition, initEventOnlyInCompoundStates, validInitialTransitionForCompoundState, validEventLessTransitions, allStateTransitionsOnOneSingleRow, noConflictingTransitionsWithAncestorState, isHistoryStatesExisting, isHistoryStatesTargetStates, isHistoryStatesCompoundStates],
+  contracts: [isValidSettings, isInitialControlStateDeclared, isInitialStateOriginState, eventsAreStrings, haveTransitionsValidTypes, noDuplicatedStates, noReservedStates, atLeastOneState, areEventsDeclared, areStatesDeclared, validInitialConfig, validInitialTransition, initEventOnlyInCompoundStates, validInitialTransitionForCompoundState, validEventLessTransitions, isValidSelfTransition, allStateTransitionsOnOneSingleRow, noConflictingTransitionsWithAncestorState, isHistoryStatesExisting, isHistoryStatesTargetStates, isHistoryStatesCompoundStates],
 };
 
 /**

@@ -3,7 +3,8 @@ import { ACTION_IDENTITY, DEEP, historyState, INIT_EVENT, INIT_STATE } from "../
 import {
   allStateTransitionsOnOneSingleRow, areEventsDeclared, areStatesDeclared, atLeastOneState, fsmContractChecker,
   haveTransitionsValidTypes, initEventOnlyInCompoundStates, isHistoryStatesCompoundStates, isHistoryStatesExisting,
-  isHistoryStatesTargetStates, isInitialControlStateDeclared, isInitialStateOriginState, isValidSettings,
+  isHistoryStatesTargetStates, isInitialControlStateDeclared, isInitialStateOriginState, isValidSelfTransition,
+  isValidSettings,
   noConflictingTransitionsWithAncestorState, noDuplicatedStates, noReservedStates, validEventLessTransitions,
   validInitialTransition, validInitialTransitionForCompoundState
 } from "../src/contracts"
@@ -930,5 +931,39 @@ QUnit.test("fsmContracts(fsmDef, settings): initial state cannot be a target sta
   assert.deepEqual(targetStates.map(formatResult), [
     "B",
     "nok"
+  ], message);
+});
+
+QUnit.test("fsmContracts(fsmDef, settings): eventless self-transitions are forbidden", function exec_test(assert) {
+  const fsmDef = {
+    states: { A: {C: ''}, B: '' },
+    events: ['ev'],
+    transitions: [
+      { from: INIT_STATE, to: 'B', event: INIT_EVENT, action: ACTION_IDENTITY },
+      { from: 'A', to: 'C', event: INIT_EVENT, action: ACTION_IDENTITY },
+      { from: 'B', to: 'B', event: void 0, action: ACTION_IDENTITY },
+    ],
+    initialExtendedState: {}
+  };
+  const settings = default_settings;
+
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings);
+  const failureInfo = failingContracts.find(x => x.name === isValidSelfTransition.name);
+  const { message, info } = failureInfo;
+  const { wrongSelfTransitions } = info;
+  assert.deepEqual(isFulfilled, false, `Fails at least one contract`);
+  assert.deepEqual(wrongSelfTransitions.map(x => x.map(formatResult)), [
+    [
+      {
+        "flatTransition": {
+          "action": "ACTION_IDENTITY",
+          "event": undefined,
+          "from": "B",
+          "predicate": undefined,
+          "to": "B"
+        },
+        "state": "B"
+      }
+    ]
   ], message);
 });
