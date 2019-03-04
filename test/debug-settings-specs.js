@@ -61,10 +61,10 @@ QUnit.test("debug settings, event, no action, false guard", function exec_test(a
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY },
       { from: 'A', to: 'B', event: 'ev', guards: FALSE_GUARD(ACTION_IDENTITY, 'A') }
     ],
-    initialExtendedState: initialExtendedState
+    initialExtendedState: initialExtendedState,
+    settings : default_settings,
   };
-  const settings = default_settings;
-  const fsm = create_state_machine(fsmDef, settings);
+  const fsm = create_state_machine(fsmDef);
   const result = fsm({ ev: initialExtendedState });
   assert.deepEqual(consoleContent, [
       "debug", [
@@ -77,7 +77,7 @@ QUnit.test("debug settings, event, no action, false guard", function exec_test(a
       "log", ["found event handler!"],
       "info", ["WHEN EVENT ", "init"],
       "info", ["IN STATE ", "nok"],
-      "info", ["CASE : guard alwaysTruefor transition is fulfilled"],
+      "info", ["CASE: guard alwaysTrue for transition is fulfilled"],
       "info", ["THEN : we execute the action ACTION_IDENTITY"],
       "info", ["left state", "-nok-"],
       "info", ["AND TRANSITION TO STATE", "A"],

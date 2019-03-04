@@ -1,4 +1,6 @@
 # Now
+- TODO:
+  - README adjust to change of signature ; settings in FSM_DEF now, also adjust types.js
 - Demos
   - use https://itnext.io/a-wicked-custom-elements-alternative-6d1504b5857f to have web 
   components without needing custom elements!!

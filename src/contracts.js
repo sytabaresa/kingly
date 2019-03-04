@@ -1,11 +1,15 @@
 import {
   findInitTransition, getAncestorMap, getEventTransitionsMaps, getHistoryStatesMap, getHistoryUnderlyingState,
   getStatesPath, getStatesTransitionsMap, getStatesTransitionsMaps, getStatesType, getTargetStatesMap, isActionFactory,
-  isAtomicState,
   isControlState, isEvent, isFunction, isHistoryControlState
 } from "./helpers"
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
-import { ACTION_IDENTITY, INIT_EVENT, INIT_STATE } from "./properties"
+import { ACTION_IDENTITY, INIT_EVENT, INIT_STATE, NO_OUTPUT } from "./properties"
+
+export function isActions(obj) {
+  return obj && `updates` in obj && `outputs` in obj
+    && (obj.outputs === NO_OUTPUT || Array.isArray(obj.outputs)) && Array.isArray(obj.updates)
+}
 
 // Contracts
 
@@ -13,7 +17,7 @@ import { ACTION_IDENTITY, INIT_EVENT, INIT_STATE } from "./properties"
 export const noDuplicatedStates = {
   name: 'noDuplicatedStates',
   shouldThrow: false,
-  predicate: (fsmDef, settings) => {
+  predicate: fsmDef => {
     const { getLabel } = objectTreeLenses;
     const traverse = {
       strategy: PRE_ORDER,
@@ -54,7 +58,7 @@ export const noDuplicatedStates = {
 export const noReservedStates = {
   name: 'noReservedStates',
   shouldThrow: false,
-  predicate: (fsmDef, settings, { statesType }) => {
+  predicate: (fsmDef, { statesType }) => {
     return {
       isFulfilled: Object.keys(statesType).indexOf(INIT_STATE) === -1,
       blame: {
@@ -69,7 +73,7 @@ export const noReservedStates = {
 export const atLeastOneState = {
   name: 'atLeastOneState',
   shouldThrow: false,
-  predicate: (fsmDef, settings, { statesType }) => {
+  predicate: (fsmDef, { statesType }) => {
     return {
       isFulfilled: Object.keys(statesType).length > 0,
       blame: {
@@ -84,7 +88,7 @@ export const atLeastOneState = {
 export const isInitialControlStateDeclared = {
   name: 'isInitialControlStateDeclared',
   shouldThrow: false,
-  predicate: (fsmDef, settings, { initTransition, statesType }) => {
+  predicate: (fsmDef, { initTransition, statesType }) => {
     const { initialControlState, transitions } = fsmDef;
     const stateList = Object.keys(statesType);
     if (initialControlState) {
@@ -110,7 +114,7 @@ export const isInitialControlStateDeclared = {
 export const eventsAreStrings = {
   name: 'eventsAreStrings',
   shouldThrow: false,
-  predicate: (fsmDef, settings) => {
+  predicate: fsmDef => {
     return {
       isFulfilled: fsmDef.events.every(x => typeof x === 'string'),
       blame: {
@@ -124,8 +128,8 @@ export const eventsAreStrings = {
 export const validInitialConfig = {
   name: 'validInitialConfig',
   shouldThrow: false,
-  predicate: (fsmDef, settings, { initTransition }) => {
-    const { initialControlState, transitions } = fsmDef;
+  predicate: (fsmDef, { initTransition }) => {
+    const { initialControlState } = fsmDef;
 
     if (initTransition && initialControlState) {
       return {
@@ -162,7 +166,7 @@ export const validInitialConfig = {
 export const validInitialTransition = {
   name: 'validInitialTransition',
   shouldThrow: false,
-  predicate: (fsmDef, settings, { initTransition }) => {
+  predicate: (fsmDef, { initTransition }) => {
     const { initialControlState, transitions } = fsmDef;
     const initTransitions = transitions.reduce((acc, transition) => {
       transition.from === INIT_STATE && acc.push(transition);
@@ -195,7 +199,7 @@ export const validInitialTransition = {
 export const initEventOnlyInCompoundStates = {
   name: 'initEventOnlyInCompoundStates',
   shouldThrow: false,
-  predicate: (fsmDef, settings, { statesTransitionsMap, statesType, statesPath }) => {
+  predicate: (fsmDef, { statesTransitionsMap, statesType, statesPath }) => {
     // The compound states below does not include the initial state by construction
     const atomicStates = Object.keys(statesType).filter(controlState => !statesType[controlState]);
     const atomicInitTransitions = atomicStates.map(
@@ -227,7 +231,7 @@ export const initEventOnlyInCompoundStates = {
 export const validInitialTransitionForCompoundState = {
   name: 'validInitialTransitionForCompoundState',
   shouldThrow: false,
-  predicate: (fsmDef, settings, { statesTransitionsMap, statesType, statesPath }) => {
+  predicate: (fsmDef, { statesTransitionsMap, statesType, statesPath }) => {
     // The compound states below does not include the initial state by construction
     const compoundStates = Object.keys(statesType).filter(controlState => statesType[controlState]);
     const initTransitions = compoundStates.map(
@@ -297,7 +301,7 @@ export const validInitialTransitionForCompoundState = {
 export const validEventLessTransitions = {
   name: 'validEventLessTransitions',
   shouldThrow: false,
-  predicate: (fsmDef, settings, { statesTransitionsMap, statesType, statesPath }) => {
+  predicate: (fsmDef, { statesTransitionsMap, statesType, statesPath }) => {
     // The compound states below does not include the initial state by construction
     const stateList = Object.keys(statesType);
     const failingOriginControlStates = stateList.map(state => {
@@ -325,7 +329,7 @@ export const validEventLessTransitions = {
 export const allStateTransitionsOnOneSingleRow = {
   name: 'allStateTransitionsOnOneSingleRow',
   shouldThrow: false,
-  predicate: (fsmDef, settings, { statesTransitionsMaps }) => {
+  predicate: (fsmDef, { statesTransitionsMaps }) => {
     const stateList = Object.keys(statesTransitionsMaps);
     const statesTransitionsInfo = stateList.reduce((acc, state) => {
       const events = Object.keys(statesTransitionsMaps[state]);
@@ -354,7 +358,7 @@ export const allStateTransitionsOnOneSingleRow = {
 export const noConflictingTransitionsWithAncestorState = {
   name: 'noConflictingTransitionsWithAncestorState',
   shouldThrow: false,
-  predicate: (fsmDef, settings, { statesTransitionsMaps, eventTransitionsMaps, ancestorMap }) => {
+  predicate: (fsmDef, { statesTransitionsMaps, eventTransitionsMaps, ancestorMap }) => {
     const eventList = Object.keys(eventTransitionsMaps);
     const eventTransitionsInfo = eventList.reduce((acc, event) => {
       const states = Object.keys(eventTransitionsMaps[event]);
@@ -394,7 +398,7 @@ export const noConflictingTransitionsWithAncestorState = {
 export const isHistoryStatesTargetStates = {
   name: 'isHistoryStatesTargetStates',
   shouldThrow: false,
-  predicate: (fsmDef, settings, { statesTransitionsMaps }) => {
+  predicate: (fsmDef, { }) => {
     const wrongHistoryStates = fsmDef.transitions.reduce((acc, transition) => {
       return isHistoryControlState(transition.from)
         ? acc.concat(transition)
@@ -417,7 +421,7 @@ export const isHistoryStatesTargetStates = {
 export const isHistoryStatesCompoundStates = {
   name: 'isHistoryStatesCompoundStates',
   shouldThrow: false,
-  predicate: (fsmDef, settings, { statesTransitionsMaps, statesType }) => {
+  predicate: (fsmDef, { statesTransitionsMaps, statesType }) => {
     const stateList = Object.keys(statesTransitionsMaps);
     const wrongHistoryStates = stateList.map(originState => {
       if (originState === INIT_STATE) return []
@@ -466,7 +470,7 @@ export const isHistoryStatesCompoundStates = {
 export const isHistoryStatesExisting = {
   name: 'isHistoryStatesExisting',
   shouldThrow: false,
-  predicate: (fsmDef, settings, { historyStatesMap, statesType }) => {
+  predicate: (fsmDef, { historyStatesMap, statesType }) => {
     const invalidTransitions = Array.from(historyStatesMap.entries())
       .map(([historyState, flatTransitions]) => {
         return !(historyState in statesType) && { historyState, flatTransitions }
@@ -512,7 +516,7 @@ export function areCconditionalTransitions(transition) {
 export const haveTransitionsValidTypes = {
   name: 'haveTransitionsValidTypes',
   shouldThrow: false,
-  predicate: (fsmDef) => {
+  predicate: fsmDef => {
     const { transitions } = fsmDef;
     const wrongTransitions = transitions
       .map((transition, transitionIndex) => {
@@ -539,7 +543,7 @@ export const haveTransitionsValidTypes = {
 export const areEventsDeclared = {
   name: 'areEventsDeclared',
   shouldThrow: false,
-  predicate: (fsmDef, settings, { eventTransitionsMaps }) => {
+  predicate: (fsmDef, { eventTransitionsMaps }) => {
     const eventList = Object.keys(eventTransitionsMaps);
     const declaredEventList = fsmDef.events;
     const eventsDeclaredButNotTriggeringTransitions = declaredEventList
@@ -566,7 +570,7 @@ export const areEventsDeclared = {
 export const areStatesDeclared = {
   name: 'areStatesDeclared',
   shouldThrow: false,
-  predicate: (fsmDef, settings, { statesTransitionsMaps, statesType }) => {
+  predicate: (fsmDef, { statesTransitionsMaps, statesType }) => {
     const stateList = Object.keys(statesTransitionsMaps);
     const declaredStateList = Object.keys(statesType);
     const statesDeclaredButNotTriggeringTransitions = declaredStateList
@@ -594,7 +598,8 @@ export const areStatesDeclared = {
 export const isValidSettings = {
   name: 'isValidSettings',
   shouldThrow: false,
-  predicate: (fsmDef, settings) => {
+  predicate: (fsmDef) => {
+    const {settings} = fsmDef;
     if (!settings) {
       return {
         isFulfilled: false,
@@ -621,14 +626,14 @@ export const isValidSettings = {
 export const isInitialStateOriginState = {
   name: 'isInitialStateOriginState',
   shouldThrow: false,
-  predicate: (fsmDef, settings, {targetStatesMap}) => {
+  predicate: (fsmDef, { targetStatesMap }) => {
 
     if (Array.from(targetStatesMap.keys()).indexOf(INIT_STATE) > -1) {
       return {
         isFulfilled: false,
         blame: {
           message: `Found at least one transition with the initial state as target state! CF. log`,
-          info: { targetStates : Array.from(targetStatesMap.keys()), transitions  : fsmDef.transitions }
+          info: { targetStates: Array.from(targetStatesMap.keys()), transitions: fsmDef.transitions }
         }
       }
     }
@@ -648,18 +653,18 @@ export const isInitialStateOriginState = {
 export const isValidSelfTransition = {
   name: 'isValidSelfTransition',
   shouldThrow: false,
-  predicate: (fsmDef, settings, {targetStatesMap, statesType}) => {
+  predicate: (fsmDef, { targetStatesMap, statesType }) => {
     const targetStates = Array.from(targetStatesMap.keys());
     const wrongSelfTransitions = targetStates
       .map(targetState => {
         const flatTransitions = targetStatesMap.get(targetState);
         return flatTransitions
           .map(flatTransition => {
-          const {from, event} = flatTransition;
-          if (targetState in statesType && !statesType[targetState] && from && from === targetState && !event) {
-            return {state : targetState, flatTransition}
-          }
-        })
+            const { from, event } = flatTransition;
+            if (targetState in statesType && !statesType[targetState] && from && from === targetState && !event) {
+              return { state: targetState, flatTransition }
+            }
+          })
           .filter(Boolean)
       })
       .filter(x => x.length > 0);
@@ -679,7 +684,7 @@ export const isValidSelfTransition = {
 // TODO: make a test which shows how updates and output are aggregated when several of them on a transition
 
 const fsmContracts = {
-  computed: (fsmDef, settings) => {
+  computed: fsmDef => {
     return {
       statesType: getStatesType(fsmDef.states),
       initTransition: findInitTransition(fsmDef.transitions),

@@ -23,3 +23,8 @@ export const ACTION_IDENTITY = function ACTION_IDENTITY(){
 export const history_symbol = {};
 export const SHALLOW = 'shallow';
 export const DEEP = 'deep';
+
+export const ACTION_EXEC_ERROR = actionName => `ERROR: when executing action factory ${actionName||""}`
+export const INVALID_ACTION_FACTORY_EXECUTED = actionName => `${ACTION_EXEC_ERROR(actionName)}\nFactory returned a value which is not an action.`
+export const INVALID_DECORATING_ACTION_FACTORY_EXECUTED = (actionName, type) => `${type || ""} ${ACTION_EXEC_ERROR(actionName)}\nFactory returned a value which is not an action.`
+

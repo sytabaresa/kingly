@@ -1,15 +1,15 @@
 import {
-  ACTION_IDENTITY, AUTO_EVENT, DEEP, history_symbol, INIT_EVENT, INIT_STATE, NO_OUTPUT, SHALLOW, STATE_PROTOTYPE_NAME
+  ACTION_IDENTITY, AUTO_EVENT, DEEP, history_symbol, INIT_EVENT, INIT_STATE, INVALID_ACTION_FACTORY_EXECUTED,
+  INVALID_DECORATING_ACTION_FACTORY_EXECUTED, NO_OUTPUT, SHALLOW, STATE_PROTOTYPE_NAME
 } from "./properties";
 import {
-  arrayizeOutput, computeHistoryMaps, findInitTransition, get_fn_name, getFsmStateList, initHistoryDataStructure,
-  isHistoryControlState, keys, mapOverTransitionsActions, updateHistory, wrap
+  arrayizeOutput, computeHistoryMaps, emptyConsole, findInitTransition, get_fn_name, getActionName, getFsmStateList,
+  initHistoryDataStructure, isHistoryControlState, keys, mapOverTransitionsActions, updateHistory, wrap, wrapAction
 } from "./helpers";
-import { fsmContractChecker } from "./contracts"
+import { fsmContractChecker, isActions } from "./contracts"
 
 const noop = () => {};
 const alwaysTrue = () => true;
-const emptyConsole = { log: noop, warn: noop, info: noop, debug: noop, error: noop, trace: noop };
 
 /**
  * Takes a list of identifiers (strings), adds init to it, and returns a hash whose properties are
@@ -149,8 +149,8 @@ export function normalizeFsmDef(fsmDef) {
 }
 
 // Alias for compatibility before deprecating entirely create_state_machine
-export function create_state_machine(fsmDef, settings) {
-  return createStateMachine(fsmDef, settings)
+export function create_state_machine(fsmDef) {
+  return createStateMachine(fsmDef)
 }
 
 /**
@@ -161,22 +161,24 @@ export function create_state_machine(fsmDef, settings) {
  * available in state machine's scope
  * @return {function(*=)}
  */
-export function createStateMachine(fsmDef, settings) {
+export function createStateMachine(fsmDef) {
   const {
     states: control_states,
     events,
     // transitions ,
     initialExtendedState,
+    settings
   } = fsmDef;
   const transitions = normalizeTransitions(fsmDef);
   const { updateState, debug } = settings;
+  const checkContracts = debug && debug.checkContracts || void 0;
+  let console = debug && debug.console ? debug.console : emptyConsole;
 
-  if (debug && debug.checkContracts) {
-    const { failingContracts } = fsmContractChecker(fsmDef, settings);
+  if (checkContracts) {
+    const { failingContracts } = fsmContractChecker(fsmDef);
     if (failingContracts.length > 0) throw new Error(`createStateMachine: called with wrong parameters! Cf. logs for failing contracts.`)
   }
 
-  let console = debug && debug.console ? debug.console : emptyConsole;
 
   const _events = build_event_enum(events);
 
@@ -232,11 +234,12 @@ export function createStateMachine(fsmDef, settings) {
 
     from_proto[event] = arr_predicate.reduce((acc, guard, index) => {
         const action = guard.action || ACTION_IDENTITY;
+        const actionName = action.name || action.displayName;
         const condition_checking_fn = (function (guard, settings) {
           let condition_suffix = "";
-          // We add the `current_state` because the current state might be different from the `from`
-          // field here This is the case for instance when we are in a substate, but through
-          // prototypal inheritance it is the handler of the prototype which is called
+          // We add the `current_state` because the current control state might be different from
+          // the `from` field here This is the case for instance when we are in a substate, but
+          // through prototypal inheritance it is the handler of the prototype which is called
           const condition_checking_fn = function (extendedState_, event_data, current_state) {
             from = current_state || from;
             const { predicate, to } = guard;
@@ -244,28 +247,34 @@ export function createStateMachine(fsmDef, settings) {
 
             if (!predicate || predicate(extendedState_, event_data, settings)) {
               // CASE : guard for transition is fulfilled so we can execute the actions...
-              debug && console.info("IN STATE ", from);
-              debug && console.info("CASE : " + (predicate ? "guard " + predicate.name + "for transition is fulfilled" : "automatic transition"));
-              // CASE : we do have some actions to execute
-              debug && console.info("THEN : we execute the action " + (action.name || action.displayName));
-              // NOTE : in a further extension, passing the fsm and the events object could help
-              // in implementing asynchronous fsm
-              const actionResult = action(extendedState_, event_data, settings);
-              if (Object.keys(actionResult).length !== 2) throw new Error(`An action factory has produced actions with wrong format. Actions are specified with two properties, one for extended state update, and one for the outputs of the machine! Check that both properties are present on the action, even if they are falsy!`);
+              console.info("IN STATE ", from);
+              predicate && console.info(`CASE: guard ${predicate.name} for transition is fulfilled`);
+              !predicate && console.info(`CASE: automatic transition`);
 
-              // Leave the current state
-              leave_state(from, extendedState_, hash_states);
+              console.info("THEN : we execute the action " + actionName);
+              const wrappedAction = wrapAction(action);
+              // TODO : trace all action(... and replace with wrappedAction, thn do sam for guards
+              const actionResultOrError = wrappedAction(extendedState_, event_data, settings);
 
-              // Update the extendedState before entering the next state
-              extendedState = updateState(extendedState_, actionResult.updates);
+              if (actionResultOrError instanceof Error) throw actionResultOrError
+              else if (debug && !isActions(actionResultOrError)) throw new Error(INVALID_ACTION_FACTORY_EXECUTED(actionName))
+              else {
+                const { updates, outputs } = actionResultOrError;
+                // Leave the current state
+                leave_state(from, extendedState_, hash_states);
 
-              // ...and enter the next state (can be different from to if we have nesting state group)
-              const next_state = enter_next_state(to, actionResult.updates, hash_states);
-              debug && console.info("ENTERING NEXT STATE : ", next_state);
+                // Update the extendedState before entering the next state
+                extendedState = updateState(extendedState_, updates);
 
-              return { stop: true, outputs: actionResult.outputs }; // allows for chaining and stop
-              // chaining guard
-            } else {
+                // ...and enter the next state (can be different from `to` if we have nesting state group)
+                const next_state = enter_next_state(to, updates, hash_states);
+                console.info("ENTERING NEXT STATE : ", next_state);
+
+                // allows for chaining and stop chaining guard
+                return { stop: true, outputs };
+              }
+            }
+            else {
               // CASE : guard for transition is not fulfilled
               return { stop: false, outputs: NO_OUTPUT };
             }
@@ -288,7 +297,7 @@ export function createStateMachine(fsmDef, settings) {
   });
 
   function send_event(event_struct, isExternalEvent) {
-    debug && console.debug("send event", event_struct);
+    console.debug("send event", event_struct);
     const event_name = keys(event_struct)[0];
     const event_data = event_struct[event_name];
     const current_state = hash_states[INIT_STATE].current_state_name;
@@ -298,7 +307,7 @@ export function createStateMachine(fsmDef, settings) {
     // super state of all states in the machine. Hence sending an INIT_EVENT
     // would always execute the INIT transition by prototypal delegation
     if (isExternalEvent && event_name === INIT_EVENT && current_state !== INIT_STATE) {
-      debug && console.warn(`The external event INIT_EVENT can only be sent when starting the machine!`)
+      console.warn(`The external event INIT_EVENT can only be sent when starting the machine!`)
 
       return NO_OUTPUT
     }
@@ -317,8 +326,8 @@ export function createStateMachine(fsmDef, settings) {
 
     if (event_handler) {
       // CASE : There is a transition associated to that event
-      debug && console.log("found event handler!");
-      debug && console.info("WHEN EVENT ", event);
+      console.log("found event handler!");
+      console.info("WHEN EVENT ", event);
       /* OUT : this event handler modifies the extendedState and possibly other data structures */
       const { stop, outputs: rawOutputs } = event_handler(extendedState, event_data, current_state);
       debug && !stop && console.warn("No guards have been fulfilled! We recommend to configure guards explicitly to" +
@@ -348,7 +357,7 @@ export function createStateMachine(fsmDef, settings) {
       } else return outputs;
     } else {
       // CASE : There is no transition associated to that event from that state
-      debug && console.warn(`There is no transition associated to the event |${event}| in state |${current_state}|!`);
+      console.warn(`There is no transition associated to the event |${event}| in state |${current_state}|!`);
 
       return NO_OUTPUT;
     }
@@ -361,7 +370,7 @@ export function createStateMachine(fsmDef, settings) {
 
     history = updateHistory(history, stateAncestors, state_from_name);
 
-    debug && console.info("left state", wrap(from));
+    console.info("left state", wrap(from));
   }
 
   function enter_next_state(to, updatedExtendedState, hash_states) {
@@ -535,30 +544,29 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
   // DOC : entry actions for a control state will apply before any automatic event related to that state! In fact before
   // anything. That means the automatic event should logically receive the state updated by the entry action
   const decoratedAction = function (extendedState, eventData, settings) {
-    const { updateState } = settings;
+    const { updateState, debug } = settings;
+    const wrappedEntryAction = wrapAction(entryAction);
     const actionResult = action(extendedState, eventData, settings);
-    if (Object.keys(actionResult).length !== 2) throw new Error(`An action factory has produced actions with wrong format. Actions are specified with two properties, one for extended state update, and one for the outputs of the machine! Check that both properties are present on the action, even if they are falsy!`);
-
     const actionUpdate = actionResult.updates;
     const updatedExtendedState = updateState(extendedState, actionUpdate);
-    const exitActionResult = entryAction(updatedExtendedState, eventData, settings);
-    if (Object.keys(exitActionResult).length !== 2) throw new Error(`An entry action factory has produced actions with wrong format. Actions are specified with two properties, one for extended state update, and one for the outputs of the machine! Check that both properties are present on the action, even if they are falsy!`);
 
-    // NOTE : exitActionResult comes last as we want it to have priority over other actions.
-    // As a matter of fact, it is an exit action, so it must always happen on exiting, no matter what
-    //
-    // ADR :  Beware of the fact that as a result it could overwrite previous actions. In principle exit actions should
-    //        add to existing actions, not overwrite. Because exit actions are not represented on the machine
-    //        visualization, having exit actions which overwrite other actions might make it hard to reason about the
-    //        visualization. We choose however to not forbid the overwrite by contract. But beware.
-    // ROADMAP : the best is, according to semantics, to actually send both separately
-    return {
-      updates: [].concat(
-        actionUpdate || [],
-        exitActionResult.updates || []
-      ),
-      outputs: mergeOutputFn([actionResult.outputs, exitActionResult.outputs])
-    };
+    const exitActionResultOrError = wrappedEntryAction(updatedExtendedState, eventData, settings);
+    if (exitActionResultOrError instanceof Error) throw exitActionResultOrError
+    else if (debug && !isActions(exitActionResultOrError)) throw new Error(INVALID_DECORATING_ACTION_FACTORY_EXECUTED(getActionName(entryAction), 'entry'))
+    else {
+      // NOTE : exitActionResult comes last as we want it to have priority over other actions.
+      // As a matter of fact, it is an exit action, so it must always happen on exiting, no matter what
+      //
+      // ADR :  Beware of the fact that as a result it could overwrite previous actions. In principle exit actions
+      // should add to existing actions, not overwrite. Because exit actions are not represented on the machine
+      // visualization, having exit actions which overwrite other actions might make it hard to reason about the
+      // visualization. We choose however to not forbid the overwrite by contract. But beware. ROADMAP : the best is,
+      // according to semantics, to actually send both separately
+      return {
+        updates: [].concat(actionUpdate, exitActionResultOrError.updates),
+        outputs: mergeOutputFn([actionResult.outputs, exitActionResultOrError.outputs])
+      };
+    }
   };
   decoratedAction.displayName = action.displayName;
 
@@ -587,13 +595,14 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
  * @param {FSM_Def} fsm
  */
 export function traceFSM(env, fsm) {
-  const { initialExtendedState, initialControlState, events, states, transitions } = fsm;
+  const { initialExtendedState, initialControlState, events, states, transitions, settings } = fsm;
 
   return {
     initialExtendedState,
     initialControlState,
     events,
     states,
+    settings,
     transitions: mapOverTransitionsActions((action, transition, guardIndex, transitionIndex) => {
       return function (extendedState, eventData, settings) {
         const { from: controlState, event: eventLabel, to: targetControlState, predicate } = transition;

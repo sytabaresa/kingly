@@ -121,10 +121,10 @@ QUnit.test("event, no action, false guard", function exec_test(assert) {
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY },
       { from: 'A', to: 'B', event: 'ev', guards: FALSE_GUARD(ACTION_IDENTITY, 'A') }
     ],
-    initialExtendedState: initialExtendedState
+    initialExtendedState: initialExtendedState,
+    settings : default_settings
   };
-  const settings = default_settings;
-  const fsm = create_state_machine(fsmDef, settings);
+  const fsm = create_state_machine(fsmDef);
   const result = fsm({ ev: initialExtendedState });
   assert.deepEqual(result, NO_OUTPUT, `event starts the state machine`);
 });
@@ -137,10 +137,10 @@ QUnit.test("event, no action, true guard", function exec_test(assert) {
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY },
       { from: 'A', to: 'B', event: INIT_EVENT, guards: TRUE_GUARD('A', ACTION_IDENTITY) }
     ],
-    initialExtendedState: initialExtendedState
+    initialExtendedState: initialExtendedState,
+    settings : default_settings,
   };
-  const settings = default_settings;
-  const fsm = create_state_machine(fsmDef, settings);
+  const fsm = create_state_machine(fsmDef);
   const result = fsm({ ev: initialExtendedState });
   assert.deepEqual(result, NO_OUTPUT, `INIT event starts the state machine`);
 });
@@ -157,10 +157,10 @@ QUnit.test("event, action, false guard", function exec_test(assert) {
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY },
       { from: 'A', to: 'B', event: INIT_EVENT, conditions: FALSE_GUARD(fail_if_called) }
     ],
-    initialExtendedState: initialExtendedState
+    initialExtendedState: initialExtendedState,
+    settings : default_settings,
   };
-  const settings = default_settings;
-  const fsm = create_state_machine(fsmDef, settings);
+  const fsm = create_state_machine(fsmDef);
   const result = fsm({ ev: initialExtendedState });
   assert.deepEqual(result, NO_OUTPUT, `event starts the state machine`);
 });
@@ -179,10 +179,10 @@ QUnit.test("event, action, true guard", function exec_test(assert) {
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY },
       { from: 'A', event: 'ev', guards: TRUE_GUARD('B', spied_on_dummy_action), }
     ],
-    initialExtendedState: initialExtendedState
+    initialExtendedState: initialExtendedState,
+    settings : default_settings,
   };
-  const settings = default_settings;
-  const fsm = create_state_machine(fsmDef, settings);
+  const fsm = create_state_machine(fsmDef);
   const result = fsm({ ev: initialExtendedState });
   assert.deepEqual(result, arrayizeOutput(dummy_action_result.outputs),
     `event starts the state machine, transition is taken, action is executed`);
@@ -211,10 +211,10 @@ QUnit.test("event, 2 actions, [T,T] conditions, 1st action executed", function e
         ]
       }
     ],
-    initialExtendedState: initialExtendedState
+    initialExtendedState: initialExtendedState,
+    settings : default_settings,
   };
-  const settings = default_settings;
-  const fsm = create_state_machine(fsmDef, settings);
+  const fsm = create_state_machine(fsmDef);
   const result = fsm({ ev: initialExtendedState });
   assert.deepEqual(result, arrayizeOutput(dummy_action_result.outputs),
     `event starts the state machine, transition is taken, action is executed`);
@@ -243,10 +243,10 @@ QUnit.test("event, 2 actions, [F,T] conditions, 2nd action executed", function e
         ]
       }
     ],
-    initialExtendedState: initialExtendedState
+    initialExtendedState: initialExtendedState,
+    settings : default_settings,
   };
-  const settings = default_settings;
-  const fsm = create_state_machine(fsmDef, settings);
+  const fsm = create_state_machine(fsmDef);
   const result = fsm({ ev: initialExtendedState });
   assert.deepEqual(result, arrayizeOutput(dummy_action_result.outputs),
     `event starts the state machine, transition is taken, action is executed`);
@@ -275,10 +275,10 @@ QUnit.test("event, 2 actions, [T,F] conditions, 1st action executed", function e
         ]
       }
     ],
-    initialExtendedState: initialExtendedState
+    initialExtendedState: initialExtendedState,
+    settings : default_settings,
   };
-  const settings = default_settings;
-  const fsm = create_state_machine(fsmDef, settings);
+  const fsm = create_state_machine(fsmDef);
   const result = fsm({ ev: initialExtendedState });
   assert.deepEqual(result, arrayizeOutput(dummy_action_result.outputs),
     `event starts the state machine, transition is taken, action is executed`);
@@ -307,10 +307,10 @@ QUnit.test("event, 2 actions, [F,F] conditions, no action executed", function ex
         ]
       }
     ],
-    initialExtendedState: initialExtendedState
+    initialExtendedState: initialExtendedState,
+    settings : default_settings,
   };
-  const settings = default_settings;
-  const fsm = create_state_machine(fsmDef, settings);
+  const fsm = create_state_machine(fsmDef);
   const result = fsm({ ev: initialExtendedState });
   assert.deepEqual(result, NO_OUTPUT,
     `event starts the state machine, all guards failing, no transition is taken, no action is executed`);
@@ -324,10 +324,10 @@ QUnit.test("event, 2 actions with no extendedState update, NOK -> A -> B, no gua
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: dummy_action },
       { from: 'A', to: 'B', event: EVENT1, action: another_dummy_action },
     ],
-    initialExtendedState: initialExtendedState
+    initialExtendedState: initialExtendedState,
+    settings : default_settings,
   };
-  const settings = default_settings;
-  const fsm = create_state_machine(fsmDef, settings);
+  const fsm = create_state_machine(fsmDef);
   const result2 = fsm({ [EVENT1]: EVENT1_DATA });
   assert.deepEqual([result2], [arrayizeOutput(another_output)], `event triggers correct transition`);
 });
@@ -340,10 +340,10 @@ QUnit.test("event, 2 actions with extendedState update, NOK -> A -> B, no guards
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: dummy_action_with_update },
       { from: 'A', to: 'B', event: EVENT1, action: another_dummy_action_with_update },
     ],
-    initialExtendedState: initialExtendedState
+    initialExtendedState: initialExtendedState,
+    settings : default_settings,
   };
-  const settings = default_settings;
-  const fsm = create_state_machine(fsmDef, settings);
+  const fsm = create_state_machine(fsmDef);
   const result2 = fsm({ [EVENT1]: EVENT1_DATA });
   const cloned_model_initial = clone(initialExtendedState);
   assert.deepEqual([result2], [
@@ -372,10 +372,10 @@ QUnit.test("2 INIT event", function exec_test(assert) {
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: dummy_action_with_update },
       { from: 'A', to: 'B', event: EVENT1, action: another_dummy_action_with_update },
     ],
-    initialExtendedState: initialExtendedState
+    initialExtendedState: initialExtendedState,
+    settings : default_settings,
   };
-  const settings = default_settings;
-  const fsm = create_state_machine(fsmDef, settings);
+  const fsm = create_state_machine(fsmDef);
   const result2 = fsm({ [INIT_EVENT]: EVENT1_DATA });
   assert.deepEqual([result2], [
 

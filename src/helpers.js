@@ -1,6 +1,11 @@
 // Ramda fns
-import { DEEP, HISTORY_PREFIX, HISTORY_STATE_NAME, INIT_EVENT, INIT_STATE, NO_OUTPUT, SHALLOW } from "./properties"
+import {
+  ACTION_EXEC_ERROR, DEEP, HISTORY_PREFIX, HISTORY_STATE_NAME, INIT_EVENT, INIT_STATE, NO_OUTPUT, SHALLOW
+} from "./properties"
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
+
+export const noop = () => {};
+export const emptyConsole = { log: noop, warn: noop, info: noop, debug: noop, error: noop, trace: noop };
 
 export function isFunction(x) {
   return typeof x === 'function'
@@ -567,4 +572,29 @@ export function findInitTransition(transitions) {
   return transitions.find(transition => {
     return transition.from === INIT_STATE && transition.event === INIT_EVENT
   })
+}
+
+export function tryCatch(fn, errCb) {
+  return function tryCatch(...args) {
+    try {return fn.apply(fn, args);}
+    catch (e) {
+      return errCb(e, args);
+    }
+  };
+}
+
+export function wrapAction(action){
+  return tryCatch(action, (e, [extendedState_, event_data, settings]) => {
+    const debug = settings.debug || {};
+    const console = debug.console || emptyConsole;
+    const actionName = getActionName(action);
+    console.error(ACTION_EXEC_ERROR(actionName), e)
+    console.error(`with parameters(extendedState_, event_data, settings)`, [extendedState_, event_data, settings])
+
+    return new Error(ACTION_EXEC_ERROR(actionName))
+  })
+}
+
+export function getActionName(actionFactory){
+  return actionFactory.name || actionFactory.displayName || 'anonymous'
 }
