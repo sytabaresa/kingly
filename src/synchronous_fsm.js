@@ -3,10 +3,11 @@ import {
   INVALID_DECORATING_ACTION_FACTORY_EXECUTED, NO_OUTPUT, SHALLOW, STATE_PROTOTYPE_NAME
 } from "./properties";
 import {
-  arrayizeOutput, computeHistoryMaps, emptyConsole, findInitTransition, get_fn_name, getActionName, getFsmStateList,
+  arrayizeOutput, assert, computeHistoryMaps, emptyConsole, findInitTransition, get_fn_name, getActionName,
+  getFsmStateList,
   initHistoryDataStructure, isHistoryControlState, keys, mapOverTransitionsActions, updateHistory, wrap, wrapAction
 } from "./helpers";
-import { fsmContractChecker, isActions } from "./contracts"
+import { fsmContractChecker, isActions, isEventStruct } from "./contracts"
 
 const noop = () => {};
 const alwaysTrue = () => true;
@@ -296,8 +297,15 @@ export function createStateMachine(fsmDef) {
     );
   });
 
+  function assertContract(contract, arrayParams) {
+    if (!checkContracts) return void 0
+    else return assert(contract, arrayParams)
+  }
+
   function send_event(event_struct, isExternalEvent) {
     console.debug("send event", event_struct);
+    assertContract(isEventStruct, [event_struct]);
+
     const event_name = keys(event_struct)[0];
     const event_data = event_struct[event_name];
     const current_state = hash_states[INIT_STATE].current_state_name;
@@ -498,7 +506,7 @@ export function mergeOutputsFn(arrayOutputs) {
 export function decorateWithEntryActions(fsm, entryActions, mergeOutputs) {
   if (!entryActions) return fsm
 
-  const { transitions, states, initialExtendedState, initialControlState, events } = fsm;
+  const { transitions, states, initialExtendedState, initialControlState, events, settings } = fsm;
   const stateHashMap = getFsmStateList(states);
   const isValidEntryActions = Object.keys(entryActions).every(controlState => {
     return stateHashMap[controlState] != null;
@@ -523,7 +531,8 @@ export function decorateWithEntryActions(fsm, entryActions, mergeOutputs) {
       initialControlState,
       states,
       events,
-      transitions: decoratedTransitions
+      transitions: decoratedTransitions,
+      settings
     }
   }
 }
@@ -612,7 +621,7 @@ export function traceFSM(env, fsm) {
 
         return {
           updates,
-          outputs: {
+          outputs: [{
             outputs,
             updates,
             extendedState: extendedState,
@@ -626,7 +635,7 @@ export function traceFSM(env, fsm) {
             actionFactory: action,
             guardIndex,
             transitionIndex
-          },
+          }],
         }
       }
     }, transitions)

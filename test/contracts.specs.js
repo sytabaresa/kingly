@@ -16,7 +16,7 @@ const default_settings = {
 
 QUnit.module("Testing contract checking", {});
 
-QUnit.test("fsmContracts(fsmDef, settings): duplicate states", function exec_test(assert) {
+QUnit.test("fsmContracts(fsmDef): duplicate states", function exec_test(assert) {
   const fsmDef = {
     states: { A: { B: '' }, B: '' },
     events: ['ev'],
@@ -36,7 +36,7 @@ QUnit.test("fsmContracts(fsmDef, settings): duplicate states", function exec_tes
   assert.deepEqual(duplicatedStates, ['B'], `A control state hierarchy should not contain any duplicate control states`);
 });
 
-QUnit.test("fsmContracts(fsmDef, settings): reserved states", function exec_test(assert) {
+QUnit.test("fsmContracts(fsmDef): reserved states", function exec_test(assert) {
   const fsmDef = {
     states: { A: '', B: '', [INIT_STATE]: '' },
     events: ['ev'],
@@ -56,7 +56,7 @@ QUnit.test("fsmContracts(fsmDef, settings): reserved states", function exec_test
   assert.deepEqual(Object.keys(statesType), ['A', 'B', INIT_STATE], `A user-defined control state cannot be a reserved control state`);
 });
 
-QUnit.test("fsmContracts(fsmDef, settings): at least one state", function exec_test(assert) {
+QUnit.test("fsmContracts(fsmDef): at least one state", function exec_test(assert) {
   const fsmDef = {
     states: {},
     events: ['ev'],
@@ -76,7 +76,7 @@ QUnit.test("fsmContracts(fsmDef, settings): at least one state", function exec_t
   assert.deepEqual(Object.keys(statesType), [], message);
 });
 
-QUnit.test("fsmContracts(fsmDef, settings): two initial transitions", function exec_test(assert) {
+QUnit.test("fsmContracts(fsmDef): two initial transitions", function exec_test(assert) {
   const fsmDef = {
     states: { A: '', B: '' },
     events: ['ev'],
@@ -97,7 +97,7 @@ QUnit.test("fsmContracts(fsmDef, settings): two initial transitions", function e
   assert.deepEqual(initTransitions.length, 2, message);
 });
 
-QUnit.test("fsmContracts(fsmDef, settings): compound states - no init transition", function exec_test(assert) {
+QUnit.test("fsmContracts(fsmDef): compound states - no init transition", function exec_test(assert) {
   const fsmDef = {
     states: { A: { B: '' }, C: { D: '' } },
     events: ['ev'],
@@ -121,7 +121,7 @@ QUnit.test("fsmContracts(fsmDef, settings): compound states - no init transition
   ], message);
 });
 
-QUnit.test("fsmContracts(fsmDef, settings): compound states - invalid init transition", function exec_test(assert) {
+QUnit.test("fsmContracts(fsmDef): compound states - invalid init transition", function exec_test(assert) {
   const fsmDef = {
     states: { A: { B: '' }, C: '' },
     events: ['ev'],
@@ -154,7 +154,7 @@ QUnit.test("fsmContracts(fsmDef, settings): compound states - invalid init trans
   ], message);
 });
 
-QUnit.test("fsmContracts(fsmDef, settings): compound states - invalid init transition - target states not within" +
+QUnit.test("fsmContracts(fsmDef): compound states - invalid init transition - target states not within" +
   " hierarchy", function exec_test(assert) {
   const fsmDef = {
     states: { A: { B: '' }, C: '' },
@@ -188,7 +188,7 @@ QUnit.test("fsmContracts(fsmDef, settings): compound states - invalid init trans
   }, message);
 });
 
-QUnit.test("fsmContracts(fsmDef, settings): compound states - invalid init transition - target states not within" +
+QUnit.test("fsmContracts(fsmDef): compound states - invalid init transition - target states not within" +
   " hierarchy - same origin and target", function exec_test(assert) {
   const fsmDef = {
     states: { A: { B: '' }, C: '' },
@@ -222,7 +222,7 @@ QUnit.test("fsmContracts(fsmDef, settings): compound states - invalid init trans
   }, message);
 });
 
-QUnit.test(`fsmContracts(fsmDef, settings): init events only in compound states `, function exec_test(assert) {
+QUnit.test(`fsmContracts(fsmDef): init events only in compound states `, function exec_test(assert) {
   const fsmDef = {
     states: { A: { B: '' }, C: '' },
     events: ['ev'],
@@ -252,7 +252,7 @@ QUnit.test(`fsmContracts(fsmDef, settings): init events only in compound states 
   ], message);
 });
 
-QUnit.test(`fsmContracts(fsmDef, settings): valid eventless transitions`, function exec_test(assert) {
+QUnit.test(`fsmContracts(fsmDef): valid eventless transitions`, function exec_test(assert) {
   const fsmDef = {
     states: { A: { B: '' }, C: '' },
     events: ['ev'],
@@ -277,7 +277,7 @@ QUnit.test(`fsmContracts(fsmDef, settings): valid eventless transitions`, functi
   ], message);
 });
 
-QUnit.test(`fsmContracts(fsmDef, settings): all state transitions defined in one row`, function exec_test(assert) {
+QUnit.test(`fsmContracts(fsmDef): all state transitions defined in one row`, function exec_test(assert) {
   const fsmDef = {
     states: { A: { B: '' }, C: '' },
     events: ['ev'],
@@ -302,7 +302,7 @@ QUnit.test(`fsmContracts(fsmDef, settings): all state transitions defined in one
   }, message);
 });
 
-QUnit.test(`fsmContracts(fsmDef, settings): no conflicting transition between two control states hierarchically related`, function exec_test(assert) {
+QUnit.test(`fsmContracts(fsmDef): no conflicting transition between two control states hierarchically related`, function exec_test(assert) {
   const fsmDef = {
     states: { A: { B: '' }, C: '' },
     events: ['ev'],
@@ -329,7 +329,7 @@ QUnit.test(`fsmContracts(fsmDef, settings): no conflicting transition between tw
   }, message);
 });
 
-QUnit.test(`fsmContracts(fsmDef, settings): no history pseudo state can be an origin state`, function exec_test(assert) {
+QUnit.test(`fsmContracts(fsmDef): no history pseudo state can be an origin state`, function exec_test(assert) {
   const states = { A: { B: '' }, C: '' };
   const fsmDef = {
     states,
@@ -360,7 +360,7 @@ QUnit.test(`fsmContracts(fsmDef, settings): no history pseudo state can be an or
   ], message);
 });
 
-QUnit.test(`fsmContracts(fsmDef, settings): no history pseudo state can be an atomic state`, function exec_test(assert) {
+QUnit.test(`fsmContracts(fsmDef): no history pseudo state can be an atomic state`, function exec_test(assert) {
   const states = { A: { B: '' }, C: '' };
   const fsmDef = {
     states,
@@ -391,7 +391,7 @@ QUnit.test(`fsmContracts(fsmDef, settings): no history pseudo state can be an at
   ], message);
 });
 
-QUnit.test(`fsmContracts(fsmDef, settings): history pseudo state has to refer to a known state`, function exec_test(assert) {
+QUnit.test(`fsmContracts(fsmDef): history pseudo state has to refer to a known state`, function exec_test(assert) {
   const states = { A: { B: '' }, C: '' };
   const fsmDef = {
     states,
@@ -428,7 +428,7 @@ QUnit.test(`fsmContracts(fsmDef, settings): history pseudo state has to refer to
   ], message);
 });
 
-QUnit.test(`fsmContracts(fsmDef, settings): initial control state is a declared control state`, function exec_test(assert) {
+QUnit.test(`fsmContracts(fsmDef): initial control state is a declared control state`, function exec_test(assert) {
   const states = { A: { B: '' }, C: '' };
   const fsmDef = {
     initialControlState: 'X',
@@ -451,7 +451,7 @@ QUnit.test(`fsmContracts(fsmDef, settings): initial control state is a declared 
   assert.deepEqual(initialControlState, "X", message);
 });
 
-QUnit.test(`fsmContracts(fsmDef, settings): events figuring in transition must be declared and vice versa`, function exec_test(assert) {
+QUnit.test(`fsmContracts(fsmDef): events figuring in transition must be declared and vice versa`, function exec_test(assert) {
   const states = { A: { B: '' }, C: '' };
   const fsmDef = {
     initialControlState: 'X',
@@ -479,7 +479,7 @@ QUnit.test(`fsmContracts(fsmDef, settings): events figuring in transition must b
   ], message);
 });
 
-QUnit.test(`fsmContracts(fsmDef, settings): states figuring in transition must be declared and vice versa`, function exec_test(assert) {
+QUnit.test(`fsmContracts(fsmDef): states figuring in transition must be declared and vice versa`, function exec_test(assert) {
   const states = { A: '', C: '' };
   const fsmDef = {
     initialControlState: 'X',
@@ -502,11 +502,12 @@ QUnit.test(`fsmContracts(fsmDef, settings): states figuring in transition must b
     "C"
   ], message);
   assert.deepEqual(statesNotDeclaredButTriggeringTransitions, [
-    "B"
+    "B",
+    "X"
   ], message);
 });
 
-QUnit.test(`fsmContracts(fsmDef, settings): valid settings have an update state function`, function exec_test(assert) {
+QUnit.test(`fsmContracts(fsmDef): valid settings have an update state function`, function exec_test(assert) {
   const states = { A: { B: '' }, C: '' };
   const fsmDef = {
     states,
@@ -526,7 +527,7 @@ QUnit.test(`fsmContracts(fsmDef, settings): valid settings have an update state 
   assert.deepEqual(settings, undefined, message);
 });
 
-QUnit.test(`fsmContracts(fsmDef, settings): configured transition have valid format - inconditional transition - from`, function exec_test(assert) {
+QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - inconditional transition - from`, function exec_test(assert) {
   const states = { A: { B: '' }, C: '' };
   const fsmDef = {
     states,
@@ -558,7 +559,7 @@ QUnit.test(`fsmContracts(fsmDef, settings): configured transition have valid for
   ], message);
 });
 
-QUnit.test(`fsmContracts(fsmDef, settings): configured transition have valid format - inconditional transition - event`, function exec_test(assert) {
+QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - inconditional transition - event`, function exec_test(assert) {
   const states = { A: { B: '' }, C: '' };
   const fsmDef = {
     states,
@@ -590,7 +591,7 @@ QUnit.test(`fsmContracts(fsmDef, settings): configured transition have valid for
   ], message);
 });
 
-QUnit.test(`fsmContracts(fsmDef, settings): configured transition have valid format - inconditional transition - to`, function exec_test(assert) {
+QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - inconditional transition - to`, function exec_test(assert) {
   const states = { A: { B: '' }, C: '' };
   const fsmDef = {
     states,
@@ -622,7 +623,7 @@ QUnit.test(`fsmContracts(fsmDef, settings): configured transition have valid for
   ], message);
 });
 
-QUnit.test(`fsmContracts(fsmDef, settings): configured transition have valid format - inconditional transition - action`, function exec_test(assert) {
+QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - inconditional transition - action`, function exec_test(assert) {
   const states = { A: { B: '' }, C: '' };
   const fsmDef = {
     states,
@@ -653,7 +654,7 @@ QUnit.test(`fsmContracts(fsmDef, settings): configured transition have valid for
   ], message);
 });
 
-QUnit.test(`fsmContracts(fsmDef, settings): configured transition have valid format - conditional transition - from`, function exec_test(assert) {
+QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - conditional transition - from`, function exec_test(assert) {
   const states = { A: { B: '' }, C: '' };
   const fsmDef = {
     states,
@@ -690,7 +691,7 @@ QUnit.test(`fsmContracts(fsmDef, settings): configured transition have valid for
   ], message);
 });
 
-QUnit.test(`fsmContracts(fsmDef, settings): configured transition have valid format - conditional transition - event`, function exec_test(assert) {
+QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - conditional transition - event`, function exec_test(assert) {
   const states = { A: { B: '' }, C: '' };
   const fsmDef = {
     states,
@@ -727,7 +728,7 @@ QUnit.test(`fsmContracts(fsmDef, settings): configured transition have valid for
   ], message);
 });
 
-QUnit.test(`fsmContracts(fsmDef, settings): configured transition have valid format - conditional transition - to`, function exec_test(assert) {
+QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - conditional transition - to`, function exec_test(assert) {
   const states = { A: { B: '' }, C: '' };
   const fsmDef = {
     states,
@@ -764,7 +765,7 @@ QUnit.test(`fsmContracts(fsmDef, settings): configured transition have valid for
   ], message);
 });
 
-QUnit.test(`fsmContracts(fsmDef, settings): configured transition have valid format - conditional transition - action`, function exec_test(assert) {
+QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - conditional transition - action`, function exec_test(assert) {
   const states = { A: { B: '' }, C: '' };
   const fsmDef = {
     states,
@@ -800,7 +801,7 @@ QUnit.test(`fsmContracts(fsmDef, settings): configured transition have valid for
   ], message);
 });
 
-QUnit.test(`fsmContracts(fsmDef, settings): configured transition have valid format - conditional transition - guards []`, function exec_test(assert) {
+QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - conditional transition - guards []`, function exec_test(assert) {
   const states = { A: { B: '' }, C: '' };
   const fsmDef = {
     states,
@@ -831,7 +832,7 @@ QUnit.test(`fsmContracts(fsmDef, settings): configured transition have valid for
   ], message);
 });
 
-QUnit.test(`fsmContracts(fsmDef, settings): configured transition have valid format - conditional transition - guards - predicate `, function exec_test(assert) {
+QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - conditional transition - guards - predicate `, function exec_test(assert) {
   const states = { A: { B: '' }, C: '' };
   const fsmDef = {
     states,
@@ -867,7 +868,7 @@ QUnit.test(`fsmContracts(fsmDef, settings): configured transition have valid for
   ], message);
 });
 
-QUnit.test("fsmContracts(fsmDef, settings): initial transition - initial state", function exec_test(assert) {
+QUnit.test("fsmContracts(fsmDef): initial transition - initial state", function exec_test(assert) {
   const fsmDef = {
     states: { A: '', B: '' },
     events: ['ev'],
@@ -910,7 +911,7 @@ QUnit.test("fsmContracts(fsmDef, settings): initial transition - initial state",
   ], message);
 });
 
-QUnit.test("fsmContracts(fsmDef, settings): initial state cannot be a target state", function exec_test(assert) {
+QUnit.test("fsmContracts(fsmDef): initial state cannot be a target state", function exec_test(assert) {
   const fsmDef = {
     states: { A: '', B: '' },
     events: ['ev'],
@@ -934,7 +935,79 @@ QUnit.test("fsmContracts(fsmDef, settings): initial state cannot be a target sta
   ], message);
 });
 
-QUnit.test("fsmContracts(fsmDef, settings): eventless self-transitions are forbidden", function exec_test(assert) {
+QUnit.test("fsmContracts(fsmDef): eventless self-transitions are forbidden", function exec_test(assert) {
+  const fsmDef = {
+    states: { A: {C: ''}, B: '' },
+    events: ['ev'],
+    transitions: [
+      { from: INIT_STATE, to: 'B', event: INIT_EVENT, action: ACTION_IDENTITY },
+      { from: 'A', to: 'C', event: INIT_EVENT, action: ACTION_IDENTITY },
+      { from: 'B', to: 'B', event: void 0, action: ACTION_IDENTITY },
+    ],
+    initialExtendedState: {},
+    settings : default_settings,
+  };
+
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const failureInfo = failingContracts.find(x => x.name === isValidSelfTransition.name);
+  const { message, info } = failureInfo;
+  const { wrongSelfTransitions } = info;
+  assert.deepEqual(isFulfilled, false, `Fails at least one contract`);
+  assert.deepEqual(wrongSelfTransitions.map(x => x.map(formatResult)), [
+    [
+      {
+        "flatTransition": {
+          "action": "ACTION_IDENTITY",
+          "event": undefined,
+          "from": "B",
+          "predicate": undefined,
+          "to": "B"
+        },
+        "state": "B"
+      }
+    ]
+  ], message);
+});
+
+QUnit.module("Testing error capture in user-provided functions", {});
+
+QUnit.test("Transition actions error", function exec_test(assert) {
+  // TODO : write action which errors and find out what to test
+  const fsmDef = {
+    states: { A: {C: ''}, B: '' },
+    events: ['ev'],
+    transitions: [
+      { from: INIT_STATE, to: 'B', event: INIT_EVENT, action: ACTION_IDENTITY },
+      { from: 'A', to: 'C', event: INIT_EVENT, action: ACTION_IDENTITY },
+      { from: 'B', to: 'B', event: void 0, action: ACTION_IDENTITY },
+    ],
+    initialExtendedState: {},
+    settings : default_settings,
+  };
+
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const failureInfo = failingContracts.find(x => x.name === isValidSelfTransition.name);
+  const { message, info } = failureInfo;
+  const { wrongSelfTransitions } = info;
+  assert.deepEqual(isFulfilled, false, `Fails at least one contract`);
+  assert.deepEqual(wrongSelfTransitions.map(x => x.map(formatResult)), [
+    [
+      {
+        "flatTransition": {
+          "action": "ACTION_IDENTITY",
+          "event": undefined,
+          "from": "B",
+          "predicate": undefined,
+          "to": "B"
+        },
+        "state": "B"
+      }
+    ]
+  ], message);
+});
+
+QUnit.test("Entry actions error", function exec_test(assert) {
+  // TODO : write action which errors and find out what to test
   const fsmDef = {
     states: { A: {C: ''}, B: '' },
     events: ['ev'],

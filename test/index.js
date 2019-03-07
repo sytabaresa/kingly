@@ -7,4 +7,5 @@ import "./utils.specs"
 import './hierarchy.specs'
 import './debug-settings-specs'
 import './contracts.specs'
+import './entry-actions.specs'
 QUnit.dump.maxDepth = 50;

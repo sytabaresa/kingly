@@ -24,6 +24,7 @@ export const history_symbol = {};
 export const SHALLOW = 'shallow';
 export const DEEP = 'deep';
 
+export const WRONG_EVENT_FORMAT_ERROR = `ERROR: the machine received an event which does not have the proper format. Expecting an object whose unique key is the event name, and value is the event data.`
 export const ACTION_EXEC_ERROR = actionName => `ERROR: when executing action factory ${actionName||""}`
 export const INVALID_ACTION_FACTORY_EXECUTED = actionName => `${ACTION_EXEC_ERROR(actionName)}\nFactory returned a value which is not an action.`
 export const INVALID_DECORATING_ACTION_FACTORY_EXECUTED = (actionName, type) => `${type || ""} ${ACTION_EXEC_ERROR(actionName)}\nFactory returned a value which is not an action.`

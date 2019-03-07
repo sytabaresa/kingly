@@ -1,4 +1,9 @@
 # Now
+- ROADMAP : TESTING
+  - inject a debug property with a trace property or a trace property instead of debug
+  - the trace prop has an emitter interface a signature {event, event data}
+    - {RECEIVED_EVENT: eventData}
+    -  {REJECTED_EVENT: {RECEIVED_EVENT: eventData}}
 - TODO:
   - README adjust to change of signature ; settings in FSM_DEF now, also adjust types.js
 - Demos

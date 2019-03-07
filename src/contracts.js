@@ -4,11 +4,31 @@ import {
   isControlState, isEvent, isFunction, isHistoryControlState
 } from "./helpers"
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
-import { ACTION_IDENTITY, INIT_EVENT, INIT_STATE, NO_OUTPUT } from "./properties"
+import { ACTION_IDENTITY, INIT_EVENT, INIT_STATE, NO_OUTPUT, WRONG_EVENT_FORMAT_ERROR } from "./properties"
 
 export function isActions(obj) {
   return obj && `updates` in obj && `outputs` in obj
     && (obj.outputs === NO_OUTPUT || Array.isArray(obj.outputs)) && Array.isArray(obj.updates)
+}
+
+/**
+ * That is a Either contract, not a Boolean contract!
+ * @param obj
+ * @returns {boolean|Error}
+ */
+export function isEventStruct(obj){
+  let trueOrError;
+  if (!obj || typeof obj !== 'object') {
+    trueOrError = new Error(WRONG_EVENT_FORMAT_ERROR);
+    trueOrError.info = {event : obj, cause: `not an object!`}
+  }
+  else if (Object.keys(obj).length > 1) {
+    trueOrError = new Error(WRONG_EVENT_FORMAT_ERROR);
+    trueOrError.info = {event : obj, cause: `Event objects must have only one key which is the event name!`}
+  }
+  else trueOrError = true;
+
+  return trueOrError
 }
 
 // Contracts
@@ -96,7 +116,7 @@ export const isInitialControlStateDeclared = {
         isFulfilled: stateList.indexOf(initialControlState) > -1,
         blame: {
           message: `Configured initial control state must be a declared state. Cf. log`,
-          info: { initialControlState, states: stateList }
+          info: { initialControlState, declaredStates: stateList }
         }
       }
     }
@@ -173,14 +193,15 @@ export const validInitialTransition = {
       return acc
     }, []);
     // DOC : or not, we allow conditional init transitions!! allow to set the initial state depending on settings!
+   // NOTE: functional object reference, and decoration (trace, entry actions )do not work well together, so we don't
+    // enforce the part of the contract which require to have no actions for initial transitions...
     const isFulfilled =
       (initialControlState && !initTransition) ||
       (!initialControlState && initTransition && initTransitions.length === 1 && initTransition.event === INIT_EVENT
         && (
-          isInconditionalTransition(initTransition) && initTransition.action === ACTION_IDENTITY
-          || areCconditionalTransitions(initTransition) && initTransition.guards.every(guard =>
-            guard.action === ACTION_IDENTITY
-          )
+          isInconditionalTransition(initTransition) // && initTransition.action === ACTION_IDENTITY
+          || areCconditionalTransitions(initTransition)
+          // && initTransition.guards.every(guard => guard.action === ACTION_IDENTITY)
         )
       );
 
@@ -330,8 +351,8 @@ export const allStateTransitionsOnOneSingleRow = {
   name: 'allStateTransitionsOnOneSingleRow',
   shouldThrow: false,
   predicate: (fsmDef, { statesTransitionsMaps }) => {
-    const stateList = Object.keys(statesTransitionsMaps);
-    const statesTransitionsInfo = stateList.reduce((acc, state) => {
+    const originStateList = Object.keys(statesTransitionsMaps);
+    const statesTransitionsInfo = originStateList.reduce((acc, state) => {
       const events = Object.keys(statesTransitionsMaps[state]);
       const wrongEventConfig = events.filter(event => statesTransitionsMaps[state][event].length > 1);
       if (wrongEventConfig.length > 0) {
@@ -398,7 +419,7 @@ export const noConflictingTransitionsWithAncestorState = {
 export const isHistoryStatesTargetStates = {
   name: 'isHistoryStatesTargetStates',
   shouldThrow: false,
-  predicate: (fsmDef, { }) => {
+  predicate: (fsmDef, {}) => {
     const wrongHistoryStates = fsmDef.transitions.reduce((acc, transition) => {
       return isHistoryControlState(transition.from)
         ? acc.concat(transition)
@@ -422,8 +443,8 @@ export const isHistoryStatesCompoundStates = {
   name: 'isHistoryStatesCompoundStates',
   shouldThrow: false,
   predicate: (fsmDef, { statesTransitionsMaps, statesType }) => {
-    const stateList = Object.keys(statesTransitionsMaps);
-    const wrongHistoryStates = stateList.map(originState => {
+    const originStateList = Object.keys(statesTransitionsMaps);
+    const wrongHistoryStates = originStateList.map(originState => {
       if (originState === INIT_STATE) return []
 
       const events = Object.keys(statesTransitionsMaps[originState]);
@@ -570,8 +591,13 @@ export const areEventsDeclared = {
 export const areStatesDeclared = {
   name: 'areStatesDeclared',
   shouldThrow: false,
-  predicate: (fsmDef, { statesTransitionsMaps, statesType }) => {
-    const stateList = Object.keys(statesTransitionsMaps);
+  predicate: (fsmDef, { statesTransitionsMaps, targetStatesMap, statesType }) => {
+    const originStateList = Object.keys(statesTransitionsMaps);
+    const targetStateList = Array.from(targetStatesMap.keys());
+    const stateList = Object.keys([originStateList, targetStateList].reduce((acc, stateList) => {
+      stateList.forEach(state => acc[state] = true)
+      return acc
+    }, {}));
     const declaredStateList = Object.keys(statesType);
     const statesDeclaredButNotTriggeringTransitions = declaredStateList
       .map(declaredState => stateList.indexOf(declaredState) === -1 && declaredState)
@@ -599,7 +625,7 @@ export const isValidSettings = {
   name: 'isValidSettings',
   shouldThrow: false,
   predicate: (fsmDef) => {
-    const {settings} = fsmDef;
+    const { settings } = fsmDef;
     if (!settings) {
       return {
         isFulfilled: false,
@@ -681,7 +707,17 @@ export const isValidSelfTransition = {
 
 // TODO : add tryCatch for catching exception for predicates, actions, updateState any user provided function, only
 // if debug is set,
-// TODO: make a test which shows how updates and output are aggregated when several of them on a transition
+// TODO : check that entry actions and normal actions are guarded tryCatch against errors
+// TODO: analyze edge case : I pile on entry transitions decorateEntry(decorateEntry(...))
+// - what happens if same entry transition twice? should be ok, same order, both will apply, write a test
+// NO!! A -ev-> B ACT1
+// NO!! Entry B : ACT2
+// NO!! Entry B : ACT3
+// decorate(ACT2, decorate(ACT3, ...) -> [ACT1, ACT3, ACT2]!!
+// test and DOC it (but that should be another version right?) maybe include in this one after all
+// TODO : DOC that decorated actions should also be tryCatch separately for better error tracking - otherwise the
+// error will be caught, but it will not be possible to identify which action (transition or decorated) caused the
+// problem
 
 const fsmContracts = {
   computed: fsmDef => {

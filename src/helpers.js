@@ -264,59 +264,59 @@ export function getStatesPath(statesTree) {
 export function getStatesTransitionsMap(transitions) {
   // Map a control state to the transitions which it as origin
   return transitions.reduce((acc, transition) => {
-    const { from, event } = transition;
-    // NOTE: that should never be, but we need to be defensive here to keep semantics
-    if (isHistoryControlState(from)) return acc
+      const { from, event } = transition;
+      // NOTE: that should never be, but we need to be defensive here to keep semantics
+      if (isHistoryControlState(from)) return acc
 
-    acc[from] = acc[from] || {};
-    acc[from][event] = transition;
-    return acc
-  }, {})
-  || {}
+      acc[from] = acc[from] || {};
+      acc[from][event] = transition;
+      return acc
+    }, {})
+    || {}
 }
 
 export function getStatesTransitionsMaps(transitions) {
   // Map a control state to the transitions which it as origin
   return transitions.reduce((acc, transition) => {
-    const { from, event } = transition;
-    // NOTE: that should never be, but we need to be defensive here to keep semantics
-    if (isHistoryControlState(from)) return acc
+      const { from, event } = transition;
+      // NOTE: that should never be, but we need to be defensive here to keep semantics
+      if (isHistoryControlState(from)) return acc
 
-    acc[from] = acc[from] || {};
-    acc[from][event] = acc[from][event] ? acc[from][event].concat(transition) : [transition];
-    return acc
-  }, {})
-  || {}
+      acc[from] = acc[from] || {};
+      acc[from][event] = acc[from][event] ? acc[from][event].concat(transition) : [transition];
+      return acc
+    }, {})
+    || {}
 }
 
 export function getEventTransitionsMaps(transitions) {
   // Map an event to the origin control states of the transitions it triggers
   return transitions.reduce((acc, transition) => {
-    const { from, event } = transition;
-    // NOTE: that should never be, but we need to be defensive here to keep semantics
-    if (isHistoryControlState(from)) return acc
+      const { from, event } = transition;
+      // NOTE: that should never be, but we need to be defensive here to keep semantics
+      if (isHistoryControlState(from)) return acc
 
-    acc[event] = acc[event] || {};
-    acc[event][from] = acc[event][from] ? acc[event][from].concat(transition) : [transition];
-    return acc
-  }, {})
-  || {}
+      acc[event] = acc[event] || {};
+      acc[event][from] = acc[event][from] ? acc[event][from].concat(transition) : [transition];
+      return acc
+    }, {})
+    || {}
 }
 
 export function getHistoryStatesMap(transitions) {
   return reduceTransitions((map, flatTransition, guardIndex, transitionIndex) => {
-    const { from, event, to, action, predicate, gen } = flatTransition;
-    if (isHistoryControlState(from)) {
-      const underlyingControlState = getHistoryUnderlyingState(from);
-      map.set(underlyingControlState, (map.get(underlyingControlState) || []).concat([flatTransition]));
-    }
-    else if (isHistoryControlState(to)) {
-      const underlyingControlState = getHistoryUnderlyingState(to);
-      map.set(underlyingControlState, (map.get(underlyingControlState) || []).concat([flatTransition]));
-    }
+      const { from, event, to, action, predicate, gen } = flatTransition;
+      if (isHistoryControlState(from)) {
+        const underlyingControlState = getHistoryUnderlyingState(from);
+        map.set(underlyingControlState, (map.get(underlyingControlState) || []).concat([flatTransition]));
+      }
+      else if (isHistoryControlState(to)) {
+        const underlyingControlState = getHistoryUnderlyingState(to);
+        map.set(underlyingControlState, (map.get(underlyingControlState) || []).concat([flatTransition]));
+      }
 
-    return map
-  }, new Map(), transitions)
+      return map
+    }, new Map(), transitions)
     || {};
 }
 
@@ -404,7 +404,7 @@ export function mapOverTransitionsActions(mapFn, transitions) {
   return reduceTransitions(function (acc, transition, guardIndex, transitionIndex) {
     const { from, event, to, action, predicate } = transition;
     const mappedAction = mapFn(action, transition, guardIndex, transitionIndex);
-    mappedAction.displayName = action && (action.name || action.displayName || formatActionName(action, from, event, to, predicate));
+    mappedAction.displayName = mappedAction.displayName || (action && (action.name || action.displayName || formatActionName(action, from, event, to, predicate)));
 
     if (typeof(predicate) === 'undefined') {
       acc.push({ from, event, to, action: mappedAction })
@@ -583,7 +583,7 @@ export function tryCatch(fn, errCb) {
   };
 }
 
-export function wrapAction(action){
+export function wrapAction(action) {
   return tryCatch(action, (e, [extendedState_, event_data, settings]) => {
     const debug = settings.debug || {};
     const console = debug.console || emptyConsole;
@@ -595,6 +595,24 @@ export function wrapAction(action){
   })
 }
 
-export function getActionName(actionFactory){
+export function getActionName(actionFactory) {
   return actionFactory.name || actionFactory.displayName || 'anonymous'
+}
+
+/**
+ *
+ * @param {function: true | Error} contract Contract returns either true (fulfilled contract) or an Error with an
+ * optional info properties to give more details about the cause of the error
+ * @param {Array} arrayParams Parameters to be passed to the conract
+ * @returns {undefined} if the contract is fulfilled
+ * @throws if the contract fails
+ */
+export function assert(contract, arrayParams) {
+  const isFulfilledOrError = contract.apply(null, arrayParams);
+  if (isFulfilledOrError === true) return void 0
+  else {
+    const info = isFulfilledOrError.info;
+    console.error(`ERROR: failed contract ${contract.name || ""}. ${info ? "Error info:" : ""}`, isFulfilledOrError.info);
+    throw isFulfilledOrError
+  }
 }
