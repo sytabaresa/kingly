@@ -1,6 +1,6 @@
 // Ramda fns
 import {
-  ACTION_EXEC_ERROR, DEEP, HISTORY_PREFIX, HISTORY_STATE_NAME, INIT_EVENT, INIT_STATE, NO_OUTPUT, SHALLOW
+  ACTION_FACTORY_THREW_ERROR, DEEP, HISTORY_PREFIX, HISTORY_STATE_NAME, INIT_EVENT, INIT_STATE, NO_OUTPUT, SHALLOW
 } from "./properties"
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
 
@@ -583,15 +583,23 @@ export function tryCatch(fn, errCb) {
   };
 }
 
+// DOC : errors will be have info be arrays when decoration occurs
 export function wrapAction(action) {
   return tryCatch(action, (e, [extendedState_, event_data, settings]) => {
-    const debug = settings.debug || {};
-    const console = debug.console || emptyConsole;
+    const err = new Error(e);
     const actionName = getActionName(action);
-    console.error(ACTION_EXEC_ERROR(actionName), e)
-    console.error(`with parameters(extendedState_, event_data, settings)`, [extendedState_, event_data, settings])
+    // NOTE : we concatenate causes but not `info`
+    err.probableCause = [ACTION_FACTORY_THREW_ERROR(actionName), e.probableCause || ''].join('\n');
+    const probableCause = ACTION_FACTORY_THREW_ERROR(actionName);
+    err.probableCause = e.probableCause ? [probableCause, e.probableCause].join('\n') : probableCause;
 
-    return new Error(ACTION_EXEC_ERROR(actionName))
+    const info = {
+      actionName: actionName,
+      params: { extendedState_, event_data, settings }
+    };
+    err.info = e.info ? [].concat([info]).concat([e.info]) : info;
+
+    return err
   })
 }
 
@@ -615,4 +623,10 @@ export function assert(contract, arrayParams) {
     console.error(`ERROR: failed contract ${contract.name || ""}. ${info ? "Error info:" : ""}`, isFulfilledOrError.info);
     throw isFulfilledOrError
   }
+}
+
+export function notifyThrows(console, error) {
+  console.error(error);
+  error.probableCause && console.error(`Probable cause: ${error.probableCause}`);
+  error.info && console.error(`ERROR: additional info`, error.info);
 }

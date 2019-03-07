@@ -28,6 +28,22 @@
     -    or https://pusher.com/tutorials/realtime-chess-game-react (real time chat on top)
     - or pacman : https://github.com/platzhersh/pacman-canvas, from https://superdevresources.com/open-source-html5-games/
 
+  - maybe this https://buttercms.com/blog/build-a-beautiful-animated-news-app-with-vuejs-and-vuetify
+    - LOW PRIORITY - but good as a Vue example and also adding states to the fetch (handling errors)
+    which are not in the current version
+
+- version 1.X for entry actions and exit actions
+// TODO: analyze edge case : I pile on entry transitions decorateEntry(decorateEntry(...))
+// - what happens if same entry transition twice? should be ok, same order, both will apply, write a test
+// NO!! A -ev-> B ACT1
+// NO!! Entry B : ACT2
+// NO!! Entry B : ACT3
+// decorate(ACT2, decorate(ACT3, ...) -> [ACT1, ACT3, ACT2]!!
+// test and DOC it (but that should be another version right?) maybe include in this one after all
+// TODO : DOC that decorated actions should also be tryCatch separately for better error tracking - otherwise the
+// error will be caught, but it will not be possible to identify which action (transition or decorated) caused the
+// problem
+
 - Promote
   - add on reactjs example?
   - finish react-state-driven then vue-state-driven
@@ -93,13 +109,10 @@ not enough!!
 emachine is not in sync with the gen. Should identify that early and return a warning? Generally
 error is ...[0] is undefined. That means an event was sent and could not be handleed by the state
  machine
-- input generation
-  - write DOC
 ! WRITE ALL CONTRACTS
   - TODO add contract for test gen : apply only to FSM for which init event sets the initial state
    in the machine
      - could ignore event data from gen corresponding to INIT_STATE??
-- CONTRACT : actually disallow having several guards from INIT_STATE!!
 - CONTRACT : for guards associated to (from, event), only one guard can be fulfilled!!
   - for now priority works : first guard fulfilled
   - but that kills generative testing, it could follow a branch that is impossible by following
@@ -113,9 +126,6 @@ error is ...[0] is undefined. That means an event was sent and could not be hand
      - if that is the case, the test input generation will work
      - but not the implementation which does not forward event!!
    - note this is a generalization of from1 = from 2 mentioned previously
-- visualization
-  - try the visualizer with the examples in tests
-  - make visualizer work for history states too!!
 - ROADMAP : add the super test from quantum leaps for hierarchy specs : remove those who cannot work
 - ROADMAP : NO!! allow event forwarding : THAT IS A REWRITE, good thing tests are already there
   - that requires getting rid of prototypes and make a list of transitions for each (from, event)

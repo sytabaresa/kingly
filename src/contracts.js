@@ -708,16 +708,6 @@ export const isValidSelfTransition = {
 // TODO : add tryCatch for catching exception for predicates, actions, updateState any user provided function, only
 // if debug is set,
 // TODO : check that entry actions and normal actions are guarded tryCatch against errors
-// TODO: analyze edge case : I pile on entry transitions decorateEntry(decorateEntry(...))
-// - what happens if same entry transition twice? should be ok, same order, both will apply, write a test
-// NO!! A -ev-> B ACT1
-// NO!! Entry B : ACT2
-// NO!! Entry B : ACT3
-// decorate(ACT2, decorate(ACT3, ...) -> [ACT1, ACT3, ACT2]!!
-// test and DOC it (but that should be another version right?) maybe include in this one after all
-// TODO : DOC that decorated actions should also be tryCatch separately for better error tracking - otherwise the
-// error will be caught, but it will not be possible to identify which action (transition or decorated) caused the
-// problem
 
 const fsmContracts = {
   computed: fsmDef => {

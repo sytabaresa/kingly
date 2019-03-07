@@ -8,4 +8,5 @@ import './hierarchy.specs'
 import './debug-settings-specs'
 import './contracts.specs'
 import './entry-actions.specs'
+import './errors-specs'
 QUnit.dump.maxDepth = 50;

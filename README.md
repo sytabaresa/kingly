@@ -198,9 +198,12 @@ current automated tests, type in a terminal : `npm run test`
 
 # Integration with UI libraries
 The machine is just a function. As such it is pretty easy to integrate in any framework. In fact,
- we have implemented the same interface behaviour over [React](https://codesandbox.io/s/ym8vpqm7m9), [Vue](https://codesandbox.io/s/4p1nnywy0), [Svelte](https://codesandbox.io/s/1oq26mwk73), [Inferno](https://codesandbox.io/s/9zjo5yx8po), [Nerv](https://codesandbox.io/s/o4vkwmw7y), [Ivi](https://codesandbox.io/s/3x9x5v4kq5) with 
+ we have implemented the same interface behaviour over [React](https://codesandbox.io/s/ym8vpqm7m9), [Vue*](https://codesandbox.io/s/4p1nnywy0), [Svelte*](https://github.com/brucou/movie-search-app-svelte), [Inferno](https://codesandbox.io/s/9zjo5yx8po), [Nerv](https://codesandbox.io/s/o4vkwmw7y), [Ivi](https://codesandbox.io/s/3x9x5v4kq5) with 
  the exact same fsm. By isolating your component behaviour in a fsm, you can delay the UI library 
  choice to the last moment. 
+ 
+[*]: Vue and Svelte do not build properly the CSS files, which makes the demo a bit less appealing.
+ As this is not so important for our purposes, I decided not to spend time solving the build issues.
  
 As of today, we officially provide the following integrations :
 

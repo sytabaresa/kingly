@@ -1,11 +1,13 @@
 import {
-  ACTION_IDENTITY, AUTO_EVENT, DEEP, history_symbol, INIT_EVENT, INIT_STATE, INVALID_ACTION_FACTORY_EXECUTED,
+  ACTION_FACTORY_THREW_ERROR,
+  ACTION_IDENTITY, AUTO_EVENT, DECORATING_ACTION_FACTORY_THREW_ERROR, DEEP, history_symbol, INIT_EVENT, INIT_STATE,
+  INVALID_ACTION_FACTORY_EXECUTED,
   INVALID_DECORATING_ACTION_FACTORY_EXECUTED, NO_OUTPUT, SHALLOW, STATE_PROTOTYPE_NAME
 } from "./properties";
 import {
   arrayizeOutput, assert, computeHistoryMaps, emptyConsole, findInitTransition, get_fn_name, getActionName,
-  getFsmStateList,
-  initHistoryDataStructure, isHistoryControlState, keys, mapOverTransitionsActions, updateHistory, wrap, wrapAction
+  getFsmStateList, initHistoryDataStructure, isHistoryControlState, keys, mapOverTransitionsActions, notifyThrows,
+  updateHistory, wrap, wrapAction
 } from "./helpers";
 import { fsmContractChecker, isActions, isEventStruct } from "./contracts"
 
@@ -257,8 +259,20 @@ export function createStateMachine(fsmDef) {
               // TODO : trace all action(... and replace with wrappedAction, thn do sam for guards
               const actionResultOrError = wrappedAction(extendedState_, event_data, settings);
 
-              if (actionResultOrError instanceof Error) throw actionResultOrError
-              else if (debug && !isActions(actionResultOrError)) throw new Error(INVALID_ACTION_FACTORY_EXECUTED(actionName))
+              if (debug && actionResultOrError instanceof Error) {
+                notifyThrows(console, actionResultOrError)
+                throw actionResultOrError
+              }
+              else if (debug && !isActions(actionResultOrError)) {
+                const error = new Error(INVALID_ACTION_FACTORY_EXECUTED(actionName));
+                error.info = {
+                  actionName: getActionName(action),
+                  params: { extendedState_, event_data, settings },
+                  returned: actionResultOrError
+                };
+                notifyThrows(console, error)
+                throw error
+              }
               else {
                 const { updates, outputs } = actionResultOrError;
                 // Leave the current state
@@ -558,10 +572,24 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
     const actionResult = action(extendedState, eventData, settings);
     const actionUpdate = actionResult.updates;
     const updatedExtendedState = updateState(extendedState, actionUpdate);
+    const entryActionName = getActionName(entryAction);
 
     const exitActionResultOrError = wrappedEntryAction(updatedExtendedState, eventData, settings);
-    if (exitActionResultOrError instanceof Error) throw exitActionResultOrError
-    else if (debug && !isActions(exitActionResultOrError)) throw new Error(INVALID_DECORATING_ACTION_FACTORY_EXECUTED(getActionName(entryAction), 'entry'))
+    if (exitActionResultOrError instanceof Error) {
+      exitActionResultOrError.probableCause = DECORATING_ACTION_FACTORY_THREW_ERROR(entryActionName, `Entry action`);
+      notifyThrows(console, exitActionResultOrError)
+      throw exitActionResultOrError
+    }
+    else if (debug && !isActions(exitActionResultOrError)) {
+      const error = new Error(INVALID_DECORATING_ACTION_FACTORY_EXECUTED(entryActionName, `Entry action`));
+      error.info = {
+        actionName: getActionName(entryAction),
+        params: { updatedExtendedState, eventData, settings },
+        returned: exitActionResultOrError
+      };
+      notifyThrows(console, error)
+      throw error
+    }
     else {
       // NOTE : exitActionResult comes last as we want it to have priority over other actions.
       // As a matter of fact, it is an exit action, so it must always happen on exiting, no matter what
