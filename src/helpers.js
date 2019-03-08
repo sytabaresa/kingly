@@ -1,8 +1,11 @@
 // Ramda fns
 import {
-  ACTION_FACTORY_THREW_ERROR, DEEP, HISTORY_PREFIX, HISTORY_STATE_NAME, INIT_EVENT, INIT_STATE, NO_OUTPUT, SHALLOW
+  ACTION_FACTORY_THREW_ERROR, DECORATING_ACTION_FACTORY_THREW_ERROR, DEEP, HISTORY_PREFIX, HISTORY_STATE_NAME,
+  INIT_EVENT, INIT_STATE,
+  INVALID_ACTION_FACTORY_EXECUTED, INVALID_DECORATING_ACTION_FACTORY_EXECUTED, NO_OUTPUT, SHALLOW
 } from "./properties"
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
+import { isActions } from "./contracts"
 
 export const noop = () => {};
 export const emptyConsole = { log: noop, warn: noop, info: noop, debug: noop, error: noop, trace: noop };
@@ -629,4 +632,67 @@ export function notifyThrows(console, error) {
   console.error(error);
   error.probableCause && console.error(`Probable cause: ${error.probableCause}`);
   error.info && console.error(`ERROR: additional info`, error.info);
+}
+
+/**
+ * false iff no errors or invalid actions
+ * if not throws an exception
+ * @param {{debug, console}} notify
+ * @param {{action, extendedState, event_data, settings}} exec
+ * @param {Actions | Error} actionResultOrError
+ * @param {function} handlerThrow handles when the action factory throws during its execution
+ * @param {function} handlerInvalidAction handles when the action factory returns invalid actions
+ * @returns {boolean}
+ */
+export function handleActionResultError(notify, exec, actionResultOrError, handlerThrow, handlerInvalidAction){
+  const {debug, console} = notify;
+  const {action, extendedState, eventData, settings } = exec;
+
+  if (debug && actionResultOrError instanceof Error) {
+    handlerThrow({debug, console}, actionResultOrError, {action, extendedState, eventData, settings })
+    return true
+  }
+  else if (debug && !isActions(actionResultOrError)) {
+    handlerInvalidAction({debug, console}, actionResultOrError, {action, extendedState, eventData, settings })
+    return true
+  }
+  else return false
+}
+
+export function throwIfActionFactoryThrows({debug, console}, actionResultOrError){
+  notifyThrows(console, actionResultOrError)
+  throw actionResultOrError
+}
+
+export function throwIfEntryActionFactoryThrows({debug, console}, exitActionResultOrError,{action}){
+  const actionName = getActionName(action);
+  exitActionResultOrError.probableCause = DECORATING_ACTION_FACTORY_THREW_ERROR(actionName, `Entry action`);
+  notifyThrows(console, exitActionResultOrError)
+  throw exitActionResultOrError
+}
+
+export function throwIfInvalidActionResult({debug, console}, actionResultOrError, exec) {
+  const {action, extendedState, eventData, settings } = exec;
+  const actionName = getActionName(action);
+  const error = new Error(INVALID_ACTION_FACTORY_EXECUTED(actionName));
+  error.info = {
+    actionName: getActionName(action),
+    params: { updatedExtendedState: extendedState, eventData, settings },
+    returned: actionResultOrError
+  };
+  notifyThrows(console, error)
+  throw error
+}
+
+export function throwIfInvalidEntryActionResult({debug, console}, exitActionResultOrError, exec) {
+  const {action, extendedState, eventData, settings } = exec;
+  const actionName = getActionName(action);
+  const error = new Error(INVALID_DECORATING_ACTION_FACTORY_EXECUTED(actionName, `Entry action`));
+  error.info = {
+    actionName: getActionName(action),
+    params: { updatedExtendedState: extendedState, eventData, settings },
+    returned: exitActionResultOrError
+  };
+  notifyThrows(console, error)
+  throw error
 }

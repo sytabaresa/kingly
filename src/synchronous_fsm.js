@@ -1,15 +1,13 @@
 import {
-  ACTION_FACTORY_THREW_ERROR,
-  ACTION_IDENTITY, AUTO_EVENT, DECORATING_ACTION_FACTORY_THREW_ERROR, DEEP, history_symbol, INIT_EVENT, INIT_STATE,
-  INVALID_ACTION_FACTORY_EXECUTED,
-  INVALID_DECORATING_ACTION_FACTORY_EXECUTED, NO_OUTPUT, SHALLOW, STATE_PROTOTYPE_NAME
+  ACTION_IDENTITY, AUTO_EVENT, DEEP, history_symbol, INIT_EVENT, INIT_STATE, NO_OUTPUT, SHALLOW, STATE_PROTOTYPE_NAME
 } from "./properties";
 import {
   arrayizeOutput, assert, computeHistoryMaps, emptyConsole, findInitTransition, get_fn_name, getActionName,
-  getFsmStateList, initHistoryDataStructure, isHistoryControlState, keys, mapOverTransitionsActions, notifyThrows,
-  updateHistory, wrap, wrapAction
+  getFsmStateList, handleActionResultError, initHistoryDataStructure, isHistoryControlState, keys,
+  mapOverTransitionsActions, throwIfActionFactoryThrows, throwIfEntryActionFactoryThrows, throwIfInvalidActionResult,
+  throwIfInvalidEntryActionResult, updateHistory, wrap, wrapAction
 } from "./helpers";
-import { fsmContractChecker, isActions, isEventStruct } from "./contracts"
+import { fsmContractChecker, isEventStruct } from "./contracts"
 
 const noop = () => {};
 const alwaysTrue = () => true;
@@ -256,24 +254,17 @@ export function createStateMachine(fsmDef) {
 
               console.info("THEN : we execute the action " + actionName);
               const wrappedAction = wrapAction(action);
-              // TODO : trace all action(... and replace with wrappedAction, thn do sam for guards
               const actionResultOrError = wrappedAction(extendedState_, event_data, settings);
 
-              if (debug && actionResultOrError instanceof Error) {
-                notifyThrows(console, actionResultOrError)
-                throw actionResultOrError
-              }
-              else if (debug && !isActions(actionResultOrError)) {
-                const error = new Error(INVALID_ACTION_FACTORY_EXECUTED(actionName));
-                error.info = {
-                  actionName: getActionName(action),
-                  params: { extendedState_, event_data, settings },
-                  returned: actionResultOrError
-                };
-                notifyThrows(console, error)
-                throw error
-              }
-              else {
+              const isActionResultError = handleActionResultError(
+                { debug, console },
+                { action, extendedState: extendedState_, eventData: event_data, settings },
+                actionResultOrError,
+                throwIfActionFactoryThrows,
+                throwIfInvalidActionResult
+              );
+
+              if (!isActionResultError) {
                 const { updates, outputs } = actionResultOrError;
                 // Leave the current state
                 leave_state(from, extendedState_, hash_states);
@@ -572,25 +563,18 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
     const actionResult = action(extendedState, eventData, settings);
     const actionUpdate = actionResult.updates;
     const updatedExtendedState = updateState(extendedState, actionUpdate);
-    const entryActionName = getActionName(entryAction);
 
     const exitActionResultOrError = wrappedEntryAction(updatedExtendedState, eventData, settings);
-    if (exitActionResultOrError instanceof Error) {
-      exitActionResultOrError.probableCause = DECORATING_ACTION_FACTORY_THREW_ERROR(entryActionName, `Entry action`);
-      notifyThrows(console, exitActionResultOrError)
-      throw exitActionResultOrError
-    }
-    else if (debug && !isActions(exitActionResultOrError)) {
-      const error = new Error(INVALID_DECORATING_ACTION_FACTORY_EXECUTED(entryActionName, `Entry action`));
-      error.info = {
-        actionName: getActionName(entryAction),
-        params: { updatedExtendedState, eventData, settings },
-        returned: exitActionResultOrError
-      };
-      notifyThrows(console, error)
-      throw error
-    }
-    else {
+
+    const isExitActionResultError = handleActionResultError(
+      { debug, console },
+      { action: entryAction, extendedState: updatedExtendedState, eventData, settings },
+      exitActionResultOrError,
+      throwIfEntryActionFactoryThrows,
+      throwIfInvalidEntryActionResult
+    );
+
+    if (!isExitActionResultError) {
       // NOTE : exitActionResult comes last as we want it to have priority over other actions.
       // As a matter of fact, it is an exit action, so it must always happen on exiting, no matter what
       //
@@ -605,7 +589,7 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
       };
     }
   };
-  decoratedAction.displayName = action.displayName;
+  decoratedAction.displayName = `Entry_Action_After_${getActionName(action)}`;
 
   return decoratedAction;
 }
@@ -643,8 +627,9 @@ export function traceFSM(env, fsm) {
     transitions: mapOverTransitionsActions((action, transition, guardIndex, transitionIndex) => {
       return function (extendedState, eventData, settings) {
         const { from: controlState, event: eventLabel, to: targetControlState, predicate } = transition;
-        const actionResult = action(extendedState, eventData, settings);
-        const { outputs, updates } = actionResult;
+        const wrappedAction = wrapAction(action);
+        const actionResultOrError = wrappedAction(extendedState, eventData, settings);
+        const { outputs, updates } = actionResultOrError;
         const { updateState } = settings;
 
         return {

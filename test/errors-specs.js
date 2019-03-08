@@ -101,7 +101,6 @@ QUnit.test("Entry action factory error", function exec_test(assert) {
   );
 });
 
-// TODO: I am here
 QUnit.test("Entry action factory error - returns invalid action", function exec_test(assert) {
   const fsmDef = {
     states: { A: { C: '' }, B: '' },
@@ -127,7 +126,7 @@ QUnit.test("Entry action factory error - returns invalid action", function exec_
 
   assert.throws(
     () => fsm({ 'ev1': void 0 }),
-    err => err.info[1].actionName === 'throwingEntryAction',
+    err => err.info[1].actionName === 'factoryReturningInvalidEntryAction',
     `Entry actions returning invalid actions are identified separately`
   );
 });

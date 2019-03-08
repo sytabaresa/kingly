@@ -705,9 +705,8 @@ export const isValidSelfTransition = {
   },
 };
 
-// TODO : add tryCatch for catching exception for predicates, actions, updateState any user provided function, only
+// TODO : add tryCatch for catching exception for predicates, updateState any user provided function, only
 // if debug is set,
-// TODO : check that entry actions and normal actions are guarded tryCatch against errors
 
 const fsmContracts = {
   computed: fsmDef => {

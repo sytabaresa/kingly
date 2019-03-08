@@ -33,7 +33,7 @@
  * @typedef {function(ExtendedState, EventData, FSM_Settings) : Actions} ActionFactory
  */
 /**
- * @typedef {{updates: ExtendedStateUpdate, outputs: Array<MachineOutput> | NO_OUTPUT}} Actions The actions
+ * @typedef {{updates: ExtendedStateUpdate, outputs: Array<MachineOutput>}} Actions The actions
  * to be performed by the state machine in response to a transition. `updates` represents the state update for
  * the variables of the extended state machine. `output` represents the output of the state machine passed to the
  * API caller.
