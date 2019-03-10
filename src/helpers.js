@@ -1,14 +1,17 @@
 // Ramda fns
 import {
-  ACTION_FACTORY_THREW_ERROR, DECORATING_ACTION_FACTORY_THREW_ERROR, DEEP, HISTORY_PREFIX, HISTORY_STATE_NAME,
-  INIT_EVENT, INIT_STATE,
-  INVALID_ACTION_FACTORY_EXECUTED, INVALID_DECORATING_ACTION_FACTORY_EXECUTED, NO_OUTPUT, SHALLOW
+  ACTION_FACTORY_DESC, DEEP, ENTRY_ACTION_FACTORY_DESC, FUNCTION_THREW_ERROR, HISTORY_PREFIX, HISTORY_STATE_NAME,
+  INIT_EVENT, INIT_STATE, INVALID_ACTION_FACTORY_EXECUTED, INVALID_PREDICATE_EXECUTED, NO_OUTPUT, PREDICATE_DESC,
+  SHALLOW, WRONG_EVENT_FORMAT_ERROR
 } from "./properties"
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
-import { isActions } from "./contracts"
 
 export const noop = () => {};
 export const emptyConsole = { log: noop, warn: noop, info: noop, debug: noop, error: noop, trace: noop };
+
+export function isBoolean(x){
+  return typeof x === 'boolean'
+}
 
 export function isFunction(x) {
   return typeof x === 'function'
@@ -587,13 +590,12 @@ export function tryCatch(fn, errCb) {
 }
 
 // DOC : errors will be have info be arrays when decoration occurs
-export function wrapAction(action) {
-  return tryCatch(action, (e, [extendedState_, event_data, settings]) => {
+export function tryCatchMachineFn(fn, fnType) {
+  return tryCatch(fn, (e, [extendedState_, event_data, settings]) => {
     const err = new Error(e);
-    const actionName = getActionName(action);
+    const actionName = getFunctionName(fn);
     // NOTE : we concatenate causes but not `info`
-    err.probableCause = [ACTION_FACTORY_THREW_ERROR(actionName), e.probableCause || ''].join('\n');
-    const probableCause = ACTION_FACTORY_THREW_ERROR(actionName);
+    const probableCause = FUNCTION_THREW_ERROR(actionName, ACTION_FACTORY_DESC);
     err.probableCause = e.probableCause ? [probableCause, e.probableCause].join('\n') : probableCause;
 
     const info = {
@@ -606,7 +608,7 @@ export function wrapAction(action) {
   })
 }
 
-export function getActionName(actionFactory) {
+export function getFunctionName(actionFactory) {
   return actionFactory.name || actionFactory.displayName || 'anonymous'
 }
 
@@ -638,22 +640,23 @@ export function notifyThrows(console, error) {
  * false iff no errors or invalid actions
  * if not throws an exception
  * @param {{debug, console}} notify
- * @param {{action, extendedState, event_data, settings}} exec
+ * @param {*} execInfo Information about the call - should include the function, and the parameters for the function
+ * call
  * @param {Actions | Error} actionResultOrError
- * @param {function} handlerThrow handles when the action factory throws during its execution
- * @param {function} handlerInvalidAction handles when the action factory returns invalid actions
+ * @param {function} throwFn handles when the action factory throws during its execution
+ * @param {function} invalidResultFn handles when the action factory returns invalid actions
  * @returns {boolean}
+ * @param postCondition
  */
-export function handleActionResultError(notify, exec, actionResultOrError, handlerThrow, handlerInvalidAction){
+export function handleFnExecError(notify, execInfo, actionResultOrError, postCondition, throwFn, invalidResultFn){
   const {debug, console} = notify;
-  const {action, extendedState, eventData, settings } = exec;
 
   if (debug && actionResultOrError instanceof Error) {
-    handlerThrow({debug, console}, actionResultOrError, {action, extendedState, eventData, settings })
+    throwFn({debug, console}, actionResultOrError, execInfo)
     return true
   }
-  else if (debug && !isActions(actionResultOrError)) {
-    handlerInvalidAction({debug, console}, actionResultOrError, {action, extendedState, eventData, settings })
+  else if (debug && !postCondition(actionResultOrError)) {
+    invalidResultFn({debug, console}, actionResultOrError, execInfo)
     return true
   }
   else return false
@@ -665,18 +668,18 @@ export function throwIfActionFactoryThrows({debug, console}, actionResultOrError
 }
 
 export function throwIfEntryActionFactoryThrows({debug, console}, exitActionResultOrError,{action}){
-  const actionName = getActionName(action);
-  exitActionResultOrError.probableCause = DECORATING_ACTION_FACTORY_THREW_ERROR(actionName, `Entry action`);
+  const actionName = getFunctionName(action);
+  exitActionResultOrError.probableCause = FUNCTION_THREW_ERROR(actionName, ENTRY_ACTION_FACTORY_DESC);
   notifyThrows(console, exitActionResultOrError)
   throw exitActionResultOrError
 }
 
 export function throwIfInvalidActionResult({debug, console}, actionResultOrError, exec) {
   const {action, extendedState, eventData, settings } = exec;
-  const actionName = getActionName(action);
-  const error = new Error(INVALID_ACTION_FACTORY_EXECUTED(actionName));
+  const actionName = getFunctionName(action);
+  const error = new Error(INVALID_ACTION_FACTORY_EXECUTED(actionName, ACTION_FACTORY_DESC));
   error.info = {
-    actionName: getActionName(action),
+    actionName: getFunctionName(action),
     params: { updatedExtendedState: extendedState, eventData, settings },
     returned: actionResultOrError
   };
@@ -684,15 +687,52 @@ export function throwIfInvalidActionResult({debug, console}, actionResultOrError
   throw error
 }
 
+export function throwIfInvalidGuardResult({debug, console}, resultOrError, exec) {
+  const predName = getFunctionName(exec.predicate);
+  const error = new Error(INVALID_PREDICATE_EXECUTED(predName, PREDICATE_DESC));
+  error.info = {
+    predicateName: predName,
+    params: exec,
+    returned: resultOrError
+  };
+  notifyThrows(console, error)
+  throw error
+}
+
 export function throwIfInvalidEntryActionResult({debug, console}, exitActionResultOrError, exec) {
   const {action, extendedState, eventData, settings } = exec;
-  const actionName = getActionName(action);
-  const error = new Error(INVALID_DECORATING_ACTION_FACTORY_EXECUTED(actionName, `Entry action`));
+  const actionName = getFunctionName(action);
+  const error = new Error(FUNCTION_THREW_ERROR(actionName, ENTRY_ACTION_FACTORY_DESC));
   error.info = {
-    actionName: getActionName(action),
+    actionName: getFunctionName(action),
     params: { updatedExtendedState: extendedState, eventData, settings },
     returned: exitActionResultOrError
   };
   notifyThrows(console, error)
   throw error
+}
+
+export function isActions(obj) {
+  return obj && `updates` in obj && `outputs` in obj
+    && (obj.outputs === NO_OUTPUT || Array.isArray(obj.outputs)) && Array.isArray(obj.updates)
+}
+
+/**
+ * That is a Either contract, not a Boolean contract!
+ * @param obj
+ * @returns {boolean|Error}
+ */
+export function isEventStruct(obj) {
+  let trueOrError;
+  if (!obj || typeof obj !== 'object') {
+    trueOrError = new Error(WRONG_EVENT_FORMAT_ERROR);
+    trueOrError.info = { event: obj, cause: `not an object!` }
+  }
+  else if (Object.keys(obj).length > 1) {
+    trueOrError = new Error(WRONG_EVENT_FORMAT_ERROR);
+    trueOrError.info = { event: obj, cause: `Event objects must have only one key which is the event name!` }
+  }
+  else trueOrError = true;
+
+  return trueOrError
 }

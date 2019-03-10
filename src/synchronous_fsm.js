@@ -1,15 +1,17 @@
 import {
-  ACTION_IDENTITY, AUTO_EVENT, DEEP, history_symbol, INIT_EVENT, INIT_STATE, NO_OUTPUT, SHALLOW, STATE_PROTOTYPE_NAME
+  ACTION_FACTORY_DESC,
+  ACTION_IDENTITY, AUTO_EVENT, DEEP, history_symbol, INIT_EVENT, INIT_STATE, NO_OUTPUT, PREDICATE_DESC, SHALLOW,
+  STATE_PROTOTYPE_NAME
 } from "./properties";
 import {
-  arrayizeOutput, assert, computeHistoryMaps, emptyConsole, findInitTransition, get_fn_name, getActionName,
-  getFsmStateList, handleActionResultError, initHistoryDataStructure, isHistoryControlState, keys,
+  arrayizeOutput, assert, computeHistoryMaps, emptyConsole, findInitTransition, get_fn_name, getFunctionName,
+  getFsmStateList, handleFnExecError, initHistoryDataStructure, isHistoryControlState, keys,
   mapOverTransitionsActions, throwIfActionFactoryThrows, throwIfEntryActionFactoryThrows, throwIfInvalidActionResult,
-  throwIfInvalidEntryActionResult, updateHistory, wrap, wrapAction
+  throwIfInvalidEntryActionResult, updateHistory, wrap, tryCatchMachineFn, throwIfInvalidGuardResult, isBoolean,
+  isActions, isEventStruct
 } from "./helpers";
-import { fsmContractChecker, isEventStruct } from "./contracts"
+import { fsmContractChecker} from "./contracts"
 
-const noop = () => {};
 const alwaysTrue = () => true;
 
 /**
@@ -176,7 +178,7 @@ export function createStateMachine(fsmDef) {
   let console = debug && debug.console ? debug.console : emptyConsole;
 
   if (checkContracts) {
-    const { failingContracts } = fsmContractChecker(fsmDef);
+    const { failingContracts } = fsmContractChecker(fsmDef, checkContracts);
     if (failingContracts.length > 0) throw new Error(`createStateMachine: called with wrong parameters! Cf. logs for failing contracts.`)
   }
 
@@ -243,23 +245,37 @@ export function createStateMachine(fsmDef) {
           // through prototypal inheritance it is the handler of the prototype which is called
           const condition_checking_fn = function (extendedState_, event_data, current_state) {
             from = current_state || from;
-            const { predicate, to } = guard;
+            const isGuardedTransition = guard.predicate;
+            const predicate = isGuardedTransition || alwaysTrue;
+            const shouldTransitionBeTaken =
+              !isGuardedTransition
+              || tryCatchMachineFn(predicate, PREDICATE_DESC)(extendedState_, event_data, settings);
+            const to = guard.to;
             condition_suffix = predicate ? "_checking_condition_" + index : "";
 
-            if (!predicate || predicate(extendedState_, event_data, settings)) {
+              handleFnExecError(
+                { debug, console },
+                { predicate: guard.predicate, extendedState: extendedState_, eventData: event_data, settings },
+                shouldTransitionBeTaken,
+                isBoolean,
+                throwIfActionFactoryThrows,
+                throwIfInvalidGuardResult
+              );
+            if (shouldTransitionBeTaken) {
               // CASE : guard for transition is fulfilled so we can execute the actions...
               console.info("IN STATE ", from);
-              predicate && console.info(`CASE: guard ${predicate.name} for transition is fulfilled`);
-              !predicate && console.info(`CASE: automatic transition`);
+              isGuardedTransition && console.info(`CASE: guard ${predicate.name} for transition is fulfilled`);
+              !isGuardedTransition && console.info(`CASE: unguarded transition`);
 
               console.info("THEN : we execute the action " + actionName);
-              const wrappedAction = wrapAction(action);
+              const wrappedAction = tryCatchMachineFn(action, ACTION_FACTORY_DESC);
               const actionResultOrError = wrappedAction(extendedState_, event_data, settings);
 
-              const isActionResultError = handleActionResultError(
+              const isActionResultError = handleFnExecError(
                 { debug, console },
                 { action, extendedState: extendedState_, eventData: event_data, settings },
                 actionResultOrError,
+                isActions,
                 throwIfActionFactoryThrows,
                 throwIfInvalidActionResult
               );
@@ -559,17 +575,18 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
   // anything. That means the automatic event should logically receive the state updated by the entry action
   const decoratedAction = function (extendedState, eventData, settings) {
     const { updateState, debug } = settings;
-    const wrappedEntryAction = wrapAction(entryAction);
+    const wrappedEntryAction = tryCatchMachineFn(entryAction, ACTION_FACTORY_DESC);
     const actionResult = action(extendedState, eventData, settings);
     const actionUpdate = actionResult.updates;
     const updatedExtendedState = updateState(extendedState, actionUpdate);
 
     const exitActionResultOrError = wrappedEntryAction(updatedExtendedState, eventData, settings);
 
-    const isExitActionResultError = handleActionResultError(
+    const isExitActionResultError = handleFnExecError(
       { debug, console },
       { action: entryAction, extendedState: updatedExtendedState, eventData, settings },
       exitActionResultOrError,
+      isActions,
       throwIfEntryActionFactoryThrows,
       throwIfInvalidEntryActionResult
     );
@@ -589,7 +606,7 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
       };
     }
   };
-  decoratedAction.displayName = `Entry_Action_After_${getActionName(action)}`;
+  decoratedAction.displayName = `Entry_Action_After_${getFunctionName(action)}`;
 
   return decoratedAction;
 }
@@ -627,7 +644,7 @@ export function traceFSM(env, fsm) {
     transitions: mapOverTransitionsActions((action, transition, guardIndex, transitionIndex) => {
       return function (extendedState, eventData, settings) {
         const { from: controlState, event: eventLabel, to: targetControlState, predicate } = transition;
-        const wrappedAction = wrapAction(action);
+        const wrappedAction = tryCatchMachineFn(action, ACTION_FACTORY_DESC);
         const actionResultOrError = wrappedAction(extendedState, eventData, settings);
         const { outputs, updates } = actionResultOrError;
         const { updateState } = settings;

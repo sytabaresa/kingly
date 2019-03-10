@@ -2,6 +2,7 @@ import * as QUnit from "qunitjs"
 import { ACTION_IDENTITY, DEEP, historyState, INIT_EVENT, INIT_STATE } from "../src"
 import {
   allStateTransitionsOnOneSingleRow, areEventsDeclared, areStatesDeclared, atLeastOneState, fsmContractChecker,
+  fsmContracts,
   haveTransitionsValidTypes, initEventOnlyInCompoundStates, isHistoryStatesCompoundStates, isHistoryStatesExisting,
   isHistoryStatesTargetStates, isInitialControlStateDeclared, isInitialStateOriginState, isValidSelfTransition,
   isValidSettings,
@@ -28,7 +29,7 @@ QUnit.test("fsmContracts(fsmDef): duplicate states", function exec_test(assert) 
     settings : default_settings,
   };
 
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const duplicateContractFailureInfo = failingContracts.find(x => x.name === noDuplicatedStates.name);
   const { message, info } = duplicateContractFailureInfo;
   const { duplicatedStates } = info;
@@ -48,7 +49,7 @@ QUnit.test("fsmContracts(fsmDef): reserved states", function exec_test(assert) {
     settings : default_settings,
   };
 
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === noReservedStates.name);
   const { message, info } = failureInfo;
   const { statesType } = info;
@@ -68,7 +69,7 @@ QUnit.test("fsmContracts(fsmDef): at least one state", function exec_test(assert
     settings : default_settings,
   };
 
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === atLeastOneState.name);
   const { message, info } = failureInfo;
   const { statesType } = info;
@@ -89,7 +90,7 @@ QUnit.test("fsmContracts(fsmDef): two initial transitions", function exec_test(a
     settings : default_settings,
   };
 
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === validInitialTransition.name);
   const { message, info } = failureInfo;
   const { initTransition, initTransitions, initialControlState } = info;
@@ -110,7 +111,7 @@ QUnit.test("fsmContracts(fsmDef): compound states - no init transition", functio
     settings : default_settings,
   };
 
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === validInitialTransitionForCompoundState.name);
   const { message, info } = failureInfo;
   const { hasEntryTransitions } = info;
@@ -134,7 +135,7 @@ QUnit.test("fsmContracts(fsmDef): compound states - invalid init transition", fu
     settings : default_settings,
   };
 
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === validInitialTransitionForCompoundState.name);
   const { message, info } = failureInfo;
   const { entryTransitions } = info;
@@ -168,7 +169,7 @@ QUnit.test("fsmContracts(fsmDef): compound states - invalid init transition - ta
     settings : default_settings,
   };
 
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === validInitialTransitionForCompoundState.name);
   const { message, info } = failureInfo;
   const { entryTransitions, statesPath } = info;
@@ -202,7 +203,7 @@ QUnit.test("fsmContracts(fsmDef): compound states - invalid init transition - ta
     settings : default_settings,
   };
 
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === validInitialTransitionForCompoundState.name);
   const { message, info } = failureInfo;
   const { entryTransitions, statesPath } = info;
@@ -235,7 +236,7 @@ QUnit.test(`fsmContracts(fsmDef): init events only in compound states `, functio
     settings : default_settings,
   };
 
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === initEventOnlyInCompoundStates.name);
   const { message, info } = failureInfo;
   const { initTransitions } = info;
@@ -265,7 +266,7 @@ QUnit.test(`fsmContracts(fsmDef): valid eventless transitions`, function exec_te
     initialExtendedState: {},
     settings : default_settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === validEventLessTransitions.name);
   const { message, info } = failureInfo;
   const { failingOriginControlStates } = info;
@@ -290,7 +291,7 @@ QUnit.test(`fsmContracts(fsmDef): all state transitions defined in one row`, fun
     initialExtendedState: {},
     settings : default_settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === allStateTransitionsOnOneSingleRow.name);
   const { message, info } = failureInfo;
   const { statesTransitionsInfo } = info;
@@ -315,7 +316,7 @@ QUnit.test(`fsmContracts(fsmDef): no conflicting transition between two control 
     initialExtendedState: {},
     settings : default_settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === noConflictingTransitionsWithAncestorState.name);
   const { message, info } = failureInfo;
   const { eventTransitionsInfo } = info;
@@ -343,7 +344,7 @@ QUnit.test(`fsmContracts(fsmDef): no history pseudo state can be an origin state
     initialExtendedState: {},
     settings : default_settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === isHistoryStatesTargetStates.name);
   const { message, info } = failureInfo;
   const { wrongHistoryStates } = info;
@@ -374,7 +375,7 @@ QUnit.test(`fsmContracts(fsmDef): no history pseudo state can be an atomic state
     initialExtendedState: {},
     settings : default_settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === isHistoryStatesCompoundStates.name);
   const { message, info } = failureInfo;
   const { wrongHistoryStates } = info;
@@ -405,7 +406,7 @@ QUnit.test(`fsmContracts(fsmDef): history pseudo state has to refer to a known s
     initialExtendedState: {},
     settings : default_settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === isHistoryStatesExisting.name);
   const { message, info } = failureInfo;
   const { invalidTransitions } = info;
@@ -443,7 +444,7 @@ QUnit.test(`fsmContracts(fsmDef): initial control state is a declared control st
     initialExtendedState: {},
     settings : default_settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === isInitialControlStateDeclared.name);
   const { message, info } = failureInfo;
   const { initialControlState } = info;
@@ -466,7 +467,7 @@ QUnit.test(`fsmContracts(fsmDef): events figuring in transition must be declared
     initialExtendedState: {},
     settings : default_settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === areEventsDeclared.name);
   const { message, info } = failureInfo;
   const { eventsDeclaredButNotTriggeringTransitions, eventsNotDeclaredButTriggeringTransitions } = info;
@@ -493,7 +494,7 @@ QUnit.test(`fsmContracts(fsmDef): states figuring in transition must be declared
     initialExtendedState: {},
     settings : default_settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === areStatesDeclared.name);
   const { message, info } = failureInfo;
   const { statesDeclaredButNotTriggeringTransitions, statesNotDeclaredButTriggeringTransitions } = info;
@@ -519,7 +520,7 @@ QUnit.test(`fsmContracts(fsmDef): valid settings have an update state function`,
     ],
     initialExtendedState: {},
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === isValidSettings.name);
   const { message, info } = failureInfo;
   const { settings } = info;
@@ -541,7 +542,7 @@ QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - inco
     initialExtendedState: {},
     settings : default_settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === haveTransitionsValidTypes.name);
   const { message, info } = failureInfo;
   const { wrongTransitions } = info;
@@ -573,7 +574,7 @@ QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - inco
     initialExtendedState: {},
     settings : default_settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === haveTransitionsValidTypes.name);
   const { message, info } = failureInfo;
   const { wrongTransitions } = info;
@@ -605,7 +606,7 @@ QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - inco
     initialExtendedState: {},
     settings : default_settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === haveTransitionsValidTypes.name);
   const { message, info } = failureInfo;
   const { wrongTransitions } = info;
@@ -637,7 +638,7 @@ QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - inco
     initialExtendedState: {},
     settings : default_settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === haveTransitionsValidTypes.name);
   const { message, info } = failureInfo;
   const { wrongTransitions } = info;
@@ -668,7 +669,7 @@ QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - cond
     initialExtendedState: {},
     settings : default_settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === haveTransitionsValidTypes.name);
   const { message, info } = failureInfo;
   const { wrongTransitions } = info;
@@ -705,7 +706,7 @@ QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - cond
     initialExtendedState: {},
     settings : default_settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === haveTransitionsValidTypes.name);
   const { message, info } = failureInfo;
   const { wrongTransitions } = info;
@@ -742,7 +743,7 @@ QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - cond
     initialExtendedState: {},
     settings : default_settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === haveTransitionsValidTypes.name);
   const { message, info } = failureInfo;
   const { wrongTransitions } = info;
@@ -779,7 +780,7 @@ QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - cond
     initialExtendedState: {},
     settings : default_settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === haveTransitionsValidTypes.name);
   const { message, info } = failureInfo;
   const { wrongTransitions } = info;
@@ -815,7 +816,7 @@ QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - cond
     initialExtendedState: {},
     settings : default_settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === haveTransitionsValidTypes.name);
   const { message, info } = failureInfo;
   const { wrongTransitions } = info;
@@ -846,7 +847,7 @@ QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - cond
     initialExtendedState: {},
     settings : default_settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === haveTransitionsValidTypes.name);
   const { message, info } = failureInfo;
   const { wrongTransitions } = info;
@@ -885,7 +886,7 @@ QUnit.test("fsmContracts(fsmDef): initial transition - initial state", function 
     settings : default_settings,
   };
 
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === validInitialTransition.name);
   const { message, info } = failureInfo;
   const { initTransition, initTransitions, initialControlState } = info;
@@ -924,7 +925,7 @@ QUnit.test("fsmContracts(fsmDef): initial state cannot be a target state", funct
     settings : default_settings,
   };
 
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === isInitialStateOriginState.name);
   const { message, info } = failureInfo;
   const { targetStates } = info;
@@ -948,7 +949,7 @@ QUnit.test("fsmContracts(fsmDef): eventless self-transitions are forbidden", fun
     settings : default_settings,
   };
 
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === isValidSelfTransition.name);
   const { message, info } = failureInfo;
   const { wrongSelfTransitions } = info;

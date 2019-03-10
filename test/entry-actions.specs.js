@@ -1,13 +1,24 @@
 import * as QUnit from "qunitjs"
+import {omit} from "ramda"
 import {
   ACTION_IDENTITY, create_state_machine, decorateWithEntryActions, INIT_EVENT, INIT_STATE, mergeOutputsFn, traceFSM
 } from "../src"
 import { applyJSONpatch, formatResult } from "./helpers"
+import { fsmContracts } from "../src/contracts"
 
 const default_settings = {
   updateState: applyJSONpatch,
-  debug: { checkContracts: true }
+  debug: { checkContracts: fsmContracts }
 };
+
+function removeDebugSettings(output){
+  if (output.settings){
+    return Object.assign({}, output, {settings : omit(['debug'], output.settings)})
+  }
+  else {
+    return output
+  }
+}
 
 function setEntryActionForD() {
   return {
@@ -75,7 +86,7 @@ QUnit.test("decorateWithEntryActions(fsm, entryActions, mergeOutputs): entry act
   const output1 = tracedFsm({'ev1': void 0});
   const output2 = tracedFsm({'ev2': void 0});
 
-  assert.deepEqual(output1.map(formatResult), [
+  assert.deepEqual(output1.map(formatResult).map(removeDebugSettings), [
     {
       "actionFactory": "decoratedAction",
       "controlState": "C",
@@ -101,9 +112,6 @@ QUnit.test("decorateWithEntryActions(fsm, entryActions, mergeOutputs): entry act
       ],
       "predicate": undefined,
       "settings": {
-        "debug": {
-          "checkContracts": true
-        },
         "updateState": "applyJSONpatch"
       },
       "targetControlState": "B",
@@ -117,7 +125,7 @@ QUnit.test("decorateWithEntryActions(fsm, entryActions, mergeOutputs): entry act
       ]
     }
   ], `Entry actions are executed AFTER actions for the transitions`);
-  assert.deepEqual(output2.map(formatResult), [
+  assert.deepEqual(output2.map(formatResult).map(removeDebugSettings), [
     {
       "actionFactory": "decoratedAction",
       "controlState": "B",
@@ -148,9 +156,6 @@ QUnit.test("decorateWithEntryActions(fsm, entryActions, mergeOutputs): entry act
       ],
       "predicate": undefined,
       "settings": {
-        "debug": {
-          "checkContracts": true
-        },
         "updateState": "applyJSONpatch"
       },
       "targetControlState": "D",
@@ -202,7 +207,7 @@ QUnit.skip("decorateWithEntryActions(fsm, entryActions, mergeOutputs): EDGE case
   const output1 = tracedFsm({'ev1': void 0});
   const output2 = tracedFsm({'ev2': void 0});
 
-  assert.deepEqual(output1.map(formatResult), [
+  assert.deepEqual(output1.map(formatResult).map(removeDebugSettings), [
     {
       "actionFactory": "decoratedAction",
       "controlState": "C",
@@ -244,7 +249,7 @@ QUnit.skip("decorateWithEntryActions(fsm, entryActions, mergeOutputs): EDGE case
       ]
     }
   ], `Entry actions are executed AFTER actions for the transitions`);
-  assert.deepEqual(output2.map(formatResult), [
+  assert.deepEqual(output2.map(formatResult).map(removeDebugSettings), [
     {
       "actionFactory": "decoratedAction",
       "controlState": "B",

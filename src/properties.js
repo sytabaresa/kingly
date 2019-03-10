@@ -25,8 +25,9 @@ export const SHALLOW = 'shallow';
 export const DEEP = 'deep';
 
 export const WRONG_EVENT_FORMAT_ERROR = `The machine received an event which does not have the proper format. Expecting an object whose unique key is the event name, and value is the event data.`
-export const ACTION_FACTORY_THREW_ERROR = actionName => `Exception thrown when executing action factory ${actionName||""}`
-export const DECORATING_ACTION_FACTORY_THREW_ERROR = (actionName, type) => `${type + ' decorator - ' || ""} Exception thrown when executing action factory ${actionName||""}`
-export const INVALID_ACTION_FACTORY_EXECUTED = actionName => `${ACTION_FACTORY_THREW_ERROR(actionName)}\nFactory returned a value which is not an action.`
-export const INVALID_DECORATING_ACTION_FACTORY_EXECUTED = (actionName, type) => `${type + ' decorator - ' || ""} ${ACTION_FACTORY_THREW_ERROR(actionName)}\nFactory returned a value which is not an action.`
-
+export const FUNCTION_THREW_ERROR = (fnName, type) => `Exception thrown when executing ${type} ${fnName||""}`
+export const INVALID_ACTION_FACTORY_EXECUTED = (actionName, type) => `${FUNCTION_THREW_ERROR(actionName, type)}\nThe ${type} returned a value which is not an action.`
+export const INVALID_PREDICATE_EXECUTED = (actionName, type) => `${FUNCTION_THREW_ERROR(actionName, type)}\nThe ${type} returned a value which is not a boolean.`
+export const ACTION_FACTORY_DESC = `action factory`
+export const ENTRY_ACTION_FACTORY_DESC = `(decorating) entry action`
+export const PREDICATE_DESC = `predicate`

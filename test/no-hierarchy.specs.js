@@ -8,6 +8,7 @@ import {
 import { applyPatch } from "json-patch-es6"
 import { assertContract, isArrayUpdateOperations } from "../test/helpers"
 import { CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE } from "../src/properties"
+import { fsmContracts } from "../src/contracts"
 
 function spy_on_args(fn, spy_fn) {
   return function spied_on(...args) {
@@ -33,6 +34,13 @@ export function applyJSONpatch(extendedState, extendedStateUpdateOperations) {
 }
 
 const default_settings = { updateState: applyJSONpatch };
+const debug_settings = Object.assign({}, default_settings, {
+  debug: {
+    checkContracts: fsmContracts,
+    console
+  }
+});
+
 const FALSE_GUARD = function always_false(action, state) {return [{ predicate: F, to: state, action }]};
 const TRUE_GUARD = function always_true(to, action) { return [{ predicate: T, to, action }]};
 
@@ -285,18 +293,12 @@ QUnit.test("event, 2 actions, [T,F] conditions, 1st action executed", function e
 });
 
 QUnit.test("event, 2 actions, [F,F] conditions, no action executed", function exec_test(assert) {
-  const spied_on_dummy_action = spy_on_args(dummy_action,
-    (extendedState, event_data, settings) => {
-      assert.deepEqual(extendedState, initialExtendedState, `action called with extendedState as first parameter`);
-      assert.deepEqual(event_data, initialExtendedState, `action called with event_data as second parameter`);
-      assert.deepEqual(settings, default_settings, `action called with settings as third parameter`);
-    });
   const fail_if_called = spy_on_args(dummy_action,
     (extendedState, event_data, settings) => {
       assert.ok(true, false, `This true guard comes second, this action should not be called!`)
     });
   const fsmDef = {
-    states: { A: '', B: '' },
+    states: { A: '' },
     events: ['ev'],
     transitions: [
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY },
@@ -308,7 +310,7 @@ QUnit.test("event, 2 actions, [F,F] conditions, no action executed", function ex
       }
     ],
     initialExtendedState: initialExtendedState,
-    settings : default_settings,
+    settings : debug_settings,
   };
   const fsm = create_state_machine(fsmDef);
   const result = fsm({ ev: initialExtendedState });

@@ -8,6 +8,7 @@ import {
 import { applyPatch } from "json-patch-es6"
 import { assertContract, isArrayUpdateOperations } from "../test/helpers"
 import { CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE } from "../src/properties"
+import { fsmContracts } from "../src/contracts"
 
 function spy_on_args(fn, spy_fn) {
   return function spied_on(...args) {
@@ -135,7 +136,7 @@ QUnit.test("no initial control state, no initial transition, event, no action, t
       ],
       // initialControlState: 'A',
       initialExtendedState: initialExtendedState,
-      settings: Object.assign({}, default_settings, {debug : {checkContracts: true}})    };
+      settings: Object.assign({}, default_settings, {debug : {checkContracts: fsmContracts}})    };
     const fsm = create_state_machine(fsmDef);
     const result = fsm({ ev: initialExtendedState });
     }, /failing/, `Throws if no configuration for starting the machine `);
@@ -152,7 +153,7 @@ QUnit.test("no initial control state, no initial transition, event, no action, t
       ],
       initialControlState: 'A',
       initialExtendedState: initialExtendedState,
-      settings : Object.assign({}, default_settings, {debug : {checkContracts: true}})
+      settings : Object.assign({}, default_settings, {debug : {checkContracts: fsmContracts}})
     };
     const fsm = create_state_machine(fsmDef);
     const result = fsm({ ev: initialExtendedState });

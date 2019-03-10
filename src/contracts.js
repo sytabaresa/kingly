@@ -4,32 +4,7 @@ import {
   isControlState, isEvent, isFunction, isHistoryControlState
 } from "./helpers"
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
-import { ACTION_IDENTITY, INIT_EVENT, INIT_STATE, NO_OUTPUT, WRONG_EVENT_FORMAT_ERROR } from "./properties"
-
-export function isActions(obj) {
-  return obj && `updates` in obj && `outputs` in obj
-    && (obj.outputs === NO_OUTPUT || Array.isArray(obj.outputs)) && Array.isArray(obj.updates)
-}
-
-/**
- * That is a Either contract, not a Boolean contract!
- * @param obj
- * @returns {boolean|Error}
- */
-export function isEventStruct(obj){
-  let trueOrError;
-  if (!obj || typeof obj !== 'object') {
-    trueOrError = new Error(WRONG_EVENT_FORMAT_ERROR);
-    trueOrError.info = {event : obj, cause: `not an object!`}
-  }
-  else if (Object.keys(obj).length > 1) {
-    trueOrError = new Error(WRONG_EVENT_FORMAT_ERROR);
-    trueOrError.info = {event : obj, cause: `Event objects must have only one key which is the event name!`}
-  }
-  else trueOrError = true;
-
-  return trueOrError
-}
+import { INIT_EVENT, INIT_STATE } from "./properties"
 
 // Contracts
 
@@ -705,10 +680,10 @@ export const isValidSelfTransition = {
   },
 };
 
-// TODO : add tryCatch for catching exception for predicates, updateState any user provided function, only
+// TODO : add tryCatch for catching exception for updateState any user provided function, only
 // if debug is set,
 
-const fsmContracts = {
+export const fsmContracts = {
   computed: fsmDef => {
     return {
       statesType: getStatesType(fsmDef.states),
@@ -731,8 +706,8 @@ const fsmContracts = {
  * throw. If no contract throws, the returned value include a list of the failing contracts if any. A failing
  * contract data structure include relevant information about the failing contract, in particular the contract name,
  * the associated error message and additional info expliciting the error message.
- * @returns {function(...[*]=): {isFulfilled: boolean, failingContracts: Array}}
- * @param {{computed : function, description: string, contracts: Array<*>} contractsDef
+ * @param contractsDef
+ * @returns {function(...[*]=): {isFulfilled: T | boolean, failingContracts: Array}}
  */
 function makeContractHandler(contractsDef) {
   const contractsDescription = contractsDef.description;
@@ -765,9 +740,7 @@ function makeContractHandler(contractsDef) {
   }
 }
 
-export const fsmContractChecker = makeContractHandler(fsmContracts);
-
-// NOTE contracts execution may be order sensitive, or reuse contracts in contracts??
+export const fsmContractChecker = (fsmDef, fsmContracts) => makeContractHandler(fsmContracts)(fsmDef);
 
 // Terminology
 // . A transition is uniquely defined by `(origin, event, predicate, target, action, transition index, guard index)`
