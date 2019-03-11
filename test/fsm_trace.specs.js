@@ -249,7 +249,6 @@ QUnit.skip("all transitions topologies up to 4 levels of state nesting", functio
 
   // Guards
   function isFoo0(extS, evD) {
-    debugger
     return extS.foo === 0
   }
 
