@@ -14,6 +14,9 @@ const debug_settings = Object.assign({}, default_settings, {
     console
   }
 });
+const throwing_settings = Object.assign({}, debug_settings, {
+  updateState: function throwingUpdateState() {throw errorString}
+});
 
 function setEntryActionForC() {
   return {
@@ -51,7 +54,7 @@ QUnit.test("Transition action factory error - throws", function exec_test(assert
 
   assert.throws(
     () => fsm({ ev: void 0 }),
-    err => err.info.actionName === 'throwingAction',
+    err => err.info.fnName === 'throwingAction',
     `Error message identifies throwing action factory`
   );
 });
@@ -99,7 +102,7 @@ QUnit.test("Entry action factory error", function exec_test(assert) {
 
   assert.throws(
     () => fsm({ 'ev1': void 0 }),
-    err => err.info[1].actionName === 'throwingEntryAction',
+    err => err.info[0].fnName === 'throwingEntryAction',
     `Entry actions throwing are identified separately`
   );
 });
@@ -129,7 +132,7 @@ QUnit.test("Entry action factory error - returns invalid action", function exec_
 
   assert.throws(
     () => fsm({ 'ev1': void 0 }),
-    err => err.info[1].actionName === 'factoryReturningInvalidEntryAction',
+    err => err.info[0].fnName === 'factoryReturningInvalidEntryAction',
     `Entry actions returning invalid actions are identified separately`
   );
 });
@@ -151,7 +154,7 @@ QUnit.test("Guard error - throws", function exec_test(assert) {
 
   assert.throws(
     () => fsm({ ev: void 0 }),
-    err => err.info.actionName === 'throwingPredicate',
+    err => err.info.fnName === 'throwingPredicate',
     `Error message identifies throwing predicate`
   );
 });
@@ -172,4 +175,24 @@ QUnit.test("Guard error - returns non boolean", function exec_test(assert) {
   const fsm = createStateMachine(fsmDef);
 
   assert.throws(() => fsm({ ev: void 0 }), /invalidReturningPredicate/, `Error message identifies throwing predicate`);
+});
+
+QUnit.test("Update state function error - throws", function exec_test(assert) {
+  const fsmDef = {
+    states: { A: { C: '' }, B: '' },
+    events: ['ev'],
+    transitions: [
+      { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY },
+      { from: 'A', to: 'C', event: INIT_EVENT, action: ACTION_IDENTITY },
+      { from: 'C', event: 'ev', guards : [{predicate: throwingPredicate,to:'B', action: ACTION_IDENTITY }] },
+    ],
+    initialExtendedState: {},
+    settings: throwing_settings,
+  };
+
+  assert.throws(
+    () => createStateMachine(fsmDef),
+    err => err.info.fnName === 'throwingUpdateState',
+    `Error message identifies throwing update state function`
+  );
 });

@@ -405,7 +405,6 @@ export function computeHistoryMaps(control_states) {
   return { stateList, stateAncestors }
 }
 
-// DOC : the mapped action should have same name than the action it is mapping
 export function mapOverTransitionsActions(mapFn, transitions) {
   return reduceTransitions(function (acc, transition, guardIndex, transitionIndex) {
     const { from, event, to, action, predicate } = transition;
@@ -589,20 +588,21 @@ export function tryCatch(fn, errCb) {
   };
 }
 
-// DOC : errors will be have info be arrays when decoration occurs
-export function tryCatchMachineFn(fn, fnType) {
-  return tryCatch(fn, (e, [extendedState_, event_data, settings]) => {
+export function tryCatchMachineFn(fnType, fn, argsDesc = []) {
+  return tryCatch(fn, (e, args) => {
     const err = new Error(e);
-    const actionName = getFunctionName(fn);
+    const fnName = getFunctionName(fn);
     // NOTE : we concatenate causes but not `info`
-    const probableCause = FUNCTION_THREW_ERROR(actionName, ACTION_FACTORY_DESC);
-    err.probableCause = e.probableCause ? [probableCause, e.probableCause].join('\n') : probableCause;
+    const probableCause = FUNCTION_THREW_ERROR(fnName, fnType);
+    err.probableCause = e.probableCause ? [e.probableCause, probableCause].join('\n') : probableCause;
 
     const info = {
-      actionName: actionName,
-      params: { extendedState_, event_data, settings }
+      fnName,
+      params: argsDesc.reduce((acc, argDesc, index) => {
+        return acc[argDesc]=args[index], acc
+      }, {})
     };
-    err.info = e.info ? [].concat([info]).concat([e.info]) : info;
+    err.info = e.info ? [].concat([e.info]).concat([info]) : info;
 
     return err
   })
@@ -662,16 +662,9 @@ export function handleFnExecError(notify, execInfo, actionResultOrError, postCon
   else return false
 }
 
-export function throwIfActionFactoryThrows({debug, console}, actionResultOrError){
+export function notifyAndRethrow({debug, console}, actionResultOrError){
   notifyThrows(console, actionResultOrError)
   throw actionResultOrError
-}
-
-export function throwIfEntryActionFactoryThrows({debug, console}, exitActionResultOrError,{action}){
-  const actionName = getFunctionName(action);
-  exitActionResultOrError.probableCause = FUNCTION_THREW_ERROR(actionName, ENTRY_ACTION_FACTORY_DESC);
-  notifyThrows(console, exitActionResultOrError)
-  throw exitActionResultOrError
 }
 
 export function throwIfInvalidActionResult({debug, console}, actionResultOrError, exec) {
@@ -679,7 +672,7 @@ export function throwIfInvalidActionResult({debug, console}, actionResultOrError
   const actionName = getFunctionName(action);
   const error = new Error(INVALID_ACTION_FACTORY_EXECUTED(actionName, ACTION_FACTORY_DESC));
   error.info = {
-    actionName: getFunctionName(action),
+    fnName: getFunctionName(action),
     params: { updatedExtendedState: extendedState, eventData, settings },
     returned: actionResultOrError
   };
@@ -704,7 +697,7 @@ export function throwIfInvalidEntryActionResult({debug, console}, exitActionResu
   const actionName = getFunctionName(action);
   const error = new Error(FUNCTION_THREW_ERROR(actionName, ENTRY_ACTION_FACTORY_DESC));
   error.info = {
-    actionName: getFunctionName(action),
+    fnName: getFunctionName(action),
     params: { updatedExtendedState: extendedState, eventData, settings },
     returned: exitActionResultOrError
   };

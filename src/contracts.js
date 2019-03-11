@@ -168,7 +168,7 @@ export const validInitialTransition = {
       return acc
     }, []);
     // DOC : or not, we allow conditional init transitions!! allow to set the initial state depending on settings!
-   // NOTE: functional object reference, and decoration (trace, entry actions )do not work well together, so we don't
+    // NOTE: functional object reference, and decoration (trace, entry actions )do not work well together, so we don't
     // enforce the part of the contract which require to have no actions for initial transitions...
     const isFulfilled =
       (initialControlState && !initTransition) ||
@@ -369,8 +369,8 @@ export const noConflictingTransitionsWithAncestorState = {
         // removing cases : undefined and {[state]: undefined}
         .filter(obj => {
           return obj && Object.values(obj).filter(Boolean).length > 0
-        })
-      ;
+        });
+
       if (wrongStateConfig.length > 0) {
         acc[event] = wrongStateConfig;
       }
@@ -503,6 +503,52 @@ export function areCconditionalTransitions(transition) {
 
   return guards && Array.isArray(guards) && guards.length > 0
     && !to && isControlState(from) && isEvent(event) && guards.every(isValidGuard)
+}
+
+export const isValidFsmDef = {
+  name: 'isValidFsmDef',
+  shouldThrow: false,
+  predicate: fsmDef => {
+    const { transitions, states, events, settings, initialExtendedState } = fsmDef;
+    const isValidTransitions = transitions && Array.isArray(transitions);
+    const isValidStates = states && typeof(states) === 'object';
+    const isValidEvents = events && Array.isArray(events);
+    if (!isValidTransitions) {
+      return {
+        isFulfilled: false,
+        blame: {
+          message: `The transitions property for a machine definition must be an array!`,
+          info: { transitions }
+        }
+      }
+    }
+    else if (!isValidStates) {
+      return {
+        isFulfilled: false,
+        blame: {
+          message: `The states property for a machine definition must be an object!`,
+          info: { states }
+        }
+      }
+    }
+    else if (!isValidEvents) {
+      return {
+        isFulfilled: false,
+        blame: {
+          message: `The events property for a machine definition must be an array!`,
+          info: { events }
+        }
+      }
+    }
+    // NOTE : we do not deal with initialExtendedState, initialControlState and settings
+    // this is done in other contracts
+    else {
+      return {
+        isFulfilled: true,
+        blame: void 0
+      }
+    }
+  },
 }
 
 // T18. Transitions have a valid format, and are either inconditional (no guards) or conditional
@@ -680,9 +726,6 @@ export const isValidSelfTransition = {
   },
 };
 
-// TODO : add tryCatch for catching exception for updateState any user provided function, only
-// if debug is set,
-
 export const fsmContracts = {
   computed: fsmDef => {
     return {
@@ -698,7 +741,7 @@ export const fsmContracts = {
     }
   },
   description: 'FSM structure',
-  contracts: [isValidSettings, isInitialControlStateDeclared, isInitialStateOriginState, eventsAreStrings, haveTransitionsValidTypes, noDuplicatedStates, noReservedStates, atLeastOneState, areEventsDeclared, areStatesDeclared, validInitialConfig, validInitialTransition, initEventOnlyInCompoundStates, validInitialTransitionForCompoundState, validEventLessTransitions, isValidSelfTransition, allStateTransitionsOnOneSingleRow, noConflictingTransitionsWithAncestorState, isHistoryStatesExisting, isHistoryStatesTargetStates, isHistoryStatesCompoundStates],
+  contracts: [isValidFsmDef, isValidSettings, isInitialControlStateDeclared, isInitialStateOriginState, eventsAreStrings, haveTransitionsValidTypes, noDuplicatedStates, noReservedStates, atLeastOneState, areEventsDeclared, areStatesDeclared, validInitialConfig, validInitialTransition, initEventOnlyInCompoundStates, validInitialTransitionForCompoundState, validEventLessTransitions, isValidSelfTransition, allStateTransitionsOnOneSingleRow, noConflictingTransitionsWithAncestorState, isHistoryStatesExisting, isHistoryStatesTargetStates, isHistoryStatesCompoundStates],
 };
 
 /**
@@ -750,102 +793,10 @@ export const fsmContractChecker = (fsmDef, fsmContracts) => makeContractHandler(
 // referenced by `(A, Ev, T, B, IDENTITY, 1, 0)`.
 // . We write A < B if A is a substate of B, with the implication that B is hence a compound state
 // . We write A !< B if A is a direct substate of B
-// . We write A !!< B if A is a substate of B, and A is also an atomic state
+// . We write A. !< B if A is a substate of B, and A is also an atomic state
 // . We write A -ev-> B to denote a transition from A to B triggered by `ev`
 
-// S0. `FsmDef.states` must be an object
-// NOT ENFORCED
-// S1. State name cannot be a reserved state name (for now only INIT_STATE)
-// TO ENFORCE: DONE
-// S2. State names must be unique
-// TO ENFORCE;: DONE
-// S3. State names must conform to the same nomenclature than javascript variable identifiers
-// - cannot be empty strings,
-// - cannot start with a number
-// NOT ENFORCED
-// S4. At least one control state (other than the initial state) muat be declared
-// TO ENFORCE;: DONE
-
-// Events
-// E0. `fsmDef.events` msut be an array of strings
-// TO ENFORCE: PENDING
-// E1. Event names passed to configure the state machine must be unique
-// NOT ENFORCED
-
-// Transitions
-// T1. There must be configured at least one transition away from the initial state
-// Reason : the machine, to be meaningful, must progress
-// Recoverable
-// TO ENFORCE : DONE
-// T2. A transition away from the initial state can only be triggered by the initial event
-// TO ENFORCE : DONE
-// T4. If several guards are defined for the initial state, then one of those guards should be fulfilled
-// NOT ENFORCED - that eddge case is not explicitly but if we are lucky should be enforced through the general case
-// T5. Every compound state A must have a valid transition A -INIT-> defined
-// T6. Every compound state NOT the initial state must have a valid INCONDITIONAL transition A -INIT-> defined
-// T7a. Every compound state NOT the initial state must have a valid INCONDITIONAL transition A -INIT-> defined which
-// does not have a history state as target
-// T7b. The initial state must have a valid transition INIT_STATE -INIT-> defined which does not have a history
-// state as target : DONE
-// NOTE: actually we could limit it to history state of the containing compound state to avoid infinity loop
-// T8. Every compound state NOT the initial state must have a valid INCONDITIONAL transition A -INIT-> defined which
-// does not have the history state as target and has a target control state that is one of its substates (no
-// out-of-hierarchy INIT transitions)
-// T9. A valid transition to a history state must transition to the history state containing parent, if there is no
-// history
-// ENFORCE, NOT IMPLEMENTED
-// NOTE : why? should count as default entering the state i.e. take the INIT transition ? or error?
-// T10. A transition A -eventless-> B may have several or no guards, but at least one must be fulfilled
-// NOT ENFORCED, immplemenation must be embedded in code
-// T11. If there is an eventless transition A -eventless-> B, there cannot be a competing A -ev-> X
-// ENFORCE: DONE
-// T12. All transitions A -ev-> * must have the same transition index, i.e. all associated guards must be together
-// in a single array and there cannot be two transition rows showcasing A -ev-> * transitions
-// ENFORCE: DONE
-// T13. Guards for a transition A -ev-> * must be : 1. non-overlapping, i.e. no two guards can be true at the same
-// time for any value handled by the state machine, 2. at least one guard must be fulfilled at all time. In short,
-// guards must partition the state space.
-// NOT ENFORCED. Cf T4
-// T14. Conflicting transitions are not allowed, i.e. A -ev-> B and A < OUTER_A is not compatible with OUTER_A
-// -ev->C. The event `ev` could trigger a transition towards either B or C
-// T15. Init transitions can only occur from compound states or the initial state, i.e. A -INIT-> B iff A is a compound
-// state or A is the initial state
-// ENFORCE: DONE
-// T16. History states must be target states, and compound states
-// ENFORCE: DONE
-
-// Guards
-// G0. Guards are functions
-// ENFORCED
-// G1. Guards are pure functions
-// NOT ENFORCED
-
-// Action factories
-// A0. Action factories are functions
-// ENFORCED
-// A1. Action factories are pure functions
-// NOT ENFORCED
-// A2. Action factories must return {outputs, updates} : no syntax sugar
-// NOT ENFORCED
-
 // Behaviour
-// B1. the state machine starts in the initial state
-// ENFORCED by construction
-// B2. The machine cannot stay blocked in the initial control state
-// ENFORCED by S4, T1, T2, T4
-// B3. A transition evaluation must end in an atomic state
-// ENFORCED by T5, T6, T7, T8, T9
-// The initial state transition to an atomic state. A transition from an atomic state can only be to (atomic state,
-// compound state, history state).
-// T7 ensures that we do not go to the history state when there is no history yet
-// T8 ensures transition to compound states always descend and readh an atomic| state. T9 ensure the third case.
-// B4 : eventless transitions must progress the state machine
-// ENFORCED by T10, T11
-// NOTE : we could have failing guards provided they modify the extended state so that eventually after a number of
-// looping, a guard is fulfilled. We reject that possibility as too error-prone and complexity-adding. Hard to
-// imagine a use case for it (while loops implemented with eventless transitions??).
-// B5. Non-deterministic transitions are not allowed
-// ENFORCED by T13, T14, necessary for generative testing
 // B6. If an event is configured to be processed by the state machine, it must progress the machine (possibly
 // returning to the same state)
 // ENFORCED by T13, T4, T10, necessary for generative testing
@@ -856,28 +807,25 @@ export const fsmContractChecker = (fsmDef, fsmContracts) => makeContractHandler(
 // B8. It is possible to reach any states
 // NOT ENFORCED. Just a warning to issue. reachable states requires a graph structure, and a traversal
 
-// Settings
-// S1. `settings.updateState` must be a pure function
-// This is important in particular for the tracing mechanism which triggers two execution of this function with the
-// same parameters
-// NOT ENFORCED
-
 // Contract types
 /**
- * @typedef {String} ContractSection name of a contract section.
+ * @typedef {Object} ContractsDef
+ * @property {String} description name for the series of contracts
+ * @property {function(FSM_Def):Object} computed a function of the machine definition which returns an object to be
+ * injected to the contracts predicates
+ * @property {Array<ContractDef>} contracts array of contract definitions
  */
 /**
- * @typedef {*} Argument argument argument can be anything and will be passed to the contract checking function
+ * @typedef {Object} ContractDef
+ * @property {String} name name for the contract
+ * @property {Boolean} shouldThrow whether the contract should thrown an exception or alternatively return one
+ * @property {function(FSM_Def, computed):ContractCheck} predicate array of contract definitions
  */
 /**
- * @typedef {{message: String, info : *}} Blame contains a message and extra info identifying the blaming party for
- * the contract violation
- */
-/**
- * @typedef {Object} Contract
- * @property {String} name contract name
- * @property {Boolean} isRecoverable indicates whether the contract violation should provoke an exception or a
- * warning (when set to `true`)
- * @property {function (*=) : Array<Argument>} select take a list of arguments
- * @property {function (*=) : {isFulfilled :Boolean, blame : Blame} } predicate
+ * @typedef {Object} ContractCheck
+ * @property {Boolean} isFulfilled whether the contract is fulfilled
+ * @property {{message:String, info:*}} blame information about the cause for the contract failure. The
+ * `message` property is destined to the developer (for instnce can be printed in the console). Info aims
+ * at providing additional data helping to track the error cause
+ * @property {function(FSM_Def, computed):ContractCheck} predicate array of contract definitions
  */

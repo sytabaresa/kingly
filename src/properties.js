@@ -30,4 +30,5 @@ export const INVALID_ACTION_FACTORY_EXECUTED = (actionName, type) => `${FUNCTION
 export const INVALID_PREDICATE_EXECUTED = (actionName, type) => `${FUNCTION_THREW_ERROR(actionName, type)}\nThe ${type} returned a value which is not a boolean.`
 export const ACTION_FACTORY_DESC = `action factory`
 export const ENTRY_ACTION_FACTORY_DESC = `(decorating) entry action`
+export const UPDATE_STATE_FN_DESC = `update state function`
 export const PREDICATE_DESC = `predicate`

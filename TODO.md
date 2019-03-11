@@ -1,4 +1,7 @@
 # Now
+- in future version test the traceFSM for errors in guards, update state and actions, error 
+should be goign in properties directly, no throwing
+- DOC : fsmContracts in debug - update types too to include it
 - ROADMAP : TESTING
   - inject a debug property with a trace property or a trace property instead of debug
   - the trace prop has an emitter interface a signature {event, event data}

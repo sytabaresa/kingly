@@ -6,6 +6,8 @@
  * @property {Array<EventLabel>} events A list of event monikers the machine is configured to react to
  * @property {Array<Transition>} transitions An array of transitions the machine is allowed to take
  * @property {*} initialExtendedState The initial value for the machine's extended state
+ * @property {FSM_Settings} settings Miscellaneous settings including how to update the machine's state and debug
+ * configuration
  */
 /**
  * @typedef {Object.<ControlState, *>} FSM_States

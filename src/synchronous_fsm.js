@@ -1,16 +1,14 @@
 import {
-  ACTION_FACTORY_DESC,
-  ACTION_IDENTITY, AUTO_EVENT, DEEP, history_symbol, INIT_EVENT, INIT_STATE, NO_OUTPUT, PREDICATE_DESC, SHALLOW,
-  STATE_PROTOTYPE_NAME
+  ACTION_FACTORY_DESC, ACTION_IDENTITY, AUTO_EVENT, DEEP, ENTRY_ACTION_FACTORY_DESC, history_symbol, INIT_EVENT,
+  INIT_STATE, NO_OUTPUT, PREDICATE_DESC, SHALLOW, STATE_PROTOTYPE_NAME, UPDATE_STATE_FN_DESC
 } from "./properties";
 import {
-  arrayizeOutput, assert, computeHistoryMaps, emptyConsole, findInitTransition, get_fn_name, getFunctionName,
-  getFsmStateList, handleFnExecError, initHistoryDataStructure, isHistoryControlState, keys,
-  mapOverTransitionsActions, throwIfActionFactoryThrows, throwIfEntryActionFactoryThrows, throwIfInvalidActionResult,
-  throwIfInvalidEntryActionResult, updateHistory, wrap, tryCatchMachineFn, throwIfInvalidGuardResult, isBoolean,
-  isActions, isEventStruct
+  arrayizeOutput, assert, computeHistoryMaps, emptyConsole, findInitTransition, get_fn_name, getFsmStateList,
+  getFunctionName, handleFnExecError, initHistoryDataStructure, isActions, isBoolean, isEventStruct,
+  isHistoryControlState, keys, mapOverTransitionsActions, noop, notifyAndRethrow, throwIfInvalidActionResult,
+  throwIfInvalidEntryActionResult, throwIfInvalidGuardResult, tryCatchMachineFn, updateHistory, wrap
 } from "./helpers";
-import { fsmContractChecker} from "./contracts"
+import { fsmContractChecker } from "./contracts"
 
 const alwaysTrue = () => true;
 
@@ -160,8 +158,6 @@ export function create_state_machine(fsmDef) {
  * Creates an instance of state machine from a set of states, transitions, and accepted events. The initial
  * extended state for the machine is included in the machine definition.
  * @param {FSM_Def} fsmDef
- * @param {FSM_Settings} settings contains mandatory settings, and any extra settings the API user wants to make
- * available in state machine's scope
  * @return {function(*=)}
  */
 export function createStateMachine(fsmDef) {
@@ -172,8 +168,7 @@ export function createStateMachine(fsmDef) {
     initialExtendedState,
     settings
   } = fsmDef;
-  const transitions = normalizeTransitions(fsmDef);
-  const { updateState, debug } = settings;
+  const { updateState: userProvidedUpdateStateFn, debug } = settings || {};
   const checkContracts = debug && debug.checkContracts || void 0;
   let console = debug && debug.console ? debug.console : emptyConsole;
 
@@ -182,8 +177,10 @@ export function createStateMachine(fsmDef) {
     if (failingContracts.length > 0) throw new Error(`createStateMachine: called with wrong parameters! Cf. logs for failing contracts.`)
   }
 
-
+  const wrappedUpdateState = tryCatchMachineFn(UPDATE_STATE_FN_DESC, userProvidedUpdateStateFn, ['extendedState,' +
+  ' updates']);
   const _events = build_event_enum(events);
+  const transitions = normalizeTransitions(fsmDef);
 
   // Create the nested hierarchy
   const hash_states_struct = build_nested_state_structure(control_states);
@@ -194,8 +191,8 @@ export function createStateMachine(fsmDef) {
   // Note the extended state is modified by the `settings.updateState` function, which should not modify
   // the extended state object. There is hence no need to do any cloning.
   let extendedState = initialExtendedState;
-  // history maps
 
+  // history maps
   const { stateList, stateAncestors } = computeHistoryMaps(control_states);
   let history = initHistoryDataStructure(stateList);
 
@@ -235,6 +232,7 @@ export function createStateMachine(fsmDef) {
       is_auto_state[from] = true;
     }
 
+    // TODO : this seriously needs refactoring, that is one line in ramda
     from_proto[event] = arr_predicate.reduce((acc, guard, index) => {
         const action = guard.action || ACTION_IDENTITY;
         const actionName = action.name || action.displayName;
@@ -249,18 +247,20 @@ export function createStateMachine(fsmDef) {
             const predicate = isGuardedTransition || alwaysTrue;
             const shouldTransitionBeTaken =
               !isGuardedTransition
-              || tryCatchMachineFn(predicate, PREDICATE_DESC)(extendedState_, event_data, settings);
+              || tryCatchMachineFn(
+              PREDICATE_DESC, predicate, ['extendedState', 'eventData', 'settings']
+              )(extendedState_, event_data, settings);
             const to = guard.to;
             condition_suffix = predicate ? "_checking_condition_" + index : "";
 
-              handleFnExecError(
-                { debug, console },
-                { predicate: guard.predicate, extendedState: extendedState_, eventData: event_data, settings },
-                shouldTransitionBeTaken,
-                isBoolean,
-                throwIfActionFactoryThrows,
-                throwIfInvalidGuardResult
-              );
+            handleFnExecError(
+              { debug, console },
+              { predicate: guard.predicate, extendedState: extendedState_, eventData: event_data, settings },
+              shouldTransitionBeTaken,
+              isBoolean,
+              notifyAndRethrow,
+              throwIfInvalidGuardResult
+            );
             if (shouldTransitionBeTaken) {
               // CASE : guard for transition is fulfilled so we can execute the actions...
               console.info("IN STATE ", from);
@@ -268,33 +268,40 @@ export function createStateMachine(fsmDef) {
               !isGuardedTransition && console.info(`CASE: unguarded transition`);
 
               console.info("THEN : we execute the action " + actionName);
-              const wrappedAction = tryCatchMachineFn(action, ACTION_FACTORY_DESC);
+              const wrappedAction = tryCatchMachineFn(ACTION_FACTORY_DESC, action, ['extendedState', 'eventData', 'settings']);
               const actionResultOrError = wrappedAction(extendedState_, event_data, settings);
 
-              const isActionResultError = handleFnExecError(
+              handleFnExecError(
                 { debug, console },
                 { action, extendedState: extendedState_, eventData: event_data, settings },
                 actionResultOrError,
                 isActions,
-                throwIfActionFactoryThrows,
+                notifyAndRethrow,
                 throwIfInvalidActionResult
               );
+              const { updates, outputs } = actionResultOrError;
 
-              if (!isActionResultError) {
-                const { updates, outputs } = actionResultOrError;
-                // Leave the current state
-                leave_state(from, extendedState_, hash_states);
+              // Leave the current state
+              leave_state(from, extendedState_, hash_states);
 
-                // Update the extendedState before entering the next state
-                extendedState = updateState(extendedState_, updates);
+              // Update the extendedState before entering the next state
+              const extendedStateOrError = wrappedUpdateState(extendedState_, updates);
+              handleFnExecError(
+                { debug, console },
+                { updateStateFn: userProvidedUpdateStateFn, extendedState: extendedState_, updates },
+                extendedStateOrError,
+                alwaysTrue, // NOTE : could also be passed in settings with updateState, maybe in later version
+                notifyAndRethrow,
+                noop // NOTE : we do not test the return value of the update state function, cf. previous note
+              );
+              extendedState = extendedStateOrError;
 
-                // ...and enter the next state (can be different from `to` if we have nesting state group)
-                const next_state = enter_next_state(to, updates, hash_states);
-                console.info("ENTERING NEXT STATE : ", next_state);
+              // ...and enter the next state (can be different from `to` if we have nesting state group)
+              const next_state = enter_next_state(to, updates, hash_states);
+              console.info("ENTERING NEXT STATE : ", next_state);
 
-                // allows for chaining and stop chaining guard
-                return { stop: true, outputs };
-              }
+              // allows for chaining and stop chaining guard
+              return { stop: true, outputs };
             }
             else {
               // CASE : guard for transition is not fulfilled
@@ -516,7 +523,7 @@ export function mergeOutputsFn(arrayOutputs) {
 }
 
 /**
- * @param  {FSM_Def} fsm
+ * @param  {FSM_Def} fsmDef
  * @param  {Object.<ControlState, function>} entryActions Adds an action to be processed when entering a given state
  * @param {function (Array<MachineOutput>) : MachineOutput} mergeOutputs monoidal merge (pure) function
  * to be provided to instruct how to combine machine outputs. Beware that the second output corresponds to the entry
@@ -524,10 +531,10 @@ export function mergeOutputsFn(arrayOutputs) {
  * many cases, that will mean that the second machine output has to be 'last', whatever that means for the monoid
  * and application in question
  */
-export function decorateWithEntryActions(fsm, entryActions, mergeOutputs) {
-  if (!entryActions) return fsm
+export function decorateWithEntryActions(fsmDef, entryActions, mergeOutputs) {
+  if (!entryActions) return fsmDef
 
-  const { transitions, states, initialExtendedState, initialControlState, events, settings } = fsm;
+  const { transitions, states, initialExtendedState, initialControlState, events, settings } = fsmDef;
   const stateHashMap = getFsmStateList(states);
   const isValidEntryActions = Object.keys(entryActions).every(controlState => {
     return stateHashMap[controlState] != null;
@@ -575,10 +582,23 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
   // anything. That means the automatic event should logically receive the state updated by the entry action
   const decoratedAction = function (extendedState, eventData, settings) {
     const { updateState, debug } = settings;
-    const wrappedEntryAction = tryCatchMachineFn(entryAction, ACTION_FACTORY_DESC);
+    const wrappedEntryAction = tryCatchMachineFn(ENTRY_ACTION_FACTORY_DESC, entryAction, ['extendedState', 'eventData', 'settings']);
     const actionResult = action(extendedState, eventData, settings);
     const actionUpdate = actionResult.updates;
-    const updatedExtendedState = updateState(extendedState, actionUpdate);
+
+    const wrappedUpdateState = tryCatchMachineFn(UPDATE_STATE_FN_DESC, updateState, ['extendedState, updates']);
+    const updatedExtendedStateOrError = wrappedUpdateState(extendedState, actionUpdate);
+
+    // TODO : test that case
+    handleFnExecError(
+      { debug, console },
+      { updateStateFn: updateState, extendedState, actionUpdate },
+      updatedExtendedStateOrError,
+      alwaysTrue, // NOTE : could also be passed in settings with updateState, maybe in later version
+      notifyAndRethrow,
+      noop // NOTE : we do not test the return value of the update state function, cf. previous note
+    );
+    const updatedExtendedState = updatedExtendedStateOrError;
 
     const exitActionResultOrError = wrappedEntryAction(updatedExtendedState, eventData, settings);
 
@@ -587,7 +607,7 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
       { action: entryAction, extendedState: updatedExtendedState, eventData, settings },
       exitActionResultOrError,
       isActions,
-      throwIfEntryActionFactoryThrows,
+      notifyAndRethrow,
       throwIfInvalidEntryActionResult
     );
 
@@ -644,10 +664,11 @@ export function traceFSM(env, fsm) {
     transitions: mapOverTransitionsActions((action, transition, guardIndex, transitionIndex) => {
       return function (extendedState, eventData, settings) {
         const { from: controlState, event: eventLabel, to: targetControlState, predicate } = transition;
-        const wrappedAction = tryCatchMachineFn(action, ACTION_FACTORY_DESC);
+        const wrappedAction = tryCatchMachineFn(ACTION_FACTORY_DESC, action, ['extendedState', 'eventData', 'settings']);
         const actionResultOrError = wrappedAction(extendedState, eventData, settings);
         const { outputs, updates } = actionResultOrError;
         const { updateState } = settings;
+        const wrappedUpdateState = tryCatchMachineFn(UPDATE_STATE_FN_DESC, updateState, ['extendedState, updates']);
 
         return {
           updates,
@@ -656,7 +677,7 @@ export function traceFSM(env, fsm) {
             updates,
             extendedState: extendedState,
             // NOTE : I can do this because pure function!! This is the extended state after taking the transition
-            newExtendedState: updateState(extendedState, updates || []),
+            newExtendedState: wrappedUpdateState(extendedState, updates || []),
             controlState,
             event: { eventLabel, eventData },
             settings: settings,
