@@ -287,8 +287,8 @@ reminder, its behaviour was described by the following state machine :
 To specify our machine, we need :
 - a list of control states the machine can be in
 - a list of events accepted by the machine
-- the initial state of the machine (initial control state, initial extended state)
 - to describe transitions from a control state to another 
+- the initial state of the machine (initial control state, initial extended state)
 
 The first three are clear from the graph. The last one can be deduced from the table (cf. above) 
 describing the behaviour of the password selector. 
