@@ -1,4 +1,23 @@
 # Now
+- build a real documenation site separated from the README.md
+  - cf. talk https://www.youtube.com/watch?v=t4vKPhjcMZg
+  - tutorial
+    - start with the password example (letter/number)
+      - exercise left to learner : use a password library (forgot the name)
+    - then go up from more complex examples
+      - no hierarchy
+      - with hierarchy
+      - with history etc.
+    - etc. that means having a graduated parcours to follow (i.e. curriculum)
+    - maybe include testing at the same time as development
+    - TUTORIAL (learning-oriented, most useful when we are studying and evaluating the material) 
+    are about concreteness not abstraction (include a dropdown with abstraction by 
+    default hidden), no unnecessary explanation
+  - how to (problem-oriented)
+  - discussion (understanding oriented - that is like the article I am writing for frontarm, 
+  gives context, explain why, alternative approaches, connecting to other things)
+  - reference
+  
 - in future version test the traceFSM for errors in guards, update state and actions, error 
 should be goign in properties directly, no throwing
 - DOC : fsmContracts in debug - update types too to include it

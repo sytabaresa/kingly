@@ -106,3 +106,27 @@
  * @typedef {*} ExtendedStateUpdate
  */
 /** @typedef {* | NO_OUTPUT} MachineOutput well it is preferrable that that be an object instead of a primitive */
+
+
+// Contract types
+/**
+ * @typedef {Object} ContractsDef
+ * @property {String} description name for the series of contracts
+ * @property {function(FSM_Def):Object} computed a function of the machine definition which returns an object to be
+ * injected to the contracts predicates
+ * @property {Array<ContractDef>} contracts array of contract definitions
+ */
+/**
+ * @typedef {Object} ContractDef
+ * @property {String} name name for the contract
+ * @property {Boolean} shouldThrow whether the contract should thrown an exception or alternatively return one
+ * @property {function(FSM_Def, computed):ContractCheck} predicate array of contract definitions
+ */
+/**
+ * @typedef {Object} ContractCheck
+ * @property {Boolean} isFulfilled whether the contract is fulfilled
+ * @property {{message:String, info:*}} blame information about the cause for the contract failure. The
+ * `message` property is destined to the developer (for instnce can be printed in the console). Info aims
+ * at providing additional data helping to track the error cause
+ * @property {function(FSM_Def, computed):ContractCheck} predicate array of contract definitions
+ */

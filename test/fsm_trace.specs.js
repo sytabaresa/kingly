@@ -10,14 +10,6 @@ import { CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE } from "../src/properties"
 const $ = Rx.Observable;
 const default_settings = {
   updateState : applyJSONpatch,
-  subject_factory: () => {
-    const subject = new Rx.Subject();
-    // NOTE : this is intended for Rxjs v4-5!! but should work for most also
-    subject.emit = subject.next || subject.onNext;
-    return subject
-  },
-  merge: function merge(arrayObs) {return $.merge(...arrayObs)},
-  of: $.of,
 };
 const EVENT1 = 'event1';
 const EVENT1_DATA = {
@@ -134,9 +126,6 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
     "outputs": null,
     "predicate": undefined,
     "settings": {
-      "merge": "merge",
-      "of": "anonymous",
-      "subject_factory": "subject_factory",
       "updateState": "applyJSONpatch"
     },
     "targetControlState": "B",
@@ -206,9 +195,6 @@ QUnit.test("INIT event, 2 actions with extended state update, NOK -> A -> B, no 
         },
         "predicate": undefined,
         "settings": {
-          "merge": "merge",
-          "of": "anonymous",
-          "subject_factory": "subject_factory",
           "updateState": "applyJSONpatch"
         },
         "targetControlState": "B",
@@ -337,8 +323,6 @@ QUnit.skip("all transitions topologies up to 4 levels of state nesting", functio
           "outputs": null,
           "predicate": undefined,
           "settings": {
-            "merge": "merge",
-            "of": "anonymous",
             "subject_factory": "subject_factory",
             "updateState": "applyJSONpatch"
           },
@@ -363,9 +347,6 @@ QUnit.skip("all transitions topologies up to 4 levels of state nesting", functio
           "outputs": null,
           "predicate": undefined,
           "settings": {
-            "merge": "merge",
-            "of": "anonymous",
-            "subject_factory": "subject_factory",
             "updateState": "applyJSONpatch"
           },
           "targetControlState": "s211",
@@ -391,9 +372,6 @@ QUnit.skip("all transitions topologies up to 4 levels of state nesting", functio
           "outputs": null,
           "predicate": undefined,
           "settings": {
-            "merge": "merge",
-            "of": "anonymous",
-            "subject_factory": "subject_factory",
             "updateState": "applyJSONpatch"
           },
           "targetControlState": "s1",
@@ -417,9 +395,6 @@ QUnit.skip("all transitions topologies up to 4 levels of state nesting", functio
           "outputs": null,
           "predicate": undefined,
           "settings": {
-            "merge": "merge",
-            "of": "anonymous",
-            "subject_factory": "subject_factory",
             "updateState": "applyJSONpatch"
           },
           "targetControlState": "s11",
@@ -445,9 +420,6 @@ QUnit.skip("all transitions topologies up to 4 levels of state nesting", functio
           "outputs": null,
           "predicate": undefined,
           "settings": {
-            "merge": "merge",
-            "of": "anonymous",
-            "subject_factory": "subject_factory",
             "updateState": "applyJSONpatch"
           },
           "targetControlState": "s11",
@@ -473,9 +445,6 @@ QUnit.skip("all transitions topologies up to 4 levels of state nesting", functio
           "outputs": null,
           "predicate": undefined,
           "settings": {
-            "merge": "merge",
-            "of": "anonymous",
-            "subject_factory": "subject_factory",
             "updateState": "applyJSONpatch"
           },
           "targetControlState": "s1",
@@ -499,9 +468,6 @@ QUnit.skip("all transitions topologies up to 4 levels of state nesting", functio
           "outputs": null,
           "predicate": undefined,
           "settings": {
-            "merge": "merge",
-            "of": "anonymous",
-            "subject_factory": "subject_factory",
             "updateState": "applyJSONpatch"
           },
           "targetControlState": "s11",

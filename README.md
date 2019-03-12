@@ -31,15 +31,16 @@
   * [Terminology](#terminology)
 
 # Features
-This library enables you to write user interfaces as state machines. You specify the machine. The
- library computes an executable version of that machine. You use that to run your interface. 
- It integrates easily with any or no framework. Tests can be automatically generated.
+This library enables you to write user interfaces as state machines. You specify the machine as a
+ graph. The library computes a function which implements that machine. You use that to drive 
+ your interface. It integrates easily with any or no framework. Tests can be automatically generated.
 
 Salient features :
 
-- **small size** : treeshakeable implementation, down from 7kB
-- **small API** : one function for the state machine, one function for the test generation, one 
-function for tracing
+- **small size** : treeshakeable implementation, down from 8kB
+- **small API** : one function for the state machine, one function for tracing (and one function 
+for the [test generation](https://github.com/brucou/state-transducer-testing) available in a 
+separate package)
 - **just a function!** : easy to integrate into any framework
 - **[automatic test generation!](https://github.com/brucou/state-transducer-testing)** : write the machine, how to progress from one state to another, and let the computer generate hundreds of tests for you
 
@@ -49,29 +50,23 @@ function for tracing
 - [wizard forms](https://github.com/brucou/cycle-state-machine-demo/tree/first-iteration-fix)
 
 # Motivation
-Time and again we have to implement computations which, while they cannot be modelized by pure 
-functions, however have the following interesting properties :
-
-- they transform an input into an output, depending only on the present and past inputs
-- they do not perform any effects
-- the algorithm for the computation involves a finite, parameterizable set of rules, coalescing  
-around a finite, fixed set of control states
-
-These computations can be modelized by a class of state machines called 
-hierarchical extended [state transducer](https://en.wikipedia.org/wiki/Finite-state_transducer). 
-This library offers a way to define, and use such class of state machines. Most of the time, we 
-will call them just state machines instead of the more accurate state transducer term.
+This library fundamentally implements computations which can be modelized by a type of state 
+machines called hierarchical extended [state transducer](https://en.wikipedia.org/wiki/Finite-state_transducer).  
+This library offers a way to define, and use such transducers. 
 
 Now, the whole thing can sound very abstract but the major motivation for this library has been the 
 specification and implementation of user interfaces. As a matter of fact, to [every user 
 interface can be associated a computation](https://brucou.github.io/posts/user-interfaces-as-reactive-systems/#reactive-systems-as-automata) 
 relating inputs to the user interface to an action to be performed on the interfaced systems. That 
-computation often has a logic [organized around a limited set of control states](#base-example). Exactly what
- we just wrote about. [**Jump to the examples**](https://github.com/brucou/state-transducer#general-concepts).
+computation often has a logic [organized around a limited set of control states](#base-example), 
+and can be advantageously modelized by a state machine. 
+
+[**Jump to the examples**](https://github.com/brucou/state-transducer#general-concepts).
 
 This library is born from :
 
-- the desire to apply such tool for both specification and implementation of user interfaces
+- the desire to apply such state machines for both specification and implementation of user 
+interfaces
 - the absence of existing javascript libraries which satisfy our [design criteria](https://github.com/brucou/state-transducer#api-design)
   - mostly, we want the state machine library API design to be as close as possible from the 
   mathematical object denoting it. This should allow us to reason about it, compose and reuse 
@@ -80,7 +75,7 @@ This library is born from :
   rather imperative API, or impose a concurrency model on top of the state machine's control flow
 
 This is a [work in progress](#roadmap), however the main API for the v1.0 should be relatively 
-stable. Changes for the test API are to be expected though.
+stable.
 
 It works nicely and have already been used succesfully for user-interfaces as well as in other 
 contexts:
@@ -177,15 +172,16 @@ The corresponding visualization (actions are not represented) :
 Note that we wrote only partial formulations in our table, as the sequence of inputs by the user 
 is potentially infinite (while this article is not). Our tables do not for instance give a 
 mapping for the following sequence of events : `[typed 'a', typed '2', typed 
- '<-|']`. Conversely, our state machine concisely represents the fact that whatever input we 
- receive in the `Weak` control state, it will only go to the `Strong` control state if some 
+ <backspace>]`. Conversely, our state machine concisely represents the fact that whatever input
+  we receive in the `Weak` control state, it will only go to the `Strong` control state if some 
  pre-configured condition are fulfilled (both numbers and letters in the password). It will 
  only submit the password if the `clicked submit` event is received while it is in the `Strong` 
  state.
  The starting state and these two assertions can be combined into a theorem : the machine will only 
  submit a password if the password is strong. In short, we are able to reason formally about the 
  machine and extract properties from its definition. This is just one of the many attractive properties of state 
-  machines which makes it a tool of choice for robust and testable user interface's implementation.
+  machines which makes it a tool of choice for **robust** and testable user interface's 
+  implementation.
 
 For the modelization of a [much more complex user interface](https://sarimarton.github.io/tmdb-ui-cyclejs/dist/#/), and more details on the benefits of state machine, I'll refer the reader to a [detailed article](https://github.com/brucou/movie-search-app/blob/specs-all/article/article.md) I wrote on the subject.
  
@@ -193,26 +189,26 @@ For the modelization of a [much more complex user interface](https://sarimarton.
 `npm install state-transducer --save`
 
 # Tests
-Automated tests are close to completion. Contracts are so far not enforced. To run the 
-current automated tests, type in a terminal : `npm run test`
+To run the current automated tests : `npm run test`
 
 # Integration with UI libraries
-The machine is just a function. As such it is pretty easy to integrate in any framework. In fact,
- we have implemented the same interface behaviour over [React](https://codesandbox.io/s/ym8vpqm7m9), [Vue*](https://codesandbox.io/s/4p1nnywy0), [Svelte*](https://github.com/brucou/movie-search-app-svelte), [Inferno](https://codesandbox.io/s/9zjo5yx8po), [Nerv](https://codesandbox.io/s/o4vkwmw7y), [Ivi](https://codesandbox.io/s/3x9x5v4kq5) with 
+The machine implementation is just a function. As such it is pretty easy to integrate in any 
+framework. In fact, we have implemented the same interface behaviour over [React](https://codesandbox.io/s/ym8vpqm7m9), [Vue*](https://codesandbox.io/s/4p1nnywy0), [Svelte*](https://github.com/brucou/movie-search-app-svelte), [Inferno](https://codesandbox.io/s/9zjo5yx8po), [Nerv](https://codesandbox.io/s/o4vkwmw7y), [Ivi](https://codesandbox.io/s/3x9x5v4kq5) with 
  the exact same fsm. By isolating your component behaviour in a fsm, you can delay the UI library 
- choice to the last moment. 
+ choice to the last moment.
  
-[*]: Vue and Svelte do not build properly the CSS files, which makes the demo a bit less appealing.
- As this is not so important for our purposes, I decided not to spend time solving the build issues.
+[*]: I did not manage to build properly the CSS files with Vue and Svelte, which makes the 
+demo a bit less appealing visually. As this is not so important for our purposes, I decided not 
+to spend time solving the framework-specific build issues.
  
-As of today, we officially provide the following integrations :
+As of April 2019, we officially provide the following integrations :
 
-- [integration with React](https://github.com/brucou/react-state-driven) 
+- [integration with React](https://github.com/brucou/react-state-driven)
   - using state machines allows to use React mostly as a DOM library and eliminates the need for 
-  state management, HOC, hooks and other react advanced concepts.
+  state management, hooks and other react paraphernalia.
 - [integration with Vue](https://github.com/brucou/vue-state-driven) 
-  - using state machines allows to use React mostly as a DOM library and eliminates the need for 
-  state management, HOC, hooks and other react advanced concepts.
+  - using state machines allows to use Vue mostly as a DOM library and eliminates the need for 
+  state management, hooks and other Vue advanced concepts.
 - integration with framework supporting webcomponents (only supported in [browsers which support 
 custom elements v1](https://caniuse.com/#feat=custom-elementsv1))
   - provided by the factory function `makeWebComponentFromFsm`
@@ -223,7 +219,7 @@ custom elements v1](https://caniuse.com/#feat=custom-elementsv1))
 ## API design
 The key objectives for the API was :
 
-- generality, reusability and simplicity 
+- **generality**, **reusability** and **simplicity** 
   - there is no explicit provision made to accommodate specific use cases or frameworks
   - it must be possible to add a [concurrency and/or communication mechanism](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.92.6145&rep=rep1&type=pdf) on top of the current design
   - it must be possible to integrate smoothly into React, Angular and your popular framework
@@ -232,10 +228,10 @@ The key objectives for the API was :
 
 As a result of this, the following choices were made :
 
-- functional interface : the transducer is just a function. As such, the 
+- **functional interface** : the transducer is just a function. As such, the 
 transducer is a black-box, and only its computed outputs can be observed
-- complete encapsulation of the state of the transducer
-- no effects performed by the machine
+- **complete encapsulation** of the state of the transducer
+- **no effects** performed by the machine
 - no exit and entry actions, or activities as in other state machine formalisms
   - there is no loss of generality as both entry and exit actions can be implemented with our 
   state transducer. There is simply no syntactic support for it in the core API. This can however be
@@ -249,23 +245,25 @@ which in turn allows him to use any formalism to represent state - for instance 
 - parallel composition naturally occurs by feeding two state machines the same input(s))
   - as a result, reactive programming is naturally enabled. If `inputs` is a stream of 
 well-formatted machine inputs, and `f` is the fsm, then the stream of outputs will be `inputs.map
-(f)`. It is so simple that we do not surface it at the API level
+(f)`. It is so simple that we do not even surface it at the API level.
 
 Concretely, our state transducer will be created by the factory function `createStateMachine`, 
 which returns a state transducer which :
 
-- immediately positions itself in its configured initial control state 
+- immediately positions itself in its configured initial state (as defined by its initial control
+ state and initial extended state) 
 - will compute an output for any input that is sent to it since that
 
 Let us insist again on the fact that the state transducer is not, in general, a pure function of 
 its inputs. However, a given output of the transducer depends exclusively on the sequence of inputs 
 it has received so far ([causality property](https://en.wikipedia.org/wiki/Causal_system)). This means that it is possible to associate to a state transducer another function which takes a sequence of inputs into a 
- sequence of outputs, in a way that that function is pure. This is what enables testing.
+ sequence of outputs, in a way that **that** function is pure. This is what enables 
+ simple and automated testing.
 
 ## General concepts
 There are a few things to be acquainted with :
-- the state machine formalism
-- its extension, including hierarchy (compound states), history states
+- the basic state machine formalism
+- its extension, including hierarchy (compound states), and history states
 - the library API
 
 To familiarize the reader with these, we will be leveraging two examples. The first example is 
@@ -605,33 +603,41 @@ disambiguity vs. conciseness.
 
 Contracts enforcement can be parameterized with `settings.debug.checkContracts`.
  
-## `createStateMachine :: FSM_Def -> Settings -> FSM`
+## `createStateMachine :: FSM_Def -> FSM`
 ### Description
 This FSM factory function takes the parameters defining the behaviour of the state transducer, 
 and returns the created state transducer. The created state transducer is a regular function called 
-with inputs which are passed to the internal state machine, and in return the computed outputs are
-received. The syntax for an input is `{{[eventLabel] : eventData}}`, i.e. an input is an object with exactly one key, which is the event identifier, and the value matching the key is the event data.
+with inputs which are passed to the encapsulated state machine, which computes the function's 
+output. The syntax for an input is `{{[eventLabel] : eventData}}`, i.e. an input is an object 
+with exactly one key, which is the event identifier, and the value matching the key is the event data.
 
-The machine additionnally can carry over environment variables, which are accessible in guards, 
+The machine additionnally may carry over environment variables, which are accessible in guards, 
 and action factories. This helps maintaining such functions pure and testable. Environment 
 variables can also be used to parameterize the state machine's behaviour.
 
-History states are generated by a factory returned by a helper `makeHistoryStates :: FSM_States -> 
-HistoryStateFactory`. An history state is coupled to a compound state, and has a type (deep or 
-shallow). Passing this information to the factory produdces the sought history state. 
+History pseudo states are generated by a helper function `historyState :: 
+HistoryType -> ControlState -> HistoryPseudoState`. An history state is coupled to a 
+compound control state, and has a type (deep or shallow). Passing this information to the factory 
+produdces the sought history state. 
 
 The `settings.updateState` property is mandatory, and specify how to update a model from the `
-.updates` produced by an action factory. We used successfully JSON patch operations for model 
-updates, but you can choose to use the inmutable library of your choice or a simple reducer. The 
+.updates` produced by an action factory. We used successfully [JSON patch](http://jsonpatch.com/) operations for model updates, but you can choose to use the inmutable library of your choice or a simple reducer. The 
 important point is that the extended state should not be modified in place, i.e. `updateState` is
  a pure function. 
+
+The `settings.debug.checkContracts`, when set, represent contracts that the state machine must 
+fulfill. The `state-transducer` library comes by default with a set of contracts enforcing most 
+of the syntax and semantics of the state machine format chosen.
+
+The `settings.debug.console`, when set, represent a `console` object through which tracing and 
+debug info will flow. This is useful in development and can be turned off in production.   
 
 ### Contracts
 - All [previously mentioned](https://github.com/brucou/state-transducer#contracts) contracts apply.
 - [Type contracts](https://github.com/brucou/state-transducer/blob/master/src/types.js)
 - The `settings.updateState` property is mandatory!
-- The `settings` property should not be modified after being passed as parameter (i.e. should be 
-a constant): it is not cloned and is passed to all relevant functions (guards, etc.)
+- The `settings` property **should not be modified** after being passed as parameter (i.e. should
+ be a constant): it is not cloned and is passed to all relevant functions (guards, etc.)
 
 ### Implementation example
 We are going to show the definition for the following hierrchical state machine :
@@ -641,12 +647,11 @@ We are going to show the definition for the following hierrchical state machine 
 The definition is as follows :
 
 ```javascript
-  const states = { [OUTER]: { [INNER]: { [INNER_S]: '', [INNER_T]: '' }, [OUTER_A]: '', [OUTER_B]: '' }, [Z]: '' };
-  const hs = makeHistoryStates(states);
+const states = { [OUTER]: { [INNER]: { [INNER_S]: '', [INNER_T]: '' }, [OUTER_A]: '', [OUTER_B]: '' }, [Z]: '' };
   const fsmDef = {
     states,
-    events: [EVENT1, EVENT2, EVENT3, EVENT4, EVENT5],
-    initialExtendedState: { history: DEEP, counter: 0 },
+    events: [EVENT1, EVENT2, EVENT3, EVENT4],
+    initialExtendedState: { history: SHALLOW, counter: 0 },
     transitions: [
       { from: INIT_STATE, event: INIT_EVENT, to: OUTER, action: ACTION_IDENTITY },
       { from: OUTER, event: INIT_EVENT, to: OUTER_A, action: ACTION_IDENTITY },
@@ -655,22 +660,23 @@ The definition is as follows :
       { from: INNER_S, event: EVENT3, to: INNER_T, action: ACTION_IDENTITY },
       { from: INNER_T, event: EVENT3, to: INNER_S, action: ACTION_IDENTITY },
       { from: INNER, event: EVENT2, to: OUTER_B, action: ACTION_IDENTITY },
-      { from: OUTER, event: EVENT5, to: Z, action: ACTION_IDENTITY },
+      { from: OUTER, event: EVENT1, to: Z, action: ACTION_IDENTITY },
       {
         from: Z, event: EVENT4, guards: [
           {
             predicate: function isDeep(x, e) {return x.history === DEEP},
-            to: hs.deep(OUTER),
+            to: historyState(DEEP, OUTER),
             action: incCounter
           },
           {
             predicate: function isShallow(x, e) {return x.history !== DEEP},
-            to: hs.shallow(OUTER),
+            to: historyState(SHALLOW, OUTER),
             action: incCounter
           }
         ]
       },
     ],
+    settings : { updateState : applyJSONpatch }
   };
 ```
 
@@ -678,14 +684,14 @@ Note in particular :
 - the nesting of states in `states`
 - the use of `ACTION_IDENTITY` when there is no action to be applied
   - that action does not modify the extended state of the machine, and returns `NO_OUTPUT`
-- how history states are included in the machine definition
+- how history states are included in the machine definition with `historyState`
 
 There are plenty of additional examples in the [test directory](https://github.com/brucou/state-transducer/blob/master/test/hierarchy.specs.js).
 
 ## `traceFSM :: Env -> FSM_Def -> FSM_Def`
 ### Description
 This function converts a state machine `A` into a traced state machine `T(A)`. The traced state 
-machine, on receiving an input `I` outputs the following information :
+machine, on receiving an input `I` outputs an object with the following information :
 
 - `outputs` : the outputs `A(I)` 
 - `updates` : the update of the extended state of `A` to be performed as a consequence of receiving the input `I` 
@@ -703,16 +709,17 @@ input `I`
 - `guardIndex` : the index for the guard in the `.guards` array of a transition away from a 
 control state, triggered by an event
 - `transitionIndex` : the index for the transition in the `.transitions` array which contain the 
-specifications for the machine's transition
+specification for the machine's transition
 
-Note that the trace functionality is obtained by wrapping over the action factories in `A`. As 
+Note that the trace functionality is obtained by decorating the action factories in `A`. As 
 such, all action factories will see their output wrapped. This means :
 
 - transitions which do not lead to the execution of action factories are not traced
 - when the machine cannot find any transition for an event, hence any action to execute, 
 the traced machine will simply return `null`.
 
-Note also that `env` is not used for now, and could be used to parameterize the tracing.
+Note also that `env` is not used for now, and will be used to parameterize the tracing in future 
+versions of the library.
 
 ### Contracts
 - [Type contracts](https://github.com/brucou/state-transducer/blob/master/src/types.js)
@@ -725,28 +732,29 @@ Because of the API design choices, it is possible to realize the possible extens
 modifying the state chart library (open/closed principle):
 
 - entry and exit actions
-  - decorating action factories (cf. the [multi-step workflow demo repo](https://github.com/brucou/cycle-state-machine-demo))
+  - decorating action factories : entry actions are already implemented and will be documented in
+   a future version of the library. Examples can be found in the []test directory](https://github.com/brucou/state-transducer/blob/master/test/entry-actions.specs.js).
 - logging/tracing/monitoring
   - achieved through decorating both guards and action factories
 - contract checking (preconditions, postconditions and probably invariants - to be investigated) 
 for both states and transitions
   - can be done by inserting in first position extra guards which either fail or throw, and 
   decorating exising guards
-- starting with a specific control state and extended state
+- overriding initial control state and extended state
   - can be achieved by modifying the `INIT` transition (by contract there is exactly one such 
   transition) and the `initial_extended_state`; and leaving everything else intact
 
-Note that these extensions more often than not would perform effects (logs, ...), meaning that the 
-order of application becomes significant in general. The practical consequences of this are to be 
-investigated further at a later point. 
+Note that some extensions may perform effects (logs, ...), meaning that the 
+order of evaluation and application of operations would then become significant in general. 
+Extension performing effects should only be used in development.
 
 Equipped with a history of inputs and the corresponding history of outputs, it is also possible to
  do property-based testing (for instance checking that a pattern in a sequence of outputs occurs only 
 when a pattern occurs in the matching sequence of inputs).
 
-These extensions are useful to check/test the **design** of the automata, i.e. checking that the 
+Some extensions may be useful to check/test the **design** of the automata, i.e. checking that the 
 automata which acts as modelization of requirements indeed satisfies the requirements. When 
-sufficient confidence is acquired, those extensions can be safely removed.
+sufficient confidence is acquired, those extensions can be safely removed or deactivated.
 
 # Visualization tools
 We have included two helpers for visualization of the state transducer :
@@ -762,7 +770,7 @@ format (dagre layout engine) : for instructions, cf. github directory : `toDagre
 ![visualization example](https://github.com/brucou/state-transducer-visualizer/raw/master/assets/cd-player-automatic-dagre-visualization.png)
 
 Automated visualization works well with simple graphs, but seems to encounter trouble to generate
- optimally satisfying complex graphs. The Dagre layout seems to be a least worse option. We 
+ optimally satisfying complex graphs. The Dagre layout seems to be a least worse option. I
  believe the best option for visualization is to use professional specialized tooling such as 
  `yed`. In a future version, we will provide a conversion to `yed` graph format to facilitate 
  such workflow. The [`yed`](https://www.yworks.com/products/yed) orthogonal and flowchart layout 
@@ -779,26 +787,29 @@ selector
   - state machine as an effectless, impure function with causality properties
   - expose only the factory, keep internal state fully encapsulated
 - [x] test [integration with React](https://github.com/brucou/react-state-driven)
+- [x] test [integration with Vue](https://github.com/brucou/vue-state-driven)
 - [x] support [model-based testing, and test input generation](https://pdfs.semanticscholar.org/f8e6/b3019c0d5422f35d2d98c242f149184992a3.pdf)
   - [x] *all-transitions* coverage test case generator
 - [x] add tracing support
   - obtained by decorating the machine definition
 - [x] add entry actions
 
-## Roadmap v1.1
-- [ ] support for visualization in third-party tools
+## Roadmap v1.X
+- [ ] support for visualization in third-party tools 
+  - yed format conversion
+  - trace emitter
 - [ ] document entry actions
 - [ ] showcase property-based testing
-- [ ] add cloning API
-- [ ] add reset API
 - [ ] decide definitively on tricky semantic cases
   - transitionning to history states when there is no history
-  - event delegation 
+  - ~~event delegation~~ 
 
-## Roadmap v1.2
+## Roadmap v1.Y
 - [ ] support for live, interactive debugging
 
-## Roadmap v1.3
+## Roadmap v1.Z
+- [ ] add cloning API
+- [ ] add reset API
 - [ ] add and document exit actions
 - [ ] turn the test generation into an iterator(ES6 generator) : this allows it to be composed with 
 transducers and manipulate the test cases one by one as soon as they are produced. Will be useful
