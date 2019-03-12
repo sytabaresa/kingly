@@ -444,8 +444,19 @@ export function createStateMachine(fsmDef) {
   return function yyield(x) { return send_event(x, true)}
 }
 
-// outputSubject allows raising event which can be
-export function makeWebComponentFromFsm({ name, ubjectFactory, fsm, commandHandlers, effectHandlers, options }) {
+/**
+ *
+ * @param {WebComponentName} name name for the web component. Must include at least one hyphen per custom
+ * components' specification
+ * @param {SubjectFactory} subjectFactory A factory function which returns a subject, i.e. an object which
+ * implements the `Observer` and `Observable` interface
+ * @param {FSM} fsm An executable machine, i.e. a function which accepts machine inputs
+ * @param {Object.<CommandName, CommandHandler>} commandHandlers
+ * @param {*} effectHandlers Typically anything necessary to perform effects. Usually this is a hashmap mapping an
+ * effect moniker to a function performing the corresponding effect.
+ * @param {{initialEvent, terminalEvent, NO_ACTION}} options
+ */
+export function makeWebComponentFromFsm({ name, subjectFactory, fsm, commandHandlers, effectHandlers, options }) {
   class FsmComponent extends HTMLElement {
     constructor() {
       if (name.split('-').length <= 1) throw `makeWebComponentFromFsm : web component's name MUST include a dash! Please review the name property passed as parameter to the function!`
