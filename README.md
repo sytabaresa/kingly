@@ -21,6 +21,7 @@
   * [Transducer semantics](#transducer-semantics)
   * [`createStateMachine :: FSM_Def -> Settings -> FSM`](#-createstatemachine----fsm-def----settings----fsm-)
   * [`traceFSM :: Env -> FSM_Def -> FSM_Def`](#-tracefsm----env----fsm-def----fsm-def-)
+  * [`makeWebComponentFromFsm :: ComponentDef -> FSM`](#-makewebcomponentfromfsm----componentdef----fsm-)
 - [Possible API extensions](#possible-api-extensions)
 - [Visualization tools](#visualization-tools)
 - [Credits](#credits)
