@@ -53,8 +53,7 @@ separate package)
 
 # Motivation
 This library fundamentally implements computations which can be modelized by a type of state 
-machines called hierarchical extended [state transducer](https://en.wikipedia.org/wiki/Finite-state_transducer).  
-This library offers a way to define, and use such transducers. 
+machines called hierarchical extended [state transducer](https://en.wikipedia.org/wiki/Finite-state_transducer). This library offers a way to define, and use such transducers. 
 
 Now, the whole thing can sound very abstract but the major motivation for this library has been the 
 specification and implementation of user interfaces. As a matter of fact, to [every user 
