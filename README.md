@@ -49,7 +49,8 @@ separate package)
 |---|---|
 |[password meter component](https://codesandbox.io/s/73wy8jwk86)|![password meter demo](assets/password%20selector%20demo%20animated.png)|
 |[movie database search interface](https://codesandbox.io/s/mo2p97k7m8)|![movie app demo](assets/movie%20app%20demo%20init.png)| 
-- [wizard forms](https://github.com/brucou/cycle-state-machine-demo/tree/first-iteration-fix)
+|[wizard forms](https://github.com/brucou/cycle-state-machine-demo/tree/first-iteration-fix)
+|![wizard form demo](https://github.com/brucou/cycle-state-machine-demo/raw/first-iteration-fix/public/assets/images/animated_demo.gif)|
 
 # Motivation
 This library fundamentally implements computations which can be modelized by a type of state 
