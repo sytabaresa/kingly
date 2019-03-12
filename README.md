@@ -290,8 +290,9 @@ To specify our machine, we need :
 - to describe transitions from a control state to another 
 - the initial state of the machine (initial control state, initial extended state)
 
-The first three are clear from the graph. The last one can be deduced from the table (cf. above) 
-describing the behaviour of the password selector. 
+The first three are clear from the graph. The initial control state can also be deduced from the 
+graph. The initial exxtended state can be derived from the mapping table [above](#the-link-between-state-machines-and-user-interfaces) describing the 
+behaviour of the password selector. 
 
 The fsm ends up being defined by:
 
