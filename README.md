@@ -45,10 +45,11 @@ separate package)
 - **[automatic test generation!](https://github.com/brucou/state-transducer-testing)** : write the machine, how to progress from one state to another, and let the computer generate hundreds of tests for you
 
 # Examples
-- [password meter component](https://codesandbox.io/s/73wy8jwk86)
-![](assets/password%20selector%20demo%20animated.png)
+|Code | Demo |
+|---|---|
+|[password meter component](https://codesandbox.io/s/73wy8jwk86)|![password meter demo](assets/password%20selector%20demo%20animated.png)|
+|[movie database search interface](https://codesandbox.io/s/mo2p97k7m8)|.......| 
 
-- [movie database search interface](https://codesandbox.io/s/mo2p97k7m8) 
 - [wizard forms](https://github.com/brucou/cycle-state-machine-demo/tree/first-iteration-fix)
 
 # Motivation
