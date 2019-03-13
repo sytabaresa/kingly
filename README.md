@@ -744,6 +744,13 @@ which computes outputs and the component subsequently process those outputs via 
 handlers. The web component may or may not use the output subject to emit events. At the moment, 
 we do not have any example or test covering this use case.
 
+Component whose behaviour is defined by a machine can be seamlessly integrated into any framework
+ by converting to web component. Note however that the portion of the web component 
+ specification used, custom elements v1, is only supported in modern browsers. In the web 
+ component scenario, communication betwween the web component and other framework's component 
+ occurs through the input and output subject or DOM events. It is not possible to use any 
+ facility provided by the framework. 
+
 ### Contract
 - Type contracts
 - web component name must fulfill web component's specifications i.e. include an hyphen in its name
