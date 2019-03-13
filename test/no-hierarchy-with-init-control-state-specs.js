@@ -33,7 +33,7 @@ export function applyJSONpatch(extendedState, extendedStateUpdateOperations) {
   return applyPatch(extendedState, extendedStateUpdateOperations, false, false).newDocument;
 }
 
-const default_settings = { updateState: applyJSONpatch };
+const default_settings = { };
 const FALSE_GUARD = function always_false(action, state) {return [{ predicate: F, to: state, action }]};
 const TRUE_GUARD = function always_true(to, action) { return [{ predicate: T, to, action }]};
 
@@ -101,6 +101,7 @@ QUnit.test("initial control state, event, no action, false guard", function exec
     ],
     initialExtendedState: initialExtendedState,
     initialControlState: 'A',
+    updateState: applyJSONpatch,
     settings : Object.assign({}, default_settings, {debug : {checkContracts: false}})
   };
   const fsm = create_state_machine(fsmDef);
@@ -118,6 +119,7 @@ QUnit.test("initial control state, event, no action, true guard", function exec_
     ],
     initialControlState: 'A',
     initialExtendedState: initialExtendedState,
+    updateState: applyJSONpatch,
     settings : default_settings
   };
   const fsm = create_state_machine(fsmDef);
@@ -136,6 +138,7 @@ QUnit.test("no initial control state, no initial transition, event, no action, t
       ],
       // initialControlState: 'A',
       initialExtendedState: initialExtendedState,
+      updateState: applyJSONpatch,
       settings: Object.assign({}, default_settings, {debug : {checkContracts: fsmContracts}})    };
     const fsm = create_state_machine(fsmDef);
     const result = fsm({ ev: initialExtendedState });
@@ -153,6 +156,7 @@ QUnit.test("no initial control state, no initial transition, event, no action, t
       ],
       initialControlState: 'A',
       initialExtendedState: initialExtendedState,
+      updateState: applyJSONpatch,
       settings : Object.assign({}, default_settings, {debug : {checkContracts: fsmContracts}})
     };
     const fsm = create_state_machine(fsmDef);
@@ -174,6 +178,7 @@ QUnit.test("initial control state, event, action, false guard", function exec_te
     ],
     initialControlState: 'A',
     initialExtendedState: initialExtendedState,
+    updateState: applyJSONpatch,
     settings: default_settings
   };
   const fsm = create_state_machine(fsmDef);
@@ -197,6 +202,7 @@ QUnit.test("initial control state, event, action, true guard", function exec_tes
     ],
     initialControlState: 'A',
     initialExtendedState: initialExtendedState,
+    updateState: applyJSONpatch,
     settings: default_settings
   };
   const fsm = create_state_machine(fsmDef);
@@ -230,6 +236,7 @@ QUnit.test("initial control state, event, 2 actions, [T,T] conditions, 1st actio
     ],
     initialControlState: 'A',
     initialExtendedState: initialExtendedState,
+    updateState: applyJSONpatch,
     settings: default_settings
   };
   const fsm = create_state_machine(fsmDef);
@@ -263,6 +270,7 @@ QUnit.test("initial control state, event, 2 actions, [F,T] conditions, 2nd actio
     ],
     initialControlState: 'A',
     initialExtendedState: initialExtendedState,
+    updateState: applyJSONpatch,
     settings : default_settings
   };
   const fsm = create_state_machine(fsmDef);
@@ -296,6 +304,7 @@ QUnit.test("initial control state, event, 2 actions, [T,F] conditions, 1st actio
     ],
     initialControlState: 'A',
     initialExtendedState: initialExtendedState,
+    updateState: applyJSONpatch,
     settings: default_settings
   };
   const fsm = create_state_machine(fsmDef);
@@ -329,6 +338,7 @@ QUnit.test("initial control state, event, 2 actions, [F,F] conditions, no action
     ],
     initialControlState: 'A',
     initialExtendedState: initialExtendedState,
+    updateState: applyJSONpatch,
     settings: default_settings
   };
   const fsm = create_state_machine(fsmDef);
@@ -347,6 +357,7 @@ QUnit.test("initial control state, event, 2 actions with no extendedState update
     ],
     initialControlState: 'A',
     initialExtendedState: initialExtendedState,
+    updateState: applyJSONpatch,
     settings : default_settings
   };
   const fsm = create_state_machine(fsmDef);
@@ -364,6 +375,7 @@ QUnit.test("initial control state, event, 2 actions with extendedState update, N
     ],
     initialControlState: 'A',
     initialExtendedState: initialExtendedState,
+    updateState: applyJSONpatch,
     settings : default_settings
 };
   const fsm = create_state_machine(fsmDef);
@@ -390,6 +402,7 @@ QUnit.test("initial control state, 2 INIT event", function exec_test(assert) {
     ],
     initialControlState: 'A',
     initialExtendedState: initialExtendedState,
+    updateState: applyJSONpatch,
     settings: default_settings
   };
   const fsm = create_state_machine(fsmDef);

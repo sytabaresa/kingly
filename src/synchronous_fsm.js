@@ -166,9 +166,10 @@ export function createStateMachine(fsmDef) {
     events,
     // transitions ,
     initialExtendedState,
+    updateState: userProvidedUpdateStateFn,
     settings
   } = fsmDef;
-  const { updateState: userProvidedUpdateStateFn, debug } = settings || {};
+  const { debug } = settings || {};
   const checkContracts = debug && debug.checkContracts || void 0;
   let console = debug && debug.console ? debug.console : emptyConsole;
 
@@ -545,7 +546,7 @@ export function mergeOutputsFn(arrayOutputs) {
 export function decorateWithEntryActions(fsmDef, entryActions, mergeOutputs) {
   if (!entryActions) return fsmDef
 
-  const { transitions, states, initialExtendedState, initialControlState, events, settings } = fsmDef;
+  const { transitions, states, initialExtendedState, initialControlState, events, updateState, settings } = fsmDef;
   const stateHashMap = getFsmStateList(states);
   const isValidEntryActions = Object.keys(entryActions).every(controlState => {
     return stateHashMap[controlState] != null;
@@ -559,7 +560,7 @@ export function decorateWithEntryActions(fsmDef, entryActions, mergeOutputs) {
       const { to } = transition;
       const entryAction = entryActions[to];
       const decoratedAction = entryAction
-        ? decorateWithExitAction(action, entryAction, mergeOutputFn)
+        ? decorateWithExitAction(action, entryAction, mergeOutputFn, updateState)
         : action;
 
       return decoratedAction
@@ -571,6 +572,7 @@ export function decorateWithEntryActions(fsmDef, entryActions, mergeOutputs) {
       states,
       events,
       transitions: decoratedTransitions,
+      updateState,
       settings
     }
   }
@@ -582,9 +584,10 @@ export function decorateWithEntryActions(fsmDef, entryActions, mergeOutputs) {
  * @param {ActionFactory} entryAction
  * @param {function (Array<MachineOutput>) : MachineOutput} mergeOutputFn monoidal merge function. Cf.
  *   decorateWithEntryActions
- * @return ActionFactory
+ * @param updateState
+ * @return {decoratedAction}
  */
-function decorateWithExitAction(action, entryAction, mergeOutputFn) {
+function decorateWithExitAction(action, entryAction, mergeOutputFn, updateState) {
   // NOTE : An entry action is modelized by an exit action, i.e. an action which will be processed last after any
   // others which apply. Because in the transducer semantics there is nothing happening after the transition is
   // processed, or to express it differently, transition and state entry are simultaneous, this modelization is
@@ -592,7 +595,7 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
   // DOC : entry actions for a control state will apply before any automatic event related to that state! In fact before
   // anything. That means the automatic event should logically receive the state updated by the entry action
   const decoratedAction = function (extendedState, eventData, settings) {
-    const { updateState, debug } = settings;
+    const { debug } = settings;
     const wrappedEntryAction = tryCatchMachineFn(ENTRY_ACTION_FACTORY_DESC, entryAction, ['extendedState', 'eventData', 'settings']);
     const actionResult = action(extendedState, eventData, settings);
     const actionUpdate = actionResult.updates;
@@ -664,13 +667,14 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn) {
  * @param {FSM_Def} fsm
  */
 export function traceFSM(env, fsm) {
-  const { initialExtendedState, initialControlState, events, states, transitions, settings } = fsm;
+  const { initialExtendedState, initialControlState, events, states, transitions, updateState, settings } = fsm;
 
   return {
     initialExtendedState,
     initialControlState,
     events,
     states,
+    updateState,
     settings,
     transitions: mapOverTransitionsActions((action, transition, guardIndex, transitionIndex) => {
       return function (extendedState, eventData, settings) {
@@ -678,7 +682,6 @@ export function traceFSM(env, fsm) {
         const wrappedAction = tryCatchMachineFn(ACTION_FACTORY_DESC, action, ['extendedState', 'eventData', 'settings']);
         const actionResultOrError = wrappedAction(extendedState, eventData, settings);
         const { outputs, updates } = actionResultOrError;
-        const { updateState } = settings;
         const wrappedUpdateState = tryCatchMachineFn(UPDATE_STATE_FN_DESC, updateState, ['extendedState, updates']);
 
         return {

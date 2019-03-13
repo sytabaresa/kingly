@@ -1,5 +1,4 @@
 import * as QUnit from "qunitjs"
-import * as Rx from "rx"
 import { clone, F, merge, T } from "ramda"
 import { ACTION_IDENTITY, create_state_machine, INIT_EVENT, INIT_STATE, NO_OUTPUT, traceFSM } from "../src"
 import { formatResult } from "./helpers"
@@ -7,10 +6,7 @@ import { assertContract, isArrayUpdateOperations } from "../test/helpers"
 import { applyPatch } from "json-patch-es6/lib/duplex"
 import { CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE } from "../src/properties"
 
-const $ = Rx.Observable;
-const default_settings = {
-  updateState : applyJSONpatch,
-};
+const default_settings = {};
 const EVENT1 = 'event1';
 const EVENT1_DATA = {
   event1_data_key1: 'event1_data_value1'
@@ -96,6 +92,7 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
       { from: 'A', to: 'B', event: 'ev', action: ACTION_IDENTITY }
     ],
     initialExtendedState: initialExtendedState,
+    updateState : applyJSONpatch,
     settings : default_settings,
   };
   const decoratedFsmDef = traceFSM({}, fsmDef);
@@ -125,9 +122,7 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
     },
     "outputs": null,
     "predicate": undefined,
-    "settings": {
-      "updateState": "applyJSONpatch"
-    },
+    "settings": {},
     "targetControlState": "B",
     "transitionIndex": 1
   }], `trace is correct`);
@@ -142,6 +137,7 @@ QUnit.test("INIT event, 2 actions with extended state update, NOK -> A -> B, no 
       { from: 'A', to: 'B', event: EVENT1, action: another_dummy_action_with_update },
     ],
     initialExtendedState: initialExtendedState,
+    updateState : applyJSONpatch,
     settings : default_settings,
   };
   const decoratedFsmDef = traceFSM({}, fsmDef);
@@ -194,9 +190,7 @@ QUnit.test("INIT event, 2 actions with extended state update, NOK -> A -> B, no 
           "settings": {}
         },
         "predicate": undefined,
-        "settings": {
-          "updateState": "applyJSONpatch"
-        },
+        "settings": {},
         "targetControlState": "B",
         "transitionIndex": 1
       }]
@@ -290,6 +284,7 @@ QUnit.skip("all transitions topologies up to 4 levels of state nesting", functio
       { from: s11, event: H, to: s, action: ACTION_IDENTITY },
       { from: s11, event: G, to: s211, action: ACTION_IDENTITY },
     ],
+    updateState : applyJSONpatch,
   };
   const settings = default_settings;
   const eventSequence = [INIT_EVENT, G, I, A, D, D, C, E, E, G, I, I];

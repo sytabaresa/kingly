@@ -4,16 +4,11 @@ import {
 } from "../src"
 import { formatResult } from "./helpers"
 import * as QUnit from "qunitjs"
-import * as Rx from "rx"
 import { assertContract, isArrayUpdateOperations } from "../test/helpers"
 import { applyPatch } from "json-patch-es6/lib/duplex"
 import { CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE } from "../src/properties"
 
-const $ = Rx.Observable;
-
-const default_settings = {
-  updateState: applyJSONpatch,
-};
+const default_settings = {};
 
 const A = 'A';
 const B = 'B';
@@ -188,6 +183,7 @@ QUnit.test("event multi transitions, CASCADING inner INIT event transitions", fu
       { from: 'OUTER_GROUP_D', event: INIT_EVENT, to: 'INNER_GROUP_D', action: ACTION_IDENTITY },
       { from: 'INNER_GROUP_D', event: INIT_EVENT, to: 'D', action: ACTION_IDENTITY },
     ],
+    updateState: applyJSONpatch,
     settings : default_settings
   };
   const settings = default_settings;
@@ -365,9 +361,9 @@ QUnit.test("eventless transition, event multi transitions, CASCADING inner event
       { from: 'OUTER_GROUP_D', event: INIT_EVENT, to: 'INNER_GROUP_D', action: ACTION_IDENTITY },
       { from: 'INNER_GROUP_D', event: INIT_EVENT, to: 'D', action: ACTION_IDENTITY },
     ],
+    updateState: applyJSONpatch,
     settings : default_settings
   };
-  const settings = default_settings;
   const inputSequence = [
     // { "init": fsmDef.initialExtendedState },
     { "click": { "keyB": "valueB" } },
@@ -377,70 +373,6 @@ QUnit.test("eventless transition, event multi transitions, CASCADING inner event
   const outputSequence = inputSequence.map(fsm);
   const formattedResults = outputSequence.map(output => output.map(formatResult));
   assert.deepEqual(formattedResults, [
-    // [
-    //   {
-    //     "actionFactory": "ACTION_IDENTITY",
-    //     "controlState": "nok",
-    //     "event": {
-    //       "eventData": {
-    //         "reviewed": false,
-    //         "switch": false
-    //       },
-    //       "eventLabel": "init"
-    //     },
-    //     "extendedState": {
-    //       "reviewed": false,
-    //       "switch": false
-    //     },
-    //     "guardIndex": 1,
-    //     "updates": [],
-    //     "newExtendedState": {
-    //       "reviewed": false,
-    //       "switch": false
-    //     },
-    //     "outputs": null,
-    //     "predicate": "isSwitchOff",
-    //     "settings": {
-    //       "merge": "merge",
-    //       "of": "anonymous",
-    //       "subject_factory": "subject_factory",
-    //       "updateState": "applyJSONpatch"
-    //     },
-    //     "targetControlState": "EVENTLESS",
-    //     "transitionIndex": 0
-    //   },
-    //   {
-    //     "actionFactory": "ACTION_IDENTITY",
-    //     "controlState": "EVENTLESS",
-    //     "event": {
-    //       "eventData": {
-    //         "reviewed": false,
-    //         "switch": false
-    //       },
-    //       "eventLabel": undefined
-    //     },
-    //     "extendedState": {
-    //       "reviewed": false,
-    //       "switch": false
-    //     },
-    //     "guardIndex": 0,
-    //     "updates": [],
-    //     "newExtendedState": {
-    //       "reviewed": false,
-    //       "switch": false
-    //     },
-    //     "outputs": null,
-    //     "predicate": undefined,
-    //     "settings": {
-    //       "merge": "merge",
-    //       "of": "anonymous",
-    //       "subject_factory": "subject_factory",
-    //       "updateState": "applyJSONpatch"
-    //     },
-    //     "targetControlState": "B",
-    //     "transitionIndex": 2
-    //   }
-    // ],
     [
       {
         "actionFactory": "setBdata",
@@ -475,7 +407,7 @@ QUnit.test("eventless transition, event multi transitions, CASCADING inner event
         "outputs": null,
         "predicate": undefined,
         "settings": {
-          "updateState": "applyJSONpatch"
+
         },
         "targetControlState": "C",
         "transitionIndex": 3
@@ -529,7 +461,7 @@ QUnit.test("eventless transition, event multi transitions, CASCADING inner event
         "outputs": null,
         "predicate": "isValid",
         "settings": {
-          "updateState": "applyJSONpatch"
+
         },
         "targetControlState": "INNER_GROUP_D",
         "transitionIndex": 4
@@ -571,7 +503,7 @@ QUnit.test("eventless transition, event multi transitions, CASCADING inner event
         "outputs": null,
         "predicate": undefined,
         "settings": {
-          "updateState": "applyJSONpatch"
+
         },
         "targetControlState": "D",
         "transitionIndex": 9
@@ -617,9 +549,9 @@ QUnit.test("shallow history transitions, event CASCADING transitions", function 
         ]
       },
     ],
+    updateState: applyJSONpatch,
     settings : default_settings
   };
-  const settings = default_settings;
   const inputSequence = [
     // { "init": fsmDef.initialExtendedState },
     { [EVENT1]: {} },
@@ -676,9 +608,9 @@ QUnit.test("deep history transitions, event CASCADING transitions", function exe
         ]
       },
     ],
+    updateState: applyJSONpatch,
     settings : default_settings
   };
-  const settings = default_settings;
   const inputSequence = [
     // { "init": fsmDef.initialExtendedState },
     { [EVENT1]: {} },
@@ -735,6 +667,7 @@ QUnit.test("with trace : shallow history transitions, event CASCADING transition
         ]
       },
     ],
+    updateState: applyJSONpatch,
     settings : default_settings
   };
   const inputSequence = [
@@ -749,70 +682,6 @@ QUnit.test("with trace : shallow history transitions, event CASCADING transition
   const formattedResults = outputSequence.map(output => output.map(formatResult));
   assert.deepEqual(formattedResults,
     [
-      // [
-      //   {
-      //     "actionFactory": "ACTION_IDENTITY",
-      //     "controlState": "nok",
-      //     "event": {
-      //       "eventData": {
-      //         "counter": 0,
-      //         "history": "shallow"
-      //       },
-      //       "eventLabel": "init"
-      //     },
-      //     "extendedState": {
-      //       "counter": 0,
-      //       "history": "shallow"
-      //     },
-      //     "guardIndex": 0,
-      //     "updates": [],
-      //     "newExtendedState": {
-      //       "counter": 0,
-      //       "history": "shallow"
-      //     },
-      //     "outputs": null,
-      //     "predicate": undefined,
-      //     "settings": {
-      //       "merge": "merge",
-      //       "of": "anonymous",
-      //       "subject_factory": "subject_factory",
-      //       "updateState": "applyJSONpatch"
-      //     },
-      //     "targetControlState": "OUTER",
-      //     "transitionIndex": 0
-      //   },
-      //   {
-      //     "actionFactory": "ACTION_IDENTITY",
-      //     "controlState": "OUTER",
-      //     "event": {
-      //       "eventData": {
-      //         "counter": 0,
-      //         "history": "shallow"
-      //       },
-      //       "eventLabel": "init"
-      //     },
-      //     "extendedState": {
-      //       "counter": 0,
-      //       "history": "shallow"
-      //     },
-      //     "guardIndex": 0,
-      //     "updates": [],
-      //     "newExtendedState": {
-      //       "counter": 0,
-      //       "history": "shallow"
-      //     },
-      //     "outputs": null,
-      //     "predicate": undefined,
-      //     "settings": {
-      //       "merge": "merge",
-      //       "of": "anonymous",
-      //       "subject_factory": "subject_factory",
-      //       "updateState": "applyJSONpatch"
-      //     },
-      //     "targetControlState": "outer_a",
-      //     "transitionIndex": 1
-      //   }
-      // ],
       [
         {
           "actionFactory": "ACTION_IDENTITY",
@@ -834,7 +703,7 @@ QUnit.test("with trace : shallow history transitions, event CASCADING transition
           "outputs": null,
           "predicate": undefined,
           "settings": {
-            "updateState": "applyJSONpatch"
+
           },
           "targetControlState": "INNER",
           "transitionIndex": 2
@@ -859,7 +728,7 @@ QUnit.test("with trace : shallow history transitions, event CASCADING transition
           "outputs": null,
           "predicate": undefined,
           "settings": {
-            "updateState": "applyJSONpatch"
+
           },
           "targetControlState": "inner_s",
           "transitionIndex": 3
@@ -886,7 +755,7 @@ QUnit.test("with trace : shallow history transitions, event CASCADING transition
           "outputs": null,
           "predicate": undefined,
           "settings": {
-            "updateState": "applyJSONpatch"
+
           },
           "targetControlState": "inner_t",
           "transitionIndex": 4
@@ -913,7 +782,7 @@ QUnit.test("with trace : shallow history transitions, event CASCADING transition
           "outputs": null,
           "predicate": undefined,
           "settings": {
-            "updateState": "applyJSONpatch"
+
           },
           "targetControlState": "z",
           "transitionIndex": 7
@@ -946,7 +815,7 @@ QUnit.test("with trace : shallow history transitions, event CASCADING transition
           "outputs": 0,
           "predicate": "isShallow",
           "settings": {
-            "updateState": "applyJSONpatch"
+
           },
           "targetControlState": {
             "shallow": "OUTER",
@@ -973,7 +842,7 @@ QUnit.test("with trace : shallow history transitions, event CASCADING transition
           "outputs": null,
           "predicate": undefined,
           "settings": {
-            "updateState": "applyJSONpatch"
+
           },
           "targetControlState": "inner_s",
           "transitionIndex": 3
@@ -1019,6 +888,7 @@ QUnit.test("with trace : deep history transitions, event CASCADING transitions",
         ]
       },
     ],
+    updateState: applyJSONpatch,
     settings : default_settings
   };
   const inputSequence = [
@@ -1033,70 +903,6 @@ QUnit.test("with trace : deep history transitions, event CASCADING transitions",
   const formattedResults = outputSequence.map(output => output.map(formatResult));
   assert.deepEqual(formattedResults,
     [
-      // [
-      //   {
-      //     "actionFactory": "ACTION_IDENTITY",
-      //     "controlState": "nok",
-      //     "event": {
-      //       "eventData": {
-      //         "counter": 0,
-      //         "history": "deep"
-      //       },
-      //       "eventLabel": "init"
-      //     },
-      //     "extendedState": {
-      //       "counter": 0,
-      //       "history": "deep"
-      //     },
-      //     "guardIndex": 0,
-      //     "updates": [],
-      //     "newExtendedState": {
-      //       "counter": 0,
-      //       "history": "deep"
-      //     },
-      //     "outputs": null,
-      //     "predicate": undefined,
-      //     "settings": {
-      //       "merge": "merge",
-      //       "of": "anonymous",
-      //       "subject_factory": "subject_factory",
-      //       "updateState": "applyJSONpatch"
-      //     },
-      //     "targetControlState": "OUTER",
-      //     "transitionIndex": 0
-      //   },
-      //   {
-      //     "actionFactory": "ACTION_IDENTITY",
-      //     "controlState": "OUTER",
-      //     "event": {
-      //       "eventData": {
-      //         "counter": 0,
-      //         "history": "deep"
-      //       },
-      //       "eventLabel": "init"
-      //     },
-      //     "extendedState": {
-      //       "counter": 0,
-      //       "history": "deep"
-      //     },
-      //     "guardIndex": 0,
-      //     "updates": [],
-      //     "newExtendedState": {
-      //       "counter": 0,
-      //       "history": "deep"
-      //     },
-      //     "outputs": null,
-      //     "predicate": undefined,
-      //     "settings": {
-      //       "merge": "merge",
-      //       "of": "anonymous",
-      //       "subject_factory": "subject_factory",
-      //       "updateState": "applyJSONpatch"
-      //     },
-      //     "targetControlState": "outer_a",
-      //     "transitionIndex": 1
-      //   }
-      // ],
       [
         {
           "actionFactory": "ACTION_IDENTITY",
@@ -1118,7 +924,7 @@ QUnit.test("with trace : deep history transitions, event CASCADING transitions",
           "outputs": null,
           "predicate": undefined,
           "settings": {
-            "updateState": "applyJSONpatch"
+
           },
           "targetControlState": "INNER",
           "transitionIndex": 2
@@ -1143,7 +949,7 @@ QUnit.test("with trace : deep history transitions, event CASCADING transitions",
           "outputs": null,
           "predicate": undefined,
           "settings": {
-            "updateState": "applyJSONpatch"
+
           },
           "targetControlState": "inner_s",
           "transitionIndex": 3
@@ -1170,7 +976,7 @@ QUnit.test("with trace : deep history transitions, event CASCADING transitions",
           "outputs": null,
           "predicate": undefined,
           "settings": {
-            "updateState": "applyJSONpatch"
+
           },
           "targetControlState": "inner_t",
           "transitionIndex": 4
@@ -1197,7 +1003,7 @@ QUnit.test("with trace : deep history transitions, event CASCADING transitions",
           "outputs": null,
           "predicate": undefined,
           "settings": {
-            "updateState": "applyJSONpatch"
+
           },
           "targetControlState": "z",
           "transitionIndex": 7
@@ -1230,7 +1036,7 @@ QUnit.test("with trace : deep history transitions, event CASCADING transitions",
           "outputs": 0,
           "predicate": "isDeep",
           "settings": {
-            "updateState": "applyJSONpatch"
+
           },
           "targetControlState": {
             "deep": "OUTER",
@@ -1292,6 +1098,7 @@ QUnit.test("shallow history transitions FROM INSIDE, event CASCADING transitions
         ]
       },
     ],
+    updateState: applyJSONpatch,
     settings : default_settings
   };
   const settings = default_settings;
@@ -1364,6 +1171,7 @@ QUnit.test("deep history transitions FROM INSIDE, event CASCADING transitions", 
         ]
       },
     ],
+    updateState: applyJSONpatch,
     settings : default_settings
   };
   const inputSequence = [
@@ -1406,6 +1214,7 @@ QUnit.test("eventless x atomic transitions", function exec_test(assert) {
         ]
       },
     ],
+    updateState: applyJSONpatch,
     settings : default_settings
   };
   const inputSequence = [

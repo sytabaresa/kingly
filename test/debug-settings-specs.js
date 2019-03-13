@@ -28,7 +28,7 @@ const fakeConsole = {
   warn: (...args) => consoleContent.push('warn', args),
   error: (...args) => consoleContent.push('error', args),
 };
-const default_settings = { updateState: applyJSONpatch, debug: { console: fakeConsole } };
+const default_settings = { debug: { console: fakeConsole } };
 const FALSE_GUARD = function always_false(action, state) {return [{ predicate: F, to: state, action }]};
 
 const a_value = "some value";
@@ -62,6 +62,7 @@ QUnit.test("debug settings, event, no action, false guard", function exec_test(a
       { from: 'A', to: 'B', event: 'ev', guards: FALSE_GUARD(ACTION_IDENTITY, 'A') }
     ],
     initialExtendedState: initialExtendedState,
+    updateState: applyJSONpatch,
     settings : default_settings,
   };
   const fsm = create_state_machine(fsmDef);

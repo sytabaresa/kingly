@@ -1,5 +1,4 @@
 import * as QUnit from "qunitjs"
-import * as Rx from "rx"
 import { clone, F, merge, T } from "ramda"
 import {
   ACTION_IDENTITY, arrayizeOutput,
@@ -33,7 +32,7 @@ export function applyJSONpatch(extendedState, extendedStateUpdateOperations) {
   return applyPatch(extendedState, extendedStateUpdateOperations, false, false).newDocument;
 }
 
-const default_settings = { updateState: applyJSONpatch };
+const default_settings = { };
 const debug_settings = Object.assign({}, default_settings, {
   debug: {
     checkContracts: fsmContracts,
@@ -130,6 +129,7 @@ QUnit.test("event, no action, false guard", function exec_test(assert) {
       { from: 'A', to: 'B', event: 'ev', guards: FALSE_GUARD(ACTION_IDENTITY, 'A') }
     ],
     initialExtendedState: initialExtendedState,
+    updateState: applyJSONpatch,
     settings : default_settings
   };
   const fsm = create_state_machine(fsmDef);
@@ -146,6 +146,7 @@ QUnit.test("event, no action, true guard", function exec_test(assert) {
       { from: 'A', to: 'B', event: INIT_EVENT, guards: TRUE_GUARD('A', ACTION_IDENTITY) }
     ],
     initialExtendedState: initialExtendedState,
+    updateState: applyJSONpatch,
     settings : default_settings,
   };
   const fsm = create_state_machine(fsmDef);
@@ -166,6 +167,7 @@ QUnit.test("event, action, false guard", function exec_test(assert) {
       { from: 'A', to: 'B', event: INIT_EVENT, conditions: FALSE_GUARD(fail_if_called) }
     ],
     initialExtendedState: initialExtendedState,
+    updateState: applyJSONpatch,
     settings : default_settings,
   };
   const fsm = create_state_machine(fsmDef);
@@ -188,6 +190,7 @@ QUnit.test("event, action, true guard", function exec_test(assert) {
       { from: 'A', event: 'ev', guards: TRUE_GUARD('B', spied_on_dummy_action), }
     ],
     initialExtendedState: initialExtendedState,
+    updateState: applyJSONpatch,
     settings : default_settings,
   };
   const fsm = create_state_machine(fsmDef);
@@ -220,6 +223,7 @@ QUnit.test("event, 2 actions, [T,T] conditions, 1st action executed", function e
       }
     ],
     initialExtendedState: initialExtendedState,
+    updateState: applyJSONpatch,
     settings : default_settings,
   };
   const fsm = create_state_machine(fsmDef);
@@ -252,6 +256,7 @@ QUnit.test("event, 2 actions, [F,T] conditions, 2nd action executed", function e
       }
     ],
     initialExtendedState: initialExtendedState,
+    updateState: applyJSONpatch,
     settings : default_settings,
   };
   const fsm = create_state_machine(fsmDef);
@@ -284,6 +289,7 @@ QUnit.test("event, 2 actions, [T,F] conditions, 1st action executed", function e
       }
     ],
     initialExtendedState: initialExtendedState,
+    updateState: applyJSONpatch,
     settings : default_settings,
   };
   const fsm = create_state_machine(fsmDef);
@@ -310,6 +316,7 @@ QUnit.test("event, 2 actions, [F,F] conditions, no action executed", function ex
       }
     ],
     initialExtendedState: initialExtendedState,
+    updateState: applyJSONpatch,
     settings : debug_settings,
   };
   const fsm = create_state_machine(fsmDef);
@@ -327,6 +334,7 @@ QUnit.test("event, 2 actions with no extendedState update, NOK -> A -> B, no gua
       { from: 'A', to: 'B', event: EVENT1, action: another_dummy_action },
     ],
     initialExtendedState: initialExtendedState,
+    updateState: applyJSONpatch,
     settings : default_settings,
   };
   const fsm = create_state_machine(fsmDef);
@@ -343,6 +351,7 @@ QUnit.test("event, 2 actions with extendedState update, NOK -> A -> B, no guards
       { from: 'A', to: 'B', event: EVENT1, action: another_dummy_action_with_update },
     ],
     initialExtendedState: initialExtendedState,
+    updateState: applyJSONpatch,
     settings : default_settings,
   };
   const fsm = create_state_machine(fsmDef);
@@ -375,6 +384,7 @@ QUnit.test("2 INIT event", function exec_test(assert) {
       { from: 'A', to: 'B', event: EVENT1, action: another_dummy_action_with_update },
     ],
     initialExtendedState: initialExtendedState,
+    updateState: applyJSONpatch,
     settings : default_settings,
   };
   const fsm = create_state_machine(fsmDef);

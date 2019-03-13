@@ -5,9 +5,7 @@ import {
 import { applyJSONpatch } from "./helpers"
 import { fsmContracts } from "../src/contracts"
 
-const default_settings = {
-  updateState: applyJSONpatch,
-};
+const default_settings = {};
 const debug_settings = Object.assign({}, default_settings, {
   debug: {
     checkContracts: fsmContracts,
@@ -15,7 +13,6 @@ const debug_settings = Object.assign({}, default_settings, {
   }
 });
 const throwing_settings = Object.assign({}, debug_settings, {
-  updateState: function throwingUpdateState() {throw errorString}
 });
 
 function setEntryActionForC() {
@@ -47,6 +44,7 @@ QUnit.test("Transition action factory error - throws", function exec_test(assert
       { from: 'C', to: 'B', event: 'ev', action: throwingAction },
     ],
     initialExtendedState: {},
+    updateState: applyJSONpatch,
     settings: debug_settings,
   };
 
@@ -69,6 +67,7 @@ QUnit.test("Transition action factory error - returns invalid action", function 
       { from: 'C', to: 'B', event: 'ev', action: factoryReturningInvalidAction },
     ],
     initialExtendedState: {},
+    updateState: applyJSONpatch,
     settings: debug_settings,
   };
 
@@ -87,6 +86,7 @@ QUnit.test("Entry action factory error", function exec_test(assert) {
       { from: 'A', to: 'C', event: INIT_EVENT, action: ACTION_IDENTITY }
     ],
     initialExtendedState: { standard: true },
+    updateState: applyJSONpatch,
     settings: debug_settings,
   };
   const entryActions = {
@@ -117,6 +117,7 @@ QUnit.test("Entry action factory error - returns invalid action", function exec_
       { from: 'A', to: 'C', event: INIT_EVENT, action: ACTION_IDENTITY }
     ],
     initialExtendedState: { standard: true },
+    updateState: applyJSONpatch,
     settings: debug_settings,
   };
   const entryActions = {
@@ -147,6 +148,7 @@ QUnit.test("Guard error - throws", function exec_test(assert) {
       { from: 'C', event: 'ev', guards : [{predicate: throwingPredicate,to:'B', action: ACTION_IDENTITY }] },
     ],
     initialExtendedState: {},
+    updateState: applyJSONpatch,
     settings: debug_settings,
   };
 
@@ -169,6 +171,7 @@ QUnit.test("Guard error - returns non boolean", function exec_test(assert) {
       { from: 'C', event: 'ev', guards : [{predicate: invalidReturningPredicate,to:'B', action: ACTION_IDENTITY }] },
     ],
     initialExtendedState: {},
+    updateState: applyJSONpatch,
     settings: debug_settings,
   };
 
@@ -187,6 +190,7 @@ QUnit.test("Update state function error - throws", function exec_test(assert) {
       { from: 'C', event: 'ev', guards : [{predicate: throwingPredicate,to:'B', action: ACTION_IDENTITY }] },
     ],
     initialExtendedState: {},
+    updateState: function throwingUpdateState() {throw errorString},
     settings: throwing_settings,
   };
 

@@ -641,31 +641,15 @@ export const areStatesDeclared = {
   },
 };
 
-// T25. SS1
+// T25. SS1 - as of v0.13 settings is no longer mandatory
 export const isValidSettings = {
   name: 'isValidSettings',
   shouldThrow: false,
   predicate: (fsmDef) => {
-    const { settings } = fsmDef;
-    if (!settings) {
       return {
-        isFulfilled: false,
-        blame: {
-          message: `Settings for the state machine must be defined! You passed a falsy value for settings!`,
-          info: { settings }
-        }
+        isFulfilled: true,
+        blame: void 0
       }
-    }
-    else {
-      const { updateState } = settings;
-      return {
-        isFulfilled: isFunction(updateState),
-        blame: {
-          message: `settings.updateState must be a function!`,
-          info: { settings }
-        }
-      }
-    }
   },
 };
 

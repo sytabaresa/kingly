@@ -7,7 +7,6 @@ import { applyJSONpatch, formatResult } from "./helpers"
 import { fsmContracts } from "../src/contracts"
 
 const default_settings = {
-  updateState: applyJSONpatch,
   debug: { checkContracts: fsmContracts }
 };
 
@@ -69,6 +68,7 @@ QUnit.test("decorateWithEntryActions(fsm, entryActions, mergeOutputs): entry act
       { from: 'A', to: 'C', event: INIT_EVENT, action: ACTION_IDENTITY }
     ],
     initialExtendedState: { standard: true },
+    updateState: applyJSONpatch,
     settings: default_settings,
   };
   const entryActions = {
@@ -112,7 +112,7 @@ QUnit.test("decorateWithEntryActions(fsm, entryActions, mergeOutputs): entry act
       ],
       "predicate": undefined,
       "settings": {
-        "updateState": "applyJSONpatch"
+
       },
       "targetControlState": "B",
       "transitionIndex": 2,
@@ -156,7 +156,7 @@ QUnit.test("decorateWithEntryActions(fsm, entryActions, mergeOutputs): entry act
       ],
       "predicate": undefined,
       "settings": {
-        "updateState": "applyJSONpatch"
+
       },
       "targetControlState": "D",
       "transitionIndex": 1,

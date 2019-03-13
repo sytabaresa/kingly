@@ -508,26 +508,6 @@ QUnit.test(`fsmContracts(fsmDef): states figuring in transition must be declared
   ], message);
 });
 
-QUnit.test(`fsmContracts(fsmDef): valid settings have an update state function`, function exec_test(assert) {
-  const states = { A: { B: '' }, C: '' };
-  const fsmDef = {
-    states,
-    events: ['ev', 'anything'],
-    transitions: [
-      { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY },
-      { from: 'B', to: 'B', event: 'ev', action: ACTION_IDENTITY },
-      { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
-    ],
-    initialExtendedState: {},
-  };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
-  const failureInfo = failingContracts.find(x => x.name === isValidSettings.name);
-  const { message, info } = failureInfo;
-  const { settings } = info;
-  assert.deepEqual(isFulfilled, false, `Fails at least one contract`);
-  assert.deepEqual(settings, undefined, message);
-});
-
 QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - inconditional transition - from`, function exec_test(assert) {
   const states = { A: { B: '' }, C: '' };
   const fsmDef = {
