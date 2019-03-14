@@ -69,7 +69,6 @@ QUnit.test("decorateWithEntryActions(fsm, entryActions, mergeOutputs): entry act
     ],
     initialExtendedState: { standard: true },
     updateState: applyJSONpatch,
-    settings: default_settings,
   };
   const entryActions = {
     // NOTE : per contract, we can't put an non-empty action on the initial control state
@@ -82,7 +81,7 @@ QUnit.test("decorateWithEntryActions(fsm, entryActions, mergeOutputs): entry act
   };
   const fsmDefWithEntryActions = decorateWithEntryActions(fsmDef, entryActions, mergeOutputsFn);
   const tracedFsmDef = traceFSM({}, fsmDefWithEntryActions);
-  const tracedFsm = create_state_machine(tracedFsmDef);
+  const tracedFsm = create_state_machine(tracedFsmDef, default_settings);
   const output1 = tracedFsm({'ev1': void 0});
   const output2 = tracedFsm({'ev2': void 0});
 

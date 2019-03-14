@@ -96,7 +96,7 @@ QUnit.test("INIT event, no action, no guard", function exec_test(assert) {
     settings : default_settings,
   };
   const decoratedFsmDef = traceFSM({}, fsmDef);
-  const decoratedFSM = create_state_machine(decoratedFsmDef);
+  const decoratedFSM = create_state_machine(decoratedFsmDef, {});
   const result = decoratedFSM({'ev': initialExtendedState});
   const formattedResult = result.map(formatResult);
   assert.deepEqual(formattedResult,
@@ -141,7 +141,7 @@ QUnit.test("INIT event, 2 actions with extended state update, NOK -> A -> B, no 
     settings : default_settings,
   };
   const decoratedFsmDef = traceFSM({}, fsmDef);
-  const decoratedFSM = create_state_machine(decoratedFsmDef);
+  const decoratedFSM = create_state_machine(decoratedFsmDef, {});
   const result2 = decoratedFSM({ [EVENT1]: EVENT1_DATA });
   const formattedResult2 = result2.map(formatResult);
 

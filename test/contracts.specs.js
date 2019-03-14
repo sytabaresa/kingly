@@ -11,9 +11,7 @@ import {
 } from "../src/contracts"
 import { applyJSONpatch, formatResult } from "./helpers"
 
-const default_settings = {
-  updateState: applyJSONpatch,
-};
+const settings = {};
 
 QUnit.module("Testing contract checking", {});
 
@@ -26,10 +24,10 @@ QUnit.test("fsmContracts(fsmDef): duplicate states", function exec_test(assert) 
       { from: 'A', to: 'B', event: 'ev', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
   };
 
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const duplicateContractFailureInfo = failingContracts.find(x => x.name === noDuplicatedStates.name);
   const { message, info } = duplicateContractFailureInfo;
   const { duplicatedStates } = info;
@@ -46,10 +44,10 @@ QUnit.test("fsmContracts(fsmDef): reserved states", function exec_test(assert) {
       { from: 'A', to: 'B', event: 'ev', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
   };
 
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === noReservedStates.name);
   const { message, info } = failureInfo;
   const { statesType } = info;
@@ -66,10 +64,10 @@ QUnit.test("fsmContracts(fsmDef): at least one state", function exec_test(assert
       { from: 'A', to: 'B', event: 'ev', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
   };
 
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === atLeastOneState.name);
   const { message, info } = failureInfo;
   const { statesType } = info;
@@ -87,10 +85,11 @@ QUnit.test("fsmContracts(fsmDef): two initial transitions", function exec_test(a
       { from: 'A', to: 'B', event: 'ev', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
+    settings : settings,
   };
 
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === validInitialTransition.name);
   const { message, info } = failureInfo;
   const { initTransition, initTransitions, initialControlState } = info;
@@ -108,10 +107,10 @@ QUnit.test("fsmContracts(fsmDef): compound states - no init transition", functio
       { from: 'C', to: 'B', event: INIT_EVENT, action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
   };
 
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === validInitialTransitionForCompoundState.name);
   const { message, info } = failureInfo;
   const { hasEntryTransitions } = info;
@@ -132,10 +131,10 @@ QUnit.test("fsmContracts(fsmDef): compound states - invalid init transition", fu
       { from: 'A', event: INIT_EVENT, guards: [{ to: 'B', action: ACTION_IDENTITY, predicate: () => true }] }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
   };
 
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === validInitialTransitionForCompoundState.name);
   const { message, info } = failureInfo;
   const { entryTransitions } = info;
@@ -166,10 +165,10 @@ QUnit.test("fsmContracts(fsmDef): compound states - invalid init transition - ta
       { from: 'A', event: INIT_EVENT, to: 'C', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
   };
 
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === validInitialTransitionForCompoundState.name);
   const { message, info } = failureInfo;
   const { entryTransitions, statesPath } = info;
@@ -200,10 +199,10 @@ QUnit.test("fsmContracts(fsmDef): compound states - invalid init transition - ta
       { from: 'A', event: INIT_EVENT, to: 'A', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
   };
 
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === validInitialTransitionForCompoundState.name);
   const { message, info } = failureInfo;
   const { entryTransitions, statesPath } = info;
@@ -233,10 +232,10 @@ QUnit.test(`fsmContracts(fsmDef): init events only in compound states `, functio
       { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
   };
 
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === initEventOnlyInCompoundStates.name);
   const { message, info } = failureInfo;
   const { initTransitions } = info;
@@ -264,9 +263,9 @@ QUnit.test(`fsmContracts(fsmDef): valid eventless transitions`, function exec_te
       { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === validEventLessTransitions.name);
   const { message, info } = failureInfo;
   const { failingOriginControlStates } = info;
@@ -289,9 +288,9 @@ QUnit.test(`fsmContracts(fsmDef): all state transitions defined in one row`, fun
       { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === allStateTransitionsOnOneSingleRow.name);
   const { message, info } = failureInfo;
   const { statesTransitionsInfo } = info;
@@ -314,9 +313,9 @@ QUnit.test(`fsmContracts(fsmDef): no conflicting transition between two control 
       { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === noConflictingTransitionsWithAncestorState.name);
   const { message, info } = failureInfo;
   const { eventTransitionsInfo } = info;
@@ -342,9 +341,9 @@ QUnit.test(`fsmContracts(fsmDef): no history pseudo state can be an origin state
       { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === isHistoryStatesTargetStates.name);
   const { message, info } = failureInfo;
   const { wrongHistoryStates } = info;
@@ -373,9 +372,9 @@ QUnit.test(`fsmContracts(fsmDef): no history pseudo state can be an atomic state
       { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === isHistoryStatesCompoundStates.name);
   const { message, info } = failureInfo;
   const { wrongHistoryStates } = info;
@@ -404,9 +403,9 @@ QUnit.test(`fsmContracts(fsmDef): history pseudo state has to refer to a known s
       { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === isHistoryStatesExisting.name);
   const { message, info } = failureInfo;
   const { invalidTransitions } = info;
@@ -442,9 +441,9 @@ QUnit.test(`fsmContracts(fsmDef): initial control state is a declared control st
       { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === isInitialControlStateDeclared.name);
   const { message, info } = failureInfo;
   const { initialControlState } = info;
@@ -465,9 +464,9 @@ QUnit.test(`fsmContracts(fsmDef): events figuring in transition must be declared
       { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === areEventsDeclared.name);
   const { message, info } = failureInfo;
   const { eventsDeclaredButNotTriggeringTransitions, eventsNotDeclaredButTriggeringTransitions } = info;
@@ -492,9 +491,9 @@ QUnit.test(`fsmContracts(fsmDef): states figuring in transition must be declared
       { from: 'A', event: INIT_EVENT, to: 'X', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === areStatesDeclared.name);
   const { message, info } = failureInfo;
   const { statesDeclaredButNotTriggeringTransitions, statesNotDeclaredButTriggeringTransitions } = info;
@@ -520,9 +519,10 @@ QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - inco
       { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
+    settings : settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === haveTransitionsValidTypes.name);
   const { message, info } = failureInfo;
   const { wrongTransitions } = info;
@@ -552,9 +552,10 @@ QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - inco
       { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
+    settings : settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === haveTransitionsValidTypes.name);
   const { message, info } = failureInfo;
   const { wrongTransitions } = info;
@@ -584,9 +585,10 @@ QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - inco
       { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
+    settings : settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === haveTransitionsValidTypes.name);
   const { message, info } = failureInfo;
   const { wrongTransitions } = info;
@@ -616,9 +618,10 @@ QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - inco
       { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
+    settings : settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === haveTransitionsValidTypes.name);
   const { message, info } = failureInfo;
   const { wrongTransitions } = info;
@@ -647,9 +650,10 @@ QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - cond
       { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
+    settings : settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === haveTransitionsValidTypes.name);
   const { message, info } = failureInfo;
   const { wrongTransitions } = info;
@@ -684,9 +688,10 @@ QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - cond
       { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
+    settings : settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === haveTransitionsValidTypes.name);
   const { message, info } = failureInfo;
   const { wrongTransitions } = info;
@@ -721,9 +726,10 @@ QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - cond
       { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
+    settings : settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === haveTransitionsValidTypes.name);
   const { message, info } = failureInfo;
   const { wrongTransitions } = info;
@@ -758,9 +764,10 @@ QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - cond
       { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
+    settings : settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === haveTransitionsValidTypes.name);
   const { message, info } = failureInfo;
   const { wrongTransitions } = info;
@@ -794,9 +801,10 @@ QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - cond
       { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
+    settings : settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === haveTransitionsValidTypes.name);
   const { message, info } = failureInfo;
   const { wrongTransitions } = info;
@@ -825,9 +833,10 @@ QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - cond
       { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
+    settings : settings,
   };
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === haveTransitionsValidTypes.name);
   const { message, info } = failureInfo;
   const { wrongTransitions } = info;
@@ -863,10 +872,11 @@ QUnit.test("fsmContracts(fsmDef): initial transition - initial state", function 
       { from: 'A', to: 'B', event: 'ev', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
+    settings : settings,
   };
 
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === validInitialTransition.name);
   const { message, info } = failureInfo;
   const { initTransition, initTransitions, initialControlState } = info;
@@ -902,10 +912,11 @@ QUnit.test("fsmContracts(fsmDef): initial state cannot be a target state", funct
       { from: 'B', to: INIT_STATE, event: 'ev', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
+    settings : settings,
   };
 
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === isInitialStateOriginState.name);
   const { message, info } = failureInfo;
   const { targetStates } = info;
@@ -926,10 +937,11 @@ QUnit.test("fsmContracts(fsmDef): eventless self-transitions are forbidden", fun
       { from: 'B', to: 'B', event: void 0, action: ACTION_IDENTITY },
     ],
     initialExtendedState: {},
-    settings : default_settings,
+    updateState: applyJSONpatch,
+    settings : settings,
   };
 
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, fsmContracts);
+  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
   const failureInfo = failingContracts.find(x => x.name === isValidSelfTransition.name);
   const { message, info } = failureInfo;
   const { wrongSelfTransitions } = info;

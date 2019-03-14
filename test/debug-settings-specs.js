@@ -63,9 +63,8 @@ QUnit.test("debug settings, event, no action, false guard", function exec_test(a
     ],
     initialExtendedState: initialExtendedState,
     updateState: applyJSONpatch,
-    settings : default_settings,
   };
-  const fsm = create_state_machine(fsmDef);
+  const fsm = create_state_machine(fsmDef, default_settings);
   const result = fsm({ ev: initialExtendedState });
   assert.deepEqual(consoleContent, [
       "debug", [

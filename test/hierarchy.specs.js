@@ -184,7 +184,6 @@ QUnit.test("event multi transitions, CASCADING inner INIT event transitions", fu
       { from: 'INNER_GROUP_D', event: INIT_EVENT, to: 'D', action: ACTION_IDENTITY },
     ],
     updateState: applyJSONpatch,
-    settings : default_settings
   };
   const settings = default_settings;
   const inputSequence = [
@@ -192,7 +191,7 @@ QUnit.test("event multi transitions, CASCADING inner INIT event transitions", fu
     { "click": { "keyB": "valueB" } },
     { "click": { "valid": true, "data": "valueC" } }
   ];
-  const fsm = create_state_machine(traceFSM({}, fsmDef));
+  const fsm = create_state_machine(traceFSM({}, fsmDef), settings);
   const outputSequence = inputSequence.map(fsm);
   const formattedResults = outputSequence.map(output => output.map(formatResult));
   assert.deepEqual(formattedResults, [
@@ -362,14 +361,13 @@ QUnit.test("eventless transition, event multi transitions, CASCADING inner event
       { from: 'INNER_GROUP_D', event: INIT_EVENT, to: 'D', action: ACTION_IDENTITY },
     ],
     updateState: applyJSONpatch,
-    settings : default_settings
   };
   const inputSequence = [
     // { "init": fsmDef.initialExtendedState },
     { "click": { "keyB": "valueB" } },
     { "click": { "valid": true, "data": "valueC" } }
   ];
-  const fsm = create_state_machine(traceFSM({}, fsmDef));
+  const fsm = create_state_machine(traceFSM({}, fsmDef), default_settings);
   const outputSequence = inputSequence.map(fsm);
   const formattedResults = outputSequence.map(output => output.map(formatResult));
   assert.deepEqual(formattedResults, [
@@ -550,7 +548,6 @@ QUnit.test("shallow history transitions, event CASCADING transitions", function 
       },
     ],
     updateState: applyJSONpatch,
-    settings : default_settings
   };
   const inputSequence = [
     // { "init": fsmDef.initialExtendedState },
@@ -559,7 +556,7 @@ QUnit.test("shallow history transitions, event CASCADING transitions", function 
     { [EVENT1]: {} },
     { [EVENT4]: {} },
   ];
-  const fsm = create_state_machine(fsmDef);
+  const fsm = create_state_machine(fsmDef, default_settings);
   const outputSequence = inputSequence.map(fsm);
   const formattedResults = outputSequence.map(output => output && output.map(formatResult));
   assert.deepEqual(formattedResults, [
@@ -668,7 +665,6 @@ QUnit.test("with trace : shallow history transitions, event CASCADING transition
       },
     ],
     updateState: applyJSONpatch,
-    settings : default_settings
   };
   const inputSequence = [
     // { "init": fsmDef.initialExtendedState },
@@ -677,7 +673,7 @@ QUnit.test("with trace : shallow history transitions, event CASCADING transition
     { [EVENT1]: {} },
     { [EVENT4]: {} },
   ];
-  const fsm = create_state_machine(traceFSM({}, fsmDef));
+  const fsm = create_state_machine(traceFSM({}, fsmDef), default_settings);
   const outputSequence = inputSequence.map(fsm);
   const formattedResults = outputSequence.map(output => output.map(formatResult));
   assert.deepEqual(formattedResults,
@@ -889,7 +885,6 @@ QUnit.test("with trace : deep history transitions, event CASCADING transitions",
       },
     ],
     updateState: applyJSONpatch,
-    settings : default_settings
   };
   const inputSequence = [
     // { "init": fsmDef.initialExtendedState },
@@ -898,7 +893,7 @@ QUnit.test("with trace : deep history transitions, event CASCADING transitions",
     { [EVENT1]: {} },
     { [EVENT4]: {} },
   ];
-  const fsm = create_state_machine(traceFSM({}, fsmDef));
+  const fsm = create_state_machine(traceFSM({}, fsmDef), default_settings);
   const outputSequence = inputSequence.map(fsm);
   const formattedResults = outputSequence.map(output => output.map(formatResult));
   assert.deepEqual(formattedResults,
@@ -1101,14 +1096,13 @@ QUnit.test("shallow history transitions FROM INSIDE, event CASCADING transitions
     updateState: applyJSONpatch,
     settings : default_settings
   };
-  const settings = default_settings;
   const inputSequence = [
     // { "init": fsmDef.initialExtendedState },
     { [EVENT1]: {} },
     { [EVENT3]: {} },
     { [EVENT4]: {} },
   ];
-  const fsm = create_state_machine(fsmDef);
+  const fsm = create_state_machine(fsmDef, default_settings);
   const outputSequence = inputSequence.map(fsm);
   console.log(`outputSequence `, outputSequence)
   const formattedResults = outputSequence.map(output => output && output.map(formatResult));
@@ -1172,7 +1166,6 @@ QUnit.test("deep history transitions FROM INSIDE, event CASCADING transitions", 
       },
     ],
     updateState: applyJSONpatch,
-    settings : default_settings
   };
   const inputSequence = [
     // { "init": fsmDef.initialExtendedState },
@@ -1180,7 +1173,7 @@ QUnit.test("deep history transitions FROM INSIDE, event CASCADING transitions", 
     { [EVENT3]: {} },
     { [EVENT4]: {} },
   ];
-  const fsm = create_state_machine(fsmDef);
+  const fsm = create_state_machine(fsmDef, default_settings);
   const outputSequence = inputSequence.map(fsm);
   const formattedResults = outputSequence.map(output => output && output.map(formatResult));
   assert.deepEqual(formattedResults, [
@@ -1215,14 +1208,13 @@ QUnit.test("eventless x atomic transitions", function exec_test(assert) {
       },
     ],
     updateState: applyJSONpatch,
-    settings : default_settings
   };
   const inputSequence = [
     // { "init": fsmDef.initialExtendedState },
     { [EVENT1]: {} },
     { [EVENT2]: {} },
   ];
-  const fsm = create_state_machine(fsmDef);
+  const fsm = create_state_machine(fsmDef, default_settings);
   const outputSequence = inputSequence.map(fsm);
   const formattedResults = outputSequence.map(output => output && output.map(formatResult));
   assert.deepEqual(formattedResults, [

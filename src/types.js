@@ -8,8 +8,6 @@
  * @property {*} initialExtendedState The initial value for the machine's extended state
  * @property {{updateState :: Function(ExtendedState, ExtendedStateUpdate) : ExtendedState}} updateState function
  * which update the extended state of the state machine
- * @property {FSM_Settings} settings Miscellaneous settings including how to update the machine's state and debug
- * configuration
  */
 /**
  * @typedef {Object.<ControlState, *>} FSM_States
@@ -43,7 +41,10 @@
  * API caller.
  */
 /** @typedef {function (ExtendedState, EventData) : Boolean} FSM_Predicate */
-/** @typedef {{debug}} FSM_Settings */
+/** @typedef {{debug}} FSM_Settings
+ * Miscellaneous settings including how to update the machine's state and debug
+ * configuration
+ * */
 /** @typedef {{merge: MergeObsFn, from: FromObsFn, filter: FilterObsFn, map: MapObsFn, share:ShareObsFn, ...}} FSM$_Settings */
 /**
  * @typedef {function (Array<Observable>) : Observable} MergeObsFn Similar to Rxjs v4's `Rx.Observable.merge`. Takes

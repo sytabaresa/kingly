@@ -150,31 +150,31 @@ export function normalizeFsmDef(fsmDef) {
 }
 
 // Alias for compatibility before deprecating entirely create_state_machine
-export function create_state_machine(fsmDef) {
-  return createStateMachine(fsmDef)
+export function create_state_machine(fsmDef, settings) {
+  return createStateMachine(fsmDef, settings)
 }
 
 /**
  * Creates an instance of state machine from a set of states, transitions, and accepted events. The initial
  * extended state for the machine is included in the machine definition.
  * @param {FSM_Def} fsmDef
+ * @param {FSM_Settings} settings
  * @return {function(*=)}
  */
-export function createStateMachine(fsmDef) {
+export function createStateMachine(fsmDef, settings) {
   const {
     states: control_states,
     events,
     // transitions ,
     initialExtendedState,
     updateState: userProvidedUpdateStateFn,
-    settings
   } = fsmDef;
   const { debug } = settings || {};
   const checkContracts = debug && debug.checkContracts || void 0;
   let console = debug && debug.console ? debug.console : emptyConsole;
 
   if (checkContracts) {
-    const { failingContracts } = fsmContractChecker(fsmDef, checkContracts);
+    const { failingContracts } = fsmContractChecker(fsmDef, settings, checkContracts);
     if (failingContracts.length > 0) throw new Error(`createStateMachine: called with wrong parameters! Cf. logs for failing contracts.`)
   }
 
@@ -667,7 +667,7 @@ function decorateWithExitAction(action, entryAction, mergeOutputFn, updateState)
  * @param {FSM_Def} fsm
  */
 export function traceFSM(env, fsm) {
-  const { initialExtendedState, initialControlState, events, states, transitions, updateState, settings } = fsm;
+  const { initialExtendedState, initialControlState, events, states, transitions, updateState } = fsm;
 
   return {
     initialExtendedState,
@@ -675,7 +675,6 @@ export function traceFSM(env, fsm) {
     events,
     states,
     updateState,
-    settings,
     transitions: mapOverTransitionsActions((action, transition, guardIndex, transitionIndex) => {
       return function (extendedState, eventData, settings) {
         const { from: controlState, event: eventLabel, to: targetControlState, predicate } = transition;
