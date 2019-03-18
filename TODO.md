@@ -1,4 +1,6 @@
 # Now
+- try rollup v1 - and build min, not min, and with code-splitting
+- review all demo of readme and article
 - build a real documenation site separated from the README.md
   - cf. talk https://www.youtube.com/watch?v=t4vKPhjcMZg
   - tutorial
@@ -49,6 +51,10 @@ should be goign in properties directly, no throwing
     - then do chess with components to see how machines change with component (maintainability!!) https://github.com/vitogit/vue-chessboard-examples
     -    or https://pusher.com/tutorials/realtime-chess-game-react (real time chat on top)
     - or pacman : https://github.com/platzhersh/pacman-canvas, from https://superdevresources.com/open-source-html5-games/
+    - dinosaur google gam : simple and known abd linkable o twnsor flow
+      - https://cs.chromium.org/chromium/src/components/neterror/resources/offline.js?q=t-rex+package:%5Echromium$&dr=C&l=7
+      - https://github.com/Code-Bullet/Google-Chrome-Dino-Game-AI
+      - webstorm dir Genetic algorithm
 
   - maybe this https://buttercms.com/blog/build-a-beautiful-animated-news-app-with-vuejs-and-vuetify
     - LOW PRIORITY - but good as a Vue example and also adding states to the fetch (handling errors)
