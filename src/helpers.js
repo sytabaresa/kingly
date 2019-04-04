@@ -1,7 +1,8 @@
 // Ramda fns
 import {
   ACTION_FACTORY_DESC, DEEP, ENTRY_ACTION_FACTORY_DESC, FUNCTION_THREW_ERROR, HISTORY_PREFIX, HISTORY_STATE_NAME,
-  INIT_EVENT, INIT_STATE, INVALID_ACTION_FACTORY_EXECUTED, INVALID_PREDICATE_EXECUTED, NO_OUTPUT, PREDICATE_DESC,
+  INIT_EVENT, INIT_STATE, INVALID_ACTION_FACTORY_EXECUTED, INVALID_ACTIONS_ERROR, INVALID_PREDICATE_EXECUTED, NO_OUTPUT,
+  PREDICATE_DESC,
   SHALLOW, WRONG_EVENT_FORMAT_ERROR
 } from "./properties"
 import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
@@ -695,7 +696,7 @@ export function throwIfInvalidGuardResult({debug, console}, resultOrError, exec)
 export function throwIfInvalidEntryActionResult({debug, console}, exitActionResultOrError, exec) {
   const {action, extendedState, eventData, settings } = exec;
   const actionName = getFunctionName(action);
-  const error = new Error(FUNCTION_THREW_ERROR(actionName, ENTRY_ACTION_FACTORY_DESC));
+  const error = new Error(INVALID_ACTION_FACTORY_EXECUTED(actionName, ENTRY_ACTION_FACTORY_DESC));
   error.info = {
     fnName: getFunctionName(action),
     params: { updatedExtendedState: extendedState, eventData, settings },

@@ -1,7 +1,11 @@
 # Now
+- doc site take it from there : https://github.com/alexkrolick/testing-library-docs
+  - or https://www.ably.io/documentation
+  - https://github.com/axefrog/docs
+- testing - talk to gleb bahmutov so it puts in cypress somehow,
+  - cf. 
 - try rollup v1 - and build min, not min, and with code-splitting
-- review all demo of readme and article
-- build a real documenation site separated from the README.md
+- build a real documentation site separated from the README.md
   - cf. talk https://www.youtube.com/watch?v=t4vKPhjcMZg
   - tutorial
     - start with the password example (letter/number)
@@ -59,18 +63,7 @@ should be goign in properties directly, no throwing
   - maybe this https://buttercms.com/blog/build-a-beautiful-animated-news-app-with-vuejs-and-vuetify
     - LOW PRIORITY - but good as a Vue example and also adding states to the fetch (handling errors)
     which are not in the current version
-
-- version 1.X for entry actions and exit actions
-// TODO: analyze edge case : I pile on entry transitions decorateEntry(decorateEntry(...))
-// - what happens if same entry transition twice? should be ok, same order, both will apply, write a test
-// NO!! A -ev-> B ACT1
-// NO!! Entry B : ACT2
-// NO!! Entry B : ACT3
-// decorate(ACT2, decorate(ACT3, ...) -> [ACT1, ACT3, ACT2]!!
-// test and DOC it (but that should be another version right?) maybe include in this one after all
-// TODO : DOC that decorated actions should also be tryCatch separately for better error tracking - otherwise the
-// error will be caught, but it will not be possible to identify which action (transition or decorated) caused the
-// problem
+    - THIS absolutely : music player!!
 
 - Promote
   - add on reactjs example?
@@ -79,27 +72,16 @@ should be goign in properties directly, no throwing
     - https://github.com/sdras/awesome-vue#examples
   - look if I can put react-state-driven in awesome react if any
   - finish react-state-driven then write ivi component as ivi hook then publish to ivi example
-    - https://github.com/localvoid/ivi/tree/master/packages/ivi, https://github
-   .com/localvoid/ivi#apps
+    - https://github.com/localvoid/ivi/tree/master/packages/ivi, https://github.com/localvoid/ivi#apps
   - put in svelte awesome : https://github.com/sveltejs/awesome 
 
 - also for webcomponenets README https://html.spec.whatwg.org/multipage/custom-elements.html#custom-element-conformance 
 - do the webcomponent wih a rendr property customizable
-- !!! publish : bug in decorateWithEntryActions with new initControlState
-  - actually I ahve no tesdt for decorateWithEntryActions  so should add some
 - add a tutorial section in README:
   - modelization (show graph)
   - implementation (show transitions)
   - execution (show interface)
-- towards v1.0
-    - contracts to implement
-    - put testing into other .md dedicated to testing and update that by the way
-    - review code quality (less important)
 - towards v1.X
-  - would be good to have a `reset` function which puts the machine back in starting position and 
-returns a clone of it.
-  - would be good a function `clone` which returns a new state machine, with the same state as the 
-current one
   - test wise, would be good to generate tests starting from a target not INIT and some initial 
 state at that target (cf. previous) 
   - maybe write a generator like with jsverify. cf. https://github.com/jsverify/jsverify#types 
@@ -110,6 +92,8 @@ state at that target (cf. previous)
 - test new version with iterator of graph-adt 0.8.1!
 - DOC if outputs wants to output an array as outputs how to do it : [Array]! DOC it
 - think about debugger for state machine - basically a UI around traceFSM
+  - could use http://wso2.github.io/VizGrammar/samples/ to dynamically update the graph
+    - remains to be seen how to add interactivity (event handling) to the graph though
   - that is the best way to explain the state machine behavior!!
   - review the format for the visualizer
   - need to find a way to outline the current control state
@@ -128,15 +112,33 @@ state at that target (cf. previous)
   - etc.
 - !! all-transitions is all-path-with-no-repeated-transitions which is a all-transition but
 bigger, call it all-transitions* ?? to avoid changing everything
-- ROADMAP : DSL with parser (check my gmail) like http://blog.efftinge
-.de/2012/05/implementing-fowlers-state-machine-dsl.html so I can convert to it and back for
-drawing and debugging?
-- README.md state-transducer add simple example to show FSM_Def, for now only the types are there,
-not enough!!
 - there can be error when generating the inputs!! typically when it is done wrong, and th
 emachine is not in sync with the gen. Should identify that early and return a warning? Generally
 error is ...[0] is undefined. That means an event was sent and could not be handleed by the state
  machine
+ 
+ # Roadmap
+ - version 1.X for entry actions and exit actions
+ // TODO: analyze edge case : I pile on entry transitions decorateEntry(decorateEntry(...))
+ // - what happens if same entry transition twice? should be ok, same order, both will apply, write a test
+ // NO!! A -ev-> B ACT1
+ // NO!! Entry B : ACT2
+ // NO!! Entry B : ACT3
+ // decorate(ACT2, decorate(ACT3, ...) -> [ACT1, ACT3, ACT2]!!
+ // test and DOC it (but that should be another version right?) maybe include in this one after all
+ // TODO : DOC that decorated actions should also be tryCatch separately for better error tracking - otherwise the
+ // error will be caught, but it will not be possible to identify which action (transition or decorated) caused the
+ // problem
+- would be good to have a `reset` function which puts the machine back in starting position and 
+ returns a clone of it.
+- would be good a function `clone` which returns a new state machine, with the same state as the 
+ current one
+- ROADMAP : DSL with parser (check my gmail) like http://blog.efftinge
+.de/2012/05/implementing-fowlers-state-machine-dsl.html so I can convert to it and back for
+drawing and debugging?
+
+
+ # Contracts
 ! WRITE ALL CONTRACTS
   - TODO add contract for test gen : apply only to FSM for which init event sets the initial state
    in the machine
