@@ -1,4 +1,6 @@
 # Now
+- do the react version of password demo from the vue one
+- do the view version of flickr search app without preprocessor and react ref
 - doc site take it from there : https://github.com/alexkrolick/testing-library-docs
   - or https://www.ably.io/documentation
   - https://github.com/axefrog/docs

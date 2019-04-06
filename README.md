@@ -199,9 +199,9 @@ framework. In fact, we have implemented the same interface behaviour over [React
  the exact same fsm. By isolating your component behaviour in a fsm, you can delay the UI library 
  choice to the last moment.
  
-[*]: I did not manage to build properly the CSS files with Vue and Svelte, which makes the 
-demo a bit less appealing visually. As this is not so important for our purposes, I decided not 
-to spend time solving the framework-specific build issues.
+[*]: Vue and Svelte have a specific build process which I haven't mastered yet. As a result, the 
+CSS files somewhat clash together, which makes the demo a bit less appealing visually. As this is
+ not so important for our purposes, I decided not to spend time solving the framework-specific build issues.
  
 As of April 2019, we officially provide the following integrations :
 
