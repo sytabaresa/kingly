@@ -457,14 +457,14 @@ export function createStateMachine(fsmDef, settings) {
  * effect moniker to a function performing the corresponding effect.
  * @param {{initialEvent, terminalEvent, NO_ACTION}} options
  */
-export function makeWebComponentFromFsm({ name, subjectFactory, fsm, commandHandlers, effectHandlers, options }) {
+export function makeWebComponentFromFsm({ name, eventHandler, fsm, commandHandlers, effectHandlers, options }) {
   class FsmComponent extends HTMLElement {
     constructor() {
       if (name.split('-').length <= 1) throw `makeWebComponentFromFsm : web component's name MUST include a dash! Please review the name property passed as parameter to the function!`
       super();
       const el = this;
+      const {subjectFactory} = eventHandler;
       this.eventSubject = subjectFactory();
-      this.outputSubject = subjectFactory();
       this.options = Object.assign({}, options);
       const NO_ACTION = this.options.NO_ACTION || NO_OUTPUT;
 
@@ -476,7 +476,7 @@ export function makeWebComponentFromFsm({ name, subjectFactory, fsm, commandHand
         actions.forEach(action => {
           if (action === NO_ACTION) return;
           const { command, params } = action;
-          commandHandlers[command](this.eventSubject.next, params, effectHandlers, el, this.outputSubject);
+          commandHandlers[command](this.eventSubject.next, params, effectHandlers, el);
         });
       });
     }

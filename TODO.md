@@ -1,12 +1,11 @@
 # Now
 - do the react version of password demo from the vue one
-- do the view version of flickr search app without preprocessor and react ref
+- do the vue version of flickr search app without preprocessor and react ref
 - doc site take it from there : https://github.com/alexkrolick/testing-library-docs
   - or https://www.ably.io/documentation
   - https://github.com/axefrog/docs
 - testing - talk to gleb bahmutov so it puts in cypress somehow,
   - cf. 
-- try rollup v1 - and build min, not min, and with code-splitting
 - build a real documentation site separated from the README.md
   - cf. talk https://www.youtube.com/watch?v=t4vKPhjcMZg
   - tutorial
@@ -26,28 +25,17 @@
   gives context, explain why, alternative approaches, connecting to other things)
   - reference
   
-- in future version test the traceFSM for errors in guards, update state and actions, error 
-should be goign in properties directly, no throwing
+- in future version test the traceFSM for errors, error should be goign in properties directly, no throwing
 - DOC : fsmContracts in debug - update types too to include it
 - ROADMAP : TESTING
   - inject a debug property with a trace property or a trace property instead of debug
   - the trace prop has an emitter interface a signature {event, event data}
     - {RECEIVED_EVENT: eventData}
     -  {REJECTED_EVENT: {RECEIVED_EVENT: eventData}}
-- TODO:
-  - README adjust to change of signature ; settings in FSM_DEF now, also adjust types.js
 - Demos
-  - use https://itnext.io/a-wicked-custom-elements-alternative-6d1504b5857f to have web 
-  components without needing custom elements!!
-  - mario game : https://github.com/mahsu/MariOCaml/blob/master/director.ml and https://github.com/reasonml-community/Mareo 
-  - could also reuse shop microfrontends : https://micro-frontends.org/
-  - game demo with https://codeincomplete.com/posts/javascript-gauntlet-foundations/, also boulder 
-    dash
-  - simple game demo : snake with ivi
-     - https://github.com/localvoid/ivi-examples/tree/master/packages/apps/snake
+  - boulderdash game!!
   - eshop nice demo (vue) : https://github.com/sdras/sample-vue-shop
     - example of multi-step process
-  - good example of routing and animations : https://page-transitions.com/, https://github.com/sdras/page-transitions-travelapp
   - chess game
   Programs : https://reactjsexample.com/chess-game-with-react-js/, https://www.techighness.com/post/develop-two-player-chess-game-with-react-js/
     - use redux, supposedly super well written,
@@ -57,18 +45,26 @@ should be goign in properties directly, no throwing
     - then do chess with components to see how machines change with component (maintainability!!) https://github.com/vitogit/vue-chessboard-examples
     -    or https://pusher.com/tutorials/realtime-chess-game-react (real time chat on top)
     - or pacman : https://github.com/platzhersh/pacman-canvas, from https://superdevresources.com/open-source-html5-games/
-    - dinosaur google gam : simple and known abd linkable o twnsor flow
-      - https://cs.chromium.org/chromium/src/components/neterror/resources/offline.js?q=t-rex+package:%5Echromium$&dr=C&l=7
-      - https://github.com/Code-Bullet/Google-Chrome-Dino-Game-AI
-      - webstorm dir Genetic algorithm
-
+  - dinosaur google gam : simple and known abd linkable o twnsor flow
+    - https://cs.chromium.org/chromium/src/components/neterror/resources/offline.js?q=t-rex+package:%5Echromium$&dr=C&l=7
+    - https://github.com/Code-Bullet/Google-Chrome-Dino-Game-AI
+    - webstorm dir Genetic algorithm
+  - use https://itnext.io/a-wicked-custom-elements-alternative-6d1504b5857f to have web 
+  components without needing custom elements!!
+  - mario game : https://github.com/mahsu/MariOCaml/blob/master/director.ml and https://github.com/reasonml-community/Mareo 
+  - could also reuse shop microfrontends : https://micro-frontends.org/
+  - game demo with https://codeincomplete.com/posts/javascript-gauntlet-foundations/, also boulder 
+    dash
+  - simple game demo : snake with ivi
+     - https://github.com/localvoid/ivi-examples/tree/master/packages/apps/snake
+  - good example of routing and animations : https://page-transitions.com/, https://github.com/sdras/page-transitions-travelapp
   - maybe this https://buttercms.com/blog/build-a-beautiful-animated-news-app-with-vuejs-and-vuetify
     - LOW PRIORITY - but good as a Vue example and also adding states to the fetch (handling errors)
     which are not in the current version
-    - THIS absolutely : music player!!
+    - THIS absolutely : music player!! https://github
+    .com/Upmostly/react-use-context-hook/blob/master/src/hooks/useMusicPlayer.js ??
 
 - Promote
-  - add on reactjs example?
   - finish react-state-driven then vue-state-driven
   - vue-state-driven to put in awesome vue : https://github.com/sdras/awesome-vue
     - https://github.com/sdras/awesome-vue#examples
