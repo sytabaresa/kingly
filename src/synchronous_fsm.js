@@ -463,21 +463,23 @@ export function makeWebComponentFromFsm({ name, eventHandler, fsm, commandHandle
       if (name.split('-').length <= 1) throw `makeWebComponentFromFsm : web component's name MUST include a dash! Please review the name property passed as parameter to the function!`
       super();
       const el = this;
-      const {subjectFactory} = eventHandler;
+      const { subjectFactory } = eventHandler;
       this.eventSubject = subjectFactory();
       this.options = Object.assign({}, options);
       const NO_ACTION = this.options.NO_ACTION || NO_OUTPUT;
 
       // Set up execution of commands
-      this.eventSubject.subscribe(eventStruct => {
-        const actions = fsm(eventStruct);
+      this.eventSubject.subscribe({
+        next: eventStruct => {
+          const actions = fsm(eventStruct);
 
-        if (actions === NO_ACTION) return;
-        actions.forEach(action => {
-          if (action === NO_ACTION) return;
-          const { command, params } = action;
-          commandHandlers[command](this.eventSubject.next, params, effectHandlers, el);
-        });
+          if (actions === NO_ACTION) return;
+          actions.forEach(action => {
+            if (action === NO_ACTION) return;
+            const { command, params } = action;
+            commandHandlers[command](this.eventSubject.next, params, effectHandlers, el);
+          });
+        }
       });
     }
 
