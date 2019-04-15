@@ -195,12 +195,10 @@ To run the current automated tests : `npm run test`
 
 # Integration with UI libraries
 The machine implementation is just a function. As such it is pretty easy to integrate in any 
-framework. In fact, we have implemented the same interface behaviour over [React](https://codesandbox.io/s/ym8vpqm7m9), [Vue](https://codesandbox.io/s/4p1nnywy0), [Svelte*](https://github.com/brucou/movie-search-app-svelte), [Inferno](https://codesandbox.io/s/9zjo5yx8po), [Nerv](https://codesandbox.io/s/o4vkwmw7y), [Ivi](https://codesandbox.io/s/3x9x5v4kq5) with 
+framework. In fact, we have implemented the same interface behaviour over [React](https://codesandbox.io/s/ym8vpqm7m9), [Vue](https://codesandbox.io/s/4p1nnywy0), [Svelte](https://github.com/brucou/movie-search-app-svelte), [Inferno](https://codesandbox.io/s/9zjo5yx8po), [Nerv](https://codesandbox.io/s/o4vkwmw7y), [Ivi](https://codesandbox.io/s/3x9x5v4kq5) with 
  the exact same fsm. By isolating your component behaviour in a fsm, you can delay the UI library 
  choice to the last moment.
- 
-[*]: Svelte has a specific build process which I haven't mastered yet. As a result, the CSS files somewhat clash together, which makes the demo a bit less appealing visually. As this is not so important for our purposes, I decided not to spend time solving the framework-specific build issues.
- 
+
 As of April 2019, we officially provide the following integrations :
 
 - [integration with React](https://github.com/brucou/react-state-driven)
