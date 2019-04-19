@@ -179,11 +179,7 @@ mapping for the following sequence of events : `[typed 'a', typed '2', typed
  pre-configured condition are fulfilled (both numbers and letters in the password). It will 
  only submit the password if the `clicked submit` event is received while it is in the `Strong` 
  state.
- The starting state and these two assertions can be combined into a theorem : the machine will only 
- submit a password if the password is strong. In short, we are able to reason formally about the 
- machine and extract properties from its definition. This is just one of the many attractive properties of state 
-  machines which makes it a tool of choice for **robust** and testable user interface's 
-  implementation.
+ The starting state and these two assertions can be combined into a theorem : the machine will only submit a password if the password is strong. In short, we are able to reason formally about the machine and extract properties from its definition. This is just one of the many attractive properties of state machines which makes it a tool of choice for **robust** and testable user interface's implementation.
 
 For the modelization of a [much more complex user interface](https://sarimarton.github.io/tmdb-ui-cyclejs/dist/#/), and more details on the benefits of state machine, I'll refer the reader to a [detailed article](https://www.infoq.com/articles/robust-user-interfaces-with-state-machines) on the subject.
  
