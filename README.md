@@ -195,9 +195,7 @@ To run the current automated tests : `npm run test`
 
 # Integration with UI libraries
 The machine implementation is just a function. As such it is pretty easy to integrate in any 
-framework. In fact, we have implemented the same interface behaviour over [React](https://codesandbox.io/s/ym8vpqm7m9), [Vue](https://codesandbox.io/s/4p1nnywy0), [Svelte](https://github.com/brucou/movie-search-app-svelte), [Inferno](https://codesandbox.io/s/9zjo5yx8po), [Nerv](https://codesandbox.io/s/o4vkwmw7y), [Ivi](https://codesandbox.io/s/3x9x5v4kq5) with 
- the exact same fsm. By isolating your component behaviour in a fsm, you can delay the UI library 
- choice to the last moment.
+framework. In fact, we have implemented the same interface behaviour over [React](https://codesandbox.io/s/ym8vpqm7m9), [Vue](https://codesandbox.io/s/p7xv6r1moq), [Svelte](https://github.com/brucou/movie-search-app-svelte), [Inferno](https://codesandbox.io/s/9zjo5yx8po), [Nerv](https://codesandbox.io/s/o4vkwmw7y), [Ivi](https://codesandbox.io/s/3x9x5v4kq5), and [Dojo](https://codesandbox.io/s/jnvylz9jkw) with the exact same fsm. By isolating your component behaviour in a fsm, you can delay the UI library choice to the last moment.
 
 As of April 2019, we officially provide the following integrations :
 

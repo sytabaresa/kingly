@@ -37,6 +37,8 @@
   - eshop nice demo (vue) : https://github.com/sdras/sample-vue-shop
     - example of multi-step process
   - chess game
+    - https://raulsebastianmihaila.github.io/chess/ : https://github
+    .com/raulsebastianmihaila/chess-src THE BEST!!!
   Programs : https://reactjsexample.com/chess-game-with-react-js/, https://www.techighness.com/post/develop-two-player-chess-game-with-react-js/
     - use redux, supposedly super well written,
     - none of them do check, checkmate, etc. probably because lots of if... so do it as a 
