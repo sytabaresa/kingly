@@ -185,7 +185,7 @@ mapping for the following sequence of events : `[typed 'a', typed '2', typed
   machines which makes it a tool of choice for **robust** and testable user interface's 
   implementation.
 
-For the modelization of a [much more complex user interface](https://sarimarton.github.io/tmdb-ui-cyclejs/dist/#/), and more details on the benefits of state machine, I'll refer the reader to a [detailed article](https://github.com/brucou/movie-search-app/blob/specs-all/article/article.md) I wrote on the subject.
+For the modelization of a [much more complex user interface](https://sarimarton.github.io/tmdb-ui-cyclejs/dist/#/), and more details on the benefits of state machine, I'll refer the reader to a [detailed article](https://www.infoq.com/articles/robust-user-interfaces-with-state-machines) I wrote on the subject.
  
 # Install
 `npm install state-transducer --save`
