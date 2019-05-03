@@ -1,6 +1,19 @@
 # Now
+- CONTRACT: event emitter must be on microtask? so that event passed through the emitter are run 
+before other machine events are processed? can it also be immediate/synchronous?
+- shepherd - guiding user through app can be done with state machines: https://shipshapecode.github.io/shepherd/docs/welcome/
+- for tutorial/demo site use graph widget https://github.com/ui-router/visualizer 
+- write a nested router with fsm
+  - though it should rather be a higher order component wrapping the display component
+  - OnRoute(route, options, displayWith)
+  - so the on route would send an init event to displayWith? or? 
+- refactor away from prototype to allow event propagation:
+  - each state (compound or atomic) has an handling function
+  - that handling function in the case of a compound state is a regular transducer BUT if that transducer returns null then it applies the other relevant event handler at top level
+  - so a compound component is a regular inside function || outside function
+- add more eventless tests
+  - eventless <-> eventless with guards in both, and state modification
 - do the react version of password demo from the vue one
-- do the vue version of flickr search app without preprocessor and react ref
 - doc site take it from there : https://github.com/alexkrolick/testing-library-docs
   - or https://www.ably.io/documentation
   - https://github.com/axefrog/docs
