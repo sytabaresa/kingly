@@ -1,7 +1,7 @@
 {
-  "name": "state-transducer",
+  "name": "kingly",
   "sideEffects": false,
-    "version": "0.15.0",
+    "version": "0.16.0",
   "description": "Extended Hierarchical State Transducer library",
   "repository": {
     "type": "git",
@@ -17,7 +17,7 @@
     "automaton",
     "automata"
   ],
-  "module": "src/index.js",
+  "module": "dist/transducer.es.min.js",
   "main": "dist/transducer.umd.min.js",
   "files": [
     "src/",

@@ -1,4 +1,13 @@
 # Now
+- do proxx game from google, 
+  - https://github.com/GoogleChromeLabs/proxx
+  - https://proxx.app/
+  - have a section on modelization and show the state machines for it 
+  - no routing here : great! just skip the worker things
+  - and talk about it in some architecture section
+  - ADD a undo/redo that is sorely missing
+  - see if I do the animation or not
+- do a Vue doc contribution with the sparks example in Vue!!
 - CONTRACT: event emitter must be on microtask? so that event passed through the emitter are run 
 before other machine events are processed? can it also be immediate/synchronous?
 - shepherd - guiding user through app can be done with state machines: https://shipshapecode.github.io/shepherd/docs/welcome/

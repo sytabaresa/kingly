@@ -12,7 +12,16 @@ export default {
     file: 'dist/transducer.es.min.js',
     format: 'esm',
     name: 'StateTranducer',
-  }],
+  },{
+    file: 'dist/kingly.umd.min.js',
+    format: 'umd',
+    name: 'Kingly',
+  },{
+    file: 'dist/kingly.es.min.js',
+    format: 'esm',
+    name: 'Kingly',
+  },
+  ],
   plugins: [
     resolve({
       // use "module" field for ES6 module if possible
@@ -93,6 +102,6 @@ export default {
     //   // option if you know what you're doing!
     //   ignore: [ 'conditional-runtime-dependency' ]
     }),
-    terser()
+    // terser()
   ]
 };
