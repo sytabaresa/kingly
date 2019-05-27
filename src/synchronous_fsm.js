@@ -384,6 +384,7 @@ export function createStateMachine(fsmDef, settings) {
       // In this case, there is no need for event data
       // NOTE : the guard is to defend against loops occuring when an AUTO transition fails to advance and stays
       // in the same control state!! But by contract that should never happen : all AUTO transitions should advance!
+      // TODO : test that case, what is happening?
       if (is_auto_state[new_current_state] && new_current_state !== current_state) {
         // CASE : transient state with no triggering event, just conditions
         // automatic transitions = transitions without events
@@ -419,6 +420,11 @@ export function createStateMachine(fsmDef, settings) {
       const history_target = to[history_type];
       // Edge case : history state (H) && no history (i.e. first time state is entered), target state
       // is the entered state
+      // TODO: edge case should be init state for compound state, and check it is recursively descended,
+      // and error if the history target is an atomic state
+      // if (!is_auto_state(history_target)) throw `can't be atomic state`
+      // then by setting the compound state, it should evolve toward to init control state naturally
+      debug && console && !is_auto_state[history_target] && console.warn(`Configured a history state which does not relate to a compound state! The behaviour of the machine is thus unspecified. Please review your machine configuration`);
       state_to_name = history[history_type][history_target] || history_target;
       state_to = hash_states[state_to_name];
     }
@@ -449,12 +455,11 @@ export function createStateMachine(fsmDef, settings) {
  *
  * @param {WebComponentName} name name for the web component. Must include at least one hyphen per custom
  * components' specification
- * @param {SubjectFactory} subjectFactory A factory function which returns a subject, i.e. an object which
+ * @param {Subject} eventHandler A factory function which returns a subject, i.e. an object which
  * implements the `Observer` and `Observable` interface
  * @param {FSM} fsm An executable machine, i.e. a function which accepts machine inputs
  * @param {Object.<CommandName, CommandHandler>} commandHandlers
- * @param {*} effectHandlers Typically anything necessary to perform effects. Usually this is a hashmap mapping an
- * effect moniker to a function performing the corresponding effect.
+ * @param {*} effectHandlers Typically anything necessary to perform effects. Usually this is a hashmap mapping an effect moniker to a function performing the corresponding effect.
  * @param {{initialEvent, terminalEvent, NO_ACTION}} options
  */
 export function makeWebComponentFromFsm({ name, eventHandler, fsm, commandHandlers, effectHandlers, options }) {
@@ -463,8 +468,7 @@ export function makeWebComponentFromFsm({ name, eventHandler, fsm, commandHandle
       if (name.split('-').length <= 1) throw `makeWebComponentFromFsm : web component's name MUST include a dash! Please review the name property passed as parameter to the function!`
       super();
       const el = this;
-      const { subjectFactory } = eventHandler;
-      this.eventSubject = subjectFactory();
+      this.eventSubject = eventHandler;
       this.options = Object.assign({}, options);
       const NO_ACTION = this.options.NO_ACTION || NO_OUTPUT;
 

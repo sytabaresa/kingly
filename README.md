@@ -871,6 +871,8 @@ selector
 - [ ] showcase property-based testing
 - [ ] decide definitively on tricky semantic cases
   - transitionning to history states when there is no history
+    - Qt: use the initial control state for the compound state in that case
+    - cf. https://www.state-machine.com/qm/sm_hist.html
   - ~~event delegation~~ 
 
 ## Roadmap v1.Y

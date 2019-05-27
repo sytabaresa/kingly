@@ -1,4 +1,33 @@
 # Now
+- regex for tufte hexo tag: (\s*)(```)(tufte)\s+\n?([\s\S]+?)\s*(\2)(\n?|$)
+- URGENT: change code and tests!! so subject factory is replace by subject!!
+  - change makeWebComponentFromFsm in kingly
+  - change react-state-driven, vue-state-driven etc. and all examples...
+- could implement tracing with a proxy!! proxying the machien returned by createStateMachine!
+- extension to processes:
+  -         event
+  - input -> fsm -> output
+  -         event
+  - actually event -> input -> fsm -> output -> event !
+  - so for instance network request = command, which when executed is event
+  - response is event which when received is input
+  - so only difference is timing = scheduling, debouncing, delay etc.
+  - to have full picture, we need the function event -> input e.g. the connectors
+  - that is the only way to deal with concurrency/ similar to I/O automata
+- unload all these improvements in the issues directory of each
+  - add compositing of state machines. Outgoing links are parameterizable : target state, and 
+  condition/action, and events? whatever necessary to customize for the functionality -> similar 
+  to partial application!
+  - for insance debounce is timmer running <-> timer registering, and three parameters: query 
+  changed, display loading screen, and timer duration, -> similar to debounce(source, duration)
+    - it is debounce (event, duration, action); but that action may update the state of the outside
+- in react-state-driven, an improvement would be to have a render handler:: machineComponent, 
+renderWith, params, next, directUpdate with directUpdate:: (renderWithInstance, params, next) -> 
+Bool, so that returns false if no direct update. Then props update occurs on renderWith. Else 
+returns true. That means that the instance state is updated directly. Be careful that the 
+instance must exist for directUpdate to be called. TO THINK ABOUT 
+  - could also be include a decision function: updateStateOrProps:: params -> Boolean with 
+  directUpdate:: renderWithInstance, params, next -> () (don't forget postRenderCallback)
 - do proxx game from google, 
   - https://github.com/GoogleChromeLabs/proxx
   - https://proxx.app/
