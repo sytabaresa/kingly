@@ -424,7 +424,7 @@ export function createStateMachine(fsmDef, settings) {
       // and error if the history target is an atomic state
       // if (!is_auto_state(history_target)) throw `can't be atomic state`
       // then by setting the compound state, it should evolve toward to init control state naturally
-      debug && console && !is_auto_state[history_target] && console.warn(`Configured a history state which does not relate to a compound state! The behaviour of the machine is thus unspecified. Please review your machine configuration`);
+      debug && console && !is_init_state[history_target] && console.warn(`Configured a history state which does not relate to a compound state! The behaviour of the machine is thus unspecified. Please review your machine configuration`);
       state_to_name = history[history_type][history_target] || history_target;
       state_to = hash_states[state_to_name];
     }
