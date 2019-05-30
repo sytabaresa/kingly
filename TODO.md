@@ -1,4 +1,10 @@
 # Now
+- BPMN.io great for visualization - admits nested processes
+  - must draw yourself the layout but thats fine
+  - then will have some work to map data-element-id to machine components but doable
+  - then style it to have a step-by-step debugger!!!! 
+  - allow create, load, and save of .bpmn file: perfect, put that in github.
+    - can I use a webpack loader?? raw-loader!! AMAZING    
 - regex for tufte hexo tag: (\s*)(```)(tufte)\s+\n?([\s\S]+?)\s*(\2)(\n?|$)
 - URGENT: change code and tests!! so subject factory is replace by subject!!
   - change makeWebComponentFromFsm in kingly

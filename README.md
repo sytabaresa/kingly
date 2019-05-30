@@ -920,6 +920,20 @@ is a good example of such.
 So state machines are nothing like a new, experimental tool, but rather one with a fairly extended 
 and proven track in both industrial and consumer applications. 
 
+# Acknowledgments
+This library is old and went through several redesigns and a large refactoring as I grew as a 
+programmer and accumulated experience using it. I actually started after toiling with the cyclejs
+ framework and complex state orchestration. I was not an expert in functional programming, and 
+ the original design was quite tangled (streams, asynchrony, etc.) and hardly reusable out of 
+ cyclejs. The current design resulting from my increased understanding and awareness of 
+ architecture, and functional design.
+
+The key influences I want to quote thus are:
+- cyclejs, but of course from which I started to understand the benefits of the separation of 
+effects from logic
+- elm - who led me to the equational thinking behind Kingly
+- erlang - for forcing me to learn much more about concurrency.
+
 # Annex
 ## So what is an Extended Hierarchical State Transducer ? 
 Not like it matters so much but anyways. Feel free to skip that section if you have little 
