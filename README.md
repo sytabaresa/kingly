@@ -61,7 +61,7 @@ relating inputs to the user interface to an action to be performed on the interf
 computation often has a logic [organized around a limited set of control states](#base-example), 
 and can be advantageously modelized by a state machine. 
 
-[**Jump to the examples**](#general-concepts).
+[**Jump to the tutorials**](https://brucou.github.io/documentation/v1/tutorials/).
 
 This library is born from:
 
