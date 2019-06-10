@@ -45,6 +45,9 @@ separate package)
 - **just a function!** : easy to integrate into any framework
 - **[automatic test generation!](https://github.com/brucou/state-transducer-testing)** : write the machine, how to progress from one state to another, and let the computer generate hundreds of tests for you
 
+# Documentation
+All documentation can be accessed in the [dedicated web site](https://brucou.github.io/documentation/).
+
 # Examples
 |Code playground | Demo | State Machine | 
 |---|---|---|
