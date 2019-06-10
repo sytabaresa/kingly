@@ -1,4 +1,7 @@
 # Now
+- REMOVE render commands from REACT_STATE_DRIVEN!!!! put it in kingly!!! for dependency reasons
+- similar to what I want to do with actor/processes/cycle : 
+  - https://medium.com/dailyjs/introducing-bloc-pattern-with-react-and-rxjs-40109665bb2
 - BPMN.io great for visualization - admits nested processes
   - must draw yourself the layout but thats fine
   - then will have some work to map data-element-id to machine components but doable

@@ -32,3 +32,5 @@ export const ACTION_FACTORY_DESC = `action factory`
 export const ENTRY_ACTION_FACTORY_DESC = `(decorating) entry action`
 export const UPDATE_STATE_FN_DESC = `update state function`
 export const PREDICATE_DESC = `predicate`
+
+export const COMMAND_RENDER = 'render'
