@@ -2,9 +2,9 @@
 |---|---|---|
 |![password submit fsm](assets/password%20submit%20fsm.png) |![password selector fsm transitions](assets/password%20selector%20transitions%20code.png)|![password selector](assets/password%20selector.png)
 
-[![npm version](https://badge.fury.io/js/state-transducer.svg)](https://badge.fury.io/js/state-transducer)
-![](https://img.shields.io/bundlephobia/minzip/state-transducer.svg)
-![](https://img.shields.io/github/license/brucou/state-transducer.svg)
+[![npm version](https://badge.fury.io/js/kingly.svg)](https://badge.fury.io/js/kingly)
+![](https://img.shields.io/bundlephobia/minzip/kingly.svg)
+![](https://img.shields.io/github/license/brucou/kingly.svg)
 ![Contributions welcome](https://img.shields.io/badge/contributions-welcome-orange.svg)
 
 # Table of Contents
@@ -31,14 +31,14 @@ This library enables you to write user interfaces as state machines. You specify
  graph. The library computes a function which implements that machine. You use that to drive 
  your interface. It integrates easily with any or no framework. Tests can be automatically generated.
 
-Salient features :
+Salient features:
 
-- **small size** : treeshakeable implementation, down from 8kB
-- **small API** : one function for the state machine, one function for tracing (and one function 
+- **small size**: treeshakeable implementation, down from 8kB
+- **small API**: one function for the state machine, one function for tracing (and one function 
 for the [test generation](https://github.com/brucou/state-transducer-testing) available in a 
 separate package)
-- **just a function!** : easy to integrate into any framework
-- **[automatic test generation!](https://github.com/brucou/state-transducer-testing)** : write the machine, how to progress from one state to another, and let the computer generate hundreds of tests for you
+- **just a function!**: easy to integrate into any framework
+- **[automatic test generation!](https://github.com/brucou/state-transducer-testing)**: write the machine, how to progress from one state to another, and let the computer generate hundreds of tests for you
 
 # Documentation
 All documentation can be accessed in the [dedicated web site](https://brucou.github.io/documentation/).
