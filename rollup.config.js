@@ -5,14 +5,6 @@ import { terser } from "rollup-plugin-terser";
 export default {
   input: 'src/index.js',
   output: [{
-    file: 'dist/transducer.umd.min.js',
-    format: 'umd',
-    name: 'StateTranducer',
-  },{
-    file: 'dist/transducer.es.min.js',
-    format: 'esm',
-    name: 'StateTranducer',
-  },{
     file: 'dist/kingly.umd.min.js',
     format: 'umd',
     name: 'Kingly',
@@ -102,6 +94,6 @@ export default {
     //   // option if you know what you're doing!
     //   ignore: [ 'conditional-runtime-dependency' ]
     }),
-    // terser()
+    terser()
   ]
 };
