@@ -81,7 +81,7 @@ In such cases, we were able to modelize our computation with an Extended Hierarc
 # Install
 `npm install kingly --save`
 
-Cf [documentation](http://localhost:4000/documentation/v1/tutorials/installation.html)
+Cf [documentation](http://brucou.github.io/documentation/v1/tutorials/installation.html)
 
 # Tests
 To run the current automated tests: `npm run test`
