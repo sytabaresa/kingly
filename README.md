@@ -25,9 +25,10 @@
   * [Terminology](#terminology)
 
 # Features
-This library enables you to write user interfaces as state machines. You specify the machine as a
- graph. The library computes a function which implements that machine. You use that to drive 
- your interface. It integrates easily with any or no framework. Tests can be automatically generated.
+This library enables you to implement the **behaviour** of your user interfaces or components as 
+state machines. You specify the machine as a graph. The library computes a function which 
+implements that machine. You use that to drive your interface. You then **display** the UI with the 
+UI framework of your choice. Tests can be automatically generated.
 
 Salient features:
 
