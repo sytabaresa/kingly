@@ -9,15 +9,13 @@
 
 # Table of Contents
 - [Features](#features)
-- [Dcoumentation](#documentation)
+- [Documentation](#documentation)
 - [Examples](#examples)
 - [Motivation](#motivation)
-- [The link between state machines and user interfaces](#the-link-between-state-machines-and-user-interfaces)
 - [Install](#install)
 - [Tests](#tests)
 - [Integration with UI libraries](#integration-with-ui-libraries)
 - [API design](#api-design)
-- [Possible API extensions](#possible-api-extensions)
 - [Visualization tools](#visualization-tools)
 - [Credits](#credits)
 - [Roadmap](#roadmap)
@@ -33,7 +31,7 @@ This library enables you to write user interfaces as state machines. You specify
 
 Salient features:
 
-- **small size**: treeshakeable implementation, down from 8kB
+- **small size**: treeshakeable implementation, down from 9kB
 - **small API**: one function for the state machine, one function for tracing (and one function 
 for the [test generation](https://github.com/brucou/state-transducer-testing) available in a 
 separate package)
@@ -54,156 +52,41 @@ All documentation can be accessed in the [dedicated web site](https://brucou.git
 This library fundamentally implements computations which can be modelized by a type of state 
 machines called hierarchical extended [state transducer](https://en.wikipedia.org/wiki/Finite-state_transducer). This library offers a way to define, and use such transducers. 
 
-Now, the whole thing can sound very abstract but the major motivation for this library has been the 
-specification and implementation of user interfaces. As a matter of fact, to [every user 
-interface can be associated a computation](https://brucou.github.io/posts/user-interfaces-as-reactive-systems/#reactive-systems-as-automata) 
-relating inputs to the user interface to an action to be performed on the interfaced systems. That 
-computation often has a logic [organized around a limited set of control states](#base-example), 
-and can be advantageously modelized by a state machine. 
+The major motivation for this library is the specification and implementation of user interfaces. 
+As a matter of fact, to [every user interface can be associated a computation](https://brucou.github.io/posts/user-interfaces-as-reactive-systems/#reactive-systems-as-automata) relating inputs to the user interface to an action to be performed on the interfaced systems. That computation often has a logic [organized around a limited set of control states](#base-example), and can be advantageously modelized by a state machine. 
 
 [**Jump to the tutorials**](https://brucou.github.io/documentation/v1/tutorials/).
 
-This library is born from:
+This library was born in early 2016 from:
 
-- the desire to apply such state machines for both specification and implementation of user 
-interfaces
 - the absence of existing javascript libraries which satisfy our [design criteria](https://github.com/brucou/state-transducer#api-design)
-  - mostly, we want the state machine library API design to be as close as possible from the 
-  mathematical object denoting it. This should allow us to reason about it, compose and reuse 
-  it easily. 
-  - most libraries we found either do not feature hierarchy in their state machines, or use a 
-  rather imperative API, or impose a concurrency model on top of the state machine's control flow
+  - mostly, we want the state machine library API design to be as close as possible from the mathematical object denoting it. This should allow us to reason about it, compose and reuse it easily. 
+  - most libraries we found either do not feature hierarchy in their state machines, or use a rather imperative API, or impose a concurrency model on top of the state machine's control flow
 
-This is a [work in progress](#roadmap), however the main API for the v1.0 should be relatively 
-stable.
-
-It works nicely and have already been used succesfully for user-interfaces as well as in other 
-contexts:
+In the three years of existence and use of this library, we reached an API which should be 
+fairly stable. It has been used succesfully for user-interfaces as well as in other contexts:
 
 - in multi-steps workflows: see an example [here](https://github.com/brucou/component-combinators/tree/master/examples/volunteerApplication), a constant feature of enterprise software today
-- for ['smart' synchronous streams](https://github.com/brucou/partial-synchronous-streams), which
- tracks computation state to avoid useless re-computations
+- for ['smart' synchronous streams](https://github.com/brucou/partial-synchronous-streams), which tracks computation state to avoid useless re-computations
 - to implement cross-domain communication protocols, to coordinate iframes with a main window
 
-In such cases, we were able to modelize our computation with an Extended Hierarchical State Transducer 
-in a way that:
+In such cases, we were able to modelize our computation with an Extended Hierarchical State Transducer in a way that:
 
 - is economical (complexity of the transducer proportional to complexity of the computation)
-- is reasonably easy to reason about and communicate (the transducer can
- be visually represented, supporting both internal and external communication, and design 
- specification and documentation)
-- supports step-wise refinement and iterative development (control states can be refined into a 
-hierarchy of nested states)
-
-# The link between state machines and user interfaces
-In short:
-
-- a user interface can be specified by a relation between events received by the user 
-interfaces and actions to be performed as a result on the interfaced system. 
-- Because to the same triggering event, there may be different actions to perform on the 
-interfaced system (depending for instance on when the event did occur, or which other events 
-occured before), we use state to represent that variability, and specify the user interface with 
-a function `f` such that `actions = f(state, event)`. We call here `f` the reactive function for the user interface.
-- The previous expression suffices to specify the user interface's behaviour, but is not enough 
-to deduce an implementation. We then use a function `g` such that `(actions_n, state_{n+1} = g
-(state_n, event_n)`. That is, we explicitly include the modification of the state triggered by 
-events. Depending on the choice that is made for `state_n`, there is an infinite number of ways 
-to specify the user interface.
-- a state machine specification is one of those ways with some nice properties (concise 
-specification, formal reasoning, easy visualization). It divides the state into control states and 
-extended state. For each control state, it specifies a reactive sub-function which returns an 
-updated state (i.e. a new control state, and a new extended state) and the actions to perform on 
-the interfaced system.
-
-Let's take a very simple example to illustrate these equations. The user interface to 
-specify is a [password selector](https://cdn.dribbble.com/users/522131/screenshots/4467712/password_strength.png). Visually, the user interface consists of a password input field 
-and a submit password button. Its behaviour is the following:
-- the user types
-- for each new value of the password input, the input is displayed in green if the password is 
-strong (that will be, to remain simple if there are both letters and numbers in the password), and
- in red otherwise
-- if the password is not strong, the user click on `set password` button is ignored, otherwise 
-the password is set to the value of the password input
+- is reasonably easy to reason about and communicate (the transducer can be visually represented)
+- supports step-wise refinement and iterative development (control states can be refined into a hierarchy of nested states)
  
-A `f` partial formulation:
-
-|State|Event|Actions|
-|---|---|---|
-|`{input: ""}`|*typed `a`*|display input in red|
-|`{input: "a"}`|*typed `2`*|display input in green|
-|`{input: "a2"}`|*clicked submit*|submit `a2` password|
-|`{input: "a"}`|*typed `b`*|display input in red|
-|`{input: "ab"}`|*clicked submit*|---|
-
-A `g` partial formulation:
-
-|state_n|event|actions_n|state_{n+1}|
-|---|---|---|---|
-|`{input: ""}`|*typed `a`*|display input in red|`{input: "a"}`|
-|`{input: "a"}`|*typed `2`*|display input in green|`{input: "a2"}`|
-|`{input: "a2"}`|*clicked submit*|submit `a2` password|`{input: "a2"}`|
-|`{input: "a"}`|*typed `b`*|display input in red|`{input: "ab"}`|
-|`{input: "ab"}`|*clicked submit*|---|`{input: "ab"`}|
-
-A state machine partial formulation:
-
-|Control state|Extended state|Event|Actions|New control state|New extended state|
-|---|---|---|---|---|---|
-|**Weak**|`input: ""`|typed `a`|display input in red|**Weak**|`input: "a"`|
-|**Weak**|`input: "a"`|typed `2`|display input in green|**Strong**|`input: "a2"`|
-|**Strong**|`input: "a2"`|clicked submit|submit `a2` password|**Done**|`input: "a2"`|
-|**Weak**|`input: "a"`|typed `b`|display input in red|**Weak**|`input: "ab"`|
-|**Weak**|`input: "ab"`|clicked submit| - |**Weak**| `input: "ab"` |
-
-The corresponding implementation is by a function `fsm` with an encapsulated initial internal state
- of `{control state : weak, extended state: {input : ''}}` such that, if the user types 'a2' and 
-clicks submit:
-
-```
-fsm(typed 'a') = nothing
-fsm(typed '2') = nothing
-fsm(clicked submit) = submit `a2` password
-```
-
-The corresponding visualization (actions are not represented):
-
-![password submit fsm](assets/password%20submit%20fsm.png)
-
-Note that we wrote only partial formulations in our table, as the sequence of inputs by the user 
-is potentially infinite (while this article is not). Our tables do not for instance give a 
-mapping for the following sequence of events: `[typed 'a', typed '2', typed 
- <backspace>]`. Conversely, our state machine concisely represents the fact that whatever input
-  we receive in the `Weak` control state, it will only go to the `Strong` control state if some 
- pre-configured condition are fulfilled (both numbers and letters in the password). It will 
- only submit the password if the `clicked submit` event is received while it is in the `Strong` 
- state.
- The starting state and these two assertions can be combined into a theorem: the machine will only submit a password if the password is strong. In short, we are able to reason formally about the machine and extract properties from its definition. This is just one of the many attractive properties of state machines which makes it a tool of choice for **robust** and testable user interface's implementation.
-
-For the modelization of a [much more complex user interface](https://sarimarton.github.io/tmdb-ui-cyclejs/dist/#/), and more details on the benefits of state machine, I'll refer the reader to a [detailed article](https://www.infoq.com/articles/robust-user-interfaces-with-state-machines) on the subject.
+ We plan to release the first major version in August 2019.
  
 # Install
-`npm install state-transducer --save`
+`npm install kingly --save`
 
 # Tests
 To run the current automated tests: `npm run test`
 
 # Integration with UI libraries
 The machine implementation is just a function. As such it is pretty easy to integrate in any 
-framework. In fact, we have implemented the same interface behaviour over [React](https://codesandbox.io/s/ym8vpqm7m9), [Vue](https://codesandbox.io/s/p7xv6r1moq), [Svelte](https://github.com/brucou/movie-search-app-svelte), [Inferno](https://codesandbox.io/s/9zjo5yx8po), [Nerv](https://codesandbox.io/s/o4vkwmw7y), [Ivi](https://codesandbox.io/s/3x9x5v4kq5), and [Dojo](https://codesandbox.io/s/jnvylz9jkw) with the exact same fsm. By isolating your component behaviour in a fsm, you can delay the UI library choice to the last moment.
-
-As of April 2019, we officially provide the following integrations:
-
-- [integration with React](https://github.com/brucou/react-state-driven)
-  - using state machines allows to use React mostly as a DOM library and eliminates the need for 
-  state management, hooks and other react paraphernalia.
-- [integration with Vue](https://github.com/brucou/vue-state-driven) 
-  - using state machines allows to use Vue mostly as a DOM library and eliminates the need for 
-  state management, hooks and other Vue advanced concepts.
-- integration with framework supporting webcomponents (only supported in [browsers which support 
-custom elements v1](https://caniuse.com/#feat=custom-elementsv1))
-  - provided by the factory function `makeWebComponentFromFsm`
-  - I am investigating whether the dependency on custom elements could be removed with the 
-  excellent [wicked elements](https://github.com/WebReflection/wicked-elements/tree/master/esm)
+framework. In fact, we have implemented the same interface behaviour over [React](https://codesandbox.io/s/ym8vpqm7m9), [Vue](https://codesandbox.io/s/p7xv6r1moq), [Svelte](https://github.com/brucou/movie-search-app-svelte), [Inferno](https://codesandbox.io/s/9zjo5yx8po), [Nerv](https://codesandbox.io/s/o4vkwmw7y), [Ivi](https://codesandbox.io/s/3x9x5v4kq5) with the exact same fsm. By isolating your component behaviour in a fsm, you can delay the UI library choice to the last moment.
 
 # API design
 The key objectives for the API was:
@@ -252,26 +135,17 @@ it has received so far ([causality property](https://en.wikipedia.org/wiki/Causa
 # Visualization tools
 We have included two helpers for visualization of the state transducer:
 
-- conversion to plantUML: `toPlantUml :: FSM_Def -> PlantUml`.
+- conversion to plantUML: `toPlantUml :: FSM_Def -> PlantUml`
   - the resulting chain of characters can be pasted in [plantText](`https://www.planttext.com/`) 
-  or [plantUML previewer](http://sujoyu.github.io/plantuml-previewer/) to get an automated graph 
-  representation. Both will produce the exact same visual representation.
-- conversion to [online visualizer](https://github.com/brucou/state-transducer-visualizer) 
-format (dagre layout engine): for instructions, cf. github directory: `toDagreVisualizerFormat 
-:: FSM_Def -> JSON`
+  or [plantUML previewer](http://sujoyu.github.io/plantuml-previewer/) to get an automated graph representation. Both will produce the exact same visual representation
+- conversion to [online visualizer](https://github.com/brucou/state-transducer-visualizer) format (dagre layout engine): for instructions, cf. github directory: `toDagreVisualizerFormat :: FSM_Def -> JSON`
 
 ![visualization example](https://github.com/brucou/state-transducer-visualizer/raw/master/assets/cd-player-automatic-dagre-visualization.png)
 
-Automated visualization works well with simple graphs, but seems to encounter trouble to generate
- optimally satisfying complex graphs. The Dagre layout seems to be a least worse option. I
- believe the best option for visualization is to use professional specialized tooling such as 
- `yed`. In a future version, we will provide a conversion to `yed` graph format to facilitate 
- such workflow. The [`yed`](https://www.yworks.com/products/yed) orthogonal and flowchart layout 
- seem to give pretty good results.
+Automated visualization works well with simple graphs, but seems to encounter trouble to generate optimally satisfying complex graphs. The Dagre layout seems to be a least worse option. I believe the best option for visualization is to use professional specialized tooling such as `yed`. In a future version, we will provide a conversion to `yed` graph format to facilitate such workflow. The [`yed`](https://www.yworks.com/products/yed) orthogonal and flowchart layout seem to give pretty good results.
 
 # Credits
-- Credit to [Pankaj Parashar](https://css-tricks.com/password-strength-meter/) for the password 
-selector
+- Credit to [Pankaj Parashar](https://css-tricks.com/password-strength-meter/) for the password selector
 - Credit to [Sari Marton](https://github.com/sarimarton/) for the [original version](https://github.com/sarimarton/tmdb-ui-cyclejs) of the movie search app
 
 # Roadmap
@@ -317,32 +191,13 @@ transducers and manipulate the test cases one by one as soon as they are produce
    - pick next transition according to ranking (probability-based, prefix-based or else) 
 
 # Who else uses state machines
-The use of state machines is not unusual for safety-critical software for embedded systems. 
-Nearly all safety-critical code on the Airbus A380 is implemented with a [suite of tools](https://www.ansys.com/products/embedded-software/ansys-scade-suite/scade-suite-capabilities#cap1) which 
-produces state machines both as [specification](https://www.youtube.com/watch?list=PL0lZXwHtV6Ok5s-iSkBjHirM1fu53_Phv&v=EHP_spl5xU0) and [implementation](https://www.youtube.com/watch?v=523bJ1vZZmw&index=5&list=PL0lZXwHtV6Ok5s-iSkBjHirM1fu53_Phv) 
-target. The driver here is two-fold. On the one hand is productivity: writing highly reliable code
- by hand can be done but it is painstakingly slow, while state machines allow to **generate the code** 
-automatically. On the other hand is reliability. Quoting Gerard Berry, founder of Esterel 
-technologies, [<< low-level programming techniques will not remain acceptable for large 
-safety-critical programs, since they make behavior understanding and analysis almost 
-impracticable >>](https://ptolemy.berkeley.edu/projects/chess/design/2010/discussions/Pdf/synclang.pdf), in a harsh regulatory context 
-which may require that every single system requirement 
-be traced to the code that implements it (!). Requirements modeled by state-machines are amenable
- to formal verification and validation. 
+The use of state machines is not unusual for safety-critical software for embedded systems. Nearly all safety-critical code on the Airbus A380 is implemented with a [suite of tools](https://www.ansys.com/products/embedded-software/ansys-scade-suite/scade-suite-capabilities#cap1) which produces state machines both as [specification](https://www.youtube.com/watch?list=PL0lZXwHtV6Ok5s-iSkBjHirM1fu53_Phv&v=EHP_spl5xU0) and [implementation](https://www.youtube.com/watch?v=523bJ1vZZmw&index=5&list=PL0lZXwHtV6Ok5s-iSkBjHirM1fu53_Phv) target. The driver here is two-fold. On the one hand is productivity: writing highly reliable code by hand can be done but it is painstakingly slow, while state machines allow to **generate the code** automatically. On the other hand is reliability. Quoting Gerard Berry, founder of Esterel technologies, [<< low-level programming techniques will not remain acceptable for large safety-critical programs, since they make behavior understanding and analysis almost impracticable >>](https://ptolemy.berkeley.edu/projects/chess/design/2010/discussions/Pdf/synclang.pdf), in a harsh regulatory context which may require that every single system requirement be traced to the code that implements it (!). Requirements modeled by state-machines are amenable to formal verification and validation. 
 
-State machines have also been used extensively in [games of reasonable complexity](http://howtomakeanrpg.com/a/state-machines.html), and [tutorials](https://www.gamedev.net/articles/programming/general-and-gameplay-programming/state-machines-in-games-r2982/) abound
- on the subject. Fu and Houlette, in 
- [AI Game Programming Wisdom 2](https://www.researchgate.net/publication/284383920_The_Ultimate_Guide_to_FSMs_in_Games)
-  summarized the rationale: "Behavior modeling techniques based on state-machines are very 
-  popular in the gaming industry because they are easy to implement, computationally efficient, 
-  an intuitive representation of behavior, accessible to subject matter experts in addition to programmers, relatively easy to maintain, and can be developed in a number of commercial integrated development environments". 
+State machines have also been used extensively in [games of reasonable complexity](http://howtomakeanrpg.com/a/state-machines.html), and [tutorials](https://www.gamedev.net/articles/programming/general-and-gameplay-programming/state-machines-in-games-r2982/) abound on the subject. Fu and Houlette, in  [AI Game Programming Wisdom 2](https://www.researchgate.net/publication/284383920_The_Ultimate_Guide_to_FSMs_in_Games) summarized the rationale: "Behavior modeling techniques based on state-machines are very   popular in the gaming industry because they are easy to implement, computationally efficient,   an intuitive representation of behavior, accessible to subject matter experts in addition to programmers, relatively easy to maintain, and can be developed in a number of commercial integrated development environments". 
 
-More prosaically, did you know that ES6 generators compile down to ES5 state machines where no 
-native option is available? Facebook's [`regenerator`](https://github.com/facebook/regenerator) 
-is a good example of such.
+More prosaically, did you know that ES6 generators compile down to ES5 state machines where no native option is available? Facebook's [`regenerator`](https://github.com/facebook/regenerator) is a good example of such.
 
-So state machines are nothing like a new, experimental tool, but rather one with a fairly extended 
-and proven track in both industrial and consumer applications. 
+So state machines are nothing like a new, experimental tool, but rather one with a fairly extended and proven track in both industrial and consumer applications. 
 
 # Acknowledgments
 This library is old and went through several redesigns and a large refactoring as I grew as a 
