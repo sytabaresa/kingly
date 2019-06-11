@@ -53,7 +53,9 @@ This library fundamentally implements computations which can be modelized by a t
 machines called hierarchical extended [state transducer](https://en.wikipedia.org/wiki/Finite-state_transducer). This library offers a way to define, and use such transducers. 
 
 The major motivation for this library is the specification and implementation of user interfaces. 
-As a matter of fact, to [every user interface can be associated a computation](https://brucou.github.io/posts/user-interfaces-as-reactive-systems/#reactive-systems-as-automata) relating inputs to the user interface to an action to be performed on the interfaced systems. That computation often has a logic [organized around a limited set of control states](#base-example), and can be advantageously modelized by a state machine. 
+As a matter of fact, to [every user interface can be associated a computation](http://localhost:4000/documentation/v1/contributed/User%20interfaces%20as%20reactive%20systems.html) relating 
+inputs to the user interface to an action to be performed on the interfaced systems. That 
+computation often has a logic [organized around a limited set of control states](http://brucou.github.io/documentation/v1/tutorials/password-meter.html), and can be advantageously modelized by a state machine. 
 
 [**Jump to the tutorials**](https://brucou.github.io/documentation/v1/tutorials/).
 
