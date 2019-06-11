@@ -36,7 +36,7 @@ Salient features:
 - **small API**: one function for the state machine, one function for tracing (and one function 
 for the [test generation](https://github.com/brucou/state-transducer-testing) available in a 
 separate package)
-- **just a function!**: easy to integrate into any framework
+- **just a function!**: easy to integrate into any front-end framework
 - **[automatic test generation!](https://github.com/brucou/state-transducer-testing)**: write the machine, how to progress from one state to another, and let the computer generate hundreds of tests for you
 
 # Documentation
@@ -66,8 +66,7 @@ This library was born in early 2016 from:
   - mostly, we want the state machine library API design to be as close as possible from the mathematical object denoting it. This should allow us to reason about it, compose and reuse it easily. 
   - most libraries we found either do not feature hierarchy in their state machines, or use a rather imperative API, or impose a concurrency model on top of the state machine's control flow
 
-In the three years of existence and use of this library, we reached an API which should be 
-fairly stable. It has been used succesfully for user-interfaces as well as in other contexts:
+In the three years of existence and use of this library, we reached an API which should be fairly stable. It has been used succesfully for user-interfaces as well as in other contexts:
 
 - in multi-steps workflows: see an example [here](https://github.com/brucou/component-combinators/tree/master/examples/volunteerApplication), a constant feature of enterprise software today
 - for ['smart' synchronous streams](https://github.com/brucou/partial-synchronous-streams), which tracks computation state to avoid useless re-computations
@@ -103,14 +102,11 @@ The key objectives for the API was:
 
 As a result of this, the following choices were made:
 
-- **functional interface**: the transducer is just a function. As such, the 
-transducer is a black-box, and only its computed outputs can be observed
+- **functional interface**: the transducer is just a function. As such, the transducer is a black-box, and only its computed outputs can be observed
 - **complete encapsulation** of the state of the transducer
 - **no effects** performed by the machine
 - no exit and entry actions, or activities as in other state machine formalisms
-  - there is no loss of generality as both entry and exit actions can be implemented with our 
-  state transducer. There is simply no syntactic support for it in the core API. This can however be
-   provided through standard functional programming patterns (higher-order functions, etc.)
+  - there is no loss of generality as both entry and exit actions can be implemented with our  state transducer. There is simply no syntactic support for it in the core API. This can however be provided through standard functional programming patterns (higher-order functions, etc.)
 - every computation performed is synchronous (asynchrony is an effect)
 - action factories return the **updates** to the extended state to avoid any 
 unwanted direct modification of the extended state (API user must provide such update function, 
@@ -122,8 +118,7 @@ which in turn allows him to use any formalism to represent state - for instance 
 well-formatted machine inputs, and `f` is the fsm, then the stream of outputs will be `inputs.map
 (f)`. It is so simple that we do not even surface it at the API level.
 
-Concretely, our state transducer will be created by the factory function `createStateMachine`, 
-which returns a state transducer which:
+Concretely, our state transducer will be created by the factory function `createStateMachine`, which returns a state transducer which:
 
 - immediately positions itself in its configured initial state (as defined by its initial control
  state and initial extended state) 
@@ -131,16 +126,13 @@ which returns a state transducer which:
 
 Let us insist again on the fact that the state transducer is not, in general, a pure function of 
 its inputs. However, a given output of the transducer depends exclusively on the sequence of inputs 
-it has received so far ([causality property](https://en.wikipedia.org/wiki/Causal_system)). This means that it is possible to associate to a state transducer another function which takes a sequence of inputs into a 
- sequence of outputs, in a way that **that** function is pure. This is what enables 
- simple and automated testing.
+it has received so far ([causality property](https://en.wikipedia.org/wiki/Causal_system)). This means that it is possible to associate to a state transducer another function which takes a sequence of inputs into a sequence of outputs, in a way that **that** function is pure. This is what enables simple and automated testing.
 
 # Visualization tools
 We have included two helpers for visualization of the state transducer:
 
 - conversion to plantUML: `toPlantUml :: FSM_Def -> PlantUml`
-  - the resulting chain of characters can be pasted in [plantText](`https://www.planttext.com/`) 
-  or [plantUML previewer](http://sujoyu.github.io/plantuml-previewer/) to get an automated graph representation. Both will produce the exact same visual representation
+  - the resulting chain of characters can be pasted in [plantText](`https://www.planttext.com/`) or [plantUML previewer](http://sujoyu.github.io/plantuml-previewer/) to get an automated graph representation. Both will produce the exact same visual representation
 - conversion to [online visualizer](https://github.com/brucou/state-transducer-visualizer) format (dagre layout engine): for instructions, cf. github directory: `toDagreVisualizerFormat :: FSM_Def -> JSON`
 
 ![visualization example](https://github.com/brucou/state-transducer-visualizer/raw/master/assets/cd-player-automatic-dagre-visualization.png)
@@ -183,13 +175,8 @@ Automated visualization works well with simple graphs, but seems to encounter tr
 - [ ] add cloning API
 - [ ] add reset API
 - [ ] add and document exit actions
-- [ ] turn the test generation into an iterator(ES6 generator): this allows it to be composed with 
-transducers and manipulate the test cases one by one as soon as they are produced. Will be useful
- for both example-based and property-based testing. When the generators runs through thousands of
-  test cases, we often have to wait a long time before seeing any result, which is pretty 
-  damageable when a failure is located toward the ends of the generated input sequences.
-- [ ] add other searches that DFS, BFS (add probability to transitions, exclude some transitions,
- etc.). HINT: `store.pickOne` can be used to select the next transition
+- [ ] turn the test generation into an iterator(ES6 generator): this allows it to be composed with transducers and manipulate the test cases one by one as soon as they are produced. Will be useful for both example-based and property-based testing. When the generators runs through thousands of test cases, we often have to wait a long time before seeing any result, which is pretty damageable when a failure is located toward the ends of the generated input sequences.
+- [ ] add other searches that DFS, BFS (add probability to transitions, exclude some transitions, etc.). HINT: `store.pickOne` can be used to select the next transition
    - pick a random transition
    - pick next transition according to ranking (probability-based, prefix-based or else) 
 
@@ -203,82 +190,42 @@ More prosaically, did you know that ES6 generators compile down to ES5 state mac
 So state machines are nothing like a new, experimental tool, but rather one with a fairly extended and proven track in both industrial and consumer applications. 
 
 # Acknowledgments
-This library is old and went through several redesigns and a large refactoring as I grew as a 
-programmer and accumulated experience using it. I actually started after toiling with the cyclejs
- framework and complex state orchestration. I was not an expert in functional programming, and 
- the original design was quite tangled (streams, asynchrony, etc.) and hardly reusable out of 
- cyclejs. The current design resulting from my increased understanding and awareness of 
- architecture, and functional design.
+This library is old and went through several redesigns and a large refactoring as I grew as a programmer and accumulated experience using it. I actually started after toiling with the cyclejs framework and complex state orchestration. I was not an expert in functional programming, and the original design was quite tangled (streams, asynchrony, etc.) and hardly reusable out of cyclejs. The current design resulting from my increased understanding and awareness of architecture, and functional design.
 
 The key influences I want to quote thus are:
-- cyclejs, but of course from which I started to understand the benefits of the separation of 
-effects from logic
+- cyclejs, but of course from which I started to understand the benefits of the separation of effects from logic
 - elm - who led me to the equational thinking behind Kingly
 - erlang - for forcing me to learn much more about concurrency.
 
 # Annex
 ## So what is an Extended Hierarchical State Transducer ? 
-Not like it matters so much but anyways. Feel free to skip that section if you have little 
-interest in computer science.
+Not like it matters so much but anyways. Feel free to skip that section if you have little interest in computer science.
 
 Alright, let's build the concept progressively.
 
-An [automaton](https://en.wikipedia.org/wiki/Automata_theory) is a construct made of states 
-designed to determine if a sequence of inputs should be accepted or rejected. It looks a lot like a 
-basic board game where each space on the board represents a state. Each state has information about what to do when an input is received by the machine (again, rather like what to do when you land on the Jail spot in a popular board game). As the machine receives a new input, it looks at the state and picks a new spot based on the information on what to do when it receives that input at that state. When there are no more inputs, the automaton stops and the space it is on when it completes determines whether the automaton accepts or rejects that particular set of inputs.
+An [automaton](https://en.wikipedia.org/wiki/Automata_theory) is a construct made of states designed to determine if a sequence of inputs should be accepted or rejected. It looks a lot like a basic board game where each space on the board represents a state. Each state has information about what to do when an input is received by the machine (again, rather like what to do when you land on the Jail spot in a popular board game). As the machine receives a new input, it looks at the state and picks a new spot based on the information on what to do when it receives that input at that state. When there are no more inputs, the automaton stops and the space it is on when it completes determines whether the automaton accepts or rejects that particular set of inputs.
 
-State machines and automata are essentially interchangeable terms. Automata is the favored term 
-when connoting automata theory, while state machines is more often used in the context of the 
-actual or practical usage of automata.
+State machines and automata are essentially interchangeable terms. Automata is the favored term when connoting automata theory, while state machines is more often used in the context of the actual or practical usage of automata.
 
-An extended state machine is a state machine endowed with a set of variables, predicates (guards)
-and instructions governing the update of the mentioned set of variables. To any extended state 
-machines it corresponds a standard state machine (albeit often one with a far greater number of 
-states) with the same semantics.
+An extended state machine is a state machine endowed with a set of variables, predicates (guards) and instructions governing the update of the mentioned set of variables. To any extended state machines it corresponds a standard state machine (albeit often one with a far greater number of states) with the same semantics.
 
-A hierarchical state machine is a state machine whose states can be themselves state machines. 
-Thus instead of having a set of states as in standard state machines, we have a hierarchy (tree) of 
-states describing the system under study.
+A hierarchical state machine is a state machine whose states can be themselves state machines. Thus instead of having a set of states as in standard state machines, we have a hierarchy (tree) of states describing the system under study.
 
-A [state transducer](https://en.wikipedia.org/wiki/Finite-state_transducer) is a state 
-machine, which in addition to accepting inputs, and modifying its state accordingly, may also 
-generate outputs.
+A [state transducer](https://en.wikipedia.org/wiki/Finite-state_transducer) is a state machine, which in addition to accepting inputs, and modifying its state accordingly, may also generate outputs.
 
-We propose here a library dealing with extended hierarchical state transducers, i.e. a state machine
-whose states can be other state machines (hierarchical part), which (may) associate an output to an 
-input (transducer part), and whose input/output relation follows a logic guided by 
-predefined control states (state machine part), and an encapsulated memory which can be 
-modified through actions guarded by predicates (extended part).
+We propose here a library dealing with extended hierarchical state transducers, i.e. a state machine whose states can be other state machines (hierarchical part), which (may) associate an output to an input (transducer part), and whose input/output relation follows a logic guided by predefined control states (state machine part), and an encapsulated memory which can be modified through actions guarded by predicates (extended part).
 
-Note that if we add concurrency and messaging to extended hierarchical state transducers, we get
- a statechart. We made the design decision to remain at the present level, and not to incorporate 
- any concurrency mechanism.[^2]
+Note that if we add concurrency and messaging to extended hierarchical state transducers, we get a statechart. We made the design decision to remain at the present level, and not to incorporate  any concurrency mechanism.[^2]
 
 [^2]: Our rationale is as follows:  
- - statecharts include activities and actions which may produce effects, and concurrency. We are 
- seeking an purely computational approach (i.e effect-less) to facilitate **composition, reuse and 
-  testing**. 
- - In the absence of concurrency (i.e. absence of parallel regions), a statechart can be turned 
- into a hierarchical state transducer. That is often enough! 
- - there is no difference in terms of 
- expressive power between statecharts and hierarchical transducers[^4], just as there is no 
- difference in expressive power between extended state machines and regular state machines. The 
- difference lies in naturalness and convenience: a 5-state extended state machine is 
- easier to read and maintain than the equivalent 50-state regular state machine. 
- - we argue that convenience here is on the side of being able to freely plug in any [concurrent 
- or communication model](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.92.6145&rep=rep1&type=pdf) fitting the problem space. In highly concurrent systems, programmers may have it hard to elaborate a mental model of the statecharts solely from the visualization of 
- concurrent statecharts.
- - some [statecharts practitioners](http://sismic.readthedocs.io/en/master/communication.html#) 
- favor having separate state charts communicating[^5] in an ad-hoc way rather than an integrated 
- statechart model where concurrent state charts are gathered in nested states of a single 
- statechart. We agree.
+ - statecharts include activities and actions which may produce effects, and concurrency. We are seeking an purely computational approach (i.e effect-less) to facilitate **composition, reuse and testing**. 
+ - In the absence of concurrency (i.e. absence of parallel regions), a statechart can be turned into a hierarchical state transducer. That is often enough! 
+ - there is no difference in terms of expressive power between statecharts and hierarchical transducers[^4], just as there is no difference in expressive power between extended state machines and regular state machines. The difference lies in naturalness and convenience: a 5-state extended state machine is easier to read and maintain than the equivalent 50-state regular state machine. 
+ - we argue that convenience here is on the side of being able to freely plug in any [concurrent or communication model](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.92.6145&rep=rep1&type=pdf) fitting the problem space. In highly concurrent systems, programmers may have it hard to elaborate a mental model of the statecharts solely from the visualization of concurrent statecharts.
+ - some [statecharts practitioners](http://sismic.readthedocs.io/en/master/communication.html#) favor having separate state charts communicating[^5] in an ad-hoc way rather than an integrated statechart model where concurrent state charts are gathered in nested states of a single statechart. We agree.
  
-[^3]: As a matter of fact, more than 20 different semantics have been proposed to define 
-precisely the concurrency model for statecharts, e.g Rhapsody, Statemate, VisualMate, StateFlow, 
-UML, etc. do not share a single concurrency model.
-[^4]: David Harel, Statecharts.History.CACM: Speaking in the strict mathematical sense of power 
-of expression, hierarchy and orthogonality are but helpful abbreviations and can be eliminated
-[^5]: David Harel, Statecharts.History.CACM: <<I definitely do not recommend having a single 
-statechart for an entire system. (...) concurrency occurs on a higher level.)>>
+[^3]: As a matter of fact, more than 20 different semantics have been proposed to define precisely the concurrency model for statecharts, e.g Rhapsody, Statemate, VisualMate, StateFlow, UML, etc. do not share a single concurrency model.
+[^4]: David Harel, Statecharts.History.CACM: Speaking in the strict mathematical sense of power of expression, hierarchy and orthogonality are but helpful abbreviations and can be eliminated
+[^5]: David Harel, Statecharts.History.CACM: <<I definitely do not recommend having a single statechart for an entire system. (...) concurrency occurs on a higher level.)>>
 
 
