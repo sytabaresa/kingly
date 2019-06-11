@@ -27,8 +27,8 @@
 # Features
 This library enables you to implement the **behaviour** of your user interfaces or components as 
 state machines. You specify the machine as a graph. The library computes a function which 
-implements that machine. You use that to drive your interface. You then **display** the UI with the 
-UI framework of your choice. Tests can be automatically generated.
+implements that machine. You **drive** your interface with that function, you **display** the UI 
+with the UI framework of your choice. Tests can be automatically generated.
 
 Salient features:
 
