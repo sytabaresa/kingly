@@ -53,7 +53,7 @@ This library fundamentally implements computations which can be modelized by a t
 machines called hierarchical extended [state transducer](https://en.wikipedia.org/wiki/Finite-state_transducer). This library offers a way to define, and use such transducers. 
 
 The major motivation for this library is the specification and implementation of user interfaces. 
-As a matter of fact, to [every user interface can be associated a computation](http://localhost:4000/documentation/v1/contributed/User%20interfaces%20as%20reactive%20systems.html) relating 
+As a matter of fact, to [every user interface can be associated a computation](http://brucou.github.io/documentation/v1/contributed/User%20interfaces%20as%20reactive%20systems.html) relating 
 inputs to the user interface to an action to be performed on the interfaced systems. That 
 computation often has a logic [organized around a limited set of control states](http://brucou.github.io/documentation/v1/tutorials/password-meter.html), and can be advantageously modelized by a state machine. 
 
@@ -78,10 +78,10 @@ In such cases, we were able to modelize our computation with an Extended Hierarc
 - is reasonably easy to reason about and communicate (the transducer can be visually represented)
 - supports step-wise refinement and iterative development (control states can be refined into a hierarchy of nested states)
  
- We plan to release the first major version in August 2019.
- 
 # Install
 `npm install kingly --save`
+
+Cf [documentation](http://localhost:4000/documentation/v1/tutorials/installation.html)
 
 # Tests
 To run the current automated tests: `npm run test`
