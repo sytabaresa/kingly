@@ -1,4 +1,5 @@
 # Now
+- other example of full app: https://github.com/TrillCyborg/fullstack
 - REMOVE render commands from REACT_STATE_DRIVEN!!!! put it in kingly!!! for dependency reasons
 - similar to what I want to do with actor/processes/cycle : 
   - https://medium.com/dailyjs/introducing-bloc-pattern-with-react-and-rxjs-40109665bb2
