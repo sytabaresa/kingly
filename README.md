@@ -27,8 +27,8 @@
 # Features
 This library enables you to implement the **behaviour** of your user interfaces or components as 
 state machines. The behaviour is the relation between the actions performed on the user 
-interface (button clicks, etc.) and the actions to perform on the interfaced systems (fetch data,
- display screens, etc.). You specify the machine as a graph. The library computes a function which 
+interface (button clicks, etc.) and the actions (commands) to perform on the interfaced systems 
+(fetch data, display screens, etc.). You specify the machine as a graph. The library computes a function which 
  implements the state machine which specifies the behaviour. You **drive** your interface with 
  that function, you **display** the UI with the UI framework of  your choice. Tests can be automatically generated.
 
@@ -192,11 +192,18 @@ More prosaically, did you know that ES6 generators compile down to ES5 state mac
 
 So state machines are nothing like a new, experimental tool, but rather one with a fairly extended and proven track in both industrial and consumer applications. 
 
+# About the name
+We call this library "Kingly" to express it allows developers to rule their UI -- like a king. 
+Developers define rules in the machine, in the form of control states and guards, those rules 
+define what is possible and what is not, and what should happen in response to events.
+
+And also, the other names I wanted were already taken :-).
+
 # Acknowledgments
 This library is old and went through several redesigns and a large refactoring as I grew as a programmer and accumulated experience using it. I actually started after toiling with the cyclejs framework and complex state orchestration. I was not an expert in functional programming, and the original design was quite tangled (streams, asynchrony, etc.) and hardly reusable out of cyclejs. The current design resulting from my increased understanding and awareness of architecture, and functional design.
 
 The key influences I want to quote thus are:
-- cyclejs, but of course from which I started to understand the benefits of the separation of effects from logic
+- cyclejs, but of course, from which I started to understand the benefits of the separation of effects from logic
 - elm - who led me to the equational thinking behind Kingly
 - erlang - for forcing me to learn much more about concurrency.
 
