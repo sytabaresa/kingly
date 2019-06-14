@@ -6,7 +6,7 @@ import {
   arrayizeOutput, assert, computeHistoryMaps, emptyConsole, findInitTransition, get_fn_name, getFsmStateList,
   getFunctionName, handleFnExecError, initHistoryDataStructure, isActions, isBoolean, isEventStruct,
   isHistoryControlState, keys, mapOverTransitionsActions, noop, notifyAndRethrow, throwIfInvalidActionResult,
-  throwIfInvalidEntryActionResult, throwIfInvalidGuardResult, tryCatchMachineFn, updateHistory, wrap
+  throwIfInvalidEntryActionResult, throwIfInvalidGuardResult, tryCatchMachineFn, updateHistory, wrap, isError
 } from "./helpers";
 import { fsmContractChecker } from "./contracts"
 
@@ -299,7 +299,9 @@ export function createStateMachine(fsmDef, settings) {
 
               // ...and enter the next state (can be different from `to` if we have nesting state group)
               const next_state = enter_next_state(to, updates, hash_states);
-              console.info("ENTERING NEXT STATE : ", next_state);
+              console.info("ENTERING NEXT STATE: ", next_state);
+              if (isError(extendedStateOrError)) console.error("with error: ", extendedStateOrError);
+              if (!isError(extendedStateOrError)) console.info("with extended state: ", extendedState);
 
               // allows for chaining and stop chaining guard
               return { stop: true, outputs };

@@ -34,7 +34,7 @@ interface (button clicks, etc.) and the actions (commands) to perform on the int
 
 Salient features:
 
-- **small size**: treeshakeable implementation, down from 9kB
+- **small size**: treeshakeable implementation, down from 11kB
 - **small API**: one function for the state machine, one function for tracing (and one function 
 for the [test generation](https://github.com/brucou/state-transducer-testing) available in a 
 separate package)

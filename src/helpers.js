@@ -730,3 +730,7 @@ export function isEventStruct(obj) {
 
   return trueOrError
 }
+
+export function isError(obj){
+  return obj instanceof Error
+}

@@ -67,30 +67,84 @@ QUnit.test("debug settings, event, no action, false guard", function exec_test(a
   const fsm = create_state_machine(fsmDef, default_settings);
   const result = fsm({ ev: initialExtendedState });
   assert.deepEqual(consoleContent, [
-      "debug", [
-        "send event", {
+      "debug",
+      [
+        "send event",
+        {
           "init": {
             "a_key": "some value",
             "another_key": "another value"
           }
-        }],
-      "log", ["found event handler!"],
-      "info", ["WHEN EVENT ", "init"],
-      "info", ["IN STATE ", "nok"],
-      "info", ["CASE: guard alwaysTrue for transition is fulfilled"],
-      "info", ["THEN : we execute the action ACTION_IDENTITY"],
-      "info", ["left state", "-nok-"],
-      "info", ["AND TRANSITION TO STATE", "A"],
-      "info", ["ENTERING NEXT STATE : ", "A"],
-      "debug", ["send event", {
-        "ev": {
+        }
+      ],
+      "log",
+      [
+        "found event handler!"
+      ],
+      "info",
+      [
+        "WHEN EVENT ",
+        "init"
+      ],
+      "info",
+      [
+        "IN STATE ",
+        "nok"
+      ],
+      "info",
+      [
+        "CASE: guard alwaysTrue for transition is fulfilled"
+      ],
+      "info",
+      [
+        "THEN : we execute the action ACTION_IDENTITY"
+      ],
+      "info",
+      [
+        "left state",
+        "-nok-"
+      ],
+      "info",
+      [
+        "AND TRANSITION TO STATE",
+        "A"
+      ],
+      "info",
+      [
+        "ENTERING NEXT STATE: ",
+        "A"
+      ],
+      "info",
+      [
+        "with extended state: ",
+        {
           "a_key": "some value",
           "another_key": "another value"
         }
-      }],
-      "log", ["found event handler!"],
-      "info", ["WHEN EVENT ", "ev"],
-      "warn", ["No guards have been fulfilled! We recommend to configure guards explicitly to cover the full state space!"]
+      ],
+      "debug",
+      [
+        "send event",
+        {
+          "ev": {
+            "a_key": "some value",
+            "another_key": "another value"
+          }
+        }
+      ],
+      "log",
+      [
+        "found event handler!"
+      ],
+      "info",
+      [
+        "WHEN EVENT ",
+        "ev"
+      ],
+      "warn",
+      [
+        "No guards have been fulfilled! We recommend to configure guards explicitly to cover the full state space!"
+      ]
     ],
       `console displays something`);
 });
