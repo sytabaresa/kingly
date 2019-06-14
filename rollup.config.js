@@ -94,6 +94,6 @@ export default {
     //   // option if you know what you're doing!
     //   ignore: [ 'conditional-runtime-dependency' ]
     }),
-    terser()
+    // terser()
   ]
 };
