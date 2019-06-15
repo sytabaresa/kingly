@@ -53,9 +53,7 @@ All documentation can be accessed in the [dedicated web site](https://brucou.git
 ## Password meter
 | State Machine |UI library| Demo |  
 |---|---|---|
-|![password submit fsm](assets/password%20submit%20fsm.png)|[Vanilla js](https://codesandbox.io/s/mqx96pm64j)|![password meter demo](assets/password%20selector%20demo%20animated.png)
-|![password submit fsm](assets/password%20submit%20fsm.png)|[Nanomorph](https://codesandbox.io/s/73wy8jwk86)|![password meter demo](assets/password%20selector%20demo%20animated.png)
-|![password submit fsm](assets/password%20submit%20fsm.png)|[Vue](https://codesandbox.io/s/l9o1qknoz7)|![password meter demo](assets/password%20selector%20demo%20animated.png)
+|![password submit fsm](assets/password%20submit%20fsm.png)|[Vanilla js](https://codesandbox.io/s/mqx96pm64j)<br>[Nanomorph](https://codesandbox.io/s/73wy8jwk86)<br>[Vue](https://codesandbox.io/s/l9o1qknoz7)|![password meter demo](assets/password%20selector%20demo%20animated.png)
 
 # Motivation
 This library fundamentally implements computations which can be modelized by a type of state 
