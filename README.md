@@ -55,6 +55,14 @@ All documentation can be accessed in the [dedicated web site](https://brucou.git
 |---|---|---|
 |![password submit fsm](assets/password%20submit%20fsm.png)|![password meter demo](assets/password%20selector%20demo%20animated.png)|[Vanilla js](https://codesandbox.io/s/mqx96pm64j)<br>[Nanomorph](https://codesandbox.io/s/73wy8jwk86)<br>[Vue](https://codesandbox.io/s/l9o1qknoz7)
 
+## Movie database search interface
+| State Machine | Demo |  UI library
+|---|---|---|
+|![movie app machine](https://github.com/brucou/movie-search-app/raw/specs-all/article/movie%20search%20good%20fsm%20corrected%20flowchart%20no%20emphasis%20switchMap.png)|![movie app demo](assets/movie%20app%20demo%20init.png)|[Vue](https://codesandbox.io/s/p7xv6r1moq)<br>[React](https://codesandbox.io/s/ym8vpqm7m9)<br>[Ivi](https://codesandbox.io/s/3x9x5v4kq5)<br>[Inferno](https://codesandbox.io/s/9zjo5yx8po)<br>[Nerv](https://codesandbox.io/s/o4vkwmw7y)<br>[Svelte](https://github.com/brucou/movie-search-app-svelte)
+
+
+## Wizard forms
+
 # Motivation
 This library fundamentally implements computations which can be modelized by a type of state 
 machines called hierarchical extended [state transducer](https://en.wikipedia.org/wiki/Finite-state_transducer). This library offers a way to define, and use such transducers. 
