@@ -44,11 +44,15 @@ separate package)
 # Documentation
 All documentation can be accessed in the [dedicated web site](https://brucou.github.io/documentation/).
 
+[Vanilla js](https://codesandbox.io/s/mqx96pm64j)
+[Nanomorph](https://codesandbox.io/s/73wy8jwk86)
+[Vue](https://codesandbox.io/s/l9o1qknoz7)
+
 # Examples
 |Code playground | Demo | State Machine | 
 |---|---|---|
-|[trivial counter](https://codesandbox.io/s/w6x42521n7)|![trivial counter demo](assets/counter%20app%20demo.gif)|![trivial counter fsm](https://brucou.github.io/documentation/graphs/trivial%20counter%20machine.png)
-|[password meter component](https://codesandbox.io/s/73wy8jwk86)|![password meter demo](assets/password%20selector%20demo%20animated.png)|![password submit fsm](assets/password%20submit%20fsm.png)
+|[trivial counter<br>Vanilla JS](https://codesandbox.io/s/w6x42521n7)|![trivial counter demo](assets/counter%20app%20demo.gif)|![trivial counter fsm](https://brucou.github.io/documentation/graphs/trivial%20counter%20machine.png)
+|[password meter component<br>Vanilla js<br>Nanomorph<br>Vue<br>](https://codesandbox.io/s/73wy8jwk86)|![password meter demo](assets/password%20selector%20demo%20animated.png)|![password submit fsm](assets/password%20submit%20fsm.png)
 |[movie database search interface](https://codesandbox.io/s/mo2p97k7m8)|![movie app demo](assets/movie%20app%20demo%20init.png)|![movie app machine](https://github.com/brucou/movie-search-app/raw/specs-all/article/movie%20search%20good%20fsm%20corrected%20flowchart%20no%20emphasis%20switchMap.png) 
 |[wizard forms](https://github.com/brucou/cycle-state-machine-demo/tree/first-iteration-fix)|![wizard form demo](https://github.com/brucou/cycle-state-machine-demo/raw/first-iteration-fix/public/assets/images/animated_demo.gif)|![wizard form machine](https://github.com/brucou/cycle-state-machine-demo/raw/first-iteration-fix/public/assets/images/graphs/sparks%20application%20process%20with%20comeback%20proper%20syntax%20-%20flat%20fsm.png)
 

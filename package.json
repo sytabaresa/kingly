@@ -20,7 +20,6 @@
   "module": "dist/kingly.es.min.js",
   "main": "dist/kingly.umd.min.js",
   "files": [
-    "src/",
     "dist/"
   ],
   "scripts": {
