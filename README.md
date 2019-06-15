@@ -51,9 +51,9 @@ All documentation can be accessed in the [dedicated web site](https://brucou.git
 |![trivial counter fsm](https://brucou.github.io/documentation/graphs/trivial%20counter%20machine.png)|[Vanilla JS](https://codesandbox.io/s/w6x42521n7)|![trivial counter demo](assets/counter%20app%20demo.gif)
 
 ## Password meter
-| State Machine |UI library| Demo |  
+| State Machine | Demo |  UI library
 |---|---|---|
-|![password submit fsm](assets/password%20submit%20fsm.png)|[Vanilla js](https://codesandbox.io/s/mqx96pm64j)<br>[Nanomorph](https://codesandbox.io/s/73wy8jwk86)<br>[Vue](https://codesandbox.io/s/l9o1qknoz7)|![password meter demo](assets/password%20selector%20demo%20animated.png)
+|![password submit fsm](assets/password%20submit%20fsm.png)|![password meter demo](assets/password%20selector%20demo%20animated.png)|[Vanilla js](https://codesandbox.io/s/mqx96pm64j)<br>[Nanomorph](https://codesandbox.io/s/73wy8jwk86)<br>[Vue](https://codesandbox.io/s/l9o1qknoz7)
 
 # Motivation
 This library fundamentally implements computations which can be modelized by a type of state 
