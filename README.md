@@ -46,9 +46,9 @@ All documentation can be accessed in the [dedicated web site](https://brucou.git
 
 # Examples
 ## Trivial counter application
-| State Machine |UI library| Demo |  
+| State Machine | Demo |UI library 
 |---|---|---|
-|![trivial counter fsm](https://brucou.github.io/documentation/graphs/trivial%20counter%20machine.png)|[Vanilla JS](https://codesandbox.io/s/w6x42521n7)|![trivial counter demo](assets/counter%20app%20demo.gif)
+|![trivial counter fsm](https://brucou.github.io/documentation/graphs/trivial%20counter%20machine.png)|![trivial counter demo](assets/counter%20app%20demo.gif)|[Vanilla JS](https://codesandbox.io/s/w6x42521n7)
 
 ## Password meter
 | State Machine | Demo |  UI library
