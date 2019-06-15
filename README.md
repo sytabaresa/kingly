@@ -62,6 +62,9 @@ All documentation can be accessed in the [dedicated web site](https://brucou.git
 
 
 ## Wizard forms
+| State Machine | Demo |UI library 
+|---|---|---|
+|![wizard form machine](https://github.com/brucou/cycle-state-machine-demo/raw/first-iteration-fix/public/assets/images/graphs/sparks%20application%20process%20with%20comeback%20proper%20syntax%20-%20flat%20fsm.png)|![wizard form demo](https://github.com/brucou/cycle-state-machine-demo/raw/first-iteration-fix/public/assets/images/animated_demo.gif)|[Cycle JS](https://github.com/brucou/cycle-state-machine-demo/tree/first-iteration-fix)
 
 # Motivation
 This library fundamentally implements computations which can be modelized by a type of state 
