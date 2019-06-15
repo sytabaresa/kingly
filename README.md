@@ -45,6 +45,8 @@ separate package)
 All documentation can be accessed in the [dedicated web site](https://brucou.github.io/documentation/).
 
 # Examples
+You can review the following examples which have been implemented with the same state machine, across different UI frameworks, with links to the corresponding codesandboxes.
+
 ## Trivial counter application
 | State Machine | Demo |UI library 
 |---|---|---|
