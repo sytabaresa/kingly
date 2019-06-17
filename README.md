@@ -62,7 +62,6 @@ You can review the following examples which have been implemented with the same 
 |---|---|---|
 |![movie app machine](https://github.com/brucou/movie-search-app/raw/specs-all/article/movie%20search%20good%20fsm%20corrected%20flowchart%20no%20emphasis%20switchMap.png)|![movie app demo](assets/movie%20app%20demo%20init.png)|[Vue](https://codesandbox.io/s/p7xv6r1moq)<br>[React](https://codesandbox.io/s/ym8vpqm7m9)<br>[Ivi](https://codesandbox.io/s/3x9x5v4kq5)<br>[Inferno](https://codesandbox.io/s/9zjo5yx8po)<br>[Nerv](https://codesandbox.io/s/o4vkwmw7y)<br>[Svelte](https://github.com/brucou/movie-search-app-svelte)
 
-
 ## Wizard forms
 | State Machine | Demo |UI library 
 |---|---|---|

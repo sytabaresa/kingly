@@ -1,4 +1,13 @@
 # Now
+- maybe add or pass a settings object to the command handler (passed if needed to command handlers)?
+  - this is for dependency injection - can have effects or commands more testable
+  - or leave it userland?
+  - but the effect handlers is already dependency injection!! Put all dependencies there even if they don't do effects!!
+- make example of Kingly reproducing API of semantic-UI
+  - without jquery, with web components! 
+  - customizable state machine, packaged on npm 
+- make article on stop coupling ui and logic!
+- make article on testing - using the chess as an example
 - other example of full app: https://github.com/TrillCyborg/fullstack
 - REMOVE render commands from REACT_STATE_DRIVEN!!!! put it in kingly!!! for dependency reasons
 - similar to what I want to do with actor/processes/cycle : 
