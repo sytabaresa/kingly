@@ -1,7 +1,7 @@
 {
   "name": "kingly",
   "sideEffects": false,
-    "version": "0.19.2",
+    "version": "0.19.3",
   "description": "Extended Hierarchical State Transducer library",
   "repository": {
     "type": "git",
@@ -22,12 +22,17 @@
   "files": [
     "dist/"
   ],
+  "np": {
+    "yarn": false,
+    "contents": "dist"
+  },
   "scripts": {
     "prepublish": "npm run build",
     "test": "parcel test/parcel-index.html",
     "build_dev": "rollup --sourcemap -c rollup.config.js --environment BUILD:development",
     "build_prod": "rollup --sourcemap -c rollup.config.js --environment BUILD:production",
-    "build": "npm run build_dev &&  npm run build_prod"
+    "build": "npm run build_dev &&  npm run build_prod",
+    "release": "np --yolo"
   },
   "engines": {
     "node": "6.3.0"
