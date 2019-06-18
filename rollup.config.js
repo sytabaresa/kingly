@@ -84,6 +84,7 @@ let plugins = [
     }),
 ];
 let suffix="";
+
 if (process.env.BUILD == "production") {
   plugins = plugins.concat(terser())
     suffix = "min";
