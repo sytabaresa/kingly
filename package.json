@@ -27,7 +27,7 @@
     "contents": "dist"
   },
   "scripts": {
-    "prepublish": "npm run build",
+    "prepublish": "npm run build  && npm run release",
     "test": "parcel test/parcel-index.html",
     "build_dev": "rollup --sourcemap -c rollup.config.js --environment BUILD:development",
     "build_prod": "rollup --sourcemap -c rollup.config.js --environment BUILD:production",
