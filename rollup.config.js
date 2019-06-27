@@ -1,8 +1,12 @@
 import resolve from 'rollup-plugin-node-resolve';
 import commonjs from 'rollup-plugin-commonjs';
 import { terser } from "rollup-plugin-terser";
+import babel from 'rollup-plugin-babel';
 
 let plugins = [
+    babel({
+        exclude: 'node_modules/**',
+    }),
     resolve({
         // use "module" field for ES6 module if possible
         module: true, // Default: true
@@ -87,17 +91,17 @@ let suffix="";
 
 if (process.env.BUILD == "production") {
   plugins = plugins.concat(terser())
-    suffix = "min";
+    suffix = ".min";
 }
 
 const exp = {
     input: 'src/index.js',
     output: [{
-        file: `dist/kingly.umd.${suffix}.js`,
+        file: `dist/kingly.umd${suffix}.js`,
         format: 'umd',
         name: 'Kingly',
     },{
-        file: `dist/kingly.es.${suffix}.js`,
+        file: `dist/kingly.es${suffix}.js`,
         format: 'esm',
         name: 'Kingly',
     },

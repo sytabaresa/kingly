@@ -34,3 +34,5 @@ export const UPDATE_STATE_FN_DESC = `update state function`
 export const PREDICATE_DESC = `predicate`
 
 export const COMMAND_RENDER = 'render'
+
+export const CONTRACTS_EVAL = "CONTRACTS_EVAL";

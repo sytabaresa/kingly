@@ -3,10 +3,32 @@ import {
   INIT_STATE, NO_OUTPUT, PREDICATE_DESC, SHALLOW, STATE_PROTOTYPE_NAME, UPDATE_STATE_FN_DESC
 } from "./properties";
 import {
-  arrayizeOutput, assert, computeHistoryMaps, emptyConsole, findInitTransition, get_fn_name, getFsmStateList,
-  getFunctionName, handleFnExecError, initHistoryDataStructure, isActions, isBoolean, isEventStruct,
-  isHistoryControlState, keys, mapOverTransitionsActions, noop, notifyAndRethrow, throwIfInvalidActionResult,
-  throwIfInvalidEntryActionResult, throwIfInvalidGuardResult, tryCatchMachineFn, updateHistory, wrap, isError
+    arrayizeOutput,
+    assert,
+    computeHistoryMaps,
+    emptyConsole,
+    findInitTransition,
+    get_fn_name,
+    getFsmStateList,
+    getFunctionName,
+    handleFnExecError,
+    initHistoryDataStructure,
+    isActions,
+    isBoolean,
+    isEventStruct,
+    isHistoryControlState,
+    keys,
+    mapOverTransitionsActions,
+    noop,
+    notifyAndRethrow,
+    throwIfInvalidActionResult,
+    throwIfInvalidEntryActionResult,
+    throwIfInvalidGuardResult,
+    tryCatchMachineFn,
+    updateHistory,
+    wrap,
+    isError,
+    emptyTrace
 } from "./helpers";
 import { fsmContractChecker } from "./contracts"
 
@@ -172,6 +194,7 @@ export function createStateMachine(fsmDef, settings) {
   const { debug } = settings || {};
   const checkContracts = debug && debug.checkContracts || void 0;
   let console = debug && debug.console ? debug.console : emptyConsole;
+  let trace = debug && debug.trace ? debug.trace : emptyTrace;
 
   if (checkContracts) {
     const { failingContracts } = fsmContractChecker(fsmDef, settings, checkContracts);

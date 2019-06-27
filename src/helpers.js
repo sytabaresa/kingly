@@ -9,6 +9,7 @@ import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
 
 export const noop = () => {};
 export const emptyConsole = { log: noop, warn: noop, info: noop, debug: noop, error: noop, trace: noop };
+export const emptyTrace = noop;
 
 export function isBoolean(x){
   return typeof x === 'boolean'
