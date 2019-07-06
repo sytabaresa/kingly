@@ -1,4 +1,5 @@
 import {
+    emptyConsole,
     findInitTransition,
     getAncestorMap,
     getEventTransitionsMaps,
@@ -751,7 +752,7 @@ export const fsmContracts = {
  * @returns {function(...[*]=): {isFulfilled: boolean, failingContracts: Array}}
  */
 function makeContractHandler(contractsDef, settings) {
-    const console = settings && settings.console || console;
+    const console = settings && settings.console || emptyConsole;
     const trace = settings && settings.trace || noop;
     const contractsDescription = contractsDef.description;
 
@@ -768,6 +769,7 @@ function makeContractHandler(contractsDef, settings) {
             if (isFulfilled) return acc
             else {
                 failingContracts.push({name: contractName, message, info});
+                debugger
                 console.error(blameMessageHeader);
                 console.error([contractName, message].join(': '));
                 console.debug('Supporting error data:', info);
