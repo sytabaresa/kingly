@@ -735,3 +735,10 @@ export function isEventStruct(obj) {
 export function isError(obj){
   return obj instanceof Error
 }
+
+export function destructureEvent(obj){
+    const eventName= Object.keys(obj)[0];
+    const eventData = obj[eventName];
+
+    return {eventName, eventData}
+}

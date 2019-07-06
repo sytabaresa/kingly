@@ -28,7 +28,7 @@ import {
     updateHistory,
     wrap,
     isError,
-    emptyTrace
+    emptyTrace, destructureEvent
 } from "./helpers";
 import { fsmContractChecker } from "./contracts"
 
@@ -360,15 +360,14 @@ export function createStateMachine(fsmDef, settings) {
     console.debug("send event", event_struct);
     assertContract(isEventStruct, [event_struct]);
 
-    const event_name = keys(event_struct)[0];
-    const event_data = event_struct[event_name];
+    const {eventName, eventData} = destructureEvent(event_struct);
     const current_state = hash_states[INIT_STATE].current_state_name;
 
     // Edge case : INIT_EVENT sent and the current state is not the initial state
     // We have to do this separately, as by construction the INIT_STATE is a
     // super state of all states in the machine. Hence sending an INIT_EVENT
     // would always execute the INIT transition by prototypal delegation
-    if (isExternalEvent && event_name === INIT_EVENT && current_state !== INIT_STATE) {
+    if (isExternalEvent && eventName === INIT_EVENT && current_state !== INIT_STATE) {
       console.warn(`The external event INIT_EVENT can only be sent when starting the machine!`)
 
       return NO_OUTPUT
@@ -376,8 +375,8 @@ export function createStateMachine(fsmDef, settings) {
 
     return process_event(
       hash_states_struct.hash_states,
-      event_name,
-      event_data,
+      eventName,
+      eventData,
       extendedState
     );
   }
