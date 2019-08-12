@@ -752,8 +752,8 @@ export const fsmContracts = {
  * @returns {function(...[*]=): {isFulfilled: boolean, failingContracts: Array}}
  */
 function makeContractHandler(contractsDef, settings) {
-    const console = settings && settings.console || emptyConsole;
-    const trace = settings && settings.trace || noop;
+    const console = settings && settings.debug && settings.debug.console || emptyConsole;
+    const trace = settings && settings.debug && settings.debug.trace || noop;
     const contractsDescription = contractsDef.description;
 
     return function checkContracts(...args) {
