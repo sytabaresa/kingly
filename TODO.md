@@ -1,4 +1,5 @@
 # Now
+- DOC: add  that no events can be called 'undefined', and add a contract for it
 - maybe add or pass a settings object to the command handler (passed if needed to command handlers)?
   - this is for dependency injection - can have effects or commands more testable
   - or leave it userland?

@@ -1,7 +1,7 @@
 {
   "name": "kingly",
   "sideEffects": false,
-  "version": "0.20.0",
+  "version": "0.20.11",
   "description": "Extended Hierarchical State Transducer library",
   "repository": {
     "type": "git",
@@ -19,8 +19,16 @@
   ],
   "module": "dist/kingly.es.min.js",
   "main": "dist/kingly.umd.min.js",
+  "unpkg": "dist/kingly.umd.min.js",
   "files": [
-    "dist/"
+    "dist/kingly.es.js",
+    "dist/kingly.es.js.map",
+    "dist/kingly.es.min.js",
+    "dist/kingly.es.min.js.map",
+    "dist/kingly.umd.js",
+    "dist/kingly.umd.js.map",
+    "dist/kingly.umd.min.js",
+    "dist/kingly.umd.min.js.map"
   ],
   "np": {
     "yarn": false,

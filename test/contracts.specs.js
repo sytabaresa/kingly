@@ -544,11 +544,11 @@ QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - inco
   const states = { A: { B: '' }, C: '' };
   const fsmDef = {
     states,
-    events: ['ev', 'anything'],
+    events: ['anything'],
     transitions: [
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY },
       { from: 'C', to: 'A', event: 'anything', action: ACTION_IDENTITY },
-      { from: 'B', to: 'A', event: void 0, action: ACTION_IDENTITY },
+      { from: 'B', to: 'A', event: 42, action: ACTION_IDENTITY },
       { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
@@ -565,7 +565,7 @@ QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - inco
       "index": 2,
       "transition": {
         "action": "ACTION_IDENTITY",
-        "event": undefined,
+        "event": 42,
         "from": "B",
         "to": "A"
       }
@@ -680,11 +680,11 @@ QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - cond
   const states = { A: { B: '' }, C: '' };
   const fsmDef = {
     states,
-    events: ['ev', 'anything'],
+    events: ['anything'],
     transitions: [
       { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY },
       { from: 'C', to: 'A', event: 'anything', action: ACTION_IDENTITY },
-      { from: 'B', event: void 0, guards: [{ to: 'A', action: ACTION_IDENTITY, predicate: () => {} }] },
+      { from: 'B', event: 42, guards: [{ to: 'A', action: ACTION_IDENTITY, predicate: () => {} }] },
       { from: 'A', event: INIT_EVENT, to: 'B', action: ACTION_IDENTITY }
     ],
     initialExtendedState: {},
@@ -700,7 +700,7 @@ QUnit.test(`fsmContracts(fsmDef): configured transition have valid format - cond
     {
       "index": 2,
       "transition": {
-        "event": undefined,
+        "event": 42,
         "from": "B",
         "guards": [
           {

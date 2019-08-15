@@ -769,7 +769,7 @@ const Lt = {
     statesType: ot(t.states),
     initTransition: Et(t.transitions),
     statesTransitionsMap: at(t.transitions),
-    statesTransitionsMaps: rt(t.transitions),
+    stateEventTransitionsMaps: rt(t.transitions),
     eventTransitionsMaps: ct(t.transitions),
     ancestorMap: dt(t.states),
     statesPath: it(t.states),
@@ -1922,7 +1922,7 @@ t.fsmContracts = Lt, t.build_state_enum = function(t) {
   }
 }, t.lastOf = function(t) {
   return t[t.length - 1]
-}, t.getFsmStateList = st, t.getStatesType = ot, t.getStatesPath = it, t.getStatesTransitionsMap = at, t.getStatesTransitionsMaps = rt, t.getEventTransitionsMaps = ct, t.getHistoryStatesMap = ut, t.getTargetStatesMap = lt, t.getAncestorMap = dt, t.computeHistoryMaps = ft, t.mapOverTransitionsActions = pt, t.reduceTransitions = mt, t.everyTransition = function(t, e) {
+}, t.getFsmStateList = st, t.getStatesType = ot, t.getStatesPath = it, t.getStatesTransitionsMap = at, t.getStateEventTransitionsMaps = rt, t.getEventTransitionsMaps = ct, t.getHistoryStatesMap = ut, t.getTargetStatesMap = lt, t.getAncestorMap = dt, t.computeHistoryMaps = ft, t.mapOverTransitionsActions = pt, t.reduceTransitions = mt, t.everyTransition = function(t, e) {
   return mt((e, n) => e && t(n), !0, [e])
 }, t.computeTimesCircledOn = function(t, e) {
   return t.reduce((t, n) => n === e ? t + 1 : t, 0)

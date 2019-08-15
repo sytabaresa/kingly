@@ -7,7 +7,7 @@ import {
     getHistoryUnderlyingState,
     getStatesPath,
     getStatesTransitionsMap,
-    getStatesTransitionsMaps,
+    getStateEventTransitionsMaps,
     getStatesType,
     getTargetStatesMap,
     isActionFactory,
@@ -339,11 +339,11 @@ export const validEventLessTransitions = {
 export const allStateTransitionsOnOneSingleRow = {
     name: 'allStateTransitionsOnOneSingleRow',
     shouldThrow: false,
-    predicate: (fsmDef, settings, {statesTransitionsMaps}) => {
-        const originStateList = Object.keys(statesTransitionsMaps);
+    predicate: (fsmDef, settings, {stateEventTransitionsMaps}) => {
+        const originStateList = Object.keys(stateEventTransitionsMaps);
         const statesTransitionsInfo = originStateList.reduce((acc, state) => {
-            const events = Object.keys(statesTransitionsMaps[state]);
-            const wrongEventConfig = events.filter(event => statesTransitionsMaps[state][event].length > 1);
+            const events = Object.keys(stateEventTransitionsMaps[state]);
+            const wrongEventConfig = events.filter(event => stateEventTransitionsMaps[state][event].length > 1);
             if (wrongEventConfig.length > 0) {
                 acc[state] = wrongEventConfig;
             }
@@ -368,7 +368,7 @@ export const allStateTransitionsOnOneSingleRow = {
 export const noConflictingTransitionsWithAncestorState = {
     name: 'noConflictingTransitionsWithAncestorState',
     shouldThrow: false,
-    predicate: (fsmDef, settings, {statesTransitionsMaps, eventTransitionsMaps, ancestorMap}) => {
+    predicate: (fsmDef, settings, {stateEventTransitionsMaps, eventTransitionsMaps, ancestorMap}) => {
         const eventList = Object.keys(eventTransitionsMaps);
         const eventTransitionsInfo = eventList.reduce((acc, event) => {
             const states = Object.keys(eventTransitionsMaps[event]);
@@ -431,19 +431,19 @@ export const isHistoryStatesTargetStates = {
 export const isHistoryStatesCompoundStates = {
     name: 'isHistoryStatesCompoundStates',
     shouldThrow: false,
-    predicate: (fsmDef, settings, {statesTransitionsMaps, statesType}) => {
-        const originStateList = Object.keys(statesTransitionsMaps);
+    predicate: (fsmDef, settings, {stateEventTransitionsMaps, statesType}) => {
+        const originStateList = Object.keys(stateEventTransitionsMaps);
         const wrongHistoryStates = originStateList.map(originState => {
             if (originState === INIT_STATE) return []
 
-            const events = Object.keys(statesTransitionsMaps[originState]);
+            const events = Object.keys(stateEventTransitionsMaps[originState]);
 
             return events.reduce((acc, event) => {
                 // I should only ever have one transition, that is checked in another contract
                 // !! if there are several transitions, we may have a false positive, but that is ok
                 // When the other contract will fail and the issue will be solved, and app will be rerun,
                 // this will be recomputed correctly
-                const transition = statesTransitionsMaps[originState][event][0];
+                const transition = stateEventTransitionsMaps[originState][event][0];
                 const {guards, to} = transition;
                 if (!guards) {
                     // Reminder: statesType[controlState] === true iff controlState is compound state
@@ -608,7 +608,9 @@ export const areEventsDeclared = {
         const eventsNotDeclaredButTriggeringTransitions = eventList
             .map(triggeringEvent => declaredEventList.indexOf(triggeringEvent) === -1 && triggeringEvent)
             .filter(Boolean)
-            .filter(ev => ev !== INIT_EVENT);
+            // Filtering out init events which must not be declared, being reserved events
+            // Filtering out undefined events linked to eventless transitions
+            .filter(ev => ev !== INIT_EVENT && ev !== 'undefined')
 
         const isFulfilled = eventsDeclaredButNotTriggeringTransitions.length === 0
             && eventsNotDeclaredButTriggeringTransitions.length === 0;
@@ -626,8 +628,8 @@ export const areEventsDeclared = {
 export const areStatesDeclared = {
     name: 'areStatesDeclared',
     shouldThrow: false,
-    predicate: (fsmDef, settings, {statesTransitionsMaps, targetStatesMap, statesType}) => {
-        const originStateList = Object.keys(statesTransitionsMaps);
+    predicate: (fsmDef, settings, {stateEventTransitionsMaps, targetStatesMap, statesType}) => {
+        const originStateList = Object.keys(stateEventTransitionsMaps);
         const targetStateList = Array.from(targetStatesMap.keys());
         const stateList = Object.keys([originStateList, targetStateList].reduce((acc, stateList) => {
             stateList.forEach(state => acc[state] = true)
@@ -643,7 +645,7 @@ export const areStatesDeclared = {
             .filter(Boolean);
 
         const isFulfilled = statesDeclaredButNotTriggeringTransitions.length === 0
-            && statesDeclaredButNotTriggeringTransitions.length === 0;
+            && statesNotDeclaredButTriggeringTransitions.length === 0;
 
         return {
             isFulfilled,
@@ -730,7 +732,7 @@ export const fsmContracts = {
             statesType: getStatesType(fsmDef.states),
             initTransition: findInitTransition(fsmDef.transitions),
             statesTransitionsMap: getStatesTransitionsMap(fsmDef.transitions),
-            statesTransitionsMaps: getStatesTransitionsMaps(fsmDef.transitions),
+            stateEventTransitionsMaps: getStateEventTransitionsMaps(fsmDef.transitions),
             eventTransitionsMaps: getEventTransitionsMaps(fsmDef.transitions),
             ancestorMap: getAncestorMap(fsmDef.states),
             statesPath: getStatesPath(fsmDef.states),
@@ -769,7 +771,6 @@ function makeContractHandler(contractsDef, settings) {
             if (isFulfilled) return acc
             else {
                 failingContracts.push({name: contractName, message, info});
-                debugger
                 console.error(blameMessageHeader);
                 console.error([contractName, message].join(': '));
                 console.debug('Supporting error data:', info);

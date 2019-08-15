@@ -44,12 +44,12 @@ const alwaysTrue = () => true;
  * @returns {Object<String,String>}
  */
 function build_event_enum(array_identifiers) {
-  array_identifiers = array_identifiers.reduce
-    ? array_identifiers
+  let _array_identifiers = array_identifiers.reduce
+    ? array_identifiers.slice()
     : Array.prototype.slice.call(arguments);
   // NOTE : That will overwrite any other event called init...
-  array_identifiers.push(INIT_EVENT);
-  return array_identifiers.reduce(function (acc, identifier) {
+  _array_identifiers.push(INIT_EVENT);
+  return _array_identifiers.reduce(function (acc, identifier) {
     acc[identifier] = identifier;
     return acc;
   }, {});

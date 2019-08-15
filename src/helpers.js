@@ -24,7 +24,7 @@ export function isControlState(x) {
 }
 
 export function isEvent(x) {
-  return x && typeof x === 'string'
+  return typeof x === 'undefined' || typeof x === 'string'
 }
 
 export function isActionFactory(x) {
@@ -283,7 +283,7 @@ export function getStatesTransitionsMap(transitions) {
     || {}
 }
 
-export function getStatesTransitionsMaps(transitions) {
+export function getStateEventTransitionsMaps(transitions) {
   // Map a control state to the transitions which it as origin
   return transitions.reduce((acc, transition) => {
       const { from, event } = transition;
