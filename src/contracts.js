@@ -231,7 +231,6 @@ export const initEventOnlyInCompoundStates = {
 };
 
 // T5. Every compound state NOT the initial state A must have a valid transition A -INIT-> defined
-// T6. Every compound state NOT the initial state must have a valid INCONDITIONAL transition A -INIT-> defined
 // T7a. Every compound state NOT the initial state must have a valid INCONDITIONAL transition A -INIT-> defined which
 // does not have a history state as target
 // NOTE: actually we could limit it to history state of the containing compound state to avoid infinity loop
@@ -244,10 +243,10 @@ export const validInitialTransitionForCompoundState = {
     predicate: (fsmDef, settings, {statesTransitionsMap, statesType, statesPath}) => {
         // The compound states below does not include the initial state by construction
         const compoundStates = Object.keys(statesType).filter(controlState => statesType[controlState]);
-        const initTransitions = compoundStates.map(
+        const compoundStatesInitTransitions = compoundStates.map(
             compoundState => statesTransitionsMap[compoundState] && statesTransitionsMap[compoundState][INIT_EVENT]);
 
-        const allHaveInitTransitions = initTransitions.every(Boolean);
+        const allHaveInitTransitions = compoundStatesInitTransitions.every(Boolean);
 
         if (!allHaveInitTransitions) {
             return {
@@ -263,37 +262,51 @@ export const validInitialTransitionForCompoundState = {
         }
 
         const allHaveValidInitTransitions = allHaveInitTransitions &&
-            initTransitions.every(initTransition => {
+            compoundStatesInitTransitions.every(initTransition => {
                 const {guards, to} = initTransition;
-                // T6 and T7a
-                return !guards && typeof to === 'string'
+                if (!guards) {
+                    //  T7a
+                    return typeof to === 'string'
+                }
+                else {
+                    const targetStates = guards.map(guard => guard.to);
+                    return targetStates.every(targetState => typeof targetState === 'string')
+                }
             });
         if (!allHaveValidInitTransitions) {
             return {
                 isFulfilled: false,
                 blame: {
-                    message: `Found at least one compound state with an invalid entry transition! Entry transitions for compound states must be inconditional and the associated target control state cannot be a history pseudo-state. Cf. log`,
-                    info: {entryTransitions: initTransitions}
+                    message: `Found at least one compound state with an invalid entry transition! Entry transitions for compound states must have the associated target control states which are not a history pseudo-state. Cf. log`,
+                    info: {entryTransitions: compoundStatesInitTransitions}
                 }
             }
         }
         ;
 
         const allHaveTargetStatesWithinHierarchy = allHaveValidInitTransitions &&
-            initTransitions.every(initTransition => {
-                const {from, to} = initTransition;
+            compoundStatesInitTransitions.every(initTransition => {
+                const {from, guards, to} = initTransition;
 
                 // Don't forget to also eliminate the case when from = to
                 // Also note that wwe check that `to` is in statesPath as one is derived from states in transitions, and the
                 // other from declared states
-                return from !== to && statesPath[to] && statesPath[to].startsWith(statesPath[from])
+                if (!guards){
+                    return from !== to && statesPath[to] && statesPath[to].startsWith(statesPath[from])
+                }
+                else {
+                    const targetStates = guards.map(guard => guard.to);
+                    return targetStates.every(to => {
+                        return from !== to && statesPath[to] && statesPath[to].startsWith(statesPath[from])
+                    })
+                }
             });
         if (!allHaveTargetStatesWithinHierarchy) {
             return {
                 isFulfilled: false,
                 blame: {
                     message: `Found at least one compound state with an invalid entry transition! Entry transitions for compound states must have a target state which is strictly below the compound state in the state hierarchy! `,
-                    info: {states: fsmDef.states, statesPath, entryTransitions: initTransitions}
+                    info: {states: fsmDef.states, statesPath, entryTransitions: compoundStatesInitTransitions}
                 }
             }
         }
@@ -363,13 +376,14 @@ export const allStateTransitionsOnOneSingleRow = {
     },
 };
 
-// T14. Conflicting transitions are not allowed, i.e. A -ev-> B and A < OUTER_A is not compatible with OUTER_A
-// -ev->C. The event `ev` could trigger a transition towards either B or C
+// T14. Conflicting transitions are not allowed, i.e. A -ev-> B and A < OUTER_A
+// with ev non reserved event (init event or eventless) is not compatible with OUTER_A-ev->C.
+// The event `ev` could trigger a transition towards either B or C
 export const noConflictingTransitionsWithAncestorState = {
     name: 'noConflictingTransitionsWithAncestorState',
     shouldThrow: false,
     predicate: (fsmDef, settings, {stateEventTransitionsMaps, eventTransitionsMaps, ancestorMap}) => {
-        const eventList = Object.keys(eventTransitionsMaps);
+        const eventList = Object.keys(eventTransitionsMaps).filter(ev => ev !== INIT_EVENT && ev !== void 0);
         const eventTransitionsInfo = eventList.reduce((acc, event) => {
             const states = Object.keys(eventTransitionsMaps[event]);
             // The wrongly configured states are those which have an ancestor also in the transition map for the same event
@@ -630,7 +644,7 @@ export const areStatesDeclared = {
     shouldThrow: false,
     predicate: (fsmDef, settings, {stateEventTransitionsMaps, targetStatesMap, statesType}) => {
         const originStateList = Object.keys(stateEventTransitionsMaps);
-        const targetStateList = Array.from(targetStatesMap.keys());
+        const targetStateList = Array.from(targetStatesMap.keys()).filter(x => typeof x !== 'object');
         const stateList = Object.keys([originStateList, targetStateList].reduce((acc, stateList) => {
             stateList.forEach(state => acc[state] = true)
             return acc

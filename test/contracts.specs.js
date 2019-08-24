@@ -961,3 +961,4 @@ QUnit.test("fsmContracts(fsmDef): eventless self-transitions are forbidden", fun
     ]
   ], message);
 });
+
