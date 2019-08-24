@@ -121,7 +121,8 @@ QUnit.test("fsmContracts(fsmDef): compound states - no init transition", functio
   ], message);
 });
 
-QUnit.test("fsmContracts(fsmDef): compound states - invalid init transition", function exec_test(assert) {
+// NOTE: we canceled the contract about not having guards in initial transitions for compound states
+QUnit.skip("fsmContracts(fsmDef): compound states - invalid init transition", function exec_test(assert) {
   const fsmDef = {
     states: { A: { B: '' }, C: '' },
     events: ['ev'],
