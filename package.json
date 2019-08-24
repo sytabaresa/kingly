@@ -1,7 +1,7 @@
 {
   "name": "kingly",
   "sideEffects": false,
-  "version": "0.20.11",
+  "version": "0.21",
   "description": "Extended Hierarchical State Transducer library",
   "repository": {
     "type": "git",
