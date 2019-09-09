@@ -1,4 +1,5 @@
 # Now
+// TODO: I now allow initial transitions with multi target states. Check that the state-transducer-testing still works. Maybe add tests for it. 
 - DOC: add  that no events can be called 'undefined', and add a contract for it
 - maybe add or pass a settings object to the command handler (passed if needed to command handlers)?
   - this is for dependency injection - can have effects or commands more testable
