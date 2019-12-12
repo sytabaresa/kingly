@@ -1,7 +1,7 @@
 {
   "name": "kingly",
   "sideEffects": false,
-  "version": "0.23.0",
+  "version": "0.23.1",
   "description": "Extended Hierarchical State Transducer library",
   "repository": {
     "type": "git",
@@ -17,7 +17,7 @@
     "automaton",
     "automata"
   ],
-  "module": "dist/kingly.es.min.js",
+  "module": "dist/kingly.es.js",
   "main": "dist/kingly.umd.min.js",
   "unpkg": "dist/kingly.umd.min.js",
   "files": [
