@@ -403,7 +403,7 @@ export function createStateMachine(fsmDef, settings) {
         if (event_handler) {
             // CASE : There is a transition associated to that event
             console.log("found event handler!");
-            console.info("WHEN EVENT ", event);
+            console.info("WHEN EVENT ", event, event_data);
             /* OUT : this event handler modifies the extendedState and possibly other data structures */
             const {stop, outputs: rawOutputs} = event_handler(extendedState, event_data, current_state);
             debug && !stop && console.warn("No guards have been fulfilled! We recommend to configure guards explicitly to" +
