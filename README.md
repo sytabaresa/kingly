@@ -34,7 +34,7 @@ interface (button clicks, etc.) and the actions (commands) to perform on the int
 
 Salient features:
 
-- **small size**: treeshakeable implementation, down from 11kB
+- **small size**: treeshakeable implementation, with a core of 5KB, down from 12kB
 - **small API**: one function for the state machine, one function for tracing (and one function 
 for the [test generation](https://github.com/brucou/state-transducer-testing) available in a 
 separate package)
@@ -169,30 +169,26 @@ Automated visualization works well with simple graphs, but seems to encounter tr
 - [x] test [integration with React](https://github.com/brucou/react-state-driven)
 - [x] test [integration with Vue](https://github.com/brucou/vue-state-driven)
 - [x] support [model-based testing, and test input generation](https://pdfs.semanticscholar.org/f8e6/b3019c0d5422f35d2d98c242f149184992a3.pdf)
-  - [x] *all-transitions* coverage test case generator
-- [x] add tracing support
-  - obtained by decorating the machine definition
-- [x] add entry actions
+  - [x] *all-paths* coverage test case generator
+- ~~[x] add tracing support~~
+  - ~~obtained by decorating the machine definition~~
+- ~~[x] add entry actions~~
+- [ ] babel macro for converting yed graphml and yakindu sct files
+- [ ] babel macro to compile away the machine library to reduce bundle size
 
 ## Roadmap v1.X
-- [ ] support for visualization in third-party tools 
-  - yed format conversion
-  - trace emitter
-- [ ] document entry actions
-- [ ] showcase property-based testing
+- [ ] devtool 
+- [ ] support for live, interactive debugging
 - [ ] decide definitively on tricky semantic cases
   - transitionning to history states when there is no history
     - Qt: use the initial control state for the compound state in that case
     - cf. https://www.state-machine.com/qm/sm_hist.html
   - ~~event delegation~~ 
+- [ ] finalize, document and release testing API 
 
 ## Roadmap v1.Y
-- [ ] support for live, interactive debugging
-
-## Roadmap v1.Z
 - [ ] add cloning API
 - [ ] add reset API
-- [ ] add and document exit actions
 - [ ] turn the test generation into an iterator(ES6 generator): this allows it to be composed with transducers and manipulate the test cases one by one as soon as they are produced. Will be useful for both example-based and property-based testing. When the generators runs through thousands of test cases, we often have to wait a long time before seeing any result, which is pretty damageable when a failure is located toward the ends of the generated input sequences.
 - [ ] add other searches that DFS, BFS (add probability to transitions, exclude some transitions, etc.). HINT: `store.pickOne` can be used to select the next transition
    - pick a random transition
@@ -252,5 +248,3 @@ Note that if we add concurrency and messaging to extended hierarchical state tra
 [^3]: As a matter of fact, more than 20 different semantics have been proposed to define precisely the concurrency model for statecharts, e.g Rhapsody, Statemate, VisualMate, StateFlow, UML, etc. do not share a single concurrency model.
 [^4]: David Harel, Statecharts.History.CACM: Speaking in the strict mathematical sense of power of expression, hierarchy and orthogonality are but helpful abbreviations and can be eliminated
 [^5]: David Harel, Statecharts.History.CACM: <<I definitely do not recommend having a single statechart for an entire system. (...) concurrency occurs on a higher level.)>>
-
-
