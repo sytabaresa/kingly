@@ -376,7 +376,7 @@ export function computeHistoryMaps(control_states) {
   const {getLabel, isLeafLabel} = objectTreeLenses;
   const traverse = {
     strategy: PRE_ORDER,
-    seed: {stateList: [], stateAncestors: {[DEEP]: {}, [SHALLOW]: {}}},
+    seed: {stateList: [], stateAncestors: {}},
     visit: (acc, traversalState, tree) => {
       const treeLabel = getLabel(tree);
       const controlState = Object.keys(treeLabel)[0];
@@ -393,7 +393,7 @@ export function computeHistoryMaps(control_states) {
       }
       else {
         const parentControlState = traversalState.get(JSON.stringify(parentPath));
-        acc.stateAncestors[SHALLOW][controlState] = [parentControlState];
+        acc.stateAncestors[controlState] = [parentControlState];
 
         const {ancestors} = path.reduce((acc, _) => {
           const parentPath = acc.path.slice(0, -1);
@@ -405,7 +405,7 @@ export function computeHistoryMaps(control_states) {
 
           return acc
         }, {ancestors: [], path});
-        acc.stateAncestors[DEEP][controlState] = ancestors;
+        acc.stateAncestors[controlState] = ancestors;
       }
 
       return acc
@@ -554,7 +554,7 @@ export function updateHistory(history, stateAncestors, state_from_name) {
   }
   else {
       // ancestors for the state which is exited
-      const ancestors = stateAncestors[DEEP][state_from_name] || [];
+      const ancestors = stateAncestors[state_from_name] || [];
       ancestors.reduce((oldAncestor, newAncestor) => {
         // set the exited state in the history of all ancestors
         history[DEEP][newAncestor] = state_from_name;

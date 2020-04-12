@@ -277,7 +277,6 @@ QUnit.test("states with hierarchy", function exec_test(assert) {
   const history = computeHistoryMaps(states);
   assert.deepEqual(history, {
     "stateAncestors": {
-      "deep": {
         "INNER": [
           "OUTER"
         ],
@@ -295,14 +294,6 @@ QUnit.test("states with hierarchy", function exec_test(assert) {
         "outer_b": [
           "OUTER"
         ]
-      },
-      "shallow": {
-        "INNER": ["OUTER"],
-        "inner_s": ["INNER"],
-        "inner_t": ["INNER"],
-        "outer_a": ["OUTER"],
-        "outer_b": ["OUTER"]
-      }
     },
     "stateList": [
       "OUTER",
