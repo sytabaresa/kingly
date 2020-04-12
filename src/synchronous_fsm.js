@@ -236,6 +236,7 @@ export function createStateMachine(fsmDef, settings) {
     // @type {Object<state_name,boolean>}, allows to know whether a state has a init transition defined
     let is_init_state = {};
     // @type {Object<state_name,boolean>}, allows to know whether a state has an automatic transition defined
+    // that would be init transitions + eventless transitions
     let is_auto_state = {};
     // @type {Object<state_name,boolean>}, allows to know whether a state is a group of state or not
     const is_group_state = hash_states_struct.is_group_state;
@@ -420,10 +421,9 @@ export function createStateMachine(fsmDef, settings) {
             // In this case event_data will carry on the data passed on from the last event (else we loose
             // the extendedState?)
             // 2. transitions with no events associated, only conditions (i.e. transient states)
-            // In this case, there is no need for event data
             // NOTE : the guard is to defend against loops occuring when an AUTO transition fails to advance and stays
             // in the same control state!! But by contract that should never happen : all AUTO transitions should advance!
-            // TODO : test that case, what is happening?
+            // TODO : test that case, what is happening? I should add a branch and throw!!
             if (is_auto_state[new_current_state] && new_current_state !== current_state) {
                 // CASE : transient state with no triggering event, just conditions
                 // automatic transitions = transitions without events

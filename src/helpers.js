@@ -5,13 +5,14 @@ import {
   PREDICATE_DESC,
   SHALLOW, WRONG_EVENT_FORMAT_ERROR
 } from "./properties"
-import { objectTreeLenses, PRE_ORDER, traverseObj } from "fp-rosetree"
+import {objectTreeLenses, PRE_ORDER, traverseObj} from "fp-rosetree"
 
-export const noop = () => {};
-export const emptyConsole = { log: noop, warn: noop, info: noop, debug: noop, error: noop, trace: noop };
+export const noop = () => {
+};
+export const emptyConsole = {log: noop, warn: noop, info: noop, debug: noop, error: noop, trace: noop};
 export const emptyTrace = noop;
 
-export function isBoolean(x){
+export function isBoolean(x) {
   return typeof x === 'boolean'
 }
 
@@ -55,15 +56,21 @@ export function get_fn_name(fn) {
   return tokens[1];
 }
 
-export function wrap(str) { return ['-', str, '-'].join(""); }
-
-export function times(fn, n) {
-  return Array.apply(null, { length: n }).map(Number.call, Number).map(fn)
+export function wrap(str) {
+  return ['-', str, '-'].join("");
 }
 
-export function always(x) {return x}
+export function times(fn, n) {
+  return Array.apply(null, {length: n}).map(Number.call, Number).map(fn)
+}
 
-export function keys(obj) {return Object.keys(obj)}
+export function always(x) {
+  return x
+}
+
+export function keys(obj) {
+  return Object.keys(obj)
+}
 
 export function merge(a, b) {
   return Object.assign({}, a, b)
@@ -106,15 +113,15 @@ export function format_transition_label(_event, predicate, action) {
         : `${event}`
 }
 
-export function format_history_transition_state_name({ from, to }) {
+export function format_history_transition_state_name({from, to}) {
   return `${from}.${to.substring(HISTORY_PREFIX.length)}.${HISTORY_STATE_NAME}`
 }
 
 export function get_all_transitions(transition) {
-  const { from, event, guards } = transition;
+  const {from, event, guards} = transition;
 
   return guards
-    ? guards.map(({ predicate, to, action }) => ({ from, event, predicate, to, action }))
+    ? guards.map(({predicate, to, action}) => ({from, event, predicate, to, action}))
     : [transition];
 }
 
@@ -157,16 +164,16 @@ export function mergeModelUpdates(arrayUpdateActions) {
  */
 export function chainModelUpdates(arrayUpdateActions) {
   return function (extendedState, eventData, settings) {
-    const { updateState } = settings;
+    const {updateState} = settings;
     return {
       updates: arrayUpdateActions
         .reduce((acc, updateAction) => {
-          const { extendedState, updates } = acc;
+          const {extendedState, updates} = acc;
           const update = updateAction(extendedState, eventData, settings).updates;
           const updatedState = updateState(extendedState, updates)
 
-          return { extendedState: updatedState, updates: update }
-        }, { extendedState, updates: [] })
+          return {extendedState: updatedState, updates: update}
+        }, {extendedState, updates: []})
         .updates || [],
       outputs: NO_OUTPUT
     }
@@ -214,7 +221,7 @@ function formatActionName(action, from, event, to, predicate) {
 }
 
 export function getFsmStateList(states) {
-  const { getLabel } = objectTreeLenses;
+  const {getLabel} = objectTreeLenses;
   const traverse = {
     strategy: PRE_ORDER,
     seed: {},
@@ -232,7 +239,7 @@ export function getFsmStateList(states) {
 }
 
 export function getStatesType(statesTree) {
-  const { getLabel, isLeafLabel } = objectTreeLenses;
+  const {getLabel, isLeafLabel} = objectTreeLenses;
 
   const traverse = {
     strategy: PRE_ORDER,
@@ -252,7 +259,7 @@ export function getStatesType(statesTree) {
 }
 
 export function getStatesPath(statesTree) {
-  const { getLabel } = objectTreeLenses;
+  const {getLabel} = objectTreeLenses;
 
   const traverse = {
     strategy: PRE_ORDER,
@@ -272,7 +279,7 @@ export function getStatesPath(statesTree) {
 export function getStatesTransitionsMap(transitions) {
   // Map a control state to the transitions which it as origin
   return transitions.reduce((acc, transition) => {
-      const { from, event } = transition;
+      const {from, event} = transition;
       // NOTE: that should never be, but we need to be defensive here to keep semantics
       if (isHistoryControlState(from)) return acc
 
@@ -286,7 +293,7 @@ export function getStatesTransitionsMap(transitions) {
 export function getStateEventTransitionsMaps(transitions) {
   // Map a control state to the transitions which it as origin
   return transitions.reduce((acc, transition) => {
-      const { from, event } = transition;
+      const {from, event} = transition;
       // NOTE: that should never be, but we need to be defensive here to keep semantics
       if (isHistoryControlState(from)) return acc
 
@@ -300,7 +307,7 @@ export function getStateEventTransitionsMaps(transitions) {
 export function getEventTransitionsMaps(transitions) {
   // Map an event to the origin control states of the transitions it triggers
   return transitions.reduce((acc, transition) => {
-      const { from, event } = transition;
+      const {from, event} = transition;
       // NOTE: that should never be, but we need to be defensive here to keep semantics
       if (isHistoryControlState(from)) return acc
 
@@ -313,7 +320,7 @@ export function getEventTransitionsMaps(transitions) {
 
 export function getHistoryStatesMap(transitions) {
   return reduceTransitions((map, flatTransition, guardIndex, transitionIndex) => {
-      const { from, event, to, action, predicate, gen } = flatTransition;
+      const {from, event, to, action, predicate, gen} = flatTransition;
       if (isHistoryControlState(from)) {
         const underlyingControlState = getHistoryUnderlyingState(from);
         map.set(underlyingControlState, (map.get(underlyingControlState) || []).concat([flatTransition]));
@@ -330,7 +337,7 @@ export function getHistoryStatesMap(transitions) {
 
 export function getTargetStatesMap(transitions) {
   return reduceTransitions((map, flatTransition, guardIndex, transitionIndex) => {
-      const { to } = flatTransition;
+      const {to} = flatTransition;
       map.set(to, (map.get(to) || []).concat([flatTransition]));
       return map
     }, new Map(), transitions)
@@ -338,7 +345,7 @@ export function getTargetStatesMap(transitions) {
 }
 
 export function getAncestorMap(statesTree) {
-  const { getLabel, getChildren } = objectTreeLenses;
+  const {getLabel, getChildren} = objectTreeLenses;
 
   const traverse = {
     strategy: PRE_ORDER,
@@ -362,12 +369,14 @@ export function getAncestorMap(statesTree) {
 }
 
 export function computeHistoryMaps(control_states) {
-  if (Object.keys(control_states).length === 0) {throw `computeHistoryMaps : passed empty control states parameter?`}
+  if (Object.keys(control_states).length === 0) {
+    throw `computeHistoryMaps : passed empty control states parameter?`
+  }
 
-  const { getLabel, isLeafLabel } = objectTreeLenses;
+  const {getLabel, isLeafLabel} = objectTreeLenses;
   const traverse = {
     strategy: PRE_ORDER,
-    seed: { stateList: [], stateAncestors: { [DEEP]: {}, [SHALLOW]: {} } },
+    seed: {stateList: [], stateAncestors: {[DEEP]: {}, [SHALLOW]: {}}},
     visit: (acc, traversalState, tree) => {
       const treeLabel = getLabel(tree);
       const controlState = Object.keys(treeLabel)[0];
@@ -375,7 +384,7 @@ export function computeHistoryMaps(control_states) {
 
       // NOTE : we don't have to worry about path having only one element
       // that case correspond to the root of the tree which is excluded from visiting
-      const { path } = traversalState.get(tree);
+      const {path} = traversalState.get(tree);
       traversalState.set(JSON.stringify(path), controlState);
       const parentPath = path.slice(0, -1);
       if (parentPath.length === 1) {
@@ -386,7 +395,7 @@ export function computeHistoryMaps(control_states) {
         const parentControlState = traversalState.get(JSON.stringify(parentPath));
         acc.stateAncestors[SHALLOW][controlState] = [parentControlState];
 
-        const { ancestors } = path.reduce((acc, _) => {
+        const {ancestors} = path.reduce((acc, _) => {
           const parentPath = acc.path.slice(0, -1);
           acc.path = parentPath;
           if (parentPath.length > 1) {
@@ -395,33 +404,33 @@ export function computeHistoryMaps(control_states) {
           }
 
           return acc
-        }, { ancestors: [], path });
+        }, {ancestors: [], path});
         acc.stateAncestors[DEEP][controlState] = ancestors;
       }
 
       return acc
     }
   };
-  const { stateList, stateAncestors } = traverseObj(traverse, control_states);
+  const {stateList, stateAncestors} = traverseObj(traverse, control_states);
 
-  return { stateList, stateAncestors }
+  return {stateList, stateAncestors}
 }
 
 export function mapOverTransitionsActions(mapFn, transitions) {
   return reduceTransitions(function (acc, transition, guardIndex, transitionIndex) {
-    const { from, event, to, action, predicate } = transition;
+    const {from, event, to, action, predicate} = transition;
     const mappedAction = mapFn(action, transition, guardIndex, transitionIndex);
     mappedAction.displayName = mappedAction.displayName || (action && (action.name || action.displayName || formatActionName(action, from, event, to, predicate)));
 
     if (typeof(predicate) === 'undefined') {
-      acc.push({ from, event, to, action: mappedAction })
+      acc.push({from, event, to, action: mappedAction})
     }
     else {
       if (guardIndex === 0) {
-        acc.push({ from, event, guards: [{ to, predicate, action: mappedAction }] })
+        acc.push({from, event, guards: [{to, predicate, action: mappedAction}]})
       }
       else {
-        acc[acc.length - 1].guards.push({ to, predicate, action: mappedAction })
+        acc[acc.length - 1].guards.push({to, predicate, action: mappedAction})
       }
     }
 
@@ -431,16 +440,16 @@ export function mapOverTransitionsActions(mapFn, transitions) {
 
 export function reduceTransitions(reduceFn, seed, transitions) {
   const result = transitions.reduce((acc, transitionStruct, transitionIndex) => {
-    let { from, event, to, gen, action, guards } = transitionStruct;
+    let {from, event, to, gen, action, guards} = transitionStruct;
     // Edge case when no guards are defined
     if (!guards) {
-      guards = gen ? [{ to, action, gen, predicate: undefined }] : [{ to, action, predicate: undefined }]
+      guards = gen ? [{to, action, gen, predicate: undefined}] : [{to, action, predicate: undefined}]
     }
     return guards.reduce((acc, guard, guardIndex) => {
-      const { to, action, gen, predicate } = guard;
+      const {to, action, gen, predicate} = guard;
       return gen
-        ? reduceFn(acc, { from, event, to, action, predicate, gen }, guardIndex, transitionIndex)
-        : reduceFn(acc, { from, event, to, action, predicate }, guardIndex, transitionIndex)
+        ? reduceFn(acc, {from, event, to, action, predicate, gen}, guardIndex, transitionIndex)
+        : reduceFn(acc, {from, event, to, action, predicate}, guardIndex, transitionIndex)
     }, acc);
   }, seed);
 
@@ -457,11 +466,17 @@ export function computeTimesCircledOn(edgePath, edge) {
   return edgePath.reduce((acc, edgeInEdgePath) => edgeInEdgePath === edge ? acc + 1 : acc, 0);
 }
 
-export function isInitState(s) {return s === INIT_STATE}
+export function isInitState(s) {
+  return s === INIT_STATE
+}
 
-export function isInitEvent(e) {return e === INIT_EVENT}
+export function isInitEvent(e) {
+  return e === INIT_EVENT
+}
 
-export function isEventless(e) {return typeof e === 'undefined'}
+export function isEventless(e) {
+  return typeof e === 'undefined'
+}
 
 export function arrayizeOutput(output) {
   return output === NO_OUTPUT
@@ -509,11 +524,11 @@ export function initHistoryDataStructure(stateList) {
   // NOTE : we update history in place, so we need two different objects here, even
   // when they start with the same value
   const initHistory = () => stateList.reduce((acc, state) => (acc[state] = '', acc), {});
-  return { [DEEP]: initHistory(), [SHALLOW]: initHistory() };
+  return {[DEEP]: initHistory(), [SHALLOW]: initHistory()};
 }
 
 export function isCompoundState(analyzedStates, controlState) {
-  const { statesAdjacencyList } = analyzedStates;
+  const {statesAdjacencyList} = analyzedStates;
   return statesAdjacencyList[controlState] && statesAdjacencyList[controlState].length !== 0
 }
 
@@ -538,14 +553,15 @@ export function updateHistory(history, stateAncestors, state_from_name) {
     return history
   }
   else {
-    [SHALLOW, DEEP].forEach(historyType => {
       // ancestors for the state which is exited
-      const ancestors = stateAncestors[historyType][state_from_name] || [];
-      ancestors.forEach(ancestor => {
+      const ancestors = stateAncestors[DEEP][state_from_name] || [];
+      ancestors.reduce((oldAncestor, newAncestor) => {
         // set the exited state in the history of all ancestors
-        history[historyType][ancestor] = state_from_name
-      });
-    });
+        history[DEEP][newAncestor] = state_from_name;
+        history[SHALLOW][newAncestor] = oldAncestor;
+
+        return newAncestor
+      }, state_from_name);
 
     return history
   }
@@ -565,7 +581,7 @@ export function updateHistory(history, stateAncestors, state_from_name) {
  */
 export function computeHistoryState(states, controlStateSequence, historyType, historyParentState) {
   // NOTE : we compute the whole story every time. This is inefficient, but for now sufficient
-  const { stateList, stateAncestors } = computeHistoryMaps(states);
+  const {stateList, stateAncestors} = computeHistoryMaps(states);
   let history = initHistoryDataStructure(stateList);
   history = controlStateSequence.reduce(
     (history, controlState) => updateHistory(history, stateAncestors, controlState),
@@ -583,7 +599,9 @@ export function findInitTransition(transitions) {
 
 export function tryCatch(fn, errCb) {
   return function tryCatch(...args) {
-    try {return fn.apply(fn, args);}
+    try {
+      return fn.apply(fn, args);
+    }
     catch (e) {
       return errCb(e, args);
     }
@@ -601,7 +619,7 @@ export function tryCatchMachineFn(fnType, fn, argsDesc = []) {
     const info = {
       fnName,
       params: argsDesc.reduce((acc, argDesc, index) => {
-        return acc[argDesc]=args[index], acc
+        return acc[argDesc] = args[index], acc
       }, {})
     };
     err.info = e.info ? [].concat([e.info]).concat([info]) : info;
@@ -650,7 +668,7 @@ export function notifyThrows(console, error) {
  * @returns {boolean}
  * @param postCondition
  */
-export function handleFnExecError(notify, execInfo, actionResultOrError, postCondition, throwFn, invalidResultFn){
+export function handleFnExecError(notify, execInfo, actionResultOrError, postCondition, throwFn, invalidResultFn) {
   const {debug, console} = notify;
 
   if (debug && actionResultOrError instanceof Error) {
@@ -664,18 +682,18 @@ export function handleFnExecError(notify, execInfo, actionResultOrError, postCon
   else return false
 }
 
-export function notifyAndRethrow({debug, console}, actionResultOrError){
+export function notifyAndRethrow({debug, console}, actionResultOrError) {
   notifyThrows(console, actionResultOrError)
   throw actionResultOrError
 }
 
 export function throwIfInvalidActionResult({debug, console}, actionResultOrError, exec) {
-  const {action, extendedState, eventData, settings } = exec;
+  const {action, extendedState, eventData, settings} = exec;
   const actionName = getFunctionName(action);
   const error = new Error(INVALID_ACTION_FACTORY_EXECUTED(actionName, ACTION_FACTORY_DESC));
   error.info = {
     fnName: getFunctionName(action),
-    params: { updatedExtendedState: extendedState, eventData, settings },
+    params: {updatedExtendedState: extendedState, eventData, settings},
     returned: actionResultOrError
   };
   notifyThrows(console, error)
@@ -695,12 +713,12 @@ export function throwIfInvalidGuardResult({debug, console}, resultOrError, exec)
 }
 
 export function throwIfInvalidEntryActionResult({debug, console}, exitActionResultOrError, exec) {
-  const {action, extendedState, eventData, settings } = exec;
+  const {action, extendedState, eventData, settings} = exec;
   const actionName = getFunctionName(action);
   const error = new Error(INVALID_ACTION_FACTORY_EXECUTED(actionName, ENTRY_ACTION_FACTORY_DESC));
   error.info = {
     fnName: getFunctionName(action),
-    params: { updatedExtendedState: extendedState, eventData, settings },
+    params: {updatedExtendedState: extendedState, eventData, settings},
     returned: exitActionResultOrError
   };
   notifyThrows(console, error)
@@ -709,7 +727,9 @@ export function throwIfInvalidEntryActionResult({debug, console}, exitActionResu
 
 export function isActions(obj) {
   return obj && `updates` in obj && `outputs` in obj
-    && (obj.outputs === NO_OUTPUT || Array.isArray(obj.outputs)) && Array.isArray(obj.updates)
+    && (obj.outputs === NO_OUTPUT || Array.isArray(obj.outputs))
+  // !! does not have to be arrays. HAs to be anything that is accepted by updateState
+  // && Array.isArray(obj.updates)
 }
 
 /**
@@ -721,24 +741,24 @@ export function isEventStruct(obj) {
   let trueOrError;
   if (!obj || typeof obj !== 'object') {
     trueOrError = new Error(WRONG_EVENT_FORMAT_ERROR);
-    trueOrError.info = { event: obj, cause: `not an object!` }
+    trueOrError.info = {event: obj, cause: `not an object!`}
   }
   else if (Object.keys(obj).length > 1) {
     trueOrError = new Error(WRONG_EVENT_FORMAT_ERROR);
-    trueOrError.info = { event: obj, cause: `Event objects must have only one key which is the event name!` }
+    trueOrError.info = {event: obj, cause: `Event objects must have only one key which is the event name!`}
   }
   else trueOrError = true;
 
   return trueOrError
 }
 
-export function isError(obj){
+export function isError(obj) {
   return obj instanceof Error
 }
 
-export function destructureEvent(obj){
-    const eventName= Object.keys(obj)[0];
-    const eventData = obj[eventName];
+export function destructureEvent(obj) {
+  const eventName = Object.keys(obj)[0];
+  const eventData = obj[eventName];
 
-    return {eventName, eventData}
+  return {eventName, eventData}
 }

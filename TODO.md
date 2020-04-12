@@ -1,5 +1,7 @@
 # Now
 // TODO: I now allow initial transitions with multi target states. Check that the state-transducer-testing still works. Maybe add tests for it. 
+// TODO: features : reset and backtrack and clone fucntions NOT on the function object mais imported (tree-shakeable)
+// and going to access values on the machine function object. That's better. Also backtracking only possible if machine has been created with `save history` setting. and backtracking returns a cloned machine, does not update in place. may mean I need a way to clone state, so cloneState should also be in settings, like updateState 
 - DOC: add  that no events can be called 'undefined', and add a contract for it
 - maybe add or pass a settings object to the command handler (passed if needed to command handlers)?
   - this is for dependency injection - can have effects or commands more testable
