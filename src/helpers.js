@@ -574,7 +574,7 @@ export function updateHistory(history, stateAncestors, state_from_name) {
  * control state which is a direct child of the parent state and was exited.
  * @param {FSM_States} states
  * @param {Array<ControlState>} controlStateSequence Sequence of control states which has been entered and exited,
- * and from which the history must be computed
+ * and from which the history must be injected
  * @param {DEEP | SHALLOW} historyType
  * @param {ControlState} historyParentState
  * @returns {Object.<DEEP|SHALLOW, Object.<ControlState, ControlState>>}

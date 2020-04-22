@@ -741,7 +741,7 @@ export const isValidSelfTransition = {
 };
 
 export const fsmContracts = {
-    computed: (fsmDef, settings) => {
+    injected: (fsmDef, settings) => {
         return {
             statesType: getStatesType(fsmDef.states),
             initTransition: findInitTransition(fsmDef.transitions),
@@ -774,7 +774,7 @@ function makeContractHandler(contractsDef, settings) {
 
     return function checkContracts(...args) {
         const failingContracts = [];
-        const computedArgs = contractsDef.computed.apply(null, args);
+        const computedArgs = contractsDef.injected.apply(null, args);
         const isFulfilled = contractsDef.contracts.reduce((acc, contract) => {
             const {name: contractName, predicate, shouldThrow} = contract;
             const fullArgs = args.concat(computedArgs);

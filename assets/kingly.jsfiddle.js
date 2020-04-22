@@ -1318,7 +1318,7 @@ const Ht = (t, e, n) => (function(t) {
     const e = t.description;
     return function(...n) {
       const s = [],
-        o = t.computed.apply(null, n);
+        o = t.injected.apply(null, n);
       return {
         isFulfilled: t.contracts.reduce((t, i) => {
           const {

@@ -228,7 +228,7 @@ As a result of this, the following choices were made :
 - complete encapsulation of the state of the transducer
 - single public method : the transducer is used through a sole `yield` function (though a 
 `start` syntactic sugar is provided for `yield`ing the mandatory INIT event). As such, the 
-transducer is a black-box, and only its computed outputs can be observed
+transducer is a black-box, and only its injected outputs can be observed
 - no effects performed by the machine
 - no exit and entry actions, or activities as in other state machine formalisms
   - there is no loss of generality as both entry and exit actions can be implemented with our 
@@ -509,7 +509,7 @@ A few interesting points :
 - a machine always transitions towards an atomic state at the end of event processing
 - on that path towards an atomic target state, all intermediary extended state updates are 
 performed. Guards and action factories on that path are thus receiving a possibly evolving extended 
-state. The computed outputs will be aggregated in an array of outputs.
+state. The injected outputs will be aggregated in an array of outputs.
  
 The aforedescribed behaviour is summarized here :
 
@@ -643,7 +643,7 @@ determine the initial control state for the machine
 ### Description
 This FSM factory function takes the parameters defining the behaviour of the state transducer, 
 and returns the created state transducer. That transducer has a method `yield` by which an input 
-is passed to the state machine, and in return the computed output is received. The syntax for an 
+is passed to the state machine, and in return the injected output is received. The syntax for an 
 input is `{{[eventLabel] : eventData}}`, i.e. an input is an object with exactly one key, which 
 is the event identifier, and the value matching the key is the event data.
 

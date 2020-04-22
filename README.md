@@ -120,7 +120,7 @@ The key objectives for the API was:
 
 As a result of this, the following choices were made:
 
-- **functional interface**: the transducer is just a function. As such, the transducer is a black-box, and only its computed outputs can be observed
+- **functional interface**: the transducer is just a function. As such, the transducer is a black-box, and only its injected outputs can be observed
 - **complete encapsulation** of the state of the transducer
 - **no effects** performed by the machine
 - no exit and entry actions, or activities as in other state machine formalisms
