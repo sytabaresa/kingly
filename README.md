@@ -162,7 +162,7 @@ Automated visualization works well with simple graphs, but seems to encounter tr
 - Credit to [Sari Marton](https://github.com/sarimarton/) for the [original version](https://github.com/sarimarton/tmdb-ui-cyclejs) of the movie search app
 
 # Roadmap
-## Roadmap v1.0
+## Roadmap v1.0: complete core, set API in stone
 - [x] stabilise core API
   - state machine as an effectless, impure function with causality properties
   - expose only the factory, keep internal state fully encapsulated
@@ -173,22 +173,24 @@ Automated visualization works well with simple graphs, but seems to encounter tr
 - ~~[x] add tracing support~~
   - ~~obtained by decorating the machine definition~~
 - ~~[x] add entry actions~~
-- [ ] babel macro for converting yed graphml and yakindu sct files
-- [ ] babel macro to compile away the machine library to reduce bundle size
+- ~~[ ] babel macro for converting yed graphml and yakindu sct files~~
+- ~~[ ] babel macro to compile away the machine library to reduce bundle size~~
+- [x] add support for [yEd](https://www.yworks.com/products/yed) (professional graph editor)
+- [ ] dev tool
+- [ ] compiler
 
-## Roadmap v1.X
-- [ ] devtool 
+## Roadmap v1.X: consolidate
 - [ ] support for live, interactive debugging
 - [ ] decide definitively on tricky semantic cases
   - transitionning to history states when there is no history
     - Qt: use the initial control state for the compound state in that case
     - cf. https://www.state-machine.com/qm/sm_hist.html
   - ~~event delegation~~ 
-- [ ] finalize, document and release testing API 
 
-## Roadmap v1.Y
+## Roadmap v1.Y: testing
 - [ ] add cloning API
 - [ ] add reset API
+- [ ] finalize, document and release testing API 
 - [ ] turn the test generation into an iterator(ES6 generator): this allows it to be composed with transducers and manipulate the test cases one by one as soon as they are produced. Will be useful for both example-based and property-based testing. When the generators runs through thousands of test cases, we often have to wait a long time before seeing any result, which is pretty damageable when a failure is located toward the ends of the generated input sequences.
 - [ ] add other searches that DFS, BFS (add probability to transitions, exclude some transitions, etc.). HINT: `store.pickOne` can be used to select the next transition
    - pick a random transition
