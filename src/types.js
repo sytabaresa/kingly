@@ -41,7 +41,7 @@
  * API caller.
  */
 /** @typedef {function (ExtendedState, EventData) : Boolean} FSM_Predicate */
-/** @typedef {{debug}} FSM_Settings
+/** @typedef {{debug, devTool: {tracer}, displayName: String}} FSM_Settings
  * Miscellaneous settings including how to update the machine's state and debug
  * configuration
  * */

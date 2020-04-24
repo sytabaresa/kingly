@@ -57,7 +57,7 @@ function setDummy() {
 
 QUnit.module("Testing entry actions", {});
 
-QUnit.test("decorateWithEntryActions(fsm, entryActions, mergeOutputs): entry actions with and without normal actions", function exec_test(assert) {
+QUnit.skip("decorateWithEntryActions(fsm, entryActions, mergeOutputs): entry actions with and without normal actions", function exec_test(assert) {
   const fsmDef = {
     states: { A: { C: '' }, B: '', D: '' },
     events: ['ev1', 'ev2'],

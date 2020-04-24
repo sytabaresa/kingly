@@ -42,7 +42,7 @@ function incCounter(extS, eventData) {
 
   return {
     updates: [{ op: 'add', path: '/counter', value: counter + 1 }],
-    outputs: counter
+    outputs: [counter]
   }
 }
 
@@ -51,7 +51,7 @@ function incCounterTwice(extS, eventData) {
 
   return {
     updates: [{ op: 'add', path: '/counter', value: counter + 2 }],
-    outputs: counter
+    outputs: [counter]
   }
 }
 
@@ -556,7 +556,7 @@ QUnit.test("shallow history transitions, event CASCADING transitions", function 
     { [EVENT1]: {} },
     { [EVENT4]: {} },
   ];
-  const fsm = create_state_machine(fsmDef, default_settings);
+  const fsm = create_state_machine(fsmDef, {debug:{console}});
   const outputSequence = inputSequence.map(fsm);
   const formattedResults = outputSequence.map(output => output && output.map(formatResult));
   assert.deepEqual(formattedResults, [
@@ -627,7 +627,8 @@ QUnit.test("deep history transitions, event CASCADING transitions", function exe
   ], `eventless transitions are correctly taken`);
 });
 
-QUnit.test("with trace : shallow history transitions, event CASCADING transitions", function exec_test(assert) {
+// TODO: remove trace tests, supersede by the log and devtool, remove from code too
+QUnit.skip("with trace : shallow history transitions, event CASCADING transitions", function exec_test(assert) {
   const OUTER = 'OUTER';
   const INNER = 'INNER';
   const OUTER_A = 'outer_a';
@@ -847,7 +848,7 @@ QUnit.test("with trace : shallow history transitions, event CASCADING transition
     ], `eventless transitions are correctly taken`);
 });
 
-QUnit.test("with trace : deep history transitions, event CASCADING transitions", function exec_test(assert) {
+QUnit.skip("with trace : deep history transitions, event CASCADING transitions", function exec_test(assert) {
   const OUTER = 'OUTER';
   const INNER = 'INNER';
   const OUTER_A = 'outer_a';
@@ -1214,7 +1215,7 @@ QUnit.test("eventless x atomic transitions", function exec_test(assert) {
     { [EVENT1]: {} },
     { [EVENT2]: {} },
   ];
-  const fsm = create_state_machine(fsmDef, default_settings);
+  const fsm = create_state_machine(fsmDef, {debug:{console}});
   const outputSequence = inputSequence.map(fsm);
   const formattedResults = outputSequence.map(output => output && output.map(formatResult));
   assert.deepEqual(formattedResults, [

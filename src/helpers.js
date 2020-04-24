@@ -10,7 +10,8 @@ import {objectTreeLenses, PRE_ORDER, traverseObj} from "fp-rosetree"
 export const noop = () => {
 };
 export const emptyConsole = {log: noop, warn: noop, info: noop, debug: noop, error: noop, trace: noop};
-export const emptyTrace = noop;
+// TODO: probably not noop here
+export const emptyTracer = noop;
 
 export function isBoolean(x) {
   return typeof x === 'boolean'
@@ -610,6 +611,7 @@ export function tryCatch(fn, errCb) {
 
 export function tryCatchMachineFn(fnType, fn, argsDesc = []) {
   return tryCatch(fn, (e, args) => {
+    // TODO: cannot, dont have a console and a tracer so just compute the values of the kingly errror?
     const err = new Error(e);
     const fnName = getFunctionName(fn);
     // NOTE : we concatenate causes but not `info`
@@ -637,16 +639,20 @@ export function getFunctionName(actionFactory) {
  * @param {function: true | Error} contract Contract returns either true (fulfilled contract) or an Error with an
  * optional info properties to give more details about the cause of the error
  * @param {Array} arrayParams Parameters to be passed to the conract
- * @returns {undefined} if the contract is fulfilled
+ * @returns {undefined|{when, location, info, message, ...}} if the contract is fulfilled
  * @throws if the contract fails
  */
 export function assert(contract, arrayParams) {
+  const contractName = contract.name ||contract.name.displayName || "";
   const isFulfilledOrError = contract.apply(null, arrayParams);
   if (isFulfilledOrError === true) return void 0
   else {
-    const info = isFulfilledOrError.info;
-    console.error(`ERROR: failed contract ${contract.name || ""}. ${info ? "Error info:" : ""}`, isFulfilledOrError.info);
-    throw isFulfilledOrError
+    return {
+      ...isFulfilledOrError,
+      when: `Checking contract`,
+      message: [isFulfilledOrError.message, `failed contract ${contractName}`].join("\n"),
+      info: isFulfilledOrError.info,
+    }
   }
 }
 
@@ -728,8 +734,8 @@ export function throwIfInvalidEntryActionResult({debug, console}, exitActionResu
 export function isActions(obj) {
   return obj && `updates` in obj && `outputs` in obj
     && (obj.outputs === NO_OUTPUT || Array.isArray(obj.outputs))
-  // !! does not have to be arrays. HAs to be anything that is accepted by updateState
   // && Array.isArray(obj.updates)
+  // !! does not have to be arrays. HAs to be anything that is accepted by updateState
 }
 
 /**
@@ -737,6 +743,7 @@ export function isActions(obj) {
  * @param obj
  * @returns {boolean|Error}
  */
+// TODO: review the error message and format returned (no more cause)
 export function isEventStruct(obj) {
   let trueOrError;
   if (!obj || typeof obj !== 'object') {
@@ -761,4 +768,21 @@ export function destructureEvent(obj) {
   const eventData = obj[eventName];
 
   return {eventName, eventData}
+}
+
+export class KinglyError extends Error {
+  // TODO: do something with the tracer too
+  constructor(m, console, tracer) {
+    super(m && m.message || "");
+    this.name = `KinglyError`;
+    this.stack = m && m.stack || this.stack;
+    this.errors = m;
+    const { when, location, info, message } = m || {};
+    const fm = `At ${location}: ${when} => ${message}`;
+    const infoMsg = info ? `See extra info in console` : "";
+    const fullMsg = [fm, infoMsg].join("\n");
+    // this.message = fullMsg;
+    console && console.error(fullMsg);
+    info && console && console.info(info);
+  }
 }

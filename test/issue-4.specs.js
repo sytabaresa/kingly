@@ -5,7 +5,7 @@ QUnit.module("Fixing issue 4", {});
 
 const updateState = (extendedState, updates) =>
   Object.assign({}, extendedState, updates);
-const traceTransition = str => ({ outputs: str, updates: {} });
+const traceTransition = str => ({ outputs: [str], updates: {} });
 
 QUnit.test("debug settings, event, no action, false guard", function exec_test(
   assert
