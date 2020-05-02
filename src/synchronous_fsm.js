@@ -332,7 +332,6 @@ export function createStateMachine(fsmDef, settings) {
     return outputs
   }
 
-  // TODO: review the error notification
   function process_event(hash_states, event, event_data, extendedState) {
     const current_state = hash_states[INIT_STATE].current_state_name;
     const event_handler = hash_states[current_state][event];
@@ -406,7 +405,6 @@ export function createStateMachine(fsmDef, settings) {
     console.info("left state", wrap(from));
   }
 
-  // TODO: maybe add some trace debug here?
   function enter_next_state(to, updatedExtendedState, hash_states) {
     let state_to;
     let state_to_name;
