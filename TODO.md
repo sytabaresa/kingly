@@ -1,4 +1,26 @@
 # Now
+// TODO: Courtesan: in content-courtesan.js change .kuker to .courtesan (but last)
+// TODO: Courtesan devtool: Ben hyperlink schneidermann - information seeking mantra
+   - overview first
+   - zoom + filter
+   - details on demand 
+// TODO: Suspense!! cf. video react conf on relay react C:\Users\toshiba\Downloads\conferences
+   - suspense creates boundaries which accumulate all data needs from component within the boundary
+   - and then suspense machine, show how this can be achieved with fsm
+   - in realworld, we fetch tags and posts separately and display two loading indicators
+   - we could suspend! load both queries, and display once all data is there else one unique loading indicator
+   - that's FETCH THEN RENDER, issue is there is no incremental rendering, it is all, loading, or nothing
+   - it is better than displaying loading indicators for all component which require data
+   - having several suspense boundaries allow to have incremental rendering, the fallback holds the layout and displays a nice placeholer
+   - unfortunately there is not enough data fetching to implement suspense list
+     - suspense list allow to enforce ordering of suspensed renders so one comopnent waits for another before rendering itself
+   - I could try render as you fetch for page transitions (cf. 19:29)
+     - this involves declaring ahead of time the component to download and the data for that component, so they can be downloaded at the same time, instead of sequentially (download code, then download data)
+     - the downloads call happens then in the handler that handles the page transition, not in the component displyaing the page
+     - a state machine does that naturally, not less naturally than React
+     - see how to integrate that as part of a routing machine
+     - also the machine level delegate data fetchign to handlers, so there can be handled caching, and waiting X ms to invalidate a cache (throttling essentially)
+       - how to implement cancelation? if user clicks tab A -> download <A> fetch A data, then quickly clicks Tab B -> cancel A, do B 
 // TODO: do plyr (video player) with stateccharts. 130 ifs there: https://github.com/sampotts/plyr/blob/master/src/js/controls.js
 //    also quite popular player, specially because of its accessibiity features cf. my infoq post on acccessibility
 // TODO: an example of parallel charts (https://tritarget.org/#Statechart%20based%20form%20manager) to do with multicasting events and Kingly

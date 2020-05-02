@@ -1,5 +1,6 @@
 import * as QUnit from "qunitjs";
 import {ACTION_IDENTITY, createStateMachine} from "../src";
+import {tracer} from "../devtool";
 
 QUnit.module("Fixing issue 5", {});
 
@@ -122,7 +123,7 @@ QUnit.test("debug settings, event, no action, false guard", function exec_test(
   });
 
   const outputs1 = cases.map(scenario => {
-    const fsm1 = createStateMachine(fsmDef, {debug:{console}});
+    const fsm1 = createStateMachine(fsmDef, {debug:{console}, devTool:{tracer}})
     return scenario.map(fsm1);
   });
   const expected1 = [

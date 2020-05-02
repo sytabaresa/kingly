@@ -36,3 +36,33 @@ export const PREDICATE_DESC = `predicate`
 export const COMMAND_RENDER = 'render'
 
 export const CONTRACTS_EVAL = "CONTRACTS_EVAL";
+
+// Kuker related
+//
+// That's the event.type to pass kuker to have indentation
+// cf. https://github.com/krasimir/kuker-emitters/blob/master/src/MobXEmitter.js#L16
+// https://github.com/krasimir/kuker/blob/master/src/kuker-ui/components/Dashboard/Handlers/MobX.js
+// displays mobxRvent.object stringify
+// beeware it is emit(type, state, event (mobxEvent then))
+// event.type can be error or many things... none of which is really good except when unrecognized (jus label printed)
+const MOBX = '@mobx';
+// This is to have event data displayed in small font next to bold event label
+// cf. https://github.com/krasimir/kuker/blob/master/src/kuker-ui/components/Dashboard/Handlers/ReduxAction.js
+// but no indent, so will have to do MOBX for first send, and REDUX_ACTION for posterior
+const REDUX_ACTION= '@redux_ACTION';
+// so maybe try firs basic emitter
+// icon, color, state, label
+// display icon + label or event type
+// I will have to stringify the event data and put it in the label...
+// alright so the best is to fork...
+// but try first with the basic emitter before writing my own
+// specially because getting started with content scripts and bundling the js can be a problem
+export const OUTPUTS_MSG = "OUTPUTS_MSG";
+export const INPUT_MSG = "INPUT_MSG";
+export const WARN_MSG = 'WARN_MSG';
+export const MACHINE_CREATION_ERROR_MSG = 'MACHINE_CREATION_ERROR_MSG';
+export const ERROR_MSG = 'ERROR_MSG';
+export const INTERNAL_INPUT_MSG = 'INTERNAL_INPUT_MSG';
+export const INTERNAL_OUTPUTS_MSG = 'INTERNAL_OUTPUTS_MSG';
+export const DEBUG_MSG = 'DEBUG_MSG';
+export const INIT_INPUT_MSG = 'INIT_INPUT_MSG';

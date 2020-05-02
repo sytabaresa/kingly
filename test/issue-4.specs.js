@@ -1,5 +1,6 @@
 import * as QUnit from "qunitjs";
 import { ACTION_IDENTITY, createStateMachine } from "../src";
+import {tracer} from "../devtool";
 
 QUnit.module("Fixing issue 4", {});
 
@@ -169,7 +170,7 @@ QUnit.test("debug settings, event, no action, false guard", function exec_test(
     { event1: void 0 },
     { event2: { shouldReturnToA: false } },
     { event2: { shouldReturnToA: false } }
-  ].map(createStateMachine(fsmDef, {}));
+  ].map(createStateMachine(fsmDef, {debug:{console}, devTool:{tracer}}));
 
   assert.deepEqual(
     outputs1,
