@@ -225,7 +225,7 @@ QUnit.test("event multi transitions, CASCADING inner INIT event transitions", fu
         "reviewed": false,
         "switch": false
       },
-      "outputs": null,
+      "outputs": [],
       "predicate": undefined,
       settings: formatResult(settings),
       "targetControlState": "C",
@@ -274,7 +274,7 @@ QUnit.test("event multi transitions, CASCADING inner INIT event transitions", fu
           "reviewed": false,
           "switch": true
         },
-        "outputs": null,
+        "outputs": [],
         "predicate": "isValid",
         settings: formatResult(settings),
         "targetControlState": "INNER_GROUP_D",
@@ -314,7 +314,7 @@ QUnit.test("event multi transitions, CASCADING inner INIT event transitions", fu
           "reviewed": false,
           "switch": true
         },
-        "outputs": null,
+        "outputs": [],
         "predicate": undefined,
         settings: formatResult(settings),
         "targetControlState": "D",
@@ -402,7 +402,7 @@ QUnit.test("eventless transition, event multi transitions, CASCADING inner event
           "reviewed": false,
           "switch": false
         },
-        "outputs": null,
+        "outputs": [],
         "predicate": undefined,
         "settings": {
 
@@ -456,7 +456,7 @@ QUnit.test("eventless transition, event multi transitions, CASCADING inner event
           "reviewed": false,
           "switch": true
         },
-        "outputs": null,
+        "outputs": [],
         "predicate": "isValid",
         "settings": {
 
@@ -498,7 +498,7 @@ QUnit.test("eventless transition, event multi transitions, CASCADING inner event
           "reviewed": false,
           "switch": true
         },
-        "outputs": null,
+        "outputs": [],
         "predicate": undefined,
         "settings": {
 
@@ -560,11 +560,10 @@ QUnit.test("shallow history transitions, event CASCADING transitions", function 
   const outputSequence = inputSequence.map(fsm);
   const formattedResults = outputSequence.map(output => output && output.map(formatResult));
   assert.deepEqual(formattedResults, [
-    // [NO_OUTPUT, NO_OUTPUT],
-    [NO_OUTPUT, NO_OUTPUT],
+    [],
     NO_OUTPUT,
     NO_OUTPUT,
-    [0, NO_OUTPUT]
+    [0]
   ], `eventless transitions are correctly taken`);
 });
 
@@ -619,428 +618,11 @@ QUnit.test("deep history transitions, event CASCADING transitions", function exe
   const outputSequence = inputSequence.map(fsm);
   const formattedResults = outputSequence.map(output => output && output.map(formatResult));
   assert.deepEqual(formattedResults, [
-    // [NO_OUTPUT, NO_OUTPUT],
-    [NO_OUTPUT, NO_OUTPUT],
+    [],
     NO_OUTPUT,
     NO_OUTPUT,
     [0]
   ], `eventless transitions are correctly taken`);
-});
-
-// TODO: remove trace tests, supersede by the log and devtool, remove from code too
-QUnit.skip("with trace : shallow history transitions, event CASCADING transitions", function exec_test(assert) {
-  const OUTER = 'OUTER';
-  const INNER = 'INNER';
-  const OUTER_A = 'outer_a';
-  const OUTER_B = 'outer_b';
-  const INNER_S = 'inner_s';
-  const INNER_T = 'inner_t';
-  const Z = 'z';
-  const states = { [OUTER]: { [INNER]: { [INNER_S]: '', [INNER_T]: '' }, [OUTER_A]: '', [OUTER_B]: '' }, [Z]: '' };
-  const fsmDef = {
-    states,
-    events: [EVENT1, EVENT2, EVENT3, EVENT4],
-    initialExtendedState: { history: SHALLOW, counter: 0 },
-    transitions: [
-      { from: INIT_STATE, event: INIT_EVENT, to: OUTER, action: ACTION_IDENTITY },
-      { from: OUTER, event: INIT_EVENT, to: OUTER_A, action: ACTION_IDENTITY },
-      { from: OUTER_A, event: EVENT1, to: INNER, action: ACTION_IDENTITY },
-      { from: INNER, event: INIT_EVENT, to: INNER_S, action: ACTION_IDENTITY },
-      { from: INNER_S, event: EVENT3, to: INNER_T, action: ACTION_IDENTITY },
-      { from: INNER_T, event: EVENT3, to: INNER_S, action: ACTION_IDENTITY },
-      { from: INNER, event: EVENT2, to: OUTER_B, action: ACTION_IDENTITY },
-      { from: OUTER, event: EVENT1, to: Z, action: ACTION_IDENTITY },
-      {
-        from: Z, event: EVENT4, guards: [
-          {
-            predicate: function isDeep(x, e) {return x.history === DEEP},
-            to: historyState(DEEP, OUTER),
-            action: incCounter
-          },
-          {
-            predicate: function isShallow(x, e) {return x.history !== DEEP},
-            to: historyState(SHALLOW, OUTER),
-            action: incCounter
-          }
-        ]
-      },
-    ],
-    updateState: applyJSONpatch,
-  };
-  const inputSequence = [
-    // { "init": fsmDef.initialExtendedState },
-    { [EVENT1]: {} },
-    { [EVENT3]: {} },
-    { [EVENT1]: {} },
-    { [EVENT4]: {} },
-  ];
-  const fsm = create_state_machine(traceFSM({}, fsmDef), default_settings);
-  const outputSequence = inputSequence.map(fsm);
-  const formattedResults = outputSequence.map(output => output.map(formatResult));
-  assert.deepEqual(formattedResults,
-    [
-      [
-        {
-          "actionFactory": "ACTION_IDENTITY",
-          "controlState": "outer_a",
-          "event": {
-            "eventData": {},
-            "eventLabel": "event1"
-          },
-          "extendedState": {
-            "counter": 0,
-            "history": "shallow"
-          },
-          "guardIndex": 0,
-          "updates": [],
-          "newExtendedState": {
-            "counter": 0,
-            "history": "shallow"
-          },
-          "outputs": null,
-          "predicate": undefined,
-          "settings": {
-
-          },
-          "targetControlState": "INNER",
-          "transitionIndex": 2
-        },
-        {
-          "actionFactory": "ACTION_IDENTITY",
-          "controlState": "INNER",
-          "event": {
-            "eventData": {},
-            "eventLabel": "init"
-          },
-          "extendedState": {
-            "counter": 0,
-            "history": "shallow"
-          },
-          "guardIndex": 0,
-          "updates": [],
-          "newExtendedState": {
-            "counter": 0,
-            "history": "shallow"
-          },
-          "outputs": null,
-          "predicate": undefined,
-          "settings": {
-
-          },
-          "targetControlState": "inner_s",
-          "transitionIndex": 3
-        }
-      ],
-      [
-        {
-          "actionFactory": "ACTION_IDENTITY",
-          "controlState": "inner_s",
-          "event": {
-            "eventData": {},
-            "eventLabel": "event3"
-          },
-          "extendedState": {
-            "counter": 0,
-            "history": "shallow"
-          },
-          "guardIndex": 0,
-          "updates": [],
-          "newExtendedState": {
-            "counter": 0,
-            "history": "shallow"
-          },
-          "outputs": null,
-          "predicate": undefined,
-          "settings": {
-
-          },
-          "targetControlState": "inner_t",
-          "transitionIndex": 4
-        }
-      ],
-      [
-        {
-          "actionFactory": "ACTION_IDENTITY",
-          "controlState": "OUTER",
-          "event": {
-            "eventData": {},
-            "eventLabel": "event1"
-          },
-          "extendedState": {
-            "counter": 0,
-            "history": "shallow"
-          },
-          "guardIndex": 0,
-          "updates": [],
-          "newExtendedState": {
-            "counter": 0,
-            "history": "shallow"
-          },
-          "outputs": null,
-          "predicate": undefined,
-          "settings": {
-
-          },
-          "targetControlState": "z",
-          "transitionIndex": 7
-        }
-      ],
-      [
-        {
-          "actionFactory": "incCounter",
-          "controlState": "z",
-          "event": {
-            "eventData": {},
-            "eventLabel": "event4"
-          },
-          "extendedState": {
-            "counter": 0,
-            "history": "shallow"
-          },
-          "guardIndex": 1,
-          "updates": [
-            {
-              "op": "add",
-              "path": "/counter",
-              "value": 1
-            }
-          ],
-          "newExtendedState": {
-            "counter": 1,
-            "history": "shallow"
-          },
-          "outputs": 0,
-          "predicate": "isShallow",
-          "settings": {
-
-          },
-          "targetControlState": {
-            "shallow": "OUTER",
-          },
-          "transitionIndex": 8
-        },
-        {
-          "actionFactory": "ACTION_IDENTITY",
-          "controlState": "INNER",
-          "event": {
-            "eventData": {},
-            "eventLabel": "init"
-          },
-          "extendedState": {
-            "counter": 1,
-            "history": "shallow"
-          },
-          "guardIndex": 0,
-          "updates": [],
-          "newExtendedState": {
-            "counter": 1,
-            "history": "shallow"
-          },
-          "outputs": null,
-          "predicate": undefined,
-          "settings": {
-
-          },
-          "targetControlState": "inner_s",
-          "transitionIndex": 3
-        }
-      ]
-    ], `eventless transitions are correctly taken`);
-});
-
-QUnit.skip("with trace : deep history transitions, event CASCADING transitions", function exec_test(assert) {
-  const OUTER = 'OUTER';
-  const INNER = 'INNER';
-  const OUTER_A = 'outer_a';
-  const OUTER_B = 'outer_b';
-  const INNER_S = 'inner_s';
-  const INNER_T = 'inner_t';
-  const Z = 'z';
-  const states = { [OUTER]: { [INNER]: { [INNER_S]: '', [INNER_T]: '' }, [OUTER_A]: '', [OUTER_B]: '' }, [Z]: '' };
-  const fsmDef = {
-    states,
-    events: [EVENT1, EVENT2, EVENT3, EVENT4],
-    initialExtendedState: { history: DEEP, counter: 0 },
-    transitions: [
-      { from: INIT_STATE, event: INIT_EVENT, to: OUTER, action: ACTION_IDENTITY },
-      { from: OUTER, event: INIT_EVENT, to: OUTER_A, action: ACTION_IDENTITY },
-      { from: OUTER_A, event: EVENT1, to: INNER, action: ACTION_IDENTITY },
-      { from: INNER, event: INIT_EVENT, to: INNER_S, action: ACTION_IDENTITY },
-      { from: INNER_S, event: EVENT3, to: INNER_T, action: ACTION_IDENTITY },
-      { from: INNER_T, event: EVENT3, to: INNER_S, action: ACTION_IDENTITY },
-      { from: INNER, event: EVENT2, to: OUTER_B, action: ACTION_IDENTITY },
-      { from: OUTER, event: EVENT1, to: Z, action: ACTION_IDENTITY },
-      {
-        from: Z, event: EVENT4, guards: [
-          {
-            predicate: function isDeep(x, e) {return x.history === DEEP},
-            to: historyState(DEEP, OUTER),
-            action: incCounter
-          },
-          {
-            predicate: function isShallow(x, e) {return x.history !== DEEP},
-            to: historyState(SHALLOW, OUTER),
-            action: incCounter
-          }
-        ]
-      },
-    ],
-    updateState: applyJSONpatch,
-  };
-  const inputSequence = [
-    // { "init": fsmDef.initialExtendedState },
-    { [EVENT1]: {} },
-    { [EVENT3]: {} },
-    { [EVENT1]: {} },
-    { [EVENT4]: {} },
-  ];
-  const fsm = create_state_machine(traceFSM({}, fsmDef), default_settings);
-  const outputSequence = inputSequence.map(fsm);
-  const formattedResults = outputSequence.map(output => output.map(formatResult));
-  assert.deepEqual(formattedResults,
-    [
-      [
-        {
-          "actionFactory": "ACTION_IDENTITY",
-          "controlState": "outer_a",
-          "event": {
-            "eventData": {},
-            "eventLabel": "event1"
-          },
-          "extendedState": {
-            "counter": 0,
-            "history": "deep"
-          },
-          "guardIndex": 0,
-          "updates": [],
-          "newExtendedState": {
-            "counter": 0,
-            "history": "deep"
-          },
-          "outputs": null,
-          "predicate": undefined,
-          "settings": {
-
-          },
-          "targetControlState": "INNER",
-          "transitionIndex": 2
-        },
-        {
-          "actionFactory": "ACTION_IDENTITY",
-          "controlState": "INNER",
-          "event": {
-            "eventData": {},
-            "eventLabel": "init"
-          },
-          "extendedState": {
-            "counter": 0,
-            "history": "deep"
-          },
-          "guardIndex": 0,
-          "updates": [],
-          "newExtendedState": {
-            "counter": 0,
-            "history": "deep"
-          },
-          "outputs": null,
-          "predicate": undefined,
-          "settings": {
-
-          },
-          "targetControlState": "inner_s",
-          "transitionIndex": 3
-        }
-      ],
-      [
-        {
-          "actionFactory": "ACTION_IDENTITY",
-          "controlState": "inner_s",
-          "event": {
-            "eventData": {},
-            "eventLabel": "event3"
-          },
-          "extendedState": {
-            "counter": 0,
-            "history": "deep"
-          },
-          "guardIndex": 0,
-          "updates": [],
-          "newExtendedState": {
-            "counter": 0,
-            "history": "deep"
-          },
-          "outputs": null,
-          "predicate": undefined,
-          "settings": {
-
-          },
-          "targetControlState": "inner_t",
-          "transitionIndex": 4
-        }
-      ],
-      [
-        {
-          "actionFactory": "ACTION_IDENTITY",
-          "controlState": "OUTER",
-          "event": {
-            "eventData": {},
-            "eventLabel": "event1"
-          },
-          "extendedState": {
-            "counter": 0,
-            "history": "deep"
-          },
-          "guardIndex": 0,
-          "updates": [],
-          "newExtendedState": {
-            "counter": 0,
-            "history": "deep"
-          },
-          "outputs": null,
-          "predicate": undefined,
-          "settings": {
-
-          },
-          "targetControlState": "z",
-          "transitionIndex": 7
-        }
-      ],
-      [
-        {
-          "actionFactory": "incCounter",
-          "controlState": "z",
-          "event": {
-            "eventData": {},
-            "eventLabel": "event4"
-          },
-          "extendedState": {
-            "counter": 0,
-            "history": "deep"
-          },
-          "guardIndex": 0,
-          "updates": [
-            {
-              "op": "add",
-              "path": "/counter",
-              "value": 1
-            }
-          ],
-          "newExtendedState": {
-            "counter": 1,
-            "history": "deep"
-          },
-          "outputs": 0,
-          "predicate": "isDeep",
-          "settings": {
-
-          },
-          "targetControlState": {
-            "deep": "OUTER",
-          },
-          "transitionIndex": 8
-        }
-      ]
-    ], `eventless transitions are correctly taken`);
 });
 
 QUnit.test("shallow history transitions FROM INSIDE, event CASCADING transitions", function exec_test(assert) {
@@ -1109,9 +691,9 @@ QUnit.test("shallow history transitions FROM INSIDE, event CASCADING transitions
   const formattedResults = outputSequence.map(output => output && output.map(formatResult));
   assert.deepEqual(formattedResults, [
     // [NO_OUTPUT, NO_OUTPUT],
-    [NO_OUTPUT, NO_OUTPUT],
-    NO_OUTPUT,
-    [0, NO_OUTPUT]
+    [],
+    [],
+    [0]
   ], `eventless transitions are correctly taken`);
 });
 
@@ -1179,8 +761,8 @@ QUnit.test("deep history transitions FROM INSIDE, event CASCADING transitions", 
   const formattedResults = outputSequence.map(output => output && output.map(formatResult));
   assert.deepEqual(formattedResults, [
     // [NO_OUTPUT, NO_OUTPUT],
-    [NO_OUTPUT, NO_OUTPUT],
-    NO_OUTPUT,
+    [],
+    [],
     [0]
   ], `eventless transitions are correctly taken`);
 });
@@ -1223,13 +805,8 @@ QUnit.test("eventless x atomic transitions", function exec_test(assert) {
     //   null,
     //   null
     // ],
+    [],
     [
-      null,
-      null,
-      null
-    ],
-    [
-      null,
       {
         "b": 1,
         "c": 1,

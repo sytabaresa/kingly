@@ -13,7 +13,8 @@ export const STATE_PROTOTYPE_NAME = 'State'; // !!must be the function name for 
 // i.e. State
 export const NO_STATE_UPDATE = [];
 // NOTE : this really cannot be anything else than a falsy value, beware
-export const NO_OUTPUT = null;
+// TODO: check consequences of moving it to empty array
+export const NO_OUTPUT = [];
 export const ACTION_IDENTITY = function ACTION_IDENTITY(){
   return {
     outputs : NO_OUTPUT,

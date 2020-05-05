@@ -228,9 +228,8 @@ export function createStateMachine(fsmDef, settings) {
       tracer({
         type: MACHINE_CREATION_ERROR_MSG,
         trace: {
-          error: e,
+          info: e.errors,
           message: e.message,
-          info: {fsmDef, settings},
           machineState: {cs: INIT_STATE, es: extendedState, hs: history}
         }
       });
@@ -318,7 +317,7 @@ export function createStateMachine(fsmDef, settings) {
       });
       console.warn(`The external event INIT_EVENT can only be sent when starting the machine!`)
 
-      return NO_OUTPUT
+      return null
     }
 
     const outputs = process_event(
@@ -391,7 +390,7 @@ export function createStateMachine(fsmDef, settings) {
       // CASE : There is no transition associated to that event from that state
       console.warn(`There is no transition associated to the event |${event}| in state |${current_state}|!`);
 
-      return NO_OUTPUT;
+      return null;
     }
   }
 
@@ -500,7 +499,7 @@ export function createStateMachine(fsmDef, settings) {
           const condition_checking_fn = function (extendedState_, event_data, current_state) {
             from = current_state || from;
             const predicate = guard.predicate || alwaysTrue;
-            const predicateName = predicate.name || predicate.displayName || "";
+            const predicateName = predicate.name || predicate.displayName || "<anonymous>";
             const to = guard.to;
             const shouldTransitionBeTaken = ((extendedState, event_data, settings) => {
               try {
@@ -605,7 +604,7 @@ export function createStateMachine(fsmDef, settings) {
                   machineState: {cs: current_state, es: extendedState, hs: history}
                 }
               });
-              return {stop: false, outputs: NO_OUTPUT};
+              return {stop: false, outputs: null};
             }
           };
           // TODO: remove that, I don't need that anymore
@@ -621,7 +620,7 @@ export function createStateMachine(fsmDef, settings) {
         };
       },
       function dummy() {
-        return {stop: false, outputs: NO_OUTPUT};
+        return {stop: false, outputs: null};
       }
     );
   });
@@ -634,9 +633,8 @@ export function createStateMachine(fsmDef, settings) {
     tracer({
       type: MACHINE_CREATION_ERROR_MSG,
       trace: {
-        error: e,
         message: e.message,
-        info: {fsmDef, settings},
+        info: {fsmDef, settings, error: e},
         machineState: {cs: INIT_STATE, es: extendedState, hs: history}
       }
     });
@@ -719,7 +717,7 @@ export function makeWebComponentFromFsm({name, eventHandler, fsm, commandHandler
       const el = this;
       this.eventSubject = eventHandler;
       this.options = Object.assign({}, options);
-      const NO_ACTION = this.options.NO_ACTION || NO_OUTPUT;
+      const NO_ACTION = this.options.NO_ACTION || null;
 
       // Set up execution of commands
       this.eventSubject.subscribe({

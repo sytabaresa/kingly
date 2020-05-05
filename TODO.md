@@ -1,4 +1,7 @@
 # Now
+// TODO: major change maybe brek all tests: change action identity in kingly to outputs: [], and updates: []
+// TODO: document, state updates MUST be an array if using the compiler or yed converter, outputs MUST be an array or null
+  - zero values are used for action identity, and those are ([] and null), maybe future version add an option to change that
 // TODO: Courtesan: in content-courtesan.js change .kuker to .courtesan (but last)
 // TODO: Courtesan devtool: Ben hyperlink schneidermann - information seeking mantra
    - overview first

@@ -13,27 +13,13 @@ const debug_settings = Object.assign({}, default_settings, {
   }
 });
 
-function setEntryActionForC() {
-  return {
-    outputs: [{c: true}],
-    updates: [{op: 'add', path: '/c', value: true}]
-  }
-}
-
 const errorString = `An error occurred`;
 const invalidAction = {};
-const invalidEntryAction = {};
 const throwingAction = function () {
   throw errorString
 };
 const factoryReturningInvalidAction = function () {
   return invalidAction
-};
-const factoryReturningInvalidEntryAction = function () {
-  return invalidEntryAction
-};
-const throwingEntryAction = function () {
-  throw  errorString
 };
 const invalidReturningPredicate = () => {
 }
@@ -78,67 +64,6 @@ QUnit.test("Transition action factory error - returns invalid action", function 
 
   const fsm = createStateMachine(fsmDef, debug_settings);
   assert.ok(fsm({ev: void 0}) instanceof KinglyError, `KinglyError thrown`);
-});
-
-// TODO: remove no more entry actions
-QUnit.skip("Entry action factory error", function exec_test(assert) {
-  const fsmDef = {
-    states: {A: {C: ''}, B: ''},
-    events: ['ev1'],
-    transitions: [
-      {from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY},
-      {from: 'C', to: 'B', event: 'ev1', action: ACTION_IDENTITY},
-      {from: 'A', to: 'C', event: INIT_EVENT, action: ACTION_IDENTITY}
-    ],
-    initialExtendedState: {standard: true},
-    updateState: applyJSONpatch,
-  };
-  const entryActions = {
-    // NOTE : per contract, we can't put an non-empty action on the initial control state
-    // The extended state would be updated, but there would be no way to observe the output
-    // for that transition
-    // A: setEntryActionForA,
-    B: throwingEntryAction,
-    C: setEntryActionForC,
-  };
-  const fsmDefWithEntryActions = decorateWithEntryActions(fsmDef, entryActions, mergeOutputsFn);
-  const fsm = createStateMachine(fsmDefWithEntryActions, debug_settings);
-
-  assert.throws(
-    () => fsm({'ev1': void 0}),
-    err => err.info[0].fnName === 'throwingEntryAction',
-    `Entry actions throwing are identified separately`
-  );
-});
-
-QUnit.skip("Entry action factory error - returns invalid action", function exec_test(assert) {
-  const fsmDef = {
-    states: {A: {C: ''}, B: ''},
-    events: ['ev1'],
-    transitions: [
-      {from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY},
-      {from: 'C', to: 'B', event: 'ev1', action: ACTION_IDENTITY},
-      {from: 'A', to: 'C', event: INIT_EVENT, action: ACTION_IDENTITY}
-    ],
-    initialExtendedState: {standard: true},
-    updateState: applyJSONpatch,
-  };
-  const entryActions = {
-    // NOTE : per contract, we can't put an non-empty action on the initial control state
-    // The extended state would be updated, but there would be no way to observe the output
-    // for that transition
-    // A: setEntryActionForA,
-    B: factoryReturningInvalidEntryAction,
-    C: setEntryActionForC,
-  };
-  const fsmDefWithEntryActions = decorateWithEntryActions(fsmDef, entryActions, mergeOutputsFn);
-  const fsm = createStateMachine(fsmDefWithEntryActions, debug_settings);
-
-  assert.throws(
-    () => fsm({'ev1': void 0}),
-    err => err.info[0].fnName === 'factoryReturningInvalidEntryAction',
-    `Entry actions returning invalid actions are identified separately`
-  );
 });
 
 QUnit.test("Guard error - throws", function exec_test(assert) {

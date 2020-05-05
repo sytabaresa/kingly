@@ -121,40 +121,6 @@ QUnit.test("fsmContracts(fsmDef): compound states - no init transition", functio
   ], message);
 });
 
-// NOTE: we canceled the contract about not having guards in initial transitions for compound states
-QUnit.skip("fsmContracts(fsmDef): compound states - invalid init transition", function exec_test(assert) {
-  const fsmDef = {
-    states: { A: { B: '' }, C: '' },
-    events: ['ev'],
-    transitions: [
-      { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: ACTION_IDENTITY },
-      { from: 'C', to: 'B', event: 'ev', action: ACTION_IDENTITY },
-      { from: 'A', event: INIT_EVENT, guards: [{ to: 'B', action: ACTION_IDENTITY, predicate: () => true }] }
-    ],
-    initialExtendedState: {},
-    updateState: applyJSONpatch,
-  };
-
-  const { isFulfilled, failingContracts } = fsmContractChecker(fsmDef, settings, fsmContracts);
-  const failureInfo = failingContracts.find(x => x.name === validInitialTransitionForCompoundState.name);
-  const { message, info } = failureInfo;
-  const { entryTransitions } = info;
-  assert.deepEqual(isFulfilled, false, `Fails at least one contract`);
-  assert.deepEqual(entryTransitions.map(formatResult), [
-    {
-      "event": "init",
-      "from": "A",
-      "guards": [
-        {
-          "action": "ACTION_IDENTITY",
-          "predicate": "predicate",
-          "to": "B"
-        }
-      ]
-    }
-  ], message);
-});
-
 QUnit.test("fsmContracts(fsmDef): compound states - invalid init transition - target states not within" +
   " hierarchy", function exec_test(assert) {
   const fsmDef = {

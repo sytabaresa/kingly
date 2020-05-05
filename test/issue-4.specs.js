@@ -1,5 +1,5 @@
 import * as QUnit from "qunitjs";
-import { ACTION_IDENTITY, createStateMachine } from "../src";
+import {ACTION_IDENTITY, createStateMachine, formatUndefinedInJSON} from "../src";
 import {tracer} from "../devtool";
 
 QUnit.module("Fixing issue 4", {});
@@ -42,6 +42,7 @@ QUnit.test("debug settings, event, no action, false guard", function exec_test(
     logGroup1toGroup2: (s, e, stg) => traceTransition("Group1 -> B"),
     logGroup2toGroup3: (s, e, stg) => traceTransition("Group2 -> Group3"),
     logGroup3toB: (s, e, stg) => traceTransition("Group3 -> B"),
+    logGroup3BtoGroup4: (s, e, stg) => traceTransition("B -> Group4"),
     logGroup3toC: (s, e, stg) => traceTransition("Group3 -> C"),
     logAtoB: (s, e, stg) => traceTransition("A -> B"),
     logAtoC: (s, e, stg) => traceTransition("A -> C"),
@@ -59,7 +60,8 @@ QUnit.test("debug settings, event, no action, false guard", function exec_test(
     logGroup1toGroup2,
     logGroup2toGroup3,
     logGroup3toB,
-    logGroup3toC
+    logGroup3toC,
+    logGroup3BtoGroup4
   } = actionFactories;
   const transitions = [
     {
@@ -96,7 +98,7 @@ QUnit.test("debug settings, event, no action, false guard", function exec_test(
       from: "n2::n2::n1::n0ღB",
       event: "event1",
       to: "n2::n2::n1::n3ღ",
-      action: ACTION_IDENTITY
+      action: logGroup3BtoGroup4
     },
     {
       from: "n2::n2::n1ღ",
@@ -164,24 +166,25 @@ QUnit.test("debug settings, event, no action, false guard", function exec_test(
     states,
     transitions
   };
-  const outputs1 = [
+  const inputs = [
     { event1: { n: 0 } },
     { event1: void 0 },
     { event1: void 0 },
     { event2: { shouldReturnToA: false } },
     { event2: { shouldReturnToA: false } }
-  ].map(createStateMachine(fsmDef, {debug:{console}, devTool:{tracer}}));
+  ];
+  const outputs1 = inputs.map(createStateMachine(fsmDef, {debug:{console}, devTool:{tracer}}));
 
   assert.deepEqual(
     outputs1,
     [
-      ["A -> Group1", "Group1 -> B", null, "Group2 -> Group3", "Group3 -> B"],
-      [null, null],
+      ["A -> Group1", "Group1 -> B", "Group2 -> Group3", "Group3 -> B"],
+      ["B -> Group4"],
       ["A -> B"],
       ["B -> D", null],
       null
     ],
-    `?`
+    formatUndefinedInJSON(inputs)
   );
 });
 

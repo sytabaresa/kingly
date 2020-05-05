@@ -770,6 +770,10 @@ export function destructureEvent(obj) {
   return {eventName, eventData}
 }
 
+export function formatUndefinedInJSON(obj){
+  return JSON.stringify(obj, (key,value)=> {if (value === undefined) return "undefined"; else return value})
+}
+
 export class KinglyError extends Error {
   // TODO: do something with the tracer too
   constructor(m, console, tracer) {

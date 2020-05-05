@@ -1,13 +1,14 @@
 import * as QUnit from "qunitjs"
-import { clone, F, merge, T } from "ramda"
+import {clone, F, merge, T} from "ramda"
 import {
   ACTION_IDENTITY, arrayizeOutput,
   create_state_machine, INIT_EVENT, INIT_STATE, NO_OUTPUT
 } from "../src"
-import { applyPatch } from "json-patch-es6"
-import { assertContract, isArrayUpdateOperations } from "../test/helpers"
-import { CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE } from "../src/properties"
-import { fsmContracts } from "../src/contracts"
+import {applyPatch} from "json-patch-es6"
+import {assertContract, isArrayUpdateOperations} from "../test/helpers"
+import {CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE} from "../src/properties"
+import {fsmContracts} from "../src/contracts"
+import {tracer} from "../devtool";
 
 function spy_on_args(fn, spy_fn) {
   return function spied_on(...args) {
@@ -32,16 +33,22 @@ export function applyJSONpatch(extendedState, extendedStateUpdateOperations) {
   return applyPatch(extendedState, extendedStateUpdateOperations, false, false).newDocument;
 }
 
-const default_settings = { };
+const default_settings = {};
 const debug_settings = Object.assign({}, default_settings, {
-  debug: {
-    checkContracts: fsmContracts,
-    console
+    debug: {
+      checkContracts: fsmContracts,
+      console
+    },
+  devTool: {tracer}
   }
-});
+);
 
-const FALSE_GUARD = function always_false(action, state) {return [{ predicate: F, to: state, action }]};
-const TRUE_GUARD = function always_true(to, action) { return [{ predicate: T, to, action }]};
+const FALSE_GUARD = function always_false(action, state) {
+  return [{predicate: F, to: state, action}]
+};
+const TRUE_GUARD = function always_true(to, action) {
+  return [{predicate: T, to, action}]
+};
 
 const EVENT1 = 'event1';
 const EVENT1_DATA = {
@@ -71,12 +78,12 @@ const replaced_model_property = {
   new_model_key: 'new_model_value'
 }
 const update_model_ops_1 = [
-  { op: "add", path: '/new_model_key_1', value: 'new_model_value_1' },
-  { op: "replace", path: '/a_key', value: replaced_model_property },
-  { op: "remove", path: '/another_key' },
+  {op: "add", path: '/new_model_key_1', value: 'new_model_value_1'},
+  {op: "replace", path: '/a_key', value: replaced_model_property},
+  {op: "remove", path: '/another_key'},
 ];
 const update_model_ops_2 = [
-  { op: "add", path: '/new_model_key_2', value: 'new_model_value_2' },
+  {op: "add", path: '/new_model_key_2', value: 'new_model_value_2'},
 ];
 const dummy_action_result_with_update = {
   updates: update_model_ops_1,
@@ -133,7 +140,7 @@ QUnit.test("event, no action, false guard", function exec_test(assert) {
   };
   const fsm = create_state_machine(fsmDef, default_settings);
   const result = fsm({ ev: initialExtendedState });
-  assert.deepEqual(result, NO_OUTPUT, `event starts the state machine`);
+  assert.deepEqual(result, [null], `event starts the state machine`);
 });
 
 QUnit.test("event, no action, true guard", function exec_test(assert) {
@@ -149,7 +156,7 @@ QUnit.test("event, no action, true guard", function exec_test(assert) {
   };
   const fsm = create_state_machine(fsmDef);
   const result = fsm({ ev: initialExtendedState });
-  assert.deepEqual(result, NO_OUTPUT, `INIT event starts the state machine`);
+  assert.deepEqual(result, null, `INIT event starts the state machine`);
 });
 
 QUnit.test("event, action, false guard", function exec_test(assert) {
@@ -169,7 +176,7 @@ QUnit.test("event, action, false guard", function exec_test(assert) {
   };
   const fsm = create_state_machine(fsmDef);
   const result = fsm({ ev: initialExtendedState });
-  assert.deepEqual(result, NO_OUTPUT, `event starts the state machine`);
+  assert.deepEqual(result, null, `event starts the state machine`);
 });
 
 QUnit.test("event, action, true guard", function exec_test(assert) {
@@ -313,7 +320,7 @@ QUnit.test("event, 2 actions, [F,F] conditions, no action executed", function ex
   };
   const fsm = create_state_machine(fsmDef, debug_settings);
   const result = fsm({ ev: initialExtendedState });
-  assert.deepEqual(result, NO_OUTPUT,
+  assert.deepEqual(result, [null],
     `event starts the state machine, all guards failing, no transition is taken, no action is executed`);
 });
 
@@ -367,17 +374,17 @@ QUnit.test("event, 2 actions with extendedState update, NOK -> A -> B, no guards
 
 QUnit.test("2 INIT event", function exec_test(assert) {
   const fsmDef = {
-    states: { A: '', B: '' },
+    states: {A: '', B: ''},
     events: [EVENT1],
     transitions: [
-      { from: INIT_STATE, to: 'A', event: INIT_EVENT, action: dummy_action_with_update },
-      { from: 'A', to: 'B', event: EVENT1, action: another_dummy_action_with_update },
+      {from: INIT_STATE, to: 'A', event: INIT_EVENT, action: dummy_action_with_update},
+      {from: 'A', to: 'B', event: EVENT1, action: another_dummy_action_with_update},
     ],
     initialExtendedState: initialExtendedState,
     updateState: applyJSONpatch,
   };
-  const fsm = create_state_machine(fsmDef, default_settings);
-  const result2 = fsm({ [INIT_EVENT]: EVENT1_DATA });
+  const fsm = create_state_machine(fsmDef, debug_settings);
+  const result2 = fsm({[INIT_EVENT]: EVENT1_DATA});
   assert.deepEqual([result2], [
 
     null

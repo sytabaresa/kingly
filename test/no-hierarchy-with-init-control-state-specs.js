@@ -9,6 +9,7 @@ import {applyPatch} from "json-patch-es6"
 import {assertContract, isArrayUpdateOperations} from "../test/helpers"
 import {CONTRACT_MODEL_UPDATE_FN_RETURN_VALUE} from "../src/properties"
 import {fsmContracts} from "../src/contracts"
+import {tracer} from "../devtool";
 
 function spy_on_args(fn, spy_fn) {
   return function spied_on(...args) {
@@ -93,13 +94,13 @@ function another_dummy_action_with_update(extendedState, event_data, settings) {
   )
 }
 
-const debug_settings = Object.assign({}, default_settings, {debug: {checkContracts: fsmContracts}});
+const debug_settings = Object.assign({}, default_settings, {debug: {checkContracts: fsmContracts, console}, devTool: {tracer}});
 
 QUnit.module("Testing create_state_machine(fsmDef, settings) with initial control state", {});
 
 QUnit.test("initial control state, event, no action, false guard", function exec_test(assert) {
   const fsmDef = {
-    states: {A: '', B: ''},
+    states: {A: ''},
     events: ['ev'],
     transitions: [
       // { from: INIT_STATE, to: 'A', event: INIT_EVENT, action : ACTION_IDENTITY},
@@ -109,9 +110,9 @@ QUnit.test("initial control state, event, no action, false guard", function exec
     initialControlState: 'A',
     updateState: applyJSONpatch,
   };
-  const fsm = create_state_machine(fsmDef, default_settings);
+  const fsm = create_state_machine(fsmDef, debug_settings);
   const result = fsm({ev: initialExtendedState});
-  assert.deepEqual(result, NO_OUTPUT, `event starts the state machine`);
+  assert.deepEqual(result, [null], `event starts the state machine`);
 });
 
 QUnit.test("initial control state, event, no action, true guard", function exec_test(assert) {
@@ -128,7 +129,7 @@ QUnit.test("initial control state, event, no action, true guard", function exec_
   };
   const fsm = create_state_machine(fsmDef, default_settings);
   const result = fsm({ev: initialExtendedState});
-  assert.deepEqual(result, NO_OUTPUT, `INIT event starts the state machine`);
+  assert.deepEqual(result, null, `INIT event starts the state machine`);
 });
 
 QUnit.test("no initial control state, no initial transition, event, no action, true guard", function exec_test(assert) {
@@ -181,7 +182,7 @@ QUnit.test("initial control state, event, action, false guard", function exec_te
   };
   const fsm = create_state_machine(fsmDef, default_settings);
   const result = fsm({ev: initialExtendedState});
-  assert.deepEqual(result, NO_OUTPUT, `event starts the state machine`);
+  assert.deepEqual(result, null, `event starts the state machine`);
 });
 
 QUnit.test("initial control state, event, action, true guard", function exec_test(assert) {
@@ -336,7 +337,7 @@ QUnit.test("initial control state, event, 2 actions, [F,F] conditions, no action
   };
   const fsm = create_state_machine(fsmDef, default_settings);
   const result = fsm({ev: initialExtendedState});
-  assert.deepEqual(result, NO_OUTPUT,
+  assert.deepEqual(result, [null],
     `event starts the state machine, all guards failing, no transition is taken, no action is executed`);
 });
 
