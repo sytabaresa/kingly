@@ -733,7 +733,7 @@ export function throwIfInvalidEntryActionResult({debug, console}, exitActionResu
 
 export function isActions(obj) {
   return obj && `updates` in obj && `outputs` in obj
-    && (obj.outputs === NO_OUTPUT || Array.isArray(obj.outputs))
+    && Array.isArray(obj.outputs)
   // && Array.isArray(obj.updates)
   // !! does not have to be arrays. HAs to be anything that is accepted by updateState
 }

@@ -11,6 +11,7 @@
 - [Features](#features)
 - [Documentation](#documentation)
 - [Examples](#examples)
+- [Tooling](#tooling)
 - [Motivation](#motivation)
 - [Install](#install)
 - [Tests](#tests)
@@ -47,6 +48,22 @@ All documentation can be accessed in the [dedicated web site](https://brucou.git
 # Examples
 You can review the following examples which have been implemented with the same state machine, across different UI frameworks, with links to the corresponding codesandboxes.
 
+# Tooling
+Kingly has been used to implement large applications such as [Conduit](https://github.com/gothinkster/realworld), a simplified [Medium](https://medium.com/)'s clone. On such a large machine, the process has been significantly smoothed by using the free professional graph editor [yEd](https://www.yworks.com/products/yed) to produce the machine graphs.
+
+In summary, Kingly has the following tools available:
+
+- yEd graph editor ([documentation](https://brucou.github.io/documentation/v1/tooling/graph_editing.html))
+  - yEd graphs are saved as `.graphml` files    
+- yEd2kingly converter ([documentation](https://brucou.github.io/documentation/v1/tooling/graph_editing.html#yed2Kingly))
+  - the converter enables the conversion of `.graphml` files to Kingly state machines 
+- compiler ([documentation](https://brucou.github.io/documentation/v1/tooling/compiling.html))
+  - the compiler compiles a `.graphml` file into small, plain, zero-dependency JavaScript which implements the logic expressed in the graph 
+- devtool ([devtool](https://brucou.github.io/documentation/v1/tooling/devtool.html))
+  - traces a Kingly machine computation. The devtool is of invaluable help while testing and debugging.
+
+![devtool screenshot](https://brucou.github.io/documentation/images/extension/courtesan%200.png)
+  
 ## Trivial counter application
 | State Machine | Demo |UI library 
 |---|---|---|
@@ -176,8 +193,8 @@ Automated visualization works well with simple graphs, but seems to encounter tr
 - ~~[ ] babel macro for converting yed graphml and yakindu sct files~~
 - ~~[ ] babel macro to compile away the machine library to reduce bundle size~~
 - [x] add support for [yEd](https://www.yworks.com/products/yed) (professional graph editor)
-- [ ] dev tool
-- [ ] compiler
+- [ ] [dev tool](https://github.com/brucou/yed2Kingly) (including documentation)
+- [x] [compiler](https://github.com/brucou/slim) (including documentation)
 
 ## Roadmap v1.X: consolidate
 - [ ] support for live, interactive debugging
