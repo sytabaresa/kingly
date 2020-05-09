@@ -133,38 +133,38 @@ The key objectives for the API was:
   - it must be possible to add a [concurrency and/or communication mechanism](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.92.6145&rep=rep1&type=pdf) on top of the current design
   - it must be possible to integrate smoothly into React, Angular and your popular framework
   - support for both interactive and reactive programming
-- parallel and sequential composability of transducers
+- parallel and sequential composability of state machines
 
 As a result of this, the following choices were made:
 
-- **functional interface**: the transducer is just a function. As such, the transducer is a black-box, and only its injected outputs can be observed
-- **complete encapsulation** of the state of the transducer
+- **functional interface**: the Kingly state machine is just a function. As such, the machine is a black-box, and only its outputs can be observed
+- **complete encapsulation** of the state of the machine
 - **no effects** performed by the machine
 - no exit and entry actions, or activities as in other state machine formalisms
-  - there is no loss of generality as both entry and exit actions can be implemented with our  state transducer. There is simply no syntactic support for it in the core API. This can however be provided through standard functional programming patterns (higher-order functions, etc.)
+  - there is no loss of generality as both entry and exit actions can be implemented with our  state machine. There is simply no syntactic support for it in the core API. This can however be provided through standard functional programming patterns (higher-order functions, etc.)
 - every computation performed is synchronous (asynchrony is an effect)
 - action factories return the **updates** to the extended state to avoid any 
 unwanted direct modification of the extended state (API user must provide such update function, 
 which in turn allows him to use any formalism to represent state - for instance `immutable.js`)
-- no restriction is made on output of transducers, but inputs must follow some conventions (if a
+- no restriction is made on output of state machines, but inputs must follow some conventions (if a
  machine's output match those conventions, two such machines can be sequentially composed
 - parallel composition naturally occurs by feeding two state machines the same input(s))
   - as a result, reactive programming is naturally enabled. If `inputs` is a stream of 
 well-formatted machine inputs, and `f` is the fsm, then the stream of outputs will be `inputs.map
 (f)`. It is so simple that we do not even surface it at the API level.
 
-Concretely, our state transducer will be created by the factory function `createStateMachine`, which returns a state transducer which:
+Concretely, our state machine will be created by the factory function `createStateMachine`, which returns a state machine which:
 
 - immediately positions itself in its configured initial state (as defined by its initial control
  state and initial extended state) 
 - will compute an output for any input that is sent to it since that
 
-Let us insist again on the fact that the state transducer is not, in general, a pure function of 
-its inputs. However, a given output of the transducer depends exclusively on the sequence of inputs 
-it has received so far ([causality property](https://en.wikipedia.org/wiki/Causal_system)). This means that it is possible to associate to a state transducer another function which takes a sequence of inputs into a sequence of outputs, in a way that **that** function is pure. This is what enables simple and automated testing.
+Let us insist again on the fact that the state machine is not, in general, a pure function of 
+its inputs. However, a given output of the machine depends exclusively on the sequence of inputs 
+it has received so far ([causality property](https://en.wikipedia.org/wiki/Causal_system)). This means that it is possible to associate to a state machine another function which takes a sequence of inputs into a sequence of outputs, in a way that **that** function is pure. This is what enables simple and automated testing.
 
 # Visualization tools
-We have included two helpers for visualization of the state transducer:
+We have included two helpers for visualization of the state machine:
 
 - conversion to plantUML: `toPlantUml :: FSM_Def -> PlantUml`
   - the resulting chain of characters can be pasted in [plantText](`https://www.planttext.com/`) or [plantUML previewer](http://sujoyu.github.io/plantuml-previewer/) to get an automated graph representation. Both will produce the exact same visual representation
@@ -172,7 +172,7 @@ We have included two helpers for visualization of the state transducer:
 
 ![visualization example](https://github.com/brucou/state-transducer-visualizer/raw/master/assets/cd-player-automatic-dagre-visualization.png)
 
-Automated visualization works well with simple graphs, but seems to encounter trouble to generate optimally satisfying complex graphs. The Dagre layout seems to be a least worse option. I believe the best option for visualization is to use professional specialized tooling such as `yed`. In a future version, we will provide a conversion to `yed` graph format to facilitate such workflow. The [`yed`](https://www.yworks.com/products/yed) orthogonal and flowchart layout seem to give pretty good results.
+Automated visualization works well with simple graphs, but seems to encounter trouble to generate optimally satisfying complex graphs. The Dagre layout seems to be a least worse option. I believe the best option for visualization is to use professional specialized tooling such as `yed`. In a future version, we will provide a conversion to `yed` graph format to facilitate such workflow. The [`yed`](https://www.yworks.com/products/yed)'s orthogonal and flowchart layout seem to give pretty good results.
 
 # Credits
 - Credit to [Pankaj Parashar](https://css-tricks.com/password-strength-meter/) for the password selector
@@ -193,20 +193,21 @@ Automated visualization works well with simple graphs, but seems to encounter tr
 - ~~[ ] babel macro for converting yed graphml and yakindu sct files~~
 - ~~[ ] babel macro to compile away the machine library to reduce bundle size~~
 - [x] add support for [yEd](https://www.yworks.com/products/yed) (professional graph editor)
-- [ ] [dev tool](https://github.com/brucou/yed2Kingly) (including documentation)
+- [x] [dev tool](https://github.com/brucou/yed2Kingly) (including documentation)
 - [x] [compiler](https://github.com/brucou/slim) (including documentation)
-
-## Roadmap v1.X: consolidate
-- [ ] support for live, interactive debugging
 - [ ] decide definitively on tricky semantic cases
   - transitionning to history states when there is no history
     - Qt: use the initial control state for the compound state in that case
     - cf. https://www.state-machine.com/qm/sm_hist.html
   - ~~event delegation~~ 
 
-## Roadmap v1.Y: testing
+## Roadmap v1.X: consolidate
+- [ ] support for live, interactive debugging
+  - render time machine
 - [ ] add cloning API
 - [ ] add reset API
+
+## Roadmap v1.Y: testing
 - [ ] finalize, document and release testing API 
 - [ ] turn the test generation into an iterator(ES6 generator): this allows it to be composed with transducers and manipulate the test cases one by one as soon as they are produced. Will be useful for both example-based and property-based testing. When the generators runs through thousands of test cases, we often have to wait a long time before seeing any result, which is pretty damageable when a failure is located toward the ends of the generated input sequences.
 - [ ] add other searches that DFS, BFS (add probability to transitions, exclude some transitions, etc.). HINT: `store.pickOne` can be used to select the next transition
