@@ -10,7 +10,6 @@ import {objectTreeLenses, PRE_ORDER, traverseObj} from "fp-rosetree"
 export const noop = () => {
 };
 export const emptyConsole = {log: noop, warn: noop, info: noop, debug: noop, error: noop, trace: noop};
-// TODO: probably not noop here
 export const emptyTracer = noop;
 
 export function isBoolean(x) {
@@ -775,7 +774,6 @@ export function formatUndefinedInJSON(obj){
 }
 
 export class KinglyError extends Error {
-  // TODO: do something with the tracer too
   constructor(m, console, tracer) {
     super(m && m.message || "");
     this.name = `KinglyError`;

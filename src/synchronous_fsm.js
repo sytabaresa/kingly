@@ -1,16 +1,15 @@
 import {
-  ACTION_FACTORY_DESC,
   ACTION_IDENTITY,
   AUTO_EVENT, DEBUG_MSG,
   DEEP,
-  ENTRY_ACTION_FACTORY_DESC, ERROR_MSG,
+  ERROR_MSG,
   history_symbol,
   INIT_EVENT, INIT_INPUT_MSG,
   INIT_STATE, INPUT_MSG, INTERNAL_INPUT_MSG, INTERNAL_OUTPUTS_MSG, MACHINE_CREATION_ERROR_MSG,
-  NO_OUTPUT, OUTPUTS_MSG,
+  OUTPUTS_MSG,
   SHALLOW,
   STATE_PROTOTYPE_NAME,
-  UPDATE_STATE_FN_DESC, WARN_MSG
+  WARN_MSG
 } from "./properties";
 import {
   arrayizeOutput,
@@ -22,18 +21,11 @@ import {
   findInitTransition,
   get_fn_name,
   getFsmStateList,
-  getFunctionName,
-  handleFnExecError,
   initHistoryDataStructure,
   isActions,
   isEventStruct,
   isHistoryControlState,
   keys, KinglyError,
-  mapOverTransitionsActions,
-  noop,
-  notifyAndRethrow,
-  throwIfInvalidEntryActionResult,
-  tryCatchMachineFn,
   updateHistory,
   wrap
 } from "./helpers";
@@ -135,36 +127,6 @@ function build_nested_state_structure(states) {
   };
 }
 
-/**
- * Returns a hash which maps a state name to :
- * - a string identifier which represents the standard state
- * @param states A hash describing a hierarchy of nested states
- * @returns {state_name: {String}}
- */
-// TODO: this is not used anymore apparently so remove
-export function build_state_enum(states) {
-  let states_enum = {history: {}};
-
-  // Set initial state
-  states_enum.NOK = INIT_STATE;
-
-  function build_state_reducer(states) {
-    keys(states).forEach(function (state_name) {
-      const state_config = states[state_name];
-
-      states_enum[state_name] = state_name;
-
-      if (typeof state_config === "object") {
-        build_state_reducer(state_config);
-      }
-    });
-  }
-
-  build_state_reducer(states);
-
-  return states_enum;
-}
-
 export function normalizeTransitions(fsmDef) {
   const {initialControlState, transitions} = fsmDef;
   const initTransition = findInitTransition(transitions);
@@ -176,11 +138,6 @@ export function normalizeTransitions(fsmDef) {
   else if (initTransition) {
     return transitions
   }
-}
-
-// TODO: this is not used anymore apparently so remove
-export function normalizeFsmDef(fsmDef) {
-  return Object.assign({}, fsmDef, {transitions: normalizeTransitions(fsmDef)})
 }
 
 // Alias for compatibility before deprecating entirely create_state_machine
@@ -368,7 +325,7 @@ export function createStateMachine(fsmDef, settings) {
         tracer({
           type: INTERNAL_INPUT_MSG,
           trace: {
-            info: {eventName: auto_event, eventData:event_data},
+            info: {eventName: auto_event, eventData: event_data},
             event: {[auto_event]: event_data},
             machineState: {cs: getCurrentControlState(), es: extendedState, hs: history}
           }
@@ -434,8 +391,8 @@ export function createStateMachine(fsmDef, settings) {
       type: DEBUG_MSG,
       trace: {
         message: isHistoryControlState(to)
-          ?`Entering history state for ${to[to.deep ? DEEP : to.shallow ? SHALLOW : void 0]}`
-        : `Entering state ${to}`,
+          ? `Entering history state for ${to[to.deep ? DEEP : to.shallow ? SHALLOW : void 0]}`
+          : `Entering state ${to}`,
         machineState: {cs: getCurrentControlState(), es: extendedState, hs: history}
       }
     });
@@ -447,7 +404,7 @@ export function createStateMachine(fsmDef, settings) {
     tracer({
       type: INIT_INPUT_MSG,
       trace: {
-        info: {eventName: INIT_EVENT, eventData:initialExtendedState},
+        info: {eventName: INIT_EVENT, eventData: initialExtendedState},
         event: {[INIT_EVENT]: initialExtendedState},
         machineState: {cs: getCurrentControlState(), es: extendedState, hs: history}
       }
@@ -641,61 +598,61 @@ export function createStateMachine(fsmDef, settings) {
     return e
   }
 
-    // NOTE : yield is a reserved JavaScript word so using yyield
-    return function yyield(x) {
-      try {
-        const {eventName, eventData} = destructureEvent(x);
-        const current_state = getCurrentControlState();
+  // NOTE : yield is a reserved JavaScript word so using yyield
+  return function yyield(x) {
+    try {
+      const {eventName, eventData} = destructureEvent(x);
+      const current_state = getCurrentControlState();
 
+      tracer({
+        type: INPUT_MSG,
+        trace: {
+          info: {eventName, eventData},
+          machineState: {cs: current_state, es: extendedState, hs: history}
+        }
+      });
+
+      const outputs = send_event(x, true);
+
+      debug && console.info("OUTPUTS:", outputs);
+      tracer({
+        type: OUTPUTS_MSG,
+        trace: {
+          outputs,
+          machineState: {cs: getCurrentControlState(), es: extendedState, hs: history}
+        }
+      });
+
+      return outputs
+    }
+    catch (e) {
+      if (e instanceof KinglyError) {
+        // We don't break the program, but we can't continue as nothing happened: we return the error
         tracer({
-          type: INPUT_MSG,
+          type: ERROR_MSG,
           trace: {
-            info: {eventName, eventData},
-            machineState: {cs: current_state, es: extendedState, hs: history}
-          }
-        });
-
-        const outputs = send_event(x, true);
-
-        debug && console.info("OUTPUTS:", outputs);
-        tracer({
-          type: OUTPUTS_MSG,
-          trace: {
-            outputs,
+            error: e,
+            message: `An error ocurred while running an input through the machine!`,
             machineState: {cs: getCurrentControlState(), es: extendedState, hs: history}
           }
         });
 
-        return outputs
+        return e
       }
-      catch (e) {
-        if (e instanceof KinglyError) {
-          // We don't break the program, but we can't continue as nothing happened: we return the error
-          tracer({
-            type: ERROR_MSG,
-            trace: {
-              error: e,
-              message: `An error ocurred while running an input through the machine!`,
-              machineState: {cs: getCurrentControlState(), es: extendedState, hs: history}
-            }
-          });
-
-          return e
-        }
-        else {
-          tracer({
-            type: ERROR_MSG,
-            trace: {
-              error: e,
-              message: `An unknown error ocurred while running an input through the machine!`,
-              machineState: {cs: getCurrentControlState(), es: extendedState, hs: history}
-            }
-          });
-          console.error(`yyield > unexpected error!`, e);
-          return e
-        }
+      else {
+        tracer({
+          type: ERROR_MSG,
+          trace: {
+            error: e,
+            message: `An unknown error ocurred while running an input through the machine!`,
+            machineState: {cs: getCurrentControlState(), es: extendedState, hs: history}
+          }
+        });
+        console.error(`yyield > unexpected error!`, e);
+        return e
       }
     }
+  }
 }
 
 /**
@@ -759,21 +716,6 @@ export function makeWebComponentFromFsm({name, eventHandler, fsm, commandHandler
 }
 
 /**
- * Adds a `displayName` property corresponding to the action name to all given action factories. The idea is to use
- * the action name in some specific useful contexts (debugging, tracing, visualizing)
- * @param {Object.<string, function>} namedActionSpecs Maps an action name to an action factory
- */
-export function makeNamedActionsFactory(namedActionSpecs) {
-  return Object.keys(namedActionSpecs).reduce((acc, actionName) => {
-    const actionFactory = namedActionSpecs[actionName];
-    actionFactory.displayName = actionName;
-    acc[actionName] = actionFactory;
-
-    return acc;
-  }, {});
-}
-
-/**
  * This function works to merge outputs by simple concatenation and flattening
  * Every action return T or [T], and we want in output [T] always
  * mergeOutputsFn([a, [b]) = mergeOutputsFn([a,b]) = mergeOutputsFn([[a],b) = mergeOutputsFn([[a],[b]]) = [a,b]
@@ -785,178 +727,6 @@ export function mergeOutputsFn(arrayOutputs) {
   // NOTE : here, this array of outputs could be array x non-array ^n
   // The algorithm is to concat all elements
   return arrayOutputs.reduce((acc, element) => acc.concat(element), [])
-}
-
-/**
- * @param  {FSM_Def} fsmDef
- * @param  {Object.<ControlState, function>} entryActions Adds an action to be processed when entering a given state
- * @param {function (Array<MachineOutput>) : MachineOutput} mergeOutputs monoidal merge (pure) function
- * to be provided to instruct how to combine machine outputs. Beware that the second output corresponds to the entry
- * action output which must logically correspond to a processing as if it were posterior to the first output. In
- * many cases, that will mean that the second machine output has to be 'last', whatever that means for the monoid
- * and application in question
- */
-export function decorateWithEntryActions(fsmDef, entryActions, mergeOutputs) {
-  if (!entryActions) return fsmDef
-
-  const {transitions, states, initialExtendedState, initialControlState, events, updateState, settings} = fsmDef;
-  const stateHashMap = getFsmStateList(states);
-  const isValidEntryActions = Object.keys(entryActions).every(controlState => {
-    return stateHashMap[controlState] != null;
-  });
-  const mergeOutputFn = mergeOutputs || mergeOutputsFn
-
-  if (!isValidEntryActions) {
-    throw `decorateWithEntryActions : found control states for which entry actions are defined, and yet do not exist in the state machine!`;
-  } else {
-    const decoratedTransitions = mapOverTransitionsActions((action, transition, guardIndex, transitionIndex) => {
-      const {to} = transition;
-      const entryAction = entryActions[to];
-      const decoratedAction = entryAction
-        ? decorateWithExitAction(action, entryAction, mergeOutputFn, updateState)
-        : action;
-
-      return decoratedAction
-    }, transitions);
-
-    return {
-      initialExtendedState,
-      initialControlState,
-      states,
-      events,
-      transitions: decoratedTransitions,
-      updateState,
-      settings
-    }
-  }
-}
-
-/**
- *
- * @param {ActionFactory} action action factory which may be associated to a display name
- * @param {ActionFactory} entryAction
- * @param {function (Array<MachineOutput>) : MachineOutput} mergeOutputFn monoidal merge function. Cf.
- *   decorateWithEntryActions
- * @param updateState
- * @return {decoratedAction}
- */
-function decorateWithExitAction(action, entryAction, mergeOutputFn, updateState) {
-  // NOTE : An entry action is modelized by an exit action, i.e. an action which will be processed last after any
-  // others which apply. Because in the transducer semantics there is nothing happening after the transition is
-  // processed, or to express it differently, transition and state entry are simultaneous, this modelization is
-  // accurate.
-  // DOC : entry actions for a control state will apply before any automatic event related to that state! In fact before
-  // anything. That means the automatic event should logically receive the state updated by the entry action
-  const decoratedAction = function (extendedState, eventData, settings) {
-    const {debug} = settings;
-    const wrappedEntryAction = tryCatchMachineFn(ENTRY_ACTION_FACTORY_DESC, entryAction, ['extendedState', 'eventData', 'settings']);
-    const actionResult = action(extendedState, eventData, settings);
-    const actionUpdate = actionResult.updates;
-
-    const wrappedUpdateState = tryCatchMachineFn(UPDATE_STATE_FN_DESC, updateState, ['extendedState, updates']);
-    const updatedExtendedStateOrError = wrappedUpdateState(extendedState, actionUpdate);
-
-    // TODO : test that case
-    handleFnExecError(
-      {debug, console},
-      {updateStateFn: updateState, extendedState, actionUpdate},
-      updatedExtendedStateOrError,
-      alwaysTrue, // NOTE : could also be passed in settings with updateState, maybe in later version
-      notifyAndRethrow,
-      noop // NOTE : we do not test the return value of the update state function, cf. previous note
-    );
-    const updatedExtendedState = updatedExtendedStateOrError;
-
-    const exitActionResultOrError = wrappedEntryAction(updatedExtendedState, eventData, settings);
-
-    const isExitActionResultError = handleFnExecError(
-      {debug, console},
-      {action: entryAction, extendedState: updatedExtendedState, eventData, settings},
-      exitActionResultOrError,
-      isActions,
-      notifyAndRethrow,
-      throwIfInvalidEntryActionResult
-    );
-
-    if (!isExitActionResultError) {
-      // NOTE : exitActionResult comes last as we want it to have priority over other actions.
-      // As a matter of fact, it is an exit action, so it must always happen on exiting, no matter what
-      //
-      // ADR :  Beware of the fact that as a result it could overwrite previous actions. In principle exit actions
-      // should add to existing actions, not overwrite. Because exit actions are not represented on the machine
-      // visualization, having exit actions which overwrite other actions might make it hard to reason about the
-      // visualization. We choose however to not forbid the overwrite by contract. But beware. ROADMAP : the best is,
-      // according to semantics, to actually send both separately
-      return {
-        updates: [].concat(actionUpdate, exitActionResultOrError.updates),
-        outputs: mergeOutputFn([actionResult.outputs, exitActionResultOrError.outputs])
-      };
-    }
-  };
-  decoratedAction.displayName = `Entry_Action_After_${getFunctionName(action)}`;
-
-  return decoratedAction;
-}
-
-/**
- * This function converts a state machine `A` into a traced state machine `T(A)`. The traced state machine, on
- * receiving an input `I` outputs the following information :
- * - `outputs` : the outputs `A.yield(I)`
- * - `updates` : the update of the extended state of `A` to be performed as a consequence of receiving the
- * input `I`
- * - `extendedState` : the extended state of `A` prior to receiving the input `I`
- * - `controlState` : the control state in which the machine is when receiving the input `I`
- * - `event::{eventLabel, eventData}` : the event label and event data corresponding to `I`
- * - `settings` : settings passed at construction time to `A`
- * - `targetControlState` : the target control state the machine has transitioned to as a consequence of receiving
- * the input `I`
- * - `predicate` : the predicate (guard) corresponding to the transition that was taken to `targetControlState`, as
- * a consequence of receiving the input `I`
- * - `actionFactory` : the `actionFactory` which was executed as a consequence of receiving the input `I`
- *  Note that the trace functionality is obtained by wrapping over the action factories in `A`. As such, all action
- *  factories will see their output wrapped. However, transitions which do not lead to the execution of action
- *  factories are not traced.
- * @param {*} env
- * @param {FSM_Def} fsm
- */
-export function traceFSM(env, fsm) {
-  const {initialExtendedState, initialControlState, events, states, transitions, updateState} = fsm;
-
-  return {
-    initialExtendedState,
-    initialControlState,
-    events,
-    states,
-    updateState,
-    transitions: mapOverTransitionsActions((action, transition, guardIndex, transitionIndex) => {
-      return function (extendedState, eventData, settings) {
-        const {from: controlState, event: eventLabel, to: targetControlState, predicate} = transition;
-        const wrappedAction = tryCatchMachineFn(ACTION_FACTORY_DESC, action, ['extendedState', 'eventData', 'settings']);
-        const actionResultOrError = wrappedAction(extendedState, eventData, settings);
-        const {outputs, updates} = actionResultOrError;
-        const wrappedUpdateState = tryCatchMachineFn(UPDATE_STATE_FN_DESC, updateState, ['extendedState, updates']);
-
-        return {
-          updates,
-          outputs: [{
-            outputs,
-            updates,
-            extendedState: extendedState,
-            // NOTE : I can do this because pure function!! This is the extended state after taking the transition
-            newExtendedState: wrappedUpdateState(extendedState, updates || []),
-            controlState,
-            event: {eventLabel, eventData},
-            settings: settings,
-            targetControlState,
-            predicate,
-            actionFactory: action,
-            guardIndex,
-            transitionIndex
-          }],
-        }
-      }
-    }, transitions)
-  }
 }
 
 /**

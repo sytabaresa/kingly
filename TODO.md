@@ -1,5 +1,14 @@
 # Now
-// TODO: major change maybe brek all tests: change action identity in kingly to outputs: [], and updates: []
+// Textual graph description language (chevrotain)
+GIVEN <string> "<control state>"
+WHEN <string> "<event>" <string> {
+  <pred> => <fn>
+  <pred> => <fn>
+}
+// demo with web component logic with sm - short size when compiled? TMDB app?
+// demo with machine in worker only sending changed prop to DOM for rendering?
+// demo for UI without framework -do chess, tmdb and realworld improved (keep + add refactor same + refactor new machine design)
+// demo compiling to wasm instead of to JS? rust? can be a model to write software in any language! any framework! universal behavior
 // TODO: document, state updates MUST be an array if using the compiler or yed converter, outputs MUST be an array or null
   - zero values are used for action identity, and those are ([] and null), maybe future version add an option to change that
 // TODO: Courtesan: in content-courtesan.js change .kuker to .courtesan (but last)

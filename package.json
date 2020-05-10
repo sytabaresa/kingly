@@ -1,7 +1,7 @@
 {
   "name": "kingly",
   "sideEffects": false,
-  "version": "0.26.2",
+  "version": "0.26.3",
   "description": "Extended Hierarchical State Transducer library",
   "repository": {
     "type": "git",
@@ -83,8 +83,7 @@
     "watchify": "^3.8.0"
   },
   "dependencies": {
-    "fp-rosetree": "^0.6.2",
-    "yed2kingly": "^0.1.0"
+    "fp-rosetree": "^0.6.2"
   },
   "browserslist": [
     "> 1%",
