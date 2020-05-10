@@ -55,7 +55,7 @@ In summary, Kingly has the following tools available:
 
 - yEd graph editor ([documentation](https://brucou.github.io/documentation/v1/tooling/graph_editing.html))
   - yEd graphs are saved as `.graphml` files    
-- yEd2kingly converter ([documentation](https://brucou.github.io/documentation/v1/tooling/graph_editing.html#yed2Kingly))
+- yed2kingly converter ([documentation](https://brucou.github.io/documentation/v1/tooling/graph_editing.html#yed2Kingly))
   - the converter enables the conversion of `.graphml` files to Kingly state machines 
 - compiler ([documentation](https://brucou.github.io/documentation/v1/tooling/compiling.html))
   - the compiler compiles a `.graphml` file into small, plain, zero-dependency JavaScript which implements the logic expressed in the graph 
