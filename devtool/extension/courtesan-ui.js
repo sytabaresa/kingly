@@ -37380,7 +37380,7 @@ module.exports={
   "manifest_version": 2,
   "name": "Kuker",
   "description": "Debug applications made with React, Redux, Angular, Vue and many more",
-  "version": "5.4.4",
+  "version": "0.1.0",
   "icons": { "16": "img/icon16.png", "48": "img/icon48.png", "128": "img/icon128.png" },
   "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'",
   "devtools_page": "devtools.html",
@@ -37408,7 +37408,7 @@ module.exports={
     "scripts": ["background.js"]
   },
   "web_accessible_resources": ["scripts/script.js"],
-  "permissions": [ "management", "tabs", "<all_urls>" ]
+  "permissions": [ "management", "tabs" ]
 }
 
 },{}],429:[function(require,module,exports){
@@ -40095,16 +40095,10 @@ function NoEvents() {
       ' and I\'m not broken. Just wait a bit or check my ',
       _react2.default.createElement(
         'a',
-        { href: 'https://github.com/krasimir/kuker', target: '_blank' },
+        { href: 'https://brucou.github.io/documentation/v1/tooling/devtool.html', target: '_blank' },
         'official docs'
       ),
-      ' to learn how to integrate ',
-      _react2.default.createElement(
-        'a',
-        { href: 'https://github.com/krasimir/kuker', target: '_blank' },
-        'me'
-      ),
-      ' with your app.',
+      '.',
       _react2.default.createElement('br', null)
     )
   );

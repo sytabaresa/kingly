@@ -18,5 +18,5 @@
     "scripts": ["background.js"]
   },
   "web_accessible_resources": ["scripts/script.js"],
-  "permissions": [ "management", "tabs", "<all_urls>" ]
+  "permissions": [ "management", "tabs" ]
 }

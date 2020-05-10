@@ -45,9 +45,6 @@ separate package)
 # Documentation
 All documentation can be accessed in the [dedicated web site](https://brucou.github.io/documentation/).
 
-# Examples
-You can review the following examples which have been implemented with the same state machine, across different UI frameworks, with links to the corresponding codesandboxes.
-
 # Tooling
 Kingly has been used to implement large applications such as [Conduit](https://github.com/gothinkster/realworld), a simplified [Medium](https://medium.com/)'s clone. On such a large machine, the process has been significantly smoothed by using the free professional graph editor [yEd](https://www.yworks.com/products/yed) to produce the machine graphs.
 
@@ -64,6 +61,9 @@ In summary, Kingly has the following tools available:
 
 ![devtool screenshot](https://brucou.github.io/documentation/images/extension/courtesan%200.png)
   
+# Examples
+You can review the following examples which have been implemented with the same state machine, across different UI frameworks, with links to the corresponding codesandboxes. Note that the examples may use older versions of Kingly.
+
 ## Trivial counter application
 | State Machine | Demo |UI library 
 |---|---|---|
