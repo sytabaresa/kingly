@@ -1,7 +1,7 @@
 {
   "name": "kingly",
   "sideEffects": false,
-  "version": "0.27.0",
+  "version": "0.28.0",
   "description": "Extended Hierarchical State Transducer library",
   "repository": {
     "type": "git",
@@ -47,6 +47,7 @@
   "author": "brucou",
   "license": "MIT",
   "devDependencies": {
+    "courtesan":"latest",
     "kuker-emitters": "^6.7.4",
     "@babel/cli": "^7.4.4",
     "@babel/core": "^7.4.5",
