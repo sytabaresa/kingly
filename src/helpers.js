@@ -610,7 +610,6 @@ export function tryCatch(fn, errCb) {
 
 export function tryCatchMachineFn(fnType, fn, argsDesc = []) {
   return tryCatch(fn, (e, args) => {
-    // TODO: cannot, dont have a console and a tracer so just compute the values of the kingly errror?
     const err = new Error(e);
     const fnName = getFunctionName(fn);
     // NOTE : we concatenate causes but not `info`
@@ -742,7 +741,6 @@ export function isActions(obj) {
  * @param obj
  * @returns {boolean|Error}
  */
-// TODO: review the error message and format returned (no more cause)
 export function isEventStruct(obj) {
   let trueOrError;
   if (!obj || typeof obj !== 'object') {

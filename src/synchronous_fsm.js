@@ -36,27 +36,6 @@ function alwaysTrue() {
 };
 
 /**
- * Takes a list of identifiers (strings), adds init to it, and returns a hash whose properties are
- * the uppercased identifiers For instance :
- * ('edit', 'delete') -> {EDIT: 'EDIT', DELETE : 'DELETE', INIT : 'INIT'}
- * If there is an init in the list of identifiers, it is overwritten
- * RESTRICTION : avoid having init as an identifier
- * @param array_identifiers {Array | arguments}
- * @returns {Object<String,String>}
- */
-function build_event_enum(array_identifiers) {
-  let _array_identifiers = array_identifiers.reduce
-    ? array_identifiers.slice()
-    : Array.prototype.slice.call(arguments);
-  // NOTE : That will overwrite any other event called init...
-  _array_identifiers.push(INIT_EVENT);
-  return _array_identifiers.reduce(function (acc, identifier) {
-    acc[identifier] = identifier;
-    return acc;
-  }, {});
-}
-
-/**
  * Processes the hierarchically nested states and returns miscellaneous objects derived from it:
  * `is_group_state` : {Object<String,Boolean>} Hash whose properties (state names) are matched with
  * whether that state is a nested state
@@ -210,7 +189,6 @@ export function createStateMachine(fsmDef, settings) {
       })
     }
   };
-  const _events = build_event_enum(events);
   const transitions = normalizeTransitions(fsmDef);
 
   // Create the nested hierarchy
@@ -236,7 +214,6 @@ export function createStateMachine(fsmDef, settings) {
   const is_group_state = hash_states_struct.is_group_state;
   let hash_states = hash_states_struct.hash_states;
 
-  // TODO: review the error notificaiton
   function assertContract(contract, arrayParams) {
     const hasFailed = assert(contract, arrayParams);
     if (checkContracts && hasFailed) {
@@ -435,13 +412,6 @@ export function createStateMachine(fsmDef, settings) {
 
     let from_proto = hash_states[from];
 
-    // ERROR CASE : state found in transition but cannot be found in the events passed as parameter
-    // NOTE : this is probably all what we need the events variable for
-    // The following two lines are taken care of in a `areEventsDeclared` contract
-    // TODO: so remove those lines when finished, and probably the event enum goes away too
-    // if (event && !(event in _events))
-    //   throw `unknown event ${event} found in state machine definition!`;
-
     // CASE : automatic transitions : no events - likely a transient state with only conditions
     if (!event) {
       event = AUTO_EVENT;
@@ -490,8 +460,6 @@ export function createStateMachine(fsmDef, settings) {
               })
             }
 
-            // TODO: i am here: just do the errors, we reorganize the console later
-            // TODO: probably zero/one message for guard executed, one for transition taken, one for action ran
             if (shouldTransitionBeTaken) {
               // CASE : guard for transition is fulfilled so we can execute the actions...
               console.info("IN STATE ", from);
