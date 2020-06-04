@@ -346,6 +346,14 @@ export function createStateMachine(fsmDef, settings) {
     } else {
       // CASE : There is no transition associated to that event from that state
       console.warn(`There is no transition associated to the event |${event}| in state |${current_state}|!`);
+      tracer({
+        type: WARN_MSG,
+        trace: {
+          info: {received: {[event]: event_data}},
+          message: `There is no transition associated to the event |${event}| in state |${current_state}|!`,
+          machineState: {cs: current_state, es: extendedState, hs: history}
+        }
+      });
 
       return null;
     }

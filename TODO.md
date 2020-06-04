@@ -1,15 +1,176 @@
+# TODO
+- cculd be a terrific demo (from SAP, code is there with UI5 as example)
+  - https://openui5.hana.ondemand.com/test-resources/sap/m/demokit/cart/webapp/index.html?sap-ui-theme=sap_fiori_3#/checkout 
+- Finish Realworld demo design and impl.
+  - write new impl
+  - add doc (don't remove existing for now)
+  - write infoq article about it
+  - write medium article about it (different and much shorter)
+  - LESSON LEARNT: look at all the if we removed, and how the behavior is more clear
+    - we may find a bug: if you click on the canvas, tiny box and cannot be enlarged
+- I could also redo the wizard form example!!
+  - same, first
+  - then with better looks
+- Do excalidraw example (React, https://excalidraw.com/)
+  - design / impl. / test
+  - put on example of doc sites
+  - update lesson learnt, cookbook, best practices
+  - WITH SVELTE - then set a repository for folks to do it in their own framework = BUZZ
+- textual format to design
+  - convert to UML
+- codesandbox with user interface text area (for graphml conent), other tab is states, events, transitions (with fake names)
+- state machine component IDE (cf. https://components.studio/edit/mzK3QRdpQm6wl4JZBlGM)
+  - text format taken from BDD (chevrotain)
+      GIVEN <string> "<control state>" <string>
+      -- complex
+      WHEN <string> "<event>" <string> {
+        <pred> => <target state> : <fn>
+        <pred> => <target state> : <fn>
+      }
+      -- simple
+      WHEN <string> "<event>" <string> => <target state> : <fn>
+      -- eventless
+      WHEN <string> "<event>" <string> => <target state> : <fn>
+      but guards would maybe fit more in GIVEn in BDD?
+  - tab for actions
+  - tab for guards
+  - tab for effects
+  - tab for stories (which are simply tests...)
+  - tab for PBT (maybe a generator language to design too)
+    - see how we can derive that from the BDD-like text format
+- demo with web component logic with sm - short size when compiled? TMDB app?
+- demo with machine in worker only sending changed prop to DOM for rendering?
+- demo compiling to TypeScript, Elm, Rust, Go?
+- Routing demo would be great to showcase dynamic import, i.e. lazy loading 
+- Suspense component in Svelte with compiled version
+  - including SuspenseList
+  - try to include page transitions too?
+- Do plyr popular video player (https://github.com/sampotts/plyr/blob/master/src/js/controls.js)
+  - not too sure anymore what was the interest but popular, very accessible
+- an example of parallel charts (https://tritarget.org/#Statechart%20based%20form%20manager) to do with multicasting events and Kingly
+- don't do but modelize the popular flatpickr
+  - https://flatpickr.js.org/examples/#range-calendar
+  - I only have one mode which is when I can select a range of dates
+  - the rest is view logic, not behaviour in sense of a = f(e,s)
+    - because view = f(props) pure, there is no state hence no machine needed
+    - now the view can have ifs all as necessary, still don't need a machine
+    - and if we do by diff v = f(p), v + dv = f(p + dp); we have dp, we need dv, dv = h(dp) find h from f
+      - given f such as v = f(p) find h such that dv = h(dp)
+      - templates framework compute h for us
+      - render framwork too via reconciliation
+      - we can also do it by hand
+        - if we see dp as an event, then dv = h(dp) with h pure means that we have no state so no machine!
+
+# Concepts
+- machine useful for stateful equation, if no state no machine
+- new control state useful to show that variation
+- machine makes a lot of sense if computation methods changes a lot per control state
+  - so much that that variation cannot be contained in a variable, or not usefully
+- we thus have a lot of control states with a lot of events circling to the same origin state
+  - the visualization does not help, we need other ways to indicate what pieces of state are modified in these cases
+  - also need to condensate the visualization somewhat to avoid a ton of circles
+
+# Cookbook
+- modals
+  - usually leave to another compound state and return with history
+
+# Think
+- most applications will have a lot of X -> X transitions as they do not have a lot of modes. In that case, it may be importeant to understand the state updates happening to reason about the program
+  - a graph which display those would be great: DO SOME RESEARCH of prior art
+  - machine state is a tree: DRAW THAT
+  - then draw relationships between entities acting on any part of the tree (pieces of state)
+  - have some querying facilities
+  - have some time-visualization, and time-querying because this happens over time
+  - a lot to study here
+
+# Features
+- reset and backtrack and clone fucntions NOT on the function object mais imported (tree-shakeable) and going to access values on the machine function object. That's better. Also backtracking only possible if machine has been created with `save history` setting. and backtracking returns a cloned machine, does not update in place. may mean I need a way to clone state, so cloneState should also be in settings, like updateState
+  - NO! Now I compile, so I can have non-tree-shakeable impl. More important than breaking code. Or have a new API, createCloneableFsm so I don't break
+
+# Doc
+- take a page from nearley docs: 1. this, 2. that... it is short and very explicit, can use at very first before details
+- put that quote somewhere (Bob Martin)
+  - BDD are state machiens (2008!!): https://sites.google.com/site/unclebobconsultingllc/the-truth-about-bdd
+- add  that no events can be called 'undefined', and add a contract for it
+- fsmContracts in debug - update types too to include it
+- state updates MUST be an array if using the compiler or yed converter, outputs MUST be an array or null
+- website:
+  - build a real documentation site separated from the README.md
+    - cf. talk https://www.youtube.com/watch?v=t4vKPhjcMZg
+    - tutorial
+      - start with the password example (letter/number)
+        - exercise left to learner : use a password library (forgot the name)
+      - then go up from more complex examples
+        - no hierarchy
+        - with hierarchy
+        - with history etc.
+      - etc. that means having a graduated parcours to follow (i.e. curriculum)
+      - maybe include testing at the same time as development
+      - TUTORIAL (learning-oriented, most useful when we are studying and evaluating the material) 
+      are about concreteness not abstraction (include a dropdown with abstraction by 
+      default hidden), no unnecessary explanation
+    - how to (problem-oriented)
+    - discussion (understanding oriented - that is like the article I am writing for frontarm, 
+    gives context, explain why, alternative approaches, connecting to other things)
+    - reference
+- document use cases!
+  - make a UI
+  - make a component
+  - ?
+  - maybe put use cases (if there are 3 of them) on the top entry page
+
+# Articles
+- make article on stop coupling ui and logic!
+- make article on testing - using the chess as an example
+
+# Decision records
+- maybe add or pass a settings object to the command handler (passed if needed to command handlers)?
+  - this is for dependency injection - can have effects or commands more testable
+  - or leave it userland?
+  - but the effect handlers is already dependency injection!! Put all dependencies there even if they don't do effects!!
+=> NO! I can already pass necessary settings to command handlers via params
+
+- refactor away from prototype to allow event propagation:
+  - each state (compound or atomic) has an handling function
+  - that handling function in the case of a compound state is a regular transducer BUT if that transducer returns null then it applies the other relevant event handler at top level
+  - so a compound component is a regular inside function || outside function
+=> NO! simplicity first. And event forwarding does not help readability, also advised against by experts (can't find reference)
+
+- Do leonardo.io (vanilla JS should be the simplest to reimplement)
+  - but does not demonstrate so much about benefits? just a nice demo?
+  - (use D3, use popup/modals, use component (color picker) etc)
+=> NO! Leonardo already written without framework, and there is almost to no modes, so value of state machines is little
+
+# Editors
+- add bpmn.io!!! It has nesting. cf. /assets/diagram.bpmn.xml (it is a bpmn file though)
+  - compound states: subProcess
+  - atomic state: task
+  - startEvent: init event
+  - transition: sequenceFlow
+- that seems to be easier actually than yed
+- traverse the xml graph and create objects (all the transitions, create the hierarchy on the fly)
+- then massage the created objects into the desired objects
+- BUT! There is no history pseudo-states (maybe will have to add a custom element...)
+  - or use the data store reference (history is also stored so could work)
+- better for small graphs because it does not collapse compound states...
+  - which makes sense because if collapsed what layout show? if extended what layout show? 
+  - also big nodes, so harder to navigate in the end
+- could be worth doing in order to achieve some cross-promotion with camunda?? 
+
 # Now
-// Textual graph description language (chevrotain)
-GIVEN <string> "<control state>"
-WHEN <string> "<event>" <string> {
-  <pred> => <fn>
-  <pred> => <fn>
-}
-// demo with web component logic with sm - short size when compiled? TMDB app?
-// demo with machine in worker only sending changed prop to DOM for rendering?
-// demo for UI without framework -do chess, tmdb and realworld improved (keep + add refactor same + refactor new machine design)
-// demo compiling to wasm instead of to JS? rust? can be a model to write software in any language! any framework! universal behavior
-// TODO: document, state updates MUST be an array if using the compiler or yed converter, outputs MUST be an array or null
+-- the best adoption strategy is to have people play with it!! So IDE, textual language (see if I find online free graph editor), and playground...
+// Port Excalidraw to kingly -- would be great demo too
+// https://excalidraw.com/
+// modes with each drawing tool. Sub modes with locking tool
+// or maybe not - all of that could be done with a single giant state
+// drawing action = drawing command parameterized by the state
+// intead of changing the command itself...
+// So control states useful when such staet parametrization is not practical i.e. the reactive functions are too dissimilar
+/ TOP OF THE TOP: cf. https://components.studio/edit/mzK3QRdpQm6wl4JZBlGM
+// - have a left/right division
+// - left: tabs: code with textual language | guards | actions | effects exec | test seqs
+// - right: UML viz live updated with text lang | test viz (stories kind of) | pages (live comp) | Readme | Help
+
   - zero values are used for action identity, and those are ([] and null), maybe future version add an option to change that
 // TODO: Courtesan: in content-courtesan.js change .kuker to .courtesan (but last)
 // TODO: Courtesan devtool: Ben hyperlink schneidermann - information seeking mantra
@@ -33,22 +194,7 @@ WHEN <string> "<event>" <string> {
      - see how to integrate that as part of a routing machine
      - also the machine level delegate data fetchign to handlers, so there can be handled caching, and waiting X ms to invalidate a cache (throttling essentially)
        - how to implement cancelation? if user clicks tab A -> download <A> fetch A data, then quickly clicks Tab B -> cancel A, do B 
-// TODO: do plyr (video player) with stateccharts. 130 ifs there: https://github.com/sampotts/plyr/blob/master/src/js/controls.js
-//    also quite popular player, specially because of its accessibiity features cf. my infoq post on acccessibility
-// TODO: an example of parallel charts (https://tritarget.org/#Statechart%20based%20form%20manager) to do with multicasting events and Kingly
 // TODO: I now allow initial transitions with multi target states. Check that the state-transducer-testing still works. Maybe add tests for it. 
-// TODO: features : reset and backtrack and clone fucntions NOT on the function object mais imported (tree-shakeable)
-// and going to access values on the machine function object. That's better. Also backtracking only possible if machine has been created with `save history` setting. and backtracking returns a cloned machine, does not update in place. may mean I need a way to clone state, so cloneState should also be in settings, like updateState 
-- DOC: add  that no events can be called 'undefined', and add a contract for it
-- maybe add or pass a settings object to the command handler (passed if needed to command handlers)?
-  - this is for dependency injection - can have effects or commands more testable
-  - or leave it userland?
-  - but the effect handlers is already dependency injection!! Put all dependencies there even if they don't do effects!!
-- make example of Kingly reproducing API of semantic-UI
-  - without jquery, with web components! 
-  - customizable state machine, packaged on npm 
-- make article on stop coupling ui and logic!
-- make article on testing - using the chess as an example
 - other example of full app: https://github.com/TrillCyborg/fullstack
 - REMOVE render commands from REACT_STATE_DRIVEN!!!! put it in kingly!!! for dependency reasons
 - similar to what I want to do with actor/processes/cycle : 
@@ -105,10 +251,6 @@ before other machine events are processed? can it also be immediate/synchronous?
   - though it should rather be a higher order component wrapping the display component
   - OnRoute(route, options, displayWith)
   - so the on route would send an init event to displayWith? or? 
-- refactor away from prototype to allow event propagation:
-  - each state (compound or atomic) has an handling function
-  - that handling function in the case of a compound state is a regular transducer BUT if that transducer returns null then it applies the other relevant event handler at top level
-  - so a compound component is a regular inside function || outside function
 - add more eventless tests
   - eventless <-> eventless with guards in both, and state modification
 - do the react version of password demo from the vue one
@@ -117,35 +259,11 @@ before other machine events are processed? can it also be immediate/synchronous?
   - https://github.com/axefrog/docs
 - testing - talk to gleb bahmutov so it puts in cypress somehow,
   - cf. 
-- build a real documentation site separated from the README.md
-  - cf. talk https://www.youtube.com/watch?v=t4vKPhjcMZg
-  - tutorial
-    - start with the password example (letter/number)
-      - exercise left to learner : use a password library (forgot the name)
-    - then go up from more complex examples
-      - no hierarchy
-      - with hierarchy
-      - with history etc.
-    - etc. that means having a graduated parcours to follow (i.e. curriculum)
-    - maybe include testing at the same time as development
-    - TUTORIAL (learning-oriented, most useful when we are studying and evaluating the material) 
-    are about concreteness not abstraction (include a dropdown with abstraction by 
-    default hidden), no unnecessary explanation
-  - how to (problem-oriented)
-  - discussion (understanding oriented - that is like the article I am writing for frontarm, 
-  gives context, explain why, alternative approaches, connecting to other things)
-  - reference
   
 - in future version test the traceFSM for errors, error should be goign in properties directly, no throwing
-- DOC : fsmContracts in debug - update types too to include it
-- ROADMAP : TESTING
-  - inject a debug property with a trace property or a trace property instead of debug
-  - the trace prop has an emitter interface a signature {event, event data}
-    - {RECEIVED_EVENT: eventData}
-    -  {REJECTED_EVENT: {RECEIVED_EVENT: eventData}}
 - Demos
   - boulderdash game!!
-  - eshop nice demo (vue) : https://github.com/sdras/sample-vue-shop
+  - eshop nice demo (vue) : https://github.com/sdras/sample-vue-shop / https://github.com/sdras/ecommerce-netlify
     - example of multi-step process
   - chess game
     - https://raulsebastianmihaila.github.io/chess/ : https://github
@@ -377,3 +495,70 @@ ST1:
     DO actions 
 
 amazing world
+
+Background: (allows to describe a setup)
+Given the following languages exist:
+  | Name    | Culture |
+  | English | en-US   |
+  | Polish  | pl      |
+  | Italian | it-IT   | 
+And the following translations exist:
+ | Language | Key                 | Translation             |
+ | English  | Invalid Login       | Invalid Login           |
+(sequence: [ev1, ev2, ...])
+Scenario: Receive Messages in my Set Language (allows to describe a sequence input/ouput)
+    Given I am the user "fcastillo" 
+      And (cs: ...)
+    When the system sends the message "Invalid Login" (event: ...)
+     And the message allows (pred: ...)
+    Then I should see the error message "Login non valido" (action: ...)
+     And (cs: ...)
+    When Then ...
+     And ...
+    Then ...
+
+It could be better than having a more concise syntax which group the guard, as it gives one tsts for each guard.
+We may not need conciseness here.
+
+Background: 
+Given an user exist                               (seq: [...])
+  And an user has navigated to the login page
+Scenario: user enters strong password
+    Given the user sees the login page            (cs: ...)
+    When user types T:letter                      (event: ...)
+     And ...                                      (pred: ...)
+    Then updates input field                      (actions:..., cs, prop: ...)
+     And show in red
+     And some property                            (prop: ...) that is a PBT predicate (can only test internal state at that point? don't have result of actions)
+    When Then user types T:number                 (prop: ...) could be for example the result of a previous action as a message arrives
+    Then updates input field, enble submit button
+     And show in green
+    When Then user clicks submit
+    Then submit password 
+
+The specifications of the behaviour are not the specifications of the machine, but that of the behavior of the machine...
+We want a language to describe the machine, not its computation! We can do that by colocating bdd annotations like TS annotate JS with types.
+Showing the annotations at the margin increase readability, not like TS which mixes types with JS.
+That textual language is better shown on a screen for navigation purposes. Could be a two-column format
+It could be better to mix all three: user specs, machine specs, tests specs. Complete colocation! complete coupling too...
+USE TAB INSTAD OF SPACES FOR THE TWO COLUMN ALIGNMENT
+
+Gherkin grammar: https://github.com/gasparnagy/berp/blob/master/examples/gherkin/GherkinGrammar.berp
+Also excellent summary: https://docs.behat.org/en/v2.5/guides/1.gherkin.html
+And BDD examples: https://www.clearlyagileinc.com/agile-blog/real-world-example-of-bdd-behavior-driven-development-agile-engineering-practices
+
+Display:
+- one text, two columns
+- in IDE, where you can switch from one view (one column) to the other. Can remove tests specs, machine specs, etc.
+  - it is like one document with three annotated layers
+
+
+- I could also reverse the order
+Given
+When    event            (some text)
+ And    pred
+   Then ...
+ Or     pred
+   Then ...
+
+Et reconciler avec le BDD 
