@@ -166,7 +166,6 @@ export function createStateMachine(fsmDef, settings) {
         trace: {
           info: e.errors,
           message: e.message,
-          machineState: {cs: INIT_STATE, es: extendedState, hs: history}
         }
       });
       return e
@@ -228,7 +227,6 @@ export function createStateMachine(fsmDef, settings) {
   }
 
   function send_event(event_struct, isExternalEvent) {
-    // TODO: maybe open a console.group and close it on return
     assertContract(isEventStruct, [event_struct]);
 
     const {eventName, eventData} = destructureEvent(event_struct);
@@ -368,7 +366,7 @@ export function createStateMachine(fsmDef, settings) {
       state_to = hash_states[to];
       state_to_name = state_to.name;
     } else {
-      throw "enter_state : unknown case! Not a state name, and not a history state to enter!";
+      throwKinglyError ("enter_state : unknown case! Not a state name, and not a history state to enter!");
     }
     hash_states[INIT_STATE].current_state_name = state_to_name;
 
@@ -422,7 +420,7 @@ export function createStateMachine(fsmDef, settings) {
       is_auto_state[from] = true;
     }
 
-    // TODO : this seriously needs refactoring, that is one line in ramda
+    // NTH: this seriously needs refactoring, that is one line in ramda
     from_proto[event] = arr_predicate.reduce((acc, guard, index) => {
         const action = guard.action || ACTION_IDENTITY;
         const actionName = action.name || action.displayName || "";
@@ -540,7 +538,7 @@ export function createStateMachine(fsmDef, settings) {
               return {stop: false, outputs: null};
             }
           };
-          // TODO: remove that, I don't need that anymore
+
           condition_checking_fn.displayName = from + condition_suffix;
           return condition_checking_fn;
         })(guard, settings);
@@ -625,7 +623,8 @@ export function createStateMachine(fsmDef, settings) {
           }
         });
         console.error(`yyield > unexpected error!`, e);
-        return e
+        // We should only catch the errors we are responsible for!
+        throw e
       }
     }
   }
