@@ -29,7 +29,7 @@ import {
   updateHistory,
   wrap
 } from "./helpers";
-import {fsmContractChecker} from "./contracts"
+import { fsmContractChecker } from "./contracts"
 
 function alwaysTrue() {
   return true
@@ -58,7 +58,7 @@ function build_nested_state_structure(states) {
   let is_group_state = {};
 
   // Add the starting state
-  states = {nok: states};
+  states = { nok: states };
 
   ////////
   // Helper functions
@@ -107,12 +107,12 @@ function build_nested_state_structure(states) {
 }
 
 export function normalizeTransitions(fsmDef) {
-  const {initialControlState, transitions} = fsmDef;
+  const { initialControlState, transitions } = fsmDef;
   const initTransition = findInitTransition(transitions);
 
   if (initialControlState) {
     return transitions
-      .concat([{from: INIT_STATE, event: INIT_EVENT, to: initialControlState, action: ACTION_IDENTITY}])
+      .concat([{ from: INIT_STATE, event: INIT_EVENT, to: initialControlState, action: ACTION_IDENTITY }])
   }
   else if (initTransition) {
     return transitions
@@ -140,7 +140,7 @@ export function createStateMachine(fsmDef, settings) {
     initialExtendedState,
     updateState: userProvidedUpdateStateFn,
   } = fsmDef;
-  const {debug, devTool, displayName} = settings || {};
+  const { debug, devTool, displayName } = settings || {};
   const checkContracts = debug && debug.checkContracts || void 0;
   let console = debug && debug.console || emptyConsole;
   let tracer = devTool && devTool.tracer || emptyTracer;
@@ -150,12 +150,12 @@ export function createStateMachine(fsmDef, settings) {
 
   // Conracts must be checked before we start doing all sort of computations
   if (checkContracts) {
-    const {failingContracts} = fsmContractChecker(fsmDef, settings, checkContracts);
+    const { failingContracts } = fsmContractChecker(fsmDef, settings, checkContracts);
     try {
       if (failingContracts.length > 0) throwKinglyError({
         when: `Attempting to create a Kingly machine`,
         location: `createStateMachine`,
-        info: {fsmDef, settings, failingContracts},
+        info: { fsmDef, settings, failingContracts },
         message: `I found that one or more Kingly contracts are violated!`
       })
     }
@@ -182,7 +182,7 @@ export function createStateMachine(fsmDef, settings) {
       throwKinglyError({
         when: `Executing updateState function ${fnName}`,
         location: `createStateMachine > wrappedUpdateState`,
-        info: {extendedState, updates},
+        info: { extendedState, updates },
         message: e.message,
         stack: e.stack,
       })
@@ -201,7 +201,7 @@ export function createStateMachine(fsmDef, settings) {
   let extendedState = initialExtendedState;
 
   // history maps
-  const {stateList, stateAncestors} = computeHistoryMaps(control_states);
+  const { stateList, stateAncestors } = computeHistoryMaps(control_states);
   let history = initHistoryDataStructure(stateList);
 
   // @type {Object<state_name,boolean>}, allows to know whether a state has a init transition defined
@@ -229,7 +229,7 @@ export function createStateMachine(fsmDef, settings) {
   function send_event(event_struct, isExternalEvent) {
     assertContract(isEventStruct, [event_struct]);
 
-    const {eventName, eventData} = destructureEvent(event_struct);
+    const { eventName, eventData } = destructureEvent(event_struct);
     const current_state = getCurrentControlState();
 
     console.debug("send event", event_struct);
@@ -242,9 +242,9 @@ export function createStateMachine(fsmDef, settings) {
       tracer({
         type: WARN_MSG,
         trace: {
-          info: {eventName, eventData},
+          info: { eventName, eventData },
           message: `The external event INIT_EVENT can only be sent when starting the machine!`,
-          machineState: {cs: current_state, es: extendedState, hs: history}
+          machineState: { cs: current_state, es: extendedState, hs: history }
         }
       });
       console.warn(`The external event INIT_EVENT can only be sent when starting the machine!`)
@@ -272,7 +272,7 @@ export function createStateMachine(fsmDef, settings) {
       console.log("found event handler!");
       console.info("WHEN EVENT ", event, event_data);
       /* OUT : this event handler modifies the extendedState and possibly other data structures */
-      const {stop, outputs: rawOutputs} = event_handler(extendedState, event_data, current_state);
+      const { stop, outputs: rawOutputs } = event_handler(extendedState, event_data, current_state);
       debug && !stop && console.warn("No guards have been fulfilled! We recommend to configure guards explicitly to" +
         " cover the full state space!")
       const outputs = arrayizeOutput(rawOutputs);
@@ -300,19 +300,19 @@ export function createStateMachine(fsmDef, settings) {
         tracer({
           type: INTERNAL_INPUT_MSG,
           trace: {
-            info: {eventName: auto_event, eventData: event_data},
-            event: {[auto_event]: event_data},
-            machineState: {cs: getCurrentControlState(), es: extendedState, hs: history}
+            info: { eventName: auto_event, eventData: event_data },
+            event: { [auto_event]: event_data },
+            machineState: { cs: getCurrentControlState(), es: extendedState, hs: history }
           }
         });
 
-        const nextOutputs = send_event({[auto_event]: event_data}, false);
+        const nextOutputs = send_event({ [auto_event]: event_data }, false);
 
         tracer({
           type: INTERNAL_OUTPUTS_MSG,
           trace: {
             outputs: nextOutputs,
-            machineState: {cs: getCurrentControlState(), es: extendedState, hs: history}
+            machineState: { cs: getCurrentControlState(), es: extendedState, hs: history }
           }
         });
 
@@ -324,9 +324,9 @@ export function createStateMachine(fsmDef, settings) {
       tracer({
         type: WARN_MSG,
         trace: {
-          info: {received: {[event]: event_data}},
+          info: { received: { [event]: event_data } },
           message: `There is no transition associated to the event |${event}| in state |${current_state}|!`,
-          machineState: {cs: current_state, es: extendedState, hs: history}
+          machineState: { cs: current_state, es: extendedState, hs: history }
         }
       });
 
@@ -366,7 +366,7 @@ export function createStateMachine(fsmDef, settings) {
       state_to = hash_states[to];
       state_to_name = state_to.name;
     } else {
-      throwKinglyError ("enter_state : unknown case! Not a state name, and not a history state to enter!");
+      throwKinglyError("enter_state : unknown case! Not a state name, and not a history state to enter!");
     }
     hash_states[INIT_STATE].current_state_name = state_to_name;
 
@@ -376,7 +376,7 @@ export function createStateMachine(fsmDef, settings) {
         message: isHistoryControlState(to)
           ? `Entering history state for ${to[to.deep ? DEEP : to.shallow ? SHALLOW : void 0]}`
           : `Entering state ${to}`,
-        machineState: {cs: getCurrentControlState(), es: extendedState, hs: history}
+        machineState: { cs: getCurrentControlState(), es: extendedState, hs: history }
       }
     });
     debug && console.info("AND TRANSITION TO STATE", state_to_name);
@@ -387,20 +387,20 @@ export function createStateMachine(fsmDef, settings) {
     tracer({
       type: INIT_INPUT_MSG,
       trace: {
-        info: {eventName: INIT_EVENT, eventData: initialExtendedState},
-        event: {[INIT_EVENT]: initialExtendedState},
-        machineState: {cs: getCurrentControlState(), es: extendedState, hs: history}
+        info: { eventName: INIT_EVENT, eventData: initialExtendedState },
+        event: { [INIT_EVENT]: initialExtendedState },
+        machineState: { cs: getCurrentControlState(), es: extendedState, hs: history }
       }
     });
 
-    return send_event({[INIT_EVENT]: initialExtendedState}, true);
+    return send_event({ [INIT_EVENT]: initialExtendedState }, true);
   }
 
   transitions.forEach(function (transition) {
-    let {from, to, action, event, guards: arr_predicate} = transition;
+    let { from, to, action, event, guards: arr_predicate } = transition;
     // CASE : ZERO OR ONE condition set
     if (!arr_predicate)
-      arr_predicate = [{predicate: void 0, to: to, action: action}];
+      arr_predicate = [{ predicate: void 0, to: to, action: action }];
 
     // CASE : transition has a init event
     // NOTE : there should ever only be one, but we don't enforce it here
@@ -422,136 +422,136 @@ export function createStateMachine(fsmDef, settings) {
 
     // NTH: this seriously needs refactoring, that is one line in ramda
     from_proto[event] = arr_predicate.reduce((acc, guard, index) => {
-        const action = guard.action || ACTION_IDENTITY;
-        const actionName = action.name || action.displayName || "";
-        const condition_checking_fn = (function (guard, settings) {
-          let condition_suffix = "";
-          // We add the `current_state` because the current control state might be different from
-          // the `from` field here This is the case for instance when we are in a substate, but
-          // through prototypal inheritance it is the handler of the prototype which is called
-          const condition_checking_fn = function (extendedState_, event_data, current_state) {
-            from = current_state || from;
-            const predicate = guard.predicate || alwaysTrue;
-            const predicateName = predicate.name || predicate.displayName || "<anonymous>";
-            const to = guard.to;
-            const shouldTransitionBeTaken = ((extendedState, event_data, settings) => {
+      const action = guard.action || ACTION_IDENTITY;
+      const actionName = action.name || action.displayName || "";
+      const condition_checking_fn = (function (guard, settings) {
+        let condition_suffix = "";
+        // We add the `current_state` because the current control state might be different from
+        // the `from` field here This is the case for instance when we are in a substate, but
+        // through prototypal inheritance it is the handler of the prototype which is called
+        const condition_checking_fn = function (extendedState_, event_data, current_state) {
+          from = current_state || from;
+          const predicate = guard.predicate || alwaysTrue;
+          const predicateName = predicate.name || predicate.displayName || "<anonymous>";
+          const to = guard.to;
+          const shouldTransitionBeTaken = ((extendedState, event_data, settings) => {
+            try {
+              return predicate(extendedState, event_data, settings);
+            }
+            catch (e) {
+              throwKinglyError({
+                when: `Executing predicate function ${predicateName}`,
+                location: `createStateMachine > event handler > condition_checking_fn > shouldTransitionBeTaken`,
+                info: { extendedState, event, event_data, settings, guard, from, to, index },
+                message: [`Error occurred while processing event ${event} with target state ${to}`, e.message].join("\n"),
+                stack: e.stack,
+              })
+            }
+          })(extendedState_, event_data, settings);
+
+          if (typeof shouldTransitionBeTaken !== "boolean") {
+            throwKinglyError({
+              when: `Executing predicate function ${predicateName}`,
+              location: `createStateMachine > event handler > condition_checking_fn > throwIfInvalidGuardResult`,
+              info: { event, guard, from, to, index, shouldTransitionBeTaken },
+              message: `Guard index ${index} with name ${predicateName} did not return a boolean!`,
+            })
+          }
+
+          if (shouldTransitionBeTaken) {
+            // CASE : guard for transition is fulfilled so we can execute the actions...
+            console.info("IN STATE ", from);
+            if (guard.predicate) {
+              tracer({
+                type: DEBUG_MSG,
+                trace: {
+                  message: `The guard ${predicateName} is fulfilled`,
+                  info: { eventData: event_data, from, action: actionName, to },
+                  machineState: { cs: current_state, es: extendedState_, hs: history }
+                }
+              });
+              console.info(`CASE: guard ${predicate.name} for transition is fulfilled`);
+            }
+            else {
+              tracer({
+                type: DEBUG_MSG,
+                trace: {
+                  message: `Evaluating transition with no guards`,
+                  info: { eventData: event_data, from, action: actionName, to },
+                  machineState: { cs: current_state, es: extendedState, hs: history }
+                }
+              });
+              console.info(`CASE: unguarded transition`);
+            }
+
+            console.info("THEN : we execute the action " + actionName);
+            const actionResult = ((extendedState, eventData, settings) => {
               try {
-                return predicate(extendedState, event_data, settings);
+                return action(extendedState, eventData, settings);
               }
               catch (e) {
                 throwKinglyError({
-                  when: `Executing predicate function ${predicateName}`,
-                  location: `createStateMachine > event handler > condition_checking_fn > shouldTransitionBeTaken`,
-                  info: {extendedState, event, event_data, settings, guard, from, to, index},
-                  message: [`Error occurred while processing event ${event} with target state ${to}`, e.message].join("\n"),
+                  when: `Executing action factory ${actionName}`,
+                  location: `createStateMachine > event handler > condition_checking_fn`,
+                  info: { extendedState, event, event_data, settings, guard, from, to, index, action },
+                  message: e.message,
                   stack: e.stack,
                 })
               }
             })(extendedState_, event_data, settings);
 
-            if (typeof shouldTransitionBeTaken !== "boolean") {
+            if (!isActions(actionResult)) {
               throwKinglyError({
-                when: `Executing predicate function ${predicateName}`,
-                location: `createStateMachine > event handler > condition_checking_fn > throwIfInvalidGuardResult`,
-                info: {event, guard, from, to, index, shouldTransitionBeTaken},
-                message: `Guard index ${index} with name ${predicateName} did not return a boolean!`,
+                when: `Executing action factory ${actionName}`,
+                location: `createStateMachine > event handler > condition_checking_fn`,
+                info: { extendedState, event, event_data, settings, guard, from, to, index, action, actionResult },
+                message: `Action factory returned a value that does not have the expected shape!`,
               })
             }
 
-            if (shouldTransitionBeTaken) {
-              // CASE : guard for transition is fulfilled so we can execute the actions...
-              console.info("IN STATE ", from);
-              if (guard.predicate) {
-                tracer({
-                  type: DEBUG_MSG,
-                  trace: {
-                    message: `The guard ${predicateName} is fulfilled`,
-                    info: {eventData: event_data, from, action: actionName, to},
-                    machineState: {cs: current_state, es: extendedState_, hs: history}
-                  }
-                });
-                console.info(`CASE: guard ${predicate.name} for transition is fulfilled`);
+            const { updates, outputs } = actionResult;
+
+            // Leave the current state
+            leave_state(from, extendedState_, hash_states);
+
+            // Update the extendedState before entering the next state
+            extendedState = wrappedUpdateState(extendedState_, updates);
+
+            // ...and enter the next state (can be different from `to` if we have nesting state group)
+            const next_state = enter_next_state(to, updates, hash_states);
+            console.info("ENTERING NEXT STATE: ", next_state);
+            console.info("with extended state: ", extendedState);
+
+            // allows for chaining and stop chaining guard
+            return { stop: true, outputs };
+          }
+          else {
+            // CASE : guard for transition is not fulfilled
+            tracer({
+              type: DEBUG_MSG,
+              trace: {
+                message: guard.predicate ? `The guard ${predicateName} is not fulfilled!` : `Evaluated and skipped transition`,
+                info: { eventData: event_data, settings, guard, from, to, index, action: actionName },
+                machineState: { cs: current_state, es: extendedState, hs: history }
               }
-              else {
-                tracer({
-                  type: DEBUG_MSG,
-                  trace: {
-                    message: `Evaluating transition with no guards`,
-                    info: {eventData: event_data, from, action: actionName, to},
-                    machineState: {cs: current_state, es: extendedState, hs: history}
-                  }
-                });
-                console.info(`CASE: unguarded transition`);
-              }
-
-              console.info("THEN : we execute the action " + actionName);
-              const actionResult = ((extendedState, eventData, settings) => {
-                try {
-                  return action(extendedState, eventData, settings);
-                }
-                catch (e) {
-                  throwKinglyError({
-                    when: `Executing action factory ${actionName}`,
-                    location: `createStateMachine > event handler > condition_checking_fn`,
-                    info: {extendedState, event, event_data, settings, guard, from, to, index, action},
-                    message: e.message,
-                    stack: e.stack,
-                  })
-                }
-              })(extendedState_, event_data, settings);
-
-              if (!isActions(actionResult)) {
-                throwKinglyError({
-                  when: `Executing action factory ${actionName}`,
-                  location: `createStateMachine > event handler > condition_checking_fn`,
-                  info: {extendedState, event, event_data, settings, guard, from, to, index, action, actionResult},
-                  message: `Action factory returned a value that does not have the expected shape!`,
-                })
-              }
-
-              const {updates, outputs} = actionResult;
-
-              // Leave the current state
-              leave_state(from, extendedState_, hash_states);
-
-              // Update the extendedState before entering the next state
-              extendedState = wrappedUpdateState(extendedState_, updates);
-
-              // ...and enter the next state (can be different from `to` if we have nesting state group)
-              const next_state = enter_next_state(to, updates, hash_states);
-              console.info("ENTERING NEXT STATE: ", next_state);
-              console.info("with extended state: ", extendedState);
-
-              // allows for chaining and stop chaining guard
-              return {stop: true, outputs};
-            }
-            else {
-              // CASE : guard for transition is not fulfilled
-              tracer({
-                type: DEBUG_MSG,
-                trace: {
-                  message: guard.predicate ? `The guard ${predicateName} is not fulfilled!` : `Evaluated and skipped transition`,
-                  info: {eventData: event_data, settings, guard, from, to, index, action: actionName},
-                  machineState: {cs: current_state, es: extendedState, hs: history}
-                }
-              });
-              return {stop: false, outputs: null};
-            }
-          };
-
-          condition_checking_fn.displayName = from + condition_suffix;
-          return condition_checking_fn;
-        })(guard, settings);
-
-        return function arr_predicate_reduce_fn(extendedState_, event_data, current_state) {
-          const condition_checked = acc(extendedState_, event_data, current_state);
-          return condition_checked.stop
-            ? condition_checked
-            : condition_checking_fn(extendedState_, event_data, current_state);
+            });
+            return { stop: false, outputs: null };
+          }
         };
-      },
+
+        condition_checking_fn.displayName = from + condition_suffix;
+        return condition_checking_fn;
+      })(guard, settings);
+
+      return function arr_predicate_reduce_fn(extendedState_, event_data, current_state) {
+        const condition_checked = acc(extendedState_, event_data, current_state);
+        return condition_checked.stop
+          ? condition_checked
+          : condition_checking_fn(extendedState_, event_data, current_state);
+      };
+    },
       function dummy() {
-        return {stop: false, outputs: null};
+        return { stop: false, outputs: null };
       }
     );
   });
@@ -565,8 +565,8 @@ export function createStateMachine(fsmDef, settings) {
       type: MACHINE_CREATION_ERROR_MSG,
       trace: {
         message: e.message,
-        info: {fsmDef, settings, error: e},
-        machineState: {cs: INIT_STATE, es: extendedState, hs: history}
+        info: { fsmDef, settings, error: e },
+        machineState: { cs: INIT_STATE, es: extendedState, hs: history }
       }
     });
     return e
@@ -575,14 +575,14 @@ export function createStateMachine(fsmDef, settings) {
   // NOTE : yield is a reserved JavaScript word so using yyield
   return function yyield(x) {
     try {
-      const {eventName, eventData} = destructureEvent(x);
+      const { eventName, eventData } = destructureEvent(x);
       const current_state = getCurrentControlState();
 
       tracer({
         type: INPUT_MSG,
         trace: {
-          info: {eventName, eventData},
-          machineState: {cs: current_state, es: extendedState, hs: history}
+          info: { eventName, eventData },
+          machineState: { cs: current_state, es: extendedState, hs: history }
         }
       });
 
@@ -593,11 +593,14 @@ export function createStateMachine(fsmDef, settings) {
         type: OUTPUTS_MSG,
         trace: {
           outputs,
-          machineState: {cs: getCurrentControlState(), es: extendedState, hs: history}
+          machineState: { cs: getCurrentControlState(), es: extendedState, hs: history }
         }
       });
 
-      return outputs
+      return {
+        outputs,
+        machineState: { cs: getCurrentControlState(), es: extendedState, hs: history }
+      }
     }
     catch (e) {
       if (e instanceof KinglyError) {
@@ -607,7 +610,7 @@ export function createStateMachine(fsmDef, settings) {
           trace: {
             error: e,
             message: `An error ocurred while running an input through the machine!`,
-            machineState: {cs: getCurrentControlState(), es: extendedState, hs: history}
+            machineState: { cs: getCurrentControlState(), es: extendedState, hs: history }
           }
         });
 
@@ -619,7 +622,7 @@ export function createStateMachine(fsmDef, settings) {
           trace: {
             error: e,
             message: `An unknown error ocurred while running an input through the machine!`,
-            machineState: {cs: getCurrentControlState(), es: extendedState, hs: history}
+            machineState: { cs: getCurrentControlState(), es: extendedState, hs: history }
           }
         });
         console.error(`yyield > unexpected error!`, e);
@@ -641,7 +644,7 @@ export function createStateMachine(fsmDef, settings) {
  * @param {*} effectHandlers Typically anything necessary to perform effects. Usually this is a hashmap mapping an effect moniker to a function performing the corresponding effect.
  * @param {{initialEvent, terminalEvent, NO_ACTION}} options
  */
-export function makeWebComponentFromFsm({name, eventHandler, fsm, commandHandlers, effectHandlers, options}) {
+export function makeWebComponentFromFsm({ name, eventHandler, fsm, commandHandlers, effectHandlers, options }) {
   class FsmComponent extends HTMLElement {
     constructor() {
       if (name.split('-').length <= 1) throw `makeWebComponentFromFsm : web component's name MUST include a dash! Please review the name property passed as parameter to the function!`
@@ -659,7 +662,7 @@ export function makeWebComponentFromFsm({name, eventHandler, fsm, commandHandler
           if (actions === NO_ACTION) return;
           actions.forEach(action => {
             if (action === NO_ACTION) return;
-            const {command, params} = action;
+            const { command, params } = action;
             commandHandlers[command](this.eventSubject.next, params, effectHandlers, el);
           });
         }
